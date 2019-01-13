@@ -1,46 +1,24 @@
-// This code was forked from ../../mtoz, which came from ../../redi,
-// so check that for some development history / thoughts.
+// This code was forked from ../../chess/unblind, which came from
+// ../../mtoz, which came from ../../redi, so check that for some
+// development history / thoughts.
 
-// In this first experiment, I try to predict the actual board state
-// (pieces and colors, castling ability, en passant?) from the 64-bit
-// 'blinded' version. This representation is of course ambiguous, so
-// the result can only be probabilistic.
-
-// TODO: Output error history during training. Could just concatenate
-// it to a file. Would be nice to get it over a large number of examples
-// (more than the batch size) to reduce variance.
-
-// TODO: Fix error display.
-
-// TODO: 2x/3x for RGB/FLAT.
-
-// TODO: Hover over a square on the chessboard to show those output values?
-
-// TODO: Show timer breakdown in GUI.
-
-// TODO: Now we pass stuff to the video thread at multiple different moments,
-// so they can be desynchronized. Should do something to synchronize this?
-
-// TODO: Debug interface that lets you interactively set bits (or even set
-// a position) and it shows you what it thinks it is.
-
-// TODO: Define a notion of the "chess error" for comparison between approaches.
-// For example if we add a redundant representation of the board to help
-// it understand that there can't be two kings, then that will necessarily
-// magnify the total error. The chess error could just be the number of discrete
-// mistakes averaged over a sample of boards.
-
-// TODO: Softmax or other more formal multinomial?
-
-// TODO: In preparation for having multiple models that we care about,
-// would be good to have the network configuration completely stored within
-// the serialized format, so that we can mix and match models (at least
-// multiple ones in the same process, if not spread out over code versions).
-//   - TODO: Network now stores width/height/channels; restructure so
-//     that rendering uses these.
-//   - TODO: Had to get rid of const field in Stimulation and Errors,
-//     because we copy assign them to video. Maybe better to heap
-//     allocate; it's fine to use the copy constructor.
+// Goal here is to see if we could use a neural network (probably
+// with some additional data) to generate the wordlist. I have
+// no idea what to expect wrt the network size, but:
+//  - If we can just completely overfit to the data in a model
+//    that's smaller than ~150k (plausible??) we this would be winning.
+//  - On the other end of the spectrum, simply producing a good
+//    probability density function for the next character in the
+//    stream (which can clearly be done with even a tiny model),
+//    plus a technique like arithmetic coding, would have a good
+//    shot of being better than e.g. arithmetic coding on a
+//    frequency table or bigraphs, etc.
+//  - The middle ground is probably the most interesting: A model
+//    that often makes good predictions, but needs some parallel
+//    data stream to "correct" it to the correct wordlist.
+//
+// First cut is, what kind of error rate can we expect for models
+// of different sizes?
 
 #include "SDL.h"
 #include "SDL_main.h"
@@ -78,12 +56,8 @@
 #include "../cc-lib/base/macros.h"
 #include "../cc-lib/color-util.h"
 #include "../cc-lib/image.h"
+#include "../cc-lib/gtl/top_n.h"
 
-#include "../chess.h"
-#include "../pgn.h"
-#include "../bigchess.h"
-
-#include "loadpositions.h"
 #include "network.h"
 
 #include "clutil.h"
@@ -91,6 +65,40 @@
 
 #define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" /* removed icons */
 #define FONTSTYLES 7
+
+template<class K, class C>
+inline bool ContainsKey(const C &container, const K &key) {
+  return container.find(key) != container.end();
+}
+
+// TODO: To threadutil, but note that this is C++17.
+struct ReadMutexLock {
+  explicit ReadMutexLock(std::shared_mutex *m) : m(m) { m->lock_shared(); }
+  ~ReadMutexLock() { m->unlock_shared(); }
+  std::shared_mutex *m;
+};
+// Possible to template this over shared_mutex and mutex without
+// requiring an argument?
+struct WriteMutexLock {
+  explicit WriteMutexLock(std::shared_mutex *m) : m(m) { m->lock(); }
+  ~WriteMutexLock() { m->unlock(); }
+  std::shared_mutex *m;
+};
+
+// Read with the mutex that protects it. T must be copyable,
+// obviously!
+template<class T>
+T SharedReadWithLock(std::shared_mutex *m, const T *t) {
+  ReadMutexLock ml(m);
+  return *t;
+}
+
+// Write with the mutex that protects it. T must be copyable.
+template<class T>
+void SharedWriteWithLock(std::shared_mutex *m, T *t, const T &val) {
+  WriteMutexLock ml(m);
+  *t = val;
+}
 
 static constexpr int VERBOSE = 1;
 // Perform somewhat expensive sanity checking for NaNs.
@@ -105,8 +113,6 @@ using uchar = uint8_t;
 
 using uint32 = uint32_t;
 using uint64 = uint64_t;
-
-using Move = Position::Move;
 
 // We use a different compiled kernel depending on the layer's
 // transfer function (these are in the inner loops, so we want
@@ -135,30 +141,6 @@ static const char *LEAKY_RELU_FN =
   // See note above.
   "#define DERIVATIVE(fx) ((fx < 0.0f) ? 0.01f : 1.0f)\n";
 
-#define NUM_CONTENTS 13
-static constexpr int kPieceToContents[16] = {
-  // 0 = empty in both representations.
-  0,
-  // White first (MSB not set).
-  1, // PAWN = 1,
-  2, // KNIGHT = 2,
-  3, // BISHOP = 3,
-  4, // ROOK = 4,
-  5, // QUEEN = 5,
-  6, // KING = 6,
-  4, // C_ROOK = 7,
-  // black empty is invalid, but we can just
-  // treat it as empty.
-  0,
-  7, // PAWN = 1,
-  8, // KNIGHT = 2,
-  9, // BISHOP = 3,
-  10, // ROOK = 4,
-  11, // QUEEN = 5,
-  12, // KING = 6,
-  10, // C_ROOK = 7,
-};
-
 // For checks in performance-critical code that should be skipped when
 // we're confident the code is working and want speed.
 #if 0
@@ -180,15 +162,10 @@ static constexpr int kPieceToContents[16] = {
 // Graphics.
 #define FONTWIDTH 9
 #define FONTHEIGHT 16
-static Font *font = nullptr, *chessfont = nullptr;
+static Font *font = nullptr;
 #define SCREENW 1920
 #define SCREENH 1280
 static SDL_Surface *screen = nullptr;
-
-static constexpr int MAX_GAMES = 3'000'000;
-// XXX can be much bigger; position is only 33 bytes.
-static constexpr int MAX_POSITIONS = 100'000'000;
-static constexpr int MAX_PGN_PARALLELISM = 12;
 
 // Thread-safe, so shared between train and ui threads.
 static CL *global_cl = nullptr;
@@ -224,241 +201,109 @@ static constexpr float ByteFloat(uint8 b) {
   return b * (1.0 / 255.0f);
 }
 
-// The input is a 64-bit number, represented as an 8x8 matrix of
-// floats.
-//
-// In the output, there are several ways we could do it. One very
-// simple thing would be to have 64 floats and then discretize so that
-// [0, 1/7) is empty, [1/7, 2/7) is pawn, [2/7, 3/7) is knight, etc.
-// The main problem with this is the desire for continuity; is a pawn
-// really "almost" a knight in any way? So instead, each output is 13
-// different floats (6 per color + 1 neutral empty); only the correct
-// one (e.g. EMPTY) gets filled with 1.0 and the remainder are zeroes.
-//
-// In addition to the 64 * 7 floats in the output layer, we also have
-// a single float representing the current turn (0 = white, 1 = black)
-// four floats for the four castling states (1 = allowed, 0 = not).
-// Ignoring en passant for now.
-
-static constexpr int OUTPUT_LAYER_SIZE =
-  // For each square, one probability for each of the 13 possible contents.
-  13 * 64 +
-  // Four castling probabilities.
-  4 +
-  // Current turn.
-  1;
-
 enum class RenderStyle {
   RGB,
   FLAT,
-  CHESSBITS,
-  CHESSBOARD,
+  LETTERPREDICTION,
 };
 
-// XXX: In the middle of migrating this to be intrinsic properties
-// of the network, with configuration only used to set up the network
-// in the first place. For now, the NetworkConfiguration must actually
-// match what is on disk or things go awry!
-#define NEIGHBORHOOD 1
+// For simplicity, the whole model will be dense. This way we don't
+// have to encode the indices, and we don't have to implement a sparse
+// forward pass in JS (which is not much harder, but does add a little
+// bit of code). The speed of executing the model is irrelevant here.
+//
+// A major consideration is the encoding of the model itself. A list
+// of floats is very inefficient for various reasons, but we could
+// start there to see if this is promising. A very nice thing would
+// be if all of the coefficients and biases were in an interval
+// isomorphic to [0, 127] (or perhaps [0, 127^2]), with the illegal
+// ASCII characters notched out, and we could just avoid those weights
+// in the training process itself. Seems pretty plausible... we could
+// just only allow rationals in like [-2.0, 2.0], evenly spaced among
+// the k possible values. It doesn't matter if the code to load the
+// float arrays is a little complicated.
+// So let's just not worry about that for now.
+
+// Let's say that the output is supposed to rank the 27 (including
+// newline) characters in the gamut. Would probably be better to
+// use softmax, but I don't have code to train that. So it's just
+// like LEAKY_RELU output to 27 cells.
+//
+// In the input, we want to use some context to predict the next
+// character. The network could be "recurrent", where some of its
+// output is fed into the next round (this lets it learn how to
+// most efficiently encode the context), but I don't have the
+// apparatus to train that either. Simplest thing is to use X
+// characters from the past to initialize it. We could have
+// X * 27 cells (one-hot) or we could have X cells which take
+// on values 0/27, 1/27, ... 27/27. I think that the latter is
+// normally thought of as a worse approach (now the model would
+// need to create a bunch of hyperplanes to distinguish those 27
+// cases, and there is no sense in which "a" is more similar to "b"
+// than "e", for example (well, except that the dictionary is
+// sorted). But it would yield a more compact network, so maybe
+// worth trying too. For now, we'll take X * 27 cells, one-hot.
+// This also gives us a natural way to start, which is to set all
+// of these to zeroes. (OTOH if we find that doesn't work, it
+// would be easy to just hard code the beginning of the dictionary
+// in JS to warm it up.)
+
+#define RADIX 27
+#define INPUT_HISTORY 32
+
+#define OUTPUT_LAYER_SIZE RADIX
+
 struct NetworkConfiguration { 
 
-  // Note that these must have num_layers + 1 entries.
-  // The number of nodes in each layer is width * height * channels.
-  // Channels tells us how many nodes there are per logical pixel;
-  // for color output it's typical that this is 3. All that channels
-  // really do is tell us how to align inputs when creating the
-  // node indices during initialization. (And of course in the
-  // input and output layers, it's expected that the channels will
-  // be initialized/read in some meaningful way.)
+  const int num_layers = 5;
+  const vector<int> width =    { INPUT_HISTORY,
+				 11,  9,  9, 7, OUTPUT_LAYER_SIZE, };
+  const vector<int> height =   { RADIX,
+				 11,  9,  7, 7, 1, };
+  const vector<int> channels = { 1,   1,   1,  1, 1, 1, };
+  vector<int> indices_per_node =
+    {     -1, -1, -1, -1, -1, };
 
-  // Note that the last layer is given as a flat vector, which makes spatial heuristics for
-  // index assignment fail; this layer needs to be highly connected.
-
-  /*
-  const int num_layers = 11;
-  const vector<int> width =    { 8,  16, 32, 32, 32, 32, 32, 32, 32,  32,   8,
-				 OUTPUT_LAYER_SIZE, };
-  const vector<int> height =   { 8,  16, 32, 32, 32, 32, 32, 32, 32,  32,   9,  1, };
-  const vector<int> channels = { 1,   1,  1,  2,  3,  7,  7,  8,  8,  10,  13,  1, };
-  const vector<int> indices_per_channel = { 64, 256, 256, 256, 256, 256, 64, 64, 64, 64,
-					    8 * 9 * 13, };
-
-  const vector<RenderStyle> style =
-    { RenderStyle::CHESSBITS,
-      RenderStyle::FLAT,
-      RenderStyle::FLAT, RenderStyle::FLAT, RenderStyle::FLAT, RenderStyle::FLAT,
-      RenderStyle::FLAT, RenderStyle::FLAT, RenderStyle::FLAT, RenderStyle::FLAT,
-      RenderStyle::FLAT,
-      RenderStyle::CHESSBOARD, };
-  */
-
-  const int num_layers = 4;
-  const vector<int> width =    { 8,  32,  64, 9, OUTPUT_LAYER_SIZE, };
-  const vector<int> height =   { 8,  32,  64, 9, 1, };
-  const vector<int> channels = { 1,   1,   3, 7, 1, };
-  const vector<int> indices_per_node =
-    {     64, 1024, 12288, 9 * 9 * 7, };
-
-  const vector<TransferFunction> transfer_functions = { 
-#if 0
-						       SIGMOID, 
-    SIGMOID, 
-    // Use SIGMOID for output layer, since we want probabilities in the ouptut.
-    SIGMOID,
-#endif
-						       LEAKY_RELU,
-						       LEAKY_RELU,
-						       LEAKY_RELU,
-						       LEAKY_RELU,
-  };
+  const vector<TransferFunction> transfer_functions =
+    { 
+     LEAKY_RELU,
+     LEAKY_RELU,
+     LEAKY_RELU,
+     LEAKY_RELU,
+     LEAKY_RELU,
+    };
 
   const vector<RenderStyle> style = {
-    RenderStyle::CHESSBITS,
-    RenderStyle::RGB,
-    RenderStyle::RGB,
     RenderStyle::FLAT,
-    RenderStyle::CHESSBOARD, 
+    RenderStyle::FLAT,
+    RenderStyle::FLAT,
+    RenderStyle::FLAT,
+    RenderStyle::FLAT,
+    RenderStyle::LETTERPREDICTION,
+    // letters...
   };
 
   
-  // num_nodes = width * height * channels
-  // //  indices_per_node = indices_per_channel * channels
-  // //  vector<int> indices_per_node;
   vector<int> num_nodes;
   NetworkConfiguration() {
     CHECK_EQ(width.size(), height.size());
     CHECK_EQ(width.size(), style.size());
     CHECK_EQ(num_layers + 1, height.size());
     CHECK_EQ(num_layers, indices_per_node.size());
+    for (int i = 0; i < indices_per_node.size(); i++) {
+      // Implied dense.
+      if (indices_per_node[i] == -1) {
+	indices_per_node[i] = width[i] * height[i] * channels[i];
+      }
+    }
+    
     for (int i = 0; i < num_layers + 1; i++) {
       CHECK(width[i] >= 1);
       CHECK(height[i] >= 1);
       CHECK(channels[i] >= 1);
       num_nodes.push_back(width[i] * height[i] * channels[i]);
     }
-    /*
-    for (int i = 0; i < indices_per_channel.size(); i++) {
-      CHECK(indices_per_channel[i] >= 1);
-      indices_per_node.push_back(channels[i + 1] * indices_per_channel[i]);
-    }
-    */
   }
-};
-
-// This does not affect the model's training and isn't saved with it;
-// it's just used for display.
-struct UIConfiguration {
-  // XXX ... renderstyle here ...
-};
-
-// A stimulation is an evaluation (perhaps an in-progress one) of a
-// network on a particular input; when it's complete we have the
-// activation value of each node on each layer, plus the input itself.
-struct Stimulation {
-  explicit Stimulation(const Network &net) : num_layers(net.num_layers),
-					     num_nodes(net.num_nodes) {
-    values.resize(num_layers + 1);
-    for (int i = 0; i < values.size(); i++)
-      values[i].resize(num_nodes[i], 0.0f);
-  }
-  
-  // Empty, useless stimulation, but can be used to initialize
-  // vectors, etc.
-  Stimulation() : num_layers(0) {}
-  Stimulation(const Stimulation &other) = default;
-  
-  int64 Bytes() const {
-    int64 ret = sizeof *this;
-    for (int i = 0; i < values.size(); i++) {
-      ret += sizeof values[i] + sizeof values[i][0] * values[i].size();
-    }
-    return ret;
-  }
-
-  // TODO: would be nice for these to be const, but then we can't have an
-  // assignment operator.
-  // Same as in Network.
-  int num_layers;
-  // num_layers + 1
-  vector<int> num_nodes;
-
-  // Keep track of what's actually been computed?
-
-  // Here the outer vector has size num_layers + 1; first is the input.
-  // Inner vector has size num_nodes[i], and just contains their output values.
-  vector<vector<float>> values;
-
-  void CopyFrom(const Stimulation &other) {
-    CHECK_EQ(this->num_layers, other.num_layers);
-    CHECK_EQ(this->num_nodes.size(), other.num_nodes.size());
-    for (int i = 0; i < this->num_nodes.size(); i++) {
-      CHECK_EQ(this->num_nodes[i], other.num_nodes[i]);
-    }
-    this->values = other.values;
-  }
-
-  void NaNCheck(const char *message) const {
-    bool has_nans = false;
-    vector<int> layer_nans;
-    for (const vector<float> &layer : values) {
-      int v = 0;
-      for (float f : layer) if (std::isnan(f)) v++;
-      layer_nans.push_back(v);
-      if (v > 0) has_nans = true;
-    }
-    if (has_nans) {
-      string err;
-      for (int i = 0; i < layer_nans.size(); i++) {
-	err += StringPrintf("stim layer %d. %d/%d values\n",
-			    i,
-			    layer_nans[i], values[i].size());
-      }
-      CHECK(false) << "[" << message
-		   << "] The stimulation has NaNs :-(\n" << err;
-    }
-  }
-};
-
-struct Errors {
-  explicit Errors(const Network &net) : num_layers(net.num_layers),
-					num_nodes(net.num_nodes) {
-    error.resize(num_layers);
-    for (int i = 0; i < error.size(); i++) {
-      error[i].resize(num_nodes[i + 1], 0.0f);
-    }
-  }
-  // Empty, useless errors, but can be used to initialize vectors etc.
-  Errors() : num_layers(0) {}
-  Errors(const Errors &other) = default;
-
-  // Would be nice for these to be const, but then we can't have an
-  // assignment operator.
-  int num_layers;
-  // The first entry here is unused (it's the size of the input layer,
-  // which doesn't get errors), but we keep it like this to be
-  // consistent with Network and Stimulation.
-  vector<int> num_nodes;
-  int64 Bytes() const {
-    int64 ret = sizeof *this;
-    for (int i = 0; i < error.size(); i++)
-      ret += sizeof error[i] + sizeof error[i][0] * error[i].size();
-    return ret;
-  }
-
-  void CopyFrom(const Errors &other) {
-    CHECK_EQ(this->num_layers, other.num_layers);
-    CHECK_EQ(this->num_nodes.size(), other.num_nodes.size());
-    for (int i = 0; i < this->num_nodes.size(); i++) {
-      CHECK_EQ(this->num_nodes[i], other.num_nodes[i]);
-    }
-    this->error = other.error;
-  }
-  
-  // These are the delta terms in Mitchell. We have num_layers of
-  // them, where the error[0] is the first real layer (we don't
-  // compute errors for the input) and error[num_layers] is the error
-  // for the output.
-  vector<vector<float>> error;
 };
 
 // Network that lives entirely on the GPU, but can be copied back to
@@ -1031,7 +876,7 @@ static void MakeIndices(const vector<int> &width,
   CHECK_EQ(width.size(), net->num_layers + 1);
   CHECK_EQ(channels.size(), net->num_layers + 1);  
 
-  static_assert(NEIGHBORHOOD >= 0, "must include the pixel itself.");
+  #define NEIGHBORHOOD 1
   auto OneNode = [](ArcFour *rc, RandomGaussian *gauss,
 		    int64 *rejected, int64 *duplicate,
 		    int indices_per_node,
@@ -1141,8 +986,12 @@ static void MakeIndices(const vector<int> &width,
   vector<ArcFour *> rcs;
   for (int i = 0; i < net->num_layers; i++) rcs.push_back(Substream(rc, i));
 
-  ParallelComp(net->num_layers, [&width, &channels, &rcs, &OneNode, &net](int layer) {
-    const int indices_per_node = net->layers[layer].indices_per_node;
+  ParallelComp(net->num_layers,
+	       [&width, &channels, &rcs, &OneNode, &net](int layer) {
+    int indices_per_node = net->layers[layer].indices_per_node;
+    if (indices_per_node == -1) {
+      indices_per_node = net->num_nodes[layer];
+    }
     Printf("Intializing %d indices for layer %d...\n", indices_per_node, layer);
     vector<uint32> *layer_indices = &net->layers[layer].indices;
     CHECK_LT(layer + 1, width.size());
@@ -1228,8 +1077,9 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 
 
 // These must be initialized before starting the UI thread!
-static constexpr int NUM_VIDEO_STIMULATIONS = 6;
-static constexpr int EXPORT_EVERY = 16;
+static constexpr int NUM_VIDEO_STIMULATIONS = 5;
+static constexpr int EXPORT_EVERY = 8;
+static constexpr int LOG_EXPORT_EVERY = 25;
 // static constexpr int EXPORT_EVERY = 1;
 static std::shared_mutex video_export_m;
 static int current_round = 0;
@@ -1241,7 +1091,7 @@ static Network *current_network = nullptr;
 static bool allow_updates = true;
 static bool dirty = true;
 static double current_learning_rate = 0.0;
-static double current_total_error = 0.0;
+static double current_avg_error = 0.0;
 
 static void ExportRound(int r) {
   WriteMutexLock ml(&video_export_m);
@@ -1310,14 +1160,17 @@ static void ExportErrorsToVideo(int example_id, const Errors &err) {
   }
 }
 
-static void ExportTotalErrorToVideo(double t) {
+static void ExportAvgErrorToVideo(double t) {
   WriteMutexLock ml(&video_export_m);
   if (allow_updates) {
-    current_total_error = t;
+    current_avg_error = t;
   }
 }
 
-// Returns unscaled width, height, and scale (= number of screen pixels per layer pixel)
+#define SHOWBEST 5
+
+// Returns unscaled width, height, and scale (= number of screen
+// pixels per layer pixel)
 static std::tuple<int, int, int> PixelSize(const NetworkConfiguration &config, int layer) {
   auto MakeScale =
     [](int w, int h) {
@@ -1332,20 +1185,22 @@ static std::tuple<int, int, int> PixelSize(const NetworkConfiguration &config, i
     return {w, h, MakeScale(w, h)};
   }
   case RenderStyle::FLAT: {
-    int w = config.width[layer] * config.channels[layer], h = config.height[layer];
+    int w = config.width[layer] * config.channels[layer];
+    int h = config.height[layer];
     return {w, h, MakeScale(w, h)};
   }
-  case RenderStyle::CHESSBITS:
-    return {48, 48, 1};
-  case RenderStyle::CHESSBOARD:
-    return {256, 286, 1};
+  case RenderStyle::LETTERPREDICTION: {
+    int w = FONTWIDTH * (INPUT_HISTORY + 6);
+    int h = FONTHEIGHT * SHOWBEST;
+    return {w, h, 1};
+  }
   }
 }
 
 static int ErrorWidth(const NetworkConfiguration &config, int layer) {
   switch (config.style[layer]) {
-  case RenderStyle::CHESSBOARD:
-    return 8;
+  case RenderStyle::LETTERPREDICTION:
+    return 0;
   default:
     return config.width[layer];
   }
@@ -1394,6 +1249,24 @@ static void Error2D(const vector<float> &errs,
 };
 
 
+// Note, writes \n as |
+static char CharOf(int i) {
+  if (i == 26) return '|';
+  else return 'a' + i;
+}
+
+static int SymbolOf(char c) {
+  if (c == '\n') {
+    return 26;
+  } else if (c >= 'a' && c <= 'z') {
+    return c - 'a';
+  } else {
+    CHECK(false) << "Bad character " << (int)c;
+    return 0;
+  }
+}
+
+
 static void UIThread() {
   // TODO: Eliminate it, or make it like ui_configuration...
   const NetworkConfiguration config;
@@ -1410,11 +1283,11 @@ static void UIThread() {
 	const char *paused_msg = allow_updates ? "" : " [^2VIDEO PAUSED]";
 	string menu = StringPrintf(
 	    "  round ^3%d ^1|  ^3%0.4f^0 eps    "
-	    "^1%.6f^< learning rate   ^1%.6f^< total err%s",
+	    "^1%.6f^< learning rate   ^1%.6f^< avg batch err%s",
 	    current_round,
 	    examples_per_second,
 	    current_learning_rate,
-	    current_total_error,
+	    current_avg_error,
 	    paused_msg);
 	font->draw(2, 2, menu);
 	
@@ -1423,13 +1296,17 @@ static void UIThread() {
 	  SDL_Flip(screen);
 	  continue;
 	}
+
+	// Enough room for the text value/error table.
+	int max_width = 29 * FONTWIDTH;
 	
-	int max_width = 0;
 	for (int layer = 0; layer < config.num_layers + 1; layer++) {
-	  int w = std::get<0>(PixelSize(config, layer));
+	  int w, h, s;
+	  std::tie(w, h, s) = PixelSize(config, layer);
+	  int ww = w * s;
 	  if (DRAW_ERRORS)
-	    w += ErrorWidth(config, layer) * 2 + 2;
-	  max_width = std::max(w, max_width);
+	    ww += ErrorWidth(config, layer) * 2 + 2;
+	  max_width = std::max(ww, max_width);
 	}
 	max_width += 4;
 
@@ -1454,121 +1331,61 @@ static void UIThread() {
 	  if (xstart >= SCREENW)
 	    break;
 
+
+	  // For the 0th stimulation, draw the word..
+	  string input;
+	  CHECK(stim.values[0].size() == INPUT_HISTORY * RADIX);
+	  for (int i = 0; i < INPUT_HISTORY; i++) {
+	    // Get char that's 1
+	    for (int r = 0; r < RADIX; r++) {
+	      if (stim.values[0][i * RADIX + r] > 0.5f) {
+		input += CharOf(r);
+	      }
+	    }
+	  }
+	  // input += "_";
+	  font->draw(xstart, 18, input);
 	  
-	  int ystart = 24;
+	  int ystart = 32;
 	  for (int l = 0; l < stim.values.size(); l++) {
 
 	    switch (config.style[l]) {
-	    case RenderStyle::CHESSBITS: {
-	      for (int r = 0; r < 8; r++) {
-		int yy = ystart + r * 6;
-		for (int c = 0; c < 8; c++) {
-		  int xx = xstart + c * 6;
-		  
-		  bool has = stim.values[l][r * 8 + c] > 0.5f;
-		  bool black = (r + c) & 1;
-		  // uint8 rr = black ? 134 : 255;
-		  // uint8 gg = black ? 166 : 255;
-		  // uint8 bb = black ? 102 : 221;
-		  uint8 rr = black ? 194 : 255;
-		  uint8 gg = black ? 226 : 255;
-		  uint8 bb = black ? 162 : 231;
+	    case RenderStyle::LETTERPREDICTION: {
+	      const vector<float> &output = stim.values[l];
+	      CHECK_EQ(output.size(), RADIX);
 
-		  for (int y = 0; y < 6; y++) {
-		    for (int x = 0; x < 6; x++) {
-		      if (has && x > 0 && y > 0 && x < 5 && y < 5) {
-			sdlutil::drawpixel(screen, xx + x, yy + y, 22, 22, 22);
-		      } else {
-			sdlutil::drawpixel(screen, xx + x, yy + y, rr, gg, bb);
-		      }
-		    }
-		  }
-		}
-	      }
-	      break;
-	    }
-
-	    case RenderStyle::CHESSBOARD: {
-	      for (int r = 0; r < 8; r++) {
-		int yy = ystart + r * 32;
-		for (int c = 0; c < 8; c++) {
-		  int xx = xstart + c * 32;
-
-		  auto MostLikelyPiece =
-		    [](const vector<float> &vals, int start_idx) {
-		      int maxi = 0;
-		      float maxp = vals[start_idx];
-		      for (int i = 1; i < NUM_CONTENTS; i++) {
-			if (vals[start_idx + i] > maxp) {
-			  maxi = i;
-			  maxp = vals[start_idx + i];
-			}
-		      }
-		      return maxi;
-		    };
-		  
-		  // Find the contents with the highest score.
-		  int cidx = (r * 8 + c) * NUM_CONTENTS;
-		  const int maxi = MostLikelyPiece(stim.values[l], cidx);
-		  // HAX! Note that while current_expected must have
-		  // the right size, each expected vector inside may
-		  // still be empty.
-		  CHECK(current_expected.size() == NUM_VIDEO_STIMULATIONS);
-		  const vector<float> &expected = current_expected[s];
-		  const int expi =
-		    expected.size() >= 64 * NUM_CONTENTS ?
-		    MostLikelyPiece(expected, cidx) :
-		    0;
-		  
-		  bool black = (r + c) & 1;
-		  // Background
-		  uint8 rr = black ? 134 : 255;
-		  uint8 gg = black ? 166 : 255;
-		  uint8 bb = black ? 102 : 221;
-
-		  sdlutil::FillRectRGB(screen, xx, yy, 32, 32, rr, gg, bb);
-		  string str = " ";
-		  str[0] = " PNBRQKpnbrqk"[maxi];
-		  chessfont->draw(xx, yy, str);
-		  if (maxi != expi) {
-		    string es = StringPrintf("^%d%c^2!",
-					     expi >= 7 ? 1 : 0,
-					     " PNBRQKpnbrqk"[expi]);
-		    font->draw(xx + 12, yy + 12, es);
-		  }
-		  
-		  for (int i = 0; i < NUM_CONTENTS; i++) {
-		    const uint8 v = FloatByte(stim.values[l][cidx + i]);
-		    int x = xx + 2 + i * 2;
-		    sdlutil::drawpixel(screen, x,     yy + 28,     v, v, v);
-		    sdlutil::drawpixel(screen, x + 1, yy + 28,     v, v, v);
-		    sdlutil::drawpixel(screen, x,     yy + 28 + 1, v, v, v);
-		    sdlutil::drawpixel(screen, x + 1, yy + 28 + 1, v, v, v);
-		  }
-		}
-	      }
-
-	      // Castling flags.
-	      for (int c = 0; c < 4; c++) {
-		const uint8 v = FloatByte(stim.values[l][64 * NUM_CONTENTS + c]);
-		sdlutil::FillRectRGB(screen, xstart + c * 32 + (c >= 2 ? 130 : 0),
-				     ystart + 32 * 8, 30, 8, v, v, v);
-		if (v < 127)
-		  sdlutil::drawbox(screen, xstart + c * 32 + (c >= 2 ? 130 : 0),
-				   ystart + 32 * 8, 30, 8, 0xFF, 0xFF, 0xFF);
-		
-	      }
+	      auto Compare = [](const pair<int, float> &a,
+				const pair<int, float> &b) {
+			       return a.second > b.second;
+			     };
 	      
-	      // Whose move is it? 1.0 means black, so subtract from 255.
-	      const uint8 v = 255 - FloatByte(stim.values[l][64 * NUM_CONTENTS + 4]);
-	      sdlutil::FillRectRGB(screen, xstart, ystart + 32 * 8 + 8, 32 * 8, 8, v, v, v);
-	      if (v < 127)
-		sdlutil::drawbox(screen, xstart, ystart + 32 * 8 + 8, 32 * 8, 8,
-				 0xFF, 0xFF, 0xFF);
+	      gtl::TopN<std::pair<int, float>, decltype(Compare)>
+		topn(SHOWBEST, Compare);
+	      
+	      for (int i = 0; i < RADIX; i++) {
+		topn.push(make_pair((int)i, output[i]));
+	      }
+
+	      std::unique_ptr<vector<pair<int, float>>> results;
+	      results.reset(topn.Extract());
+	      int yy = ystart;
+	      for (const auto &p : *results) {
+		// TODO: Color based on correctness, although
+		// this needs errors or other info...
+		int predcolor = 0;
+		int scorecolor = 4;
+		font->draw(xstart, yy,
+			   StringPrintf("^1%s^%d%c ^%d%.3f",
+					input.c_str(),
+					predcolor,
+					CharOf(p.first),
+					scorecolor,
+					p.second));
+		yy += FONTHEIGHT;
+	      }
 	      
 	      break;
 	    }
-	      
 	    case RenderStyle::RGB:
 	      for (int y = 0; y < config.height[l]; y++) {
 		int yy = ystart + y;
@@ -1579,7 +1396,9 @@ static void UIThread() {
 		  int xx = xstart + x;
 		  if (x >= SCREENW) break;
 		
-		  int cidx = y * config.width[l] * config.channels[l] + x * config.channels[l];
+		  int cidx =
+		    y * config.width[l] * config.channels[l] +
+		    x * config.channels[l];
 
 		  // XXX! Need to support more than 3 channels for chess. Color is dubious
 		  // anyway?
@@ -1610,41 +1429,51 @@ static void UIThread() {
 	      }
 	      break;
 
-	    case RenderStyle::FLAT:
+	    case RenderStyle::FLAT: {
+	      int scale = std::get<2>(PixelSize(config, l));
 	      for (int y = 0; y < config.height[l]; y++) {
-		const int yy = ystart + y;
+		const int yy = ystart + (y * scale);
 		for (int x = 0; x < config.width[l] * config.channels[l]; x++) {
-		  const int xx = xstart + x;
+		  const int xx = xstart + (x * scale);
 		  if (x >= SCREENW) break;
 		  const int cidx = y * config.width[l] * config.channels[l] + x;
 		  const uint8 v = FloatByte(stim.values[l][cidx]);
-		  sdlutil::drawpixel(screen, xx, yy, v, v, v);
+
+		  // PERF!
+		  for (int sy = 0; sy < scale; sy++) {
+		    for (int sx = 0; sx < scale; sx++) {
+		      sdlutil::drawpixel(screen,
+					 xx + sx, yy + sy, v, v, v);
+		    }
+		  }
 		}
 	      }
 	      break;
 	    }
+	    }
+	    
 
+	    int w, h, s;
+	    std::tie(w, h, s) = PixelSize(config, l);
+	    int ww = w * s;
+	    
 	    // Now errors.
 	    if (DRAW_ERRORS && l > 0) {
-	      const int exstart = xstart + std::get<0>(PixelSize(config, l));
+	      const int exstart = xstart + ww;
 	      const vector<float> &errs = err.error[l - 1];
 	      switch (config.style[l]) {
-	      case RenderStyle::CHESSBITS:
-		Error2D<4>(errs, exstart, ystart, 8, 8);
+	      case RenderStyle::LETTERPREDICTION:
+		// nothing..?
 		break;
 	      case RenderStyle::FLAT:
 	      case RenderStyle::RGB:
 		Error2D<2>(errs, exstart, ystart,
 			   config.width[l] * config.channels[l],
 			   config.height[l]);
-	      case RenderStyle::CHESSBOARD:
-		Error2D<2>(errs, exstart, ystart,
-			   // Note: height extends beyond the array.
-			   8 * 13, 9);
 	      }
 	    }
 
-	    ystart += std::get<1>(PixelSize(config, l)) + 4;
+	    ystart += h * s + 4;
 	  }
 
 
@@ -1654,7 +1483,7 @@ static void UIThread() {
 	    const vector<float> &vals = stim.values[vlayer];
 	    for (int i = 0; i < vals.size(); i++) {
 	      tot += vals[i];
-	      if (i < 32) {
+	      if (i < 48) {
 		// Font color.
 		const int c = vals[i] > 0.5f ? 0 : 1;
 		if (vlayer > 0) {
@@ -1734,14 +1563,31 @@ static void UIThread() {
   }
 }
 
-LoadPositions load_positions(
-    []() { return SharedReadWithLock(&train_should_die_m, &train_should_die); },
-    MAX_PGN_PARALLELISM,
-    MAX_GAMES,
-    MAX_POSITIONS);
-
 static void TrainThread() {
   Timer setup_timer; 
+
+  string dict_ascii = Util::ReadFile("../wordlist.asc");
+  vector<int> dict27;
+  dict27.reserve(dict_ascii.size());
+
+  int exports_until_log = 1; // LOG_EXPORT_EVERY;
+  
+
+  // PERF: Can probably drop the last \n.
+  for (char c : dict_ascii) {
+    if (c == '\n') {
+      dict27.push_back(26);
+    } else if (c >= 'a' && c <= 'z') {
+      dict27.push_back(c - 'a');
+    } else {
+      fprintf(stderr, "Skipped weird char %02x\n", c);
+    }
+  }
+
+  fprintf(stderr, "Dict length: %lld\n", (int64)dict27.size());
+  fflush(stderr);
+  
+  static constexpr int CL_PARALLELISM = 2;
 
   // Number of training examples per round of training.
   // XXX This is probably still way too low. These are very small for chess (a
@@ -1752,7 +1598,7 @@ static void TrainThread() {
   // On a verbose round, we write a network checkpoint and maybe some
   // other stuff to disk. XXX: Do this based on time, since rounds speed can vary
   // a lot based on other parameters!
-  static constexpr int VERBOSE_ROUND_EVERY = 250;
+  static constexpr int VERBOSE_ROUND_EVERY = 500;
 
   string start_seed = StringPrintf("%d  %lld", getpid(), (int64)time(nullptr));
   Printf("Start seed: [%s]\n", start_seed.c_str());
@@ -1767,12 +1613,18 @@ static void TrainThread() {
 
   // Load the existing network from disk or create the initial one.
   Timer initialize_network_timer;
+  Printf("Try loading network...\n");
   std::unique_ptr<Network> net{Network::ReadNetworkBinary("net.val")};
-
+  Printf("... done\n");
+  
   if (net.get() == nullptr) {
     Printf("Initializing new network...\n");
     NetworkConfiguration nc;
+    Printf("New Network...\n");
     net.reset(new Network(nc.num_nodes, nc.indices_per_node, nc.transfer_functions));
+    net->width = nc.width;
+    net->height = nc.height;
+    net->channels = nc.channels;
     Printf("Randomize weights:\n");
     RandomizeNetwork(&rc, net.get());
     Printf("Gen indices:\n");
@@ -1792,13 +1644,13 @@ static void TrainThread() {
   if (SharedReadWithLock(&train_should_die_m, &train_should_die))
     return;
 
-  Printf("Network uses %.2fMB of storage (without overhead).\n",
-	 net->Bytes() / (1024.0 * 1024.0));
+  Printf("Network uses %.2fKB of storage (without overhead).\n",
+	 net->Bytes() / 1024.0);
   {
     Stimulation tmp(*net);
     int64 stim_bytes = tmp.Bytes();
-    Printf("A stimulation is %.2fMB, so for %d examples we need %.2fMB\n",
-	   stim_bytes / (1024.0 * 1024.0), EXAMPLES_PER_ROUND,
+    Printf("A stimulation is %.2fkB, so for %d examples we need %.2fMB\n",
+	   stim_bytes / 1024.0, EXAMPLES_PER_ROUND,
 	   (stim_bytes * EXAMPLES_PER_ROUND) / (1024.0 * 1024.0));
   }
 
@@ -1814,13 +1666,9 @@ static void TrainThread() {
       Printf("Train thread signaled death.\n");
       Printf("Saving to net.val...\n");
       Network::SaveNetworkBinary(*net, "net.val");
-      // Util::WriteFile("eval/nextframe.txt", StringPrintf("%d\n", eval_frame_num));
     }
     return should_die;
   };
-
-  // Number of threads to allow for simultaneous writing of frames.
-  // Asynchronously write_frames{EVAL_ONLY ? 2 : 8};
 
   if (ShouldDie()) return;
   
@@ -1830,49 +1678,36 @@ static void TrainThread() {
   };
   // Training examples don't depend on the learning process, so are produced
   // in a separate thread. This mutex protects the deque (only).
+  // This has got to be overkill... there's almost nothing involved in
+  // preparing these examples.
+ 
   std::shared_mutex training_examples_m;
   // XXX could just be vector, actually?
   deque<TrainingExample> training_examples;
 
+  // Predict the char at dict[pos].
+  // pos must be at least INPUT_HISTORY, since we need to read
+  // that many characters before as the input layer.
   auto PopulateExampleFromPos =
-    [](const Position &pos, TrainingExample *example) {
-      example->input.resize(64);
-      for (int r = 0; r < 8; r++) {
-	for (int c = 0; c < 8; c++) {
-	  example->input[r * 8 + c] =
-	    pos.PieceAt(r, c) != Position::EMPTY ? 1.0f : 0.0f;
-	}
+    [&dict27](int pos, TrainingExample *example) {
+      example->input.resize(RADIX * INPUT_HISTORY, 0.0f);
+      for (int i = 0; i < INPUT_HISTORY; i++) {
+	int x = (pos - INPUT_HISTORY) + i;
+	ECHECK(x >= 0 && x < dict27.size());
+	int s = dict27[x];
+	ECHECK((RADIX * i) + s < example->input.size());
+	example->input[RADIX * i + s] = 1.0f;
       }
 
-      example->output.resize(OUTPUT_LAYER_SIZE);
-      for (int i = 0; i < OUTPUT_LAYER_SIZE; i++) example->output[i] = 0.0f;
-      for (int r = 0; r < 8; r++) {
-	for (int c = 0; c < 8; c++) {
-	  const int cont = kPieceToContents[pos.PieceAt(r, c)];
-	  example->output[(r * 8 + c) * NUM_CONTENTS + cont] = 1.0f;
-	}
-      }
-
-      // Four castling flags.
-      example->output[64 * NUM_CONTENTS + 0] =
-	pos.CanStillCastle(false, false) ? 1.0f : 0.0f;
-      example->output[64 * NUM_CONTENTS + 1] =
-	pos.CanStillCastle(false, true)  ? 1.0f : 0.0f;
-      example->output[64 * NUM_CONTENTS + 2] =
-	pos.CanStillCastle(true,  false) ? 1.0f : 0.0f;
-      example->output[64 * NUM_CONTENTS + 3] =
-	pos.CanStillCastle(true,  true)  ? 1.0f : 0.0f;
-
-      // And the current player's move.
-      example->output[64 * NUM_CONTENTS + 4] = pos.BlackMove() ? 1.0f : 0.0f;
-
-      if (CHECK_NANS) {
-	for (float f : example->input) { CHECK(!std::isnan(f)); }
-	for (float f : example->output) { CHECK(!std::isnan(f)); }
-      }
+      example->output.resize(RADIX, 0.0f);
+      ECHECK(pos >= 0 && pos < dict27.size());
+      int expected_s = dict27[pos];
+      ECHECK(expected_s >= 0 && expected_s < example->output.size());
+      example->output[expected_s] = 1.0f;
     };
 
-  auto MakeTrainingExamplesThread = [&training_examples_m,
+  auto MakeTrainingExamplesThread = [&dict27,
+				     &training_examples_m,
 				     &training_examples,
 				     &PopulateExampleFromPos]() {
     Printf("Training example thread startup.\n");
@@ -1890,26 +1725,13 @@ static void TrainThread() {
       if (training_examples.size() < EXAMPLE_QUEUE_TARGET) {
 	training_examples_m.unlock_shared();
 
+	const int idx = INPUT_HISTORY +
+	  RandTo(&rc, dict27.size() - INPUT_HISTORY);
 	TrainingExample example;
-
+	PopulateExampleFromPos(idx, &example);
 	{
-	  load_positions.positions_m.lock_shared();
-	  
-	  if (load_positions.positions.size() < (MAX_POSITIONS / 10)) {
-	    load_positions.positions_m.unlock_shared();
-	    Printf("Not enough training data loaded yet!\n");
-	    std::this_thread::sleep_for(1s);
-	    continue;
-	  } else {
-	    const int idx = RandTo(&rc, load_positions.positions.size());
-	    PopulateExampleFromPos(load_positions.positions[idx], &example);
-	    load_positions.positions_m.unlock_shared();
-
-	    {
-	      WriteMutexLock ml(&training_examples_m);
-	      training_examples.push_back(std::move(example));
-	    }
-	  }
+	  WriteMutexLock ml(&training_examples_m);
+	  training_examples.push_back(std::move(example));
 	}
 
       } else {
@@ -1928,7 +1750,7 @@ static void TrainThread() {
   // Training round: Loop over all images in random order.
   double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
     fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0,
-    output_error_ms = 0.0, update_ms = 0.0, writing_ms = 0.0,
+    output_error_ms = 0.0, update_ms = 0.0, 
     error_history_ms = 0.0, eval_ms = 0.0;
   Timer total_timer;
   for (int rounds_executed = 0; ; rounds_executed++) {
@@ -1936,7 +1758,8 @@ static void TrainThread() {
     
     if (ShouldDie()) return;
     if (VERBOSE > 2) Printf("\n\n");
-    Printf("** NET ROUND %d (%d in this process) **\n", net->rounds, rounds_executed);
+    Printf("** NET ROUND %d (%d in this process) **\n",
+	   net->rounds, rounds_executed);
 
     // When starting from a fresh network, consider this:
 
@@ -1948,10 +1771,6 @@ static void TrainThread() {
     // cap or norm the error values.) We now divide the round learning
     // rate to an example learning rate, below.
     
-    //    const float round_learning_rate =
-    //      std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (net->rounds / 100.0 + 1)/3.0)));
-
-    // This one worked well to get chess started, but drops off too soon I think.
     // const float round_learning_rate =
     // std::min(0.10, std::max(0.002, 4 * exp(-0.2275 * (net->rounds / 100.0 + 1)/3.0)));
     auto Linear =
@@ -1962,16 +1781,8 @@ static void TrainThread() {
 	double f = input / round_target;
 	return start + f * height;
       };
-      const float round_learning_rate = Linear(0.10, 0.002, 500000.0, net->rounds);
+      const float round_learning_rate = Linear(1.0, 0.002, 500000.0, net->rounds);
       
-    // const float round_learning_rate =
-    //     std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (net->rounds + 1)/3.0)));
-
-    // const float round_learning_rate =
-    // std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (net->rounds / 1000.0 + 1)/3.0)));
-
-    // const float round_learning_rate = 0.0025;
-
     CHECK(!std::isnan(round_learning_rate));
     if (VERBOSE > 2) Printf("Learning rate: %.4f\n", round_learning_rate);
 
@@ -2019,91 +1830,28 @@ static void TrainThread() {
     } while (examples.size() < EXAMPLES_PER_ROUND);
 
     if (VERBOSE > 2) Printf("Setting up expected:\n");
-    vector<vector<float>> expected = Map(examples, [](const TrainingExample &te) {
-      return te.output;
-    });
+    vector<vector<float>> expected =
+      Map(examples, [](const TrainingExample &te) { return te.output; });
 
     setup_ms += setup_timer.MS();
 
     CHECK_EQ(examples.size(), expected.size());
 
-    if (false && CHECK_NANS /* && net->rounds == 3 */) {
-      // Actually run the forward pass on CPU, trying to find the computation that
-      // results in nan...
-      net_gpu.ReadFromGPU(); // should already be here, but...
-      UnParallelComp(examples.size(),
-		   [&net, &examples](int example_idx) {
-		     // XXX only run on one example...
-		     if (example_idx != 0) return;
-		     
-		     Stimulation stim{*net};
-		     for (int src = 0; src < net->num_layers; src++) {
-		       // XXX hard coded to leaky_relu
-		       auto Forward =
-			 [](double potential) -> float {
-			   return ((potential < 0.0f) ? potential * 0.01f : potential);
-			 };
+    // TODO: may make sense to pipeline this loop somehow, so that we
+    // can parallelize CPU/GPU duties?
 
-		       const vector<float> &src_values = stim.values[src];
-		       vector<float> *dst_values = &stim.values[src + 1];
-		       const vector<float> &biases = net->layers[src].biases;
-		       const vector<float> &weights = net->layers[src].weights;
-		       const vector<uint32> &indices = net->layers[src].indices;
-		       const int indices_per_node = net->layers[src].indices_per_node;
-		       const int num_nodes = net->num_nodes[src + 1];
-		       for (int node_idx = 0; node_idx < num_nodes; node_idx++) {
-
-			 // Start with bias.
-			 double potential = biases[node_idx];
-			 printf("%d|L %d n %d. bias: %f\n",
-				net->rounds, src, node_idx, potential);
-			 CHECK(!std::isnan(potential)) << node_idx;
-			 const int my_weights = node_idx * indices_per_node;
-			 const int my_indices = node_idx * indices_per_node;
-
-			 for (int i = 0; i < indices_per_node; i++) {
-			   const float w = weights[my_weights + i];
-			   int srci = indices[my_indices + i];
-			   // XXX check dupes
-			   CHECK(srci >= 0 && srci < src_values.size()) << srci;
-			   const float v = src_values[srci];
-			   // PERF: fma()?
-			   CHECK(!std::isnan(w) &&
-				 !std::isnan(v) &&
-				 !std::isnan(potential)) << 
-			     StringPrintf("L %d, n %d. [%d=%d] %f * %f + %f\n",
-					  src,
-					  node_idx,
-					  i, srci, w, v, potential);
-			   potential += w * v;
-			 }
-			 CHECK(!std::isnan(potential));
-				 
-			 CHECK(node_idx >= 0 && node_idx < dst_values->size());
-			 float out = Forward(potential);
-			 printf("    %f -> %f\n", potential, out);
-			 CHECK(!std::isnan(out)) << potential;
-			 (*dst_values)[node_idx] = out;
-		       }
-		     }
-		   },
-		   16);
-    }
-    
-    // TODO: may make sense to pipeline this loop somehow, so that we can parallelize
-    // CPU/GPU duties?
-
-    // Run a batch of images all the way through. (Each layer requires significant setup.)
+    // Run a batch of images all the way through. (Each layer requires
+    // significant setup.)
     if (VERBOSE > 2) Printf("Creating stimulations...\n");
     Timer stimulation_init_timer;
 
     if (VERBOSE > 2) Printf("Setting input layer of Stimulations...\n");
     // These are just memory copies; easy to do in parallel.
     CHECK_EQ(examples.size(), training.size());
-    ParallelComp(examples.size(),
+    UnParallelComp(examples.size(),
 		 [&examples, &training](int i) {
 		   training[i]->LoadInput(examples[i].input);
-		 }, 16);
+		 }, CL_PARALLELISM);
     stimulation_init_ms += stimulation_init_timer.MS();
 
     if (ShouldDie()) return;
@@ -2118,16 +1866,10 @@ static void TrainThread() {
       // too many simultaneous value src/dst buffers.
       Timer forward_timer;
       if (VERBOSE > 3) Printf("Parallelcomp...\n");
-      ParallelComp(examples.size(),
+      UnParallelComp(examples.size(),
 		   [&net, rounds_executed, num_examples = examples.size(),
 		    &fc, &training](int example_idx) {
 		     fc.Forward(training[example_idx]);
-		     /*
-		     if (example_idx % 10 == 0) {
-		       Printf("[%d/%d] (%.2f%%) ", example_idx, num_examples,
-			      100.0 * example_idx / num_examples);
-		     }
-		     */
 
 		     if (rounds_executed % EXPORT_EVERY == 0 &&
 			 example_idx < NUM_VIDEO_STIMULATIONS) {
@@ -2137,7 +1879,7 @@ static void TrainThread() {
 		       // Copy to screen.
 		       ExportStimulusToVideo(example_idx, stim);
 		     }
-		   }, 16);
+		   }, CL_PARALLELISM);
       forward_ms += forward_timer.MS();
       kernel_ms += fc.kernel_ms;
       if (VERBOSE > 2) Printf("\n");
@@ -2174,7 +1916,89 @@ static void TrainThread() {
 	  total_error += fabs(d);
 	}
       }
-      ExportTotalErrorToVideo(total_error / (double)examples.size());
+      double avg_error = total_error / (double)examples.size();
+      ExportAvgErrorToVideo(avg_error);
+
+      exports_until_log--;
+      if (exports_until_log <= 0) {
+
+	// Compute full loss on actual input.
+	struct Acc {
+	  int num = 0;
+	  int exact = 0;
+	  int depth_loss = 0;
+	};
+	auto Plus = [](Acc a, Acc b) {
+		      a.num += b.num;
+		      a.exact += b.exact;
+		      a.depth_loss += b.depth_loss;
+		      return a;
+		    };
+
+	auto AccErrors =
+	  [&dict27, &net](int idx, Acc *acc) {
+	    // Index of the expected output character.
+	    idx += INPUT_HISTORY;
+	    
+	    // PERF could share this stim across threads...
+	    Stimulation stim{*net};
+	    // This is already initialized to zero.
+	    vector<float> *input = &stim.values[0];
+	    ECHECK_EQ(input->size(), RADIX * INPUT_HISTORY);
+	    for (int i = 0; i < INPUT_HISTORY; i++) {
+	      int x = (idx - INPUT_HISTORY) + i;
+	      ECHECK(x >= 0 && x < dict27.size());
+	      int s = dict27[x];
+	      ECHECK((RADIX * i) + s < input->size());
+	      (*input)[RADIX * i + s] = 1.0f;
+	    }
+
+	    ForwardStimulation(*net, &stim);
+
+	    const vector<float> &output = stim.values.back();
+	    ECHECK_EQ(output.size(), RADIX);
+
+	    const int expected_s = dict27[idx];
+	    const float expected_score = output[expected_s];
+	    // How many items had better score?
+	    int depth = 0;
+	    for (int i = 0; i < RADIX; i++) {
+	      if (i != expected_s && output[i] >= expected_score) {
+		depth++;
+	      }
+	    }
+
+	    acc->num++;
+	    if (depth == 0) acc->exact++;
+	    acc->depth_loss += depth;
+	  };
+
+	Timer cpu_eval;
+	fprintf(stderr, "CPU eval on %lld inputs\n", (int)dict27.size());
+	fflush(stderr);
+	Acc total = ParallelAccumulate(dict27.size() - INPUT_HISTORY,
+				       Acc{},
+				       Plus,
+				       AccErrors,
+				       16);
+	double cpu_sec = cpu_eval.MS() / 1000.0;
+	fprintf(stderr, "Finished in %.1f sec (%.1f/sec)\n"
+		"         %d exact (%.2f%%), %d depth loss (%.4f avg)\n",
+		cpu_sec, total.num / cpu_sec,
+		total.exact, total.exact / (double)total.num,
+		total.depth_loss, total.depth_loss / (double)total.num);
+	fflush(stderr);
+	
+	FILE *log = fopen("train-log.tsv", "ab");
+	if (log) {
+	  fprintf(log, "%lld %lld %.6f %.6f %d %d\n",
+		  net->rounds, net->examples,
+		  round_learning_rate, avg_error,
+		  total.exact, total.depth_loss);
+	  fclose(log);
+	}
+	exports_until_log = LOG_EXPORT_EVERY;
+      }
     }
     
     const int num_examples = examples.size();
@@ -2184,9 +2008,10 @@ static void TrainThread() {
     if (ShouldDie()) return;
     if (VERBOSE > 2) Printf("Error calc.\n");
     Timer output_error_timer;
-    ParallelComp(num_examples,
+    UnParallelComp(num_examples,
 		 [rounds_executed,
-		  &setoutputerror, &net_gpu, &training, &expected](int example_idx) {
+		  &setoutputerror, &net_gpu,
+		  &training, &expected](int example_idx) {
 		   if (rounds_executed % EXPORT_EVERY == 0 &&
 		       example_idx < NUM_VIDEO_STIMULATIONS) {
 		     // Copy to screen.
@@ -2198,7 +2023,7 @@ static void TrainThread() {
 		   SetOutputErrorCL::Context sc{&setoutputerror, &net_gpu};
 		   sc.SetOutputError(training[example_idx]);
 		   /* Printf("."); */
-		 }, 16);
+		 }, CL_PARALLELISM);
     output_error_ms += output_error_timer.MS();
     if (VERBOSE > 2) Printf("\n");
 
@@ -2214,7 +2039,7 @@ static void TrainThread() {
       BackwardLayerCL::Context bc{&backwardlayer, &net_gpu, dst};
       bc_init_ms += bc_init_timer.MS();
 
-      ParallelComp(num_examples,
+      UnParallelComp(num_examples,
 		   [num_examples, &training, &bc](int example) {
 		     bc.Backward(training[example]);
 		     /*
@@ -2223,7 +2048,7 @@ static void TrainThread() {
 			      100.0 * example / num_examples);
 		     }
 		     */
-		   }, 16);
+		   }, CL_PARALLELISM);
       if (VERBOSE > 2) Printf("\n");
     }
     backward_ms += backward_timer.MS();
@@ -2240,20 +2065,23 @@ static void TrainThread() {
     if (VERBOSE > 2) Printf("Update weights:\n");
     Timer update_timer;
 
-    // Don't parallelize! These are all writing to the same network weights. Each
-    // call is parallelized, though.
+    // Don't parallelize! These are all writing to the same network
+    // weights. Each call is parallelized, though.
     for (int layer = 0; layer < net->num_layers; layer++) {
       UpdateWeightsCL::Context uc{&updateweights, &net_gpu, layer};
 
-      // PERF Faster to try to run these in parallel (maybe parallelizing memory traffic
-      // with kernel execution -- but we can't run the kernels at the same time).
+      // PERF Faster to try to run these in parallel (maybe
+      // parallelizing memory traffic with kernel execution -- but we
+      // can't run the kernels at the same time).
       for (int example = 0; example < num_examples; example++) {
 	uc.Update(example_learning_rate, training[example], layer);
       }
 
-      // Now we leave the network on the GPU, and the version in the Network object will
-      // be out of date. But flush the command queue. (why? I guess make sure that we're
-      // totally done writing since other parts of the code assume concurrent reads are ok?)
+      // Now we leave the network on the GPU, and the version in the
+      // Network object will be out of date. But flush the command
+      // queue. (why? I guess make sure that we're totally done
+      // writing since other parts of the code assume concurrent reads
+      // are ok?)
       uc.Finish();
       /*
       Printf("[%d/%d] = (%.2f%%) ", layer, net->num_layers, layer * 100.0 / net->num_layers);
@@ -2280,7 +2108,7 @@ static void TrainThread() {
     double round_eps = EXAMPLES_PER_ROUND / (round_timer.MS() / 1000.0);
     // (EXAMPLES_PER_ROUND * denom) / (total_ms / 1000.0)
     ExportExamplesPerSec(round_eps);
-    if (VERBOSE > 1)
+    if (true || VERBOSE > 1)
       Printf("Total so far %.1fs.\n"
 	     "Time per round: %.1fs.\n"
 	     "We spent %.1fms in setup (%.1f%%),\n"
@@ -2293,8 +2121,7 @@ static void TrainThread() {
 	     "%.1fms in backwards pass (%.1f%%),\n"
 	     "%.1fms in error for output layer (%.1f%%),\n"
 	     "%.1fms in error history diagnostics (%.1f%%),\n"
-	     "%.1fms in updating weights (%.1f%%),\n"
-	     "%.1fms in writing images (%.1f%%),\n",
+	     "%.1fms in updating weights (%.1f%%),\n",
 	     total_ms / 1000.0,
 	     (total_ms / 1000.0) / denom,
 	     setup_ms / denom, Pct(setup_ms),
@@ -2307,8 +2134,7 @@ static void TrainThread() {
 	     backward_ms / denom, Pct(backward_ms),
 	     output_error_ms / denom, Pct(output_error_ms),
 	     error_history_ms / denom, Pct(error_history_ms),
-	     update_ms / denom, Pct(update_ms),
-	     writing_ms / denom, Pct(writing_ms));
+	     update_ms / denom, Pct(update_ms));
   }
 
   Printf(" ** Done. **");
@@ -2351,12 +2177,6 @@ int SDL_main(int argc, char **argv) {
 		      FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font != nullptr) << "Couldn't load font.";
 
-  chessfont = Font::create(screen,
-			   "chessfont.png",
-			   " PNBRQKpnbrqk",
-			   32, 32, 1, 0, 1);
-  CHECK(font != nullptr) << "Couldn't load font.";
-
   global_cl = new CL;
 
   {
@@ -2368,11 +2188,6 @@ int SDL_main(int argc, char **argv) {
     current_expected.resize(NUM_VIDEO_STIMULATIONS);
     // printf("OK.\n");
   }
-
-  std::thread load_games_thread(
-      []() {
-	load_positions.Load("d:/chess/lichess_db_standard_rated_2017-02.pgn");
-      });
   
   std::thread train_thread(&TrainThread);
 
@@ -2380,7 +2195,6 @@ int SDL_main(int argc, char **argv) {
 
   Printf("Killing train thread (might need to wait for round to finish)...\n");
   SharedWriteWithLock(&train_should_die_m, &train_should_die, true);
-  load_games_thread.join();
   train_thread.join();
 
   Printf("Train is dead; now UI exiting.\n");

@@ -113,6 +113,7 @@ pair<cl_program, cl_kernel> CL::BuildOneKernel(const string &kernel_src,
 
   cl_kernel kernel = clCreateKernel(program, function_name.c_str(), nullptr);
   fprintf(stderr, "Compiled %s in %.1fms.\n", function_name.c_str(), gpu_compile.MS());
+  fflush(stderr);
   return make_pair(program, kernel);
 }
 
