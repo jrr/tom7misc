@@ -49,6 +49,8 @@ int main(int argc, char **argv) {
     CHECK(IsDense(net->num_nodes[i], net->num_nodes[i + 1], layer));
   }
 
+  int64 num_floats = 0LL;
+  
   // TODO...
   // In JavaScript, the main thing we care about is the compactness
   // of the encoding. For starts, just emit the decimal floats.
@@ -73,6 +75,7 @@ int main(int argc, char **argv) {
     if (VERBOSE) js += "\n /* biases */\n  ";
     for (const float b : net->layers[layer].biases)
       js += StringPrintf("%.9g,", b);
+    num_floats += net->layers[layer].biases.size();
     if (VERBOSE) js += "\n /* weights */";
     for (int n = 0; n < net->num_nodes[layer + 1]; n++) {
       if (VERBOSE) js += StringPrintf("\n   /* node %d */\n   ", n);
@@ -83,19 +86,36 @@ int main(int argc, char **argv) {
       }
       js += ws;
     }
+    num_floats += net->num_nodes[layer + 1] * ipn;
     js += "],";
   }
   js += "]}\n";
 
   // printf("%s", js.c_str());
+  
+  // Obviously this shouldn't be part of the final output, but it
+  // is good for playin' around.
+  string dict = Util::ReadFile("../wordlist.asc");
+  
+  printf("Original dict size: %lld\n"
+	 "Net: %lld floats. *2 = %lld, *3 = %lld, *4 = %lld.\n",
+	 (int64)dict.size(),
+	 num_floats, num_floats * 2LL, num_floats * 3LL,
+	 num_floats * 4LL);
 
+  dict = Util::Replace(dict, "\n", "\\n");
+  
   string netcode = Util::ReadFile("netcode.js");
   // TODO: if not verbose, strip lines starting with // and
   // trailing whitespace!
+
+  string evalcode = Util::ReadFile("evalcode.js");
   
   FILE *f = fopen("overfit.js", "wb");
   fprintf(f, "%s", js.c_str());
+  fprintf(f, "let dict='%s'\n", dict.c_str());
   fprintf(f, "%s", netcode.c_str());
+  fprintf(f, "%s", evalcode.c_str());
   // XXX need diffs, etc.
   fclose(f);
   

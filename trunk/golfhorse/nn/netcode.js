@@ -54,5 +54,7 @@ function P(h){
   let e=T(R,(i)=>i);
   e.sort((a,b)=>p[b]-p[a]);
   // And make into characters.
-  return [p,e.map(C)];
+  return e.map(C);
 }
+
+

@@ -1,7 +1,7 @@
 
 default: train.exe
 
-all: train.exe netjs.exe
+all: train.exe netjs.exe minprefix.exe
 
 # -fno-strict-aliasing
 CXXFLAGS=-Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -I. -I../../cc-lib -std=c++17
@@ -54,6 +54,10 @@ OBJECTS=$(UTIL_OBJECTS) network.o
 LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -static
 
 netjs.exe : $(OBJECTS) netjs.o
+	@$(CXX) $^ -o $@ $(LFLAGS)
+	@echo -n "!"
+
+minprefix.exe : $(OBJECTS) minprefix.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
