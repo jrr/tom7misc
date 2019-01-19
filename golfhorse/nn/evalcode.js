@@ -1,5 +1,6 @@
 // Depends on netcode.js, also expects dict, net...
 
+
 let s = dict.substr(0,H);
 // console.log(s)
 
@@ -32,6 +33,6 @@ for(let i = H; i < dict.length; i++) {
 }
 
 // console.log(u);
-console.log(depths);
+// console.log(depths);
 
-console.log('exact ', exact, '  depth loss ', depth_loss);
+// console.log('exact ', exact, '  depth loss ', depth_loss);

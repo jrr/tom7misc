@@ -1,7 +1,7 @@
 // TODO: Can probably avoid 'let' for local variables.
 // TODO: Just use { (which is 'z'+1) for |, right?
-// Size of input history.
-H=32;
+// Size of input history. Should agree with train.cc INPUT_HISTORY.
+H=5;
 // Radix.
 R=27;
 // Symbol from Char.
