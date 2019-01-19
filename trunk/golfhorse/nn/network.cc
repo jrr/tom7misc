@@ -367,7 +367,8 @@ void Network::SaveNetworkBinary(const Network &net,
   fclose(file);
 }
 
-void Stimulation::CopyFrom(const Stimulation &other) {
+template<class T>
+void StimulationT<T>::CopyFrom(const StimulationT<T> &other) {
   CHECK_EQ(this->num_layers, other.num_layers);
   CHECK_EQ(this->num_nodes.size(), other.num_nodes.size());
   for (int i = 0; i < this->num_nodes.size(); i++) {
@@ -376,13 +377,13 @@ void Stimulation::CopyFrom(const Stimulation &other) {
   this->values = other.values;
 }
 
-
-void Stimulation::NaNCheck(const char *message) const {
+template<class T>
+void StimulationT<T>::NaNCheck(const char *message) const {
   bool has_nans = false;
   vector<int> layer_nans;
-  for (const vector<float> &layer : values) {
+  for (const vector<T> &layer : values) {
     int v = 0;
-    for (float f : layer) if (std::isnan(f)) v++;
+    for (T f : layer) if (std::isnan(f)) v++;
     layer_nans.push_back(v);
     if (v > 0) has_nans = true;
   }
@@ -407,19 +408,20 @@ void Errors::CopyFrom(const Errors &other) {
   this->error = other.error;
 }
 
-void ForwardStimulation(const Network &net, Stimulation *stim) {
+template<class T>
+void ForwardStimulationT(const Network &net, StimulationT<T> *stim) {
   // PERF: Parallelism for large networks?
   // If this is a performance bottleneck, should really be using GPU...
   for (int src = 0; src < net.num_layers; src++) {
     // XXX: Support other transfer functions!
     CHECK(net.layers[src].transfer_function == TransferFunction::LEAKY_RELU);
     auto Forward =
-      [](double potential) -> float {
+      [](double potential) -> T {
 	return (potential < 0.0f) ? potential * 0.01f : potential;
       };
 
-    const vector<float> &src_values = stim->values[src];
-    vector<float> *dst_values = &stim->values[src + 1];
+    const vector<T> &src_values = stim->values[src];
+    vector<T> *dst_values = &stim->values[src + 1];
     const vector<float> &biases = net.layers[src].biases;
     const vector<float> &weights = net.layers[src].weights;
     const vector<uint32> &indices = net.layers[src].indices;
@@ -434,13 +436,22 @@ void ForwardStimulation(const Network &net, Stimulation *stim) {
       for (int i = 0; i < indices_per_node; i++) {
 	const float w = weights[my_weights + i];
 	const int srci = indices[my_indices + i];
-	const float v = src_values[srci];
+	const T v = src_values[srci];
 	potential += w * v;
       }
-      const float out = Forward(potential);
+      const T out = Forward(potential);
       (*dst_values)[node_idx] = out;
     }
   }
 
   // Now the final layer in the stimulation reflects our prediction.
+}
+
+
+void ForwardStimulation(const Network &net, Stimulation *stim) {
+  return ForwardStimulationT(net, stim);
+}
+
+void ForwardStimulationD(const Network &net, StimulationD *stim) {
+  return ForwardStimulationT(net, stim);
 }

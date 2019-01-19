@@ -249,20 +249,20 @@ enum class RenderStyle {
 // in JS to warm it up.)
 
 #define RADIX 27
-#define INPUT_HISTORY 32
+#define INPUT_HISTORY 5
 
 #define OUTPUT_LAYER_SIZE RADIX
 
 struct NetworkConfiguration { 
 
-  const int num_layers = 5;
+  const int num_layers = 6;
   const vector<int> width =    { INPUT_HISTORY,
-				 11,  9,  9, 7, OUTPUT_LAYER_SIZE, };
+				 11,  9, 8,  8, 6, OUTPUT_LAYER_SIZE, };
   const vector<int> height =   { RADIX,
-				 11,  9,  7, 7, 1, };
-  const vector<int> channels = { 1,   1,   1,  1, 1, 1, };
+				 11,  9, 8,  8, 6, 1, };
+  const vector<int> channels = { 1,   1, 1,   1,  1, 1, 1, };
   vector<int> indices_per_node =
-    {     -1, -1, -1, -1, -1, };
+    {     -1, -1, -1, -1, -1, -1, };
 
   const vector<TransferFunction> transfer_functions =
     { 
@@ -271,9 +271,11 @@ struct NetworkConfiguration {
      LEAKY_RELU,
      LEAKY_RELU,
      LEAKY_RELU,
+     LEAKY_RELU,
     };
 
   const vector<RenderStyle> style = {
+    RenderStyle::FLAT,
     RenderStyle::FLAT,
     RenderStyle::FLAT,
     RenderStyle::FLAT,

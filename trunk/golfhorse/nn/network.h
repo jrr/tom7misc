@@ -133,9 +133,10 @@ private:
 // A stimulation is an evaluation (perhaps an in-progress one) of a
 // network on a particular input; when it's complete we have the
 // activation value of each node on each layer, plus the input itself.
-struct Stimulation {
-  explicit Stimulation(const Network &net) : num_layers(net.num_layers),
-					     num_nodes(net.num_nodes) {
+template<class T>
+struct StimulationT {
+  explicit StimulationT(const Network &net) : num_layers(net.num_layers),
+					      num_nodes(net.num_nodes) {
     values.resize(num_layers + 1);
     for (int i = 0; i < values.size(); i++)
       values[i].resize(num_nodes[i], 0.0f);
@@ -143,8 +144,8 @@ struct Stimulation {
   
   // Empty, useless stimulation, but can be used to initialize
   // vectors, etc.
-  Stimulation() : num_layers(0) {}
-  Stimulation(const Stimulation &other) = default;
+  StimulationT() : num_layers(0) {}
+  StimulationT(const StimulationT &other) = default;
   
   int64_t Bytes() const {
     int64_t ret = sizeof *this;
@@ -165,11 +166,14 @@ struct Stimulation {
 
   // Here the outer vector has size num_layers + 1; first is the input.
   // Inner vector has size num_nodes[i], and just contains their output values.
-  std::vector<std::vector<float>> values;
+  std::vector<std::vector<T>> values;
 
-  void CopyFrom(const Stimulation &other);
+  void CopyFrom(const StimulationT &other);
   void NaNCheck(const char *message) const;
 };
+
+using Stimulation = StimulationT<float>;
+using StimulationD = StimulationT<double>;
 
 struct Errors {
   explicit Errors(const Network &net) : num_layers(net.num_layers),
@@ -210,5 +214,6 @@ struct Errors {
 // filled. Run the network forward, populating the rest of the
 // stimulation in place.
 extern void ForwardStimulation(const Network &net, Stimulation *stim);
+extern void ForwardStimulationD(const Network &net, StimulationD *stim);
 
 #endif
