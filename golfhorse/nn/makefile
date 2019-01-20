@@ -4,7 +4,7 @@ default: train.exe
 all: train.exe netjs.exe minprefix.exe
 
 # -fno-strict-aliasing
-CXXFLAGS=-Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -I. -I../../cc-lib -std=c++17
+CXXFLAGS=-Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -I. -I../../cc-lib -std=c++17 -g
 OPT=-O2
 
 # for 64 bits on windows
