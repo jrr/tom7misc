@@ -55,17 +55,25 @@ struct Big {
       numer.pop_back();
   }
   
+  string ToString() const {
+    string s = ".";
+    for (int i = numer.size() - 1; i >= 0; i--)
+      StringAppendF(&s, "%02d", numer[i]);
+    StringAppendF(&s, " / %d^%d", base, denom_exp);
+    return s;
+  }
+
   deque<int> numer;
   int denom_exp = 1;
 
   int base = 2; 
 };
 
+// XXX delete
 void PrintBig(const Big &a) {
-  for (int i = a.numer.size() - 1; i >= 0; i--)
-    printf("%d,", a.numer[i]);
-  printf(" / %d^%d\n", a.base, a.denom_exp);
+  printf("%s\n", a.ToString().c_str());
 }
+
 
 Big PlusSameDenom(const Big &a, const Big &b) {
   CHECK(a.denom_exp == b.denom_exp) << a.denom_exp << " != " << b.denom_exp;
@@ -143,6 +151,33 @@ Big MinusSameDenom(const Big &a, const Big &b) {
   return c;
 }
 
+// Args must be unzeroed.
+bool LessEq(const Big &a, const Big &b) {
+  CHECK(a.denom_exp == b.denom_exp);
+  CHECK(a.base == b.base);
+
+  // These need to be unzeroed!
+  CHECK(a.numer.empty() || a.numer.back() != 0);
+  CHECK(b.numer.empty() || b.numer.back() != 0);
+
+  // Fewer digits means smaller!
+  if (a.numer.size() < b.numer.size()) return true;
+  if (b.numer.size() < a.numer.size()) return false;
+
+  // Otherwise, it's just lex comparison.
+  for (int i = a.numer.size() - 1; i >= 0; i--) {
+    if (a.numer[i] == b.numer[i]) continue;
+    else return a.numer[i] < b.numer[i];
+  }
+  // Equal.
+  return true;
+}
+
+bool Less(const Big &a, const Big &b) {
+  // a < b iff !(a >= b) aka !(b <= a)
+  return !LessEq(b, a);
+}
+
 struct NNEncoder {
   // H is the number of symbols in the history.
   // B is the base of the number system.
@@ -157,6 +192,108 @@ struct NNEncoder {
     CHECK(nsymbols <= B);
   }
 
+  vector<int> Decode(const vector<int> &start_symbols,
+		     Big z,
+		     int num) {
+    CHECK(H == start_symbols.size()) << H << " / " << start_symbols.size();
+    deque<int> hist;
+    printf("\n\nDecode hist: ");
+    for (int i = 0; i < H; i++) {
+      printf("%c", start_symbols[i] + 'a');
+      hist.push_back(start_symbols[i]);
+    }
+    printf("\n");
+
+    printf("Decoding %d symbols!\n", num);
+    
+    z.Unzero();
+
+    // It sucks that these numbers have to be so big.
+    // We could avoid it if we just allowed LessEq on mixed
+    // denominators. Shouldn't be too hard..?
+    Big a(B, 0, 1);
+    Big b(B, B, 1);
+    a.Shift(z.denom_exp - 1);
+    b.Shift(z.denom_exp - 1);
+
+    vector<int> output;
+    for (int count = 0; count < num; count++) {
+      vector<pair<int, int>> pmf = Predict(hist);
+
+      CHECK(a.denom_exp == b.denom_exp);
+      Big w = MinusSameDenom(b, a);
+      int prob_sum = 0;
+      a.Shift(W);
+      Big a0 = a;
+      z.Shift(W);
+      for (const auto &p : pmf) {
+	prob_sum += p.second;
+	Big wps = Scale(w, prob_sum, W);
+	Big b0 = PlusSameDenom(a, wps);
+	a0.Unzero();
+	b0.Unzero();
+	CHECK(a0.denom_exp == z.denom_exp &&
+	      b0.denom_exp == z.denom_exp) <<
+	  a0.denom_exp << " / " << z.denom_exp << " / " <<
+	  b0.denom_exp;
+	if (true || VERBOSE) {
+	  printf("[%c,%d] (sum %d):\n"
+		 "a0: %s\n"
+		 " z: %s\n"
+		 "b0: %s\n",
+		 p.first + 'a', p.second, prob_sum,
+		 a0.ToString().c_str(),
+		 z.ToString().c_str(),
+		 b0.ToString().c_str());
+	}
+	if (LessEq(a0, z) && Less(z, b0)) {
+	  output.push_back(p.first);
+	  printf("\n[[%c]]\n", p.first + 'a');
+	  fflush(stdout);
+	  a = a0;
+	  b = b0;
+
+	  hist.pop_front();
+	  hist.push_back(p.first);
+
+	  goto next;
+	}
+	a0 = b0;
+      }
+      printf("BAD a:\n");
+      PrintBig(a);
+      printf("BAD b:\n");
+      PrintBig(b);
+      CHECK(false) << "Nothing matched!!";
+    next:;
+    }
+
+    return output;
+    
+    /*
+  a = 0
+  b = 1
+  z is the current rational
+  while symbols remain..
+    w = b - a
+    prob_sum = 0
+    a0 = a;
+    for ((sym, prob) : pmf)
+      prob_sum += prob
+      // this could be b0 = a0 + w*prob, I think? should be faster?
+      b0 = a + w*prob_sum
+      if (a0 <= z && z < b0) {
+         emit sym;
+         a = a0
+         b = b0
+         break;
+      }
+      a0 = b0
+    }
+    */
+  
+  }
+  
   void Encode(const vector<int> &symbols) {
     for (int x : symbols) {
       CHECK(x >= 0 && x < nsymbols) << x << " / " << nsymbols;
@@ -166,8 +303,13 @@ struct NNEncoder {
     
     // Initialize.
     deque<int> hist;
-    for (int i = 0; i < H; i++)
+    printf("Hist: ");
+    for (int i = 0; i < H; i++) {
+      printf("%c", symbols[i] + 'a');
       hist.push_back(symbols[i]);
+    }
+    printf("\n");
+    
     // (We assume the decoder is also told the starting
     // configuration. Could use anything agreed-upon here, like
     // zeroes.)
@@ -188,7 +330,7 @@ struct NNEncoder {
       // But 
       
       int actual = symbols[idx];
-
+      printf("Encoding [[%c]]\n", actual + 'a');
       if (VERBOSE) {
 	printf("----- ");
 	for (int s : hist) {
@@ -306,6 +448,11 @@ struct NNEncoder {
       printf("Not even the same size numerator! %d vs %d\n",
 	     (int)a.numer.size(), (int)b.numer.size());
     }
+
+    vector<int> start_symbols;
+    for (int i = 0; i < H; i++)
+      start_symbols.push_back(symbols[i]);
+    (void)Decode(start_symbols, b, symbols.size() - H);
   }
 
   // Returns a vector of pairs (happens to be in sorted order)
@@ -532,7 +679,7 @@ int main(int argc, char **argv) {
       return syms;
     };
 
-  dict.resize(100000);
+  dict.resize(8);
   vector<int> symbols = // MakeSymbols("antidisestablishmentarianism");
     MakeSymbols(dict);
   encoder.Encode(symbols);
