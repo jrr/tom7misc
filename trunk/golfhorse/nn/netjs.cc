@@ -3,6 +3,7 @@
 #include <vector>
 #include <shared_mutex>
 #include <cstdint>
+#include <deque>
 
 #include "../../cc-lib/threadutil.h"
 #include "../../cc-lib/randutil.h"
@@ -18,11 +19,128 @@ using namespace std;
 using int64 = int64_t;
 using uint32 = uint32_t;
 
+static constexpr bool VERBOSE = false;
+
 int ipow(int base, int exponent) {
   int res = 1;
   while (exponent--)
     res *= base;
   return res;
+}
+
+// Nonnegative "big" rational. Denominator is always some power of an
+// unspecified base. Numerator is a sequence of digits in that base,
+// in reverse order.
+struct Big {
+  // Zero.
+  Big(int base) : denom_exp(1), base(base) {}
+  Big(int base, int num, int denom_exp) : denom_exp(denom_exp),
+					  base(base) {
+    CHECK(num >= 0);
+    while (num > 0) {
+      numer.push_back(num % base);
+      num /= base;
+    }
+  }
+
+  // Represent the same number, but multiplying the numerator and
+  // denominator by b^e. So Shift(2) on 34/100 becomes 3400/10000.
+  void Shift(int e) {
+    denom_exp += e;
+    for (int i = 0; i < e; i++) numer.push_front(0);
+  }
+
+  void Unzero() {
+    while (!numer.empty() && numer.back() == 0)
+      numer.pop_back();
+  }
+  
+  deque<int> numer;
+  int denom_exp = 1;
+
+  int base = 2; 
+};
+
+void PrintBig(const Big &a) {
+  for (int i = a.numer.size() - 1; i >= 0; i--)
+    printf("%d,", a.numer[i]);
+  printf(" / %d^%d\n", a.base, a.denom_exp);
+}
+
+Big PlusSameDenom(const Big &a, const Big &b) {
+  CHECK(a.denom_exp == b.denom_exp) << a.denom_exp << " != " << b.denom_exp;
+  CHECK(a.base == b.base);
+  Big c(a.base);
+  c.denom_exp = a.denom_exp;
+  int carry = 0;
+  for (int i = 0; i < std::max(a.numer.size(), b.numer.size()); i++) {
+    int da = (i < a.numer.size()) ? a.numer[i] : 0;
+    int db = (i < b.numer.size()) ? b.numer[i] : 0;
+    int sum = da + db + carry;
+    c.numer.push_back(sum % c.base);
+    carry = sum / c.base;
+  }
+  if (carry != 0) c.numer.push_back(carry);
+  return c;
+}
+
+// Multiply a by a small rational s/(B^y)
+// PERF: Can be done more efficiently, of course!
+Big Scale(const Big &a, int s, int y) {
+  CHECK(s >= 0);
+
+  // a/(B^x) * s/(B^y) = (a * s)/(B^(x + y))
+  // First, just get a * s, by repeated addition(!)
+  // zero, with same denominator
+
+  Big r(a.base, 0, a.denom_exp);
+  /*
+  while (s--)
+    r = PlusSameDenom(r, a);
+  */
+  int carry = 0;
+  for (int i = 0; i < a.numer.size(); i++) {
+    int val = a.numer[i] * s + carry;
+    r.numer.push_back(val % r.base);
+    carry = val / r.base;
+  }
+
+  while (carry != 0) {
+    r.numer.push_back(carry % r.base);
+    carry /= r.base;
+  }
+  
+  // Now divide by B^y.
+  r.denom_exp += y;
+      
+  return r;
+}
+
+// a - b. The result may not be negative!
+Big MinusSameDenom(const Big &a, const Big &b) {
+  CHECK(a.denom_exp == b.denom_exp);
+  CHECK(a.base == b.base);
+  Big c(a.base);
+  c.denom_exp = a.denom_exp;
+
+  // Here the carry is <= 0, but we have to use it up by
+  // the time we get to the end of the digits!
+  int carry = 0;
+  for (int i = 0; i < std::max(a.numer.size(), b.numer.size()); i++) {
+    int da = (i < a.numer.size()) ? a.numer[i] : 0;
+    int db = (i < b.numer.size()) ? b.numer[i] : 0;
+    int sub = da - db + carry;
+    carry = 0;
+    if (sub < 0) {
+      sub += a.base;
+      carry--;
+    }
+    CHECK(sub >= 0);
+    c.numer.push_back(sub);
+  }
+  CHECK(carry == 0) << "result cannot be negative";
+  c.Unzero();
+  return c;
 }
 
 struct NNEncoder {
@@ -44,13 +162,156 @@ struct NNEncoder {
       CHECK(x >= 0 && x < nsymbols) << x << " / " << nsymbols;
     }
 
+    CHECK(H <= symbols.size()) << H << " / " << symbols.size();
     
+    // Initialize.
+    deque<int> hist;
+    for (int i = 0; i < H; i++)
+      hist.push_back(symbols[i]);
+    // (We assume the decoder is also told the starting
+    // configuration. Could use anything agreed-upon here, like
+    // zeroes.)
+
+    // The encoded strings a, b.
+    // These are initialized to 0/B and B/B, aka [0,1).
+    // We maintain the invariant that the denominator exponents
+    // are always the same.
+    Big a(B, 0, 1);
+    Big b(B, B, 1);
+
+    for (int idx = H; idx < symbols.size(); idx++) {
+      CHECK_EQ(a.denom_exp, b.denom_exp);
+
+      // PERF: Should be safe to reduce the fraction if both
+      // numerators are divisible by the base? This would
+      // represent the same number, and probably does happen.
+      // But 
+      
+      int actual = symbols[idx];
+
+      if (VERBOSE) {
+	printf("----- ");
+	for (int s : hist) {
+	  printf("%c", (s + 'a'));
+	}
+	printf(" -----\n");
+      }
+	
+      vector<pair<int, int>> pmf = Predict(hist);
+
+      if (VERBOSE) {
+	printf(" == \n");
+	for (const auto &p : pmf) {
+	  printf("%c %d%s\n", p.first + 'a', p.second,
+		 (actual == p.first) ? " <-" : "");
+	  if (actual == p.first) break;
+	}
+      }
+      
+      // Find c, which is the sum of mass we skip over to get to
+      // the symbol we want to output. We treat them as being
+      // arranged in sorted order (pmf):
+      int cnum = 0, dnum = 0;
+      for (const auto &p : pmf) {
+	if (p.first == actual) {
+	  // The interval [c, d) comprises the mass assigned to
+	  // the expected character.
+	  dnum = cnum + p.second;
+	  break;
+	} else {
+	  cnum += p.second;
+	}
+      }
+
+      // Here the denominator exponent is W.
+      // Big c(B, cnum, W);
+      // Big d(B, dnum, W);
+
+      if (VERBOSE) {
+	printf("a:\n");
+	PrintBig(a);
+	printf("b:\n");
+	PrintBig(b);
+	
+	printf("c = %d/%d^%d, d = %d/%d^%d\n",
+	       cnum, B, W, dnum, B, W);
+      }
+      
+      // width of the interval.
+      Big w = MinusSameDenom(b, a);
+      if (VERBOSE) {
+	printf("w:\n");
+	PrintBig(w);
+      }
+	     
+      // now we want
+      // a = a + w * c
+      // which rs expands to like
+      //  = a.numer/(B^a.denom_exp) + w.numer/(B^w.denom_exp) * cnum/(B^W)
+      //  = a.numer/(B^a.denom_exp) + (w.numer * cnum)/(B^(w.denom_exp + W))
+
+      // These will represent the same number, but with new exponent.
+      // Prepares for adding to w * c, which will be in this base.
+      a.Shift(W);
+      b.Shift(W);
+
+      // Multiply be these small values. This will result in compatible
+      // denominators for a, b.
+      Big cw = Scale(w, cnum, W);
+      Big dw = Scale(w, dnum, W);
+
+      CHECK_EQ(cw.denom_exp, a.denom_exp);
+      CHECK_EQ(dw.denom_exp, b.denom_exp);
+      a = PlusSameDenom(a, cw);
+      b = PlusSameDenom(a, dw);
+      
+      hist.pop_front();
+      hist.push_back(actual);
+    }
+
+    printf("Final a:\n");
+    PrintBig(a);
+    printf("Final b:\n");
+    PrintBig(b);
+
+    if (a.numer.size() == b.numer.size()) {
+      printf("Same size numerator: %d\n",
+	     (int)a.numer.size());
+      int drop_zeroes = 0;
+      while (drop_zeroes < a.numer.size() &&
+	     a.numer[drop_zeroes] == 0 &&
+	     b.numer[drop_zeroes] == 0)
+	drop_zeroes++;
+
+      // Drop em!
+      a.numer.erase(a.numer.begin(), a.numer.begin() + drop_zeroes);
+      a.denom_exp -= drop_zeroes;
+      b.numer.erase(b.numer.begin(), b.numer.begin() + drop_zeroes);
+      b.denom_exp -= drop_zeroes;
+
+      printf("Dropped %d zeroes, yielding %d\n",
+	     drop_zeroes,
+	     (int)a.numer.size());
+      // PERF: We can safely drop trailing zeroes by just reducing the
+      // denominator. Right?
+      int shared_prefix_size = 0;
+      for (int i = a.numer.size() - 1; i >= 0; i--) {
+	if (a.numer[i] != b.numer[i]) {
+	  break;
+	}
+	shared_prefix_size++;
+      }
+      printf("Length of shared prefix: %d\n", shared_prefix_size);
+    } else {
+      printf("Not even the same size numerator! %d vs %d\n",
+	     (int)a.numer.size(), (int)b.numer.size());
+    }
   }
 
   // Returns a vector of pairs (happens to be in sorted order)
   // {symbol, mass} where each integral mass is > 0 and they
   // sum to B^W exactly.
-  vector<pair<int, int>> Predict(const vector<int> &hist) {
+  vector<pair<int, int>> Predict(const deque<int> &hist) {
     CHECK(hist.size() == H);
     // Use doubles since this is what we have in JS.
     StimulationD stim{net};
@@ -74,6 +335,16 @@ struct NNEncoder {
 
     for (const auto &p : output)
       CHECK(!std::isnan(p.second));
+
+    /*
+    if (VERBOSE) {
+      printf(" (orig) \n");
+      for (int i = 0; i < nsymbols; i++) {
+	printf("%c %.6f\n", i + 'a',
+	       stim.values.back()[i]);
+      }
+    }
+    */
     
     // In order to simplify discretizing the probabilities
     // later, we sort this in descending order. Unknown
@@ -87,8 +358,17 @@ struct NNEncoder {
 		  return a.first < b.first;
 
 		// descending by probability
-		return b.second > a.second;
+		return b.second < a.second;
 	      });
+
+    /*
+    if (VERBOSE) {
+      printf(" (sorted) \n");
+      for (const auto &p : output) {
+	printf("%c %.6f\n", p.first + 'a', p.second);
+      }
+    }
+    */
     
     // Now, discretize the probabilities into units of 1/(B^W).
     // Some experimentation here is worthwhile, including
@@ -153,7 +433,12 @@ struct NNEncoder {
   const int H, nsymbols, B, W;
 };
 
-
+int ToSymbol(char c) {
+  if (c >= 'a' && c <= 'z') return c - 'a';
+  if (c == '\n') return 26;
+  CHECK(false) << "Bad char " << c;
+  return 0;
+}
 
 bool IsDense(int num_src_nodes,
 	     int num_dst_nodes,
@@ -173,7 +458,6 @@ bool IsDense(int num_src_nodes,
   return true;
 }
 
-static constexpr bool VERBOSE = true;
 
 int main(int argc, char **argv) {
   std::unique_ptr<Network> net{Network::ReadNetworkBinary("net.val")};
@@ -230,16 +514,32 @@ int main(int argc, char **argv) {
 
   // printf("%s", js.c_str());
 
+  // Obviously this shouldn't be part of the final output, but it
+  // is good for playin' around.
+  string dict = Util::ReadFile("../wordlist.asc");
+
 
   // Use the network to generate probability mass functions, and
   // feed those to arithmetic encoder.
 
+  NNEncoder encoder{*net, 5, 27, 100, 1};
+  auto MakeSymbols =
+    [](const string &str) {
+      vector<int> syms;
+      for (char s : str) {
+	syms.push_back(ToSymbol(s));
+      }
+      return syms;
+    };
+
+  dict.resize(100000);
+  vector<int> symbols = // MakeSymbols("antidisestablishmentarianism");
+    MakeSymbols(dict);
+  encoder.Encode(symbols);
+
+  return 0;
   
   
-  
-  // Obviously this shouldn't be part of the final output, but it
-  // is good for playin' around.
-  string dict = Util::ReadFile("../wordlist.asc");
   
   printf("Original dict size: %lld\n"
 	 "Net: %lld floats. *2 = %lld, *3 = %lld, *4 = %lld.\n",
