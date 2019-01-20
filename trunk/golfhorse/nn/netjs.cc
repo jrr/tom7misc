@@ -19,7 +19,7 @@ using namespace std;
 using int64 = int64_t;
 using uint32 = uint32_t;
 
-static constexpr bool VERBOSE = false;
+static constexpr bool VERBOSE = true;
 
 int ipow(int base, int exponent) {
   int res = 1;
@@ -56,9 +56,52 @@ struct Big {
   }
   
   string ToString() const {
-    string s = ".";
+    string s;
+    if (base == 10) {
+      if (numer.size() > denom_exp) {
+	// We allow 10^k/10^k to represent e.g. the upper bound in [0, 1).
+	auto Is1 =
+	  [this]() {
+	    if (numer.size() != denom_exp + 1)
+	      return false;
+	    if (numer.back() != 1)
+	      return false;
+	    for (int i = 0; i < numer.size() - 1; i++)
+	      if (numer[i] != 0)
+		return false;
+	    return true;
+	  };
+	if (Is1()) {
+	  // "exp" zeroes?
+	  s = "1.0";
+	  return s;
+	} else {
+	  s = "ILL-FORMED ";
+	  // Fall through to general case.
+	}
+      } else {
+	s = "0.";
+	for (int i = denom_exp - 1; i >= 0; i--) {
+	  int d = i < numer.size() ? numer[i] : 0;
+	  if (d < 0 || d > 9) {
+	    StringAppendF(&s, "[%d]", d);
+	  } else {
+	    StringAppendF(&s, "%d", d);
+	  }
+	}
+	// necessary?
+	StringAppendF(&s, " / %d^%d", base, denom_exp);
+
+	StringAppendF(&s, "  *aka*  ");
+	// return s;
+      }
+    } 
+    // TODO: also allow base 100
+    
+    // Note: May already have something like "ILL-FORMED " in s.
+
     for (int i = numer.size() - 1; i >= 0; i--)
-      StringAppendF(&s, "%02d", numer[i]);
+      StringAppendF(&s, "%d,", numer[i]);
     StringAppendF(&s, " / %d^%d", base, denom_exp);
     return s;
   }
@@ -68,11 +111,6 @@ struct Big {
 
   int base = 2; 
 };
-
-// XXX delete
-void PrintBig(const Big &a) {
-  printf("%s\n", a.ToString().c_str());
-}
 
 
 Big PlusSameDenom(const Big &a, const Big &b) {
@@ -178,19 +216,17 @@ bool Less(const Big &a, const Big &b) {
   return !LessEq(b, a);
 }
 
-struct NNEncoder {
-  // H is the number of symbols in the history.
-  // B is the base of the number system.
-  // W is the width of rationalized probabilities (denominator becomes
-  // B^W). W=1 does not make much sense (everything would get discretized
-  // to 1/B) unless B is larger than the actual number of symbols.
-  NNEncoder(const Network &net, int H,
-	    int nsymbols, int B, int W) :
-    net(net), H(H), nsymbols(nsymbols), B(B), W(W) {
+// Arithmetic encoder, but needs Predict() function taking
+// some history.
+struct ArithEncoder {
+  ArithEncoder(int H, int nsymbols, int B, int W) :
+    H(H), nsymbols(nsymbols), B(B), W(W) {
     // Note: Should be possible to adapt this to use some power of B
     // here, but we don't need that for our purposes since B is large.
     CHECK(nsymbols <= B);
   }
+
+  virtual vector<pair<int, int>> Predict(const deque<int> &hist) = 0;
 
   vector<int> Decode(const vector<int> &start_symbols,
 		     Big z,
@@ -260,10 +296,8 @@ struct NNEncoder {
 	}
 	a0 = b0;
       }
-      printf("BAD a:\n");
-      PrintBig(a);
-      printf("BAD b:\n");
-      PrintBig(b);
+      printf("BAD a: %s\n", a.ToString().c_str());
+      printf("BAD b: %s\n", b.ToString().c_str());
       CHECK(false) << "Nothing matched!!";
     next:;
     }
@@ -370,10 +404,8 @@ struct NNEncoder {
       // Big d(B, dnum, W);
 
       if (VERBOSE) {
-	printf("a:\n");
-	PrintBig(a);
-	printf("b:\n");
-	PrintBig(b);
+	printf("a: %s\n", a.ToString().c_str());
+	printf("b: %s\n", b.ToString().c_str());
 	
 	printf("c = %d/%d^%d, d = %d/%d^%d\n",
 	       cnum, B, W, dnum, B, W);
@@ -382,8 +414,7 @@ struct NNEncoder {
       // width of the interval.
       Big w = MinusSameDenom(b, a);
       if (VERBOSE) {
-	printf("w:\n");
-	PrintBig(w);
+	printf("w: %s\n", w.ToString().c_str());
       }
 	     
       // now we want
@@ -395,6 +426,7 @@ struct NNEncoder {
       // These will represent the same number, but with new exponent.
       // Prepares for adding to w * c, which will be in this base.
       a.Shift(W);
+      // PERF b is dead
       b.Shift(W);
 
       // Multiply be these small values. This will result in compatible
@@ -403,18 +435,27 @@ struct NNEncoder {
       Big dw = Scale(w, dnum, W);
 
       CHECK_EQ(cw.denom_exp, a.denom_exp);
-      CHECK_EQ(dw.denom_exp, b.denom_exp);
-      a = PlusSameDenom(a, cw);
+      CHECK_EQ(dw.denom_exp, a.denom_exp);
+
       b = PlusSameDenom(a, dw);
+      // Note this overwrites a, so must come after the previous line,
+      // which is also based on a!
+      a = PlusSameDenom(a, cw);
+
+      if (VERBOSE) {
+	printf("Yielding..\n");
+	printf("cw: %s\n", cw.ToString().c_str());
+	printf("dw: %s\n", dw.ToString().c_str());
+	printf("a: %s\n", a.ToString().c_str());
+	printf("b: %s\n", b.ToString().c_str());
+      }
       
       hist.pop_front();
       hist.push_back(actual);
     }
 
-    printf("Final a:\n");
-    PrintBig(a);
-    printf("Final b:\n");
-    PrintBig(b);
+    printf("Final a: %s\n", a.ToString().c_str());
+    printf("Final b: %s\n", b.ToString().c_str());
 
     if (a.numer.size() == b.numer.size()) {
       printf("Same size numerator: %d\n",
@@ -454,11 +495,25 @@ struct NNEncoder {
       start_symbols.push_back(symbols[i]);
     (void)Decode(start_symbols, b, symbols.size() - H);
   }
+  
+  const int H, nsymbols, B, W;
+};
+
+struct NNEncoder : public ArithEncoder {
+  // H is the number of symbols in the history.
+  // B is the base of the number system.
+  // W is the width of rationalized probabilities (denominator becomes
+  // B^W). W=1 does not make much sense (everything would get discretized
+  // to 1/B) unless B is larger than the actual number of symbols.
+  NNEncoder(const Network &net, int H,
+	    int nsymbols, int B, int W) :
+    ArithEncoder(H, nsymbols, B, W), net(net) {
+  }
 
   // Returns a vector of pairs (happens to be in sorted order)
   // {symbol, mass} where each integral mass is > 0 and they
   // sum to B^W exactly.
-  vector<pair<int, int>> Predict(const deque<int> &hist) {
+  vector<pair<int, int>> Predict(const deque<int> &hist) override {
     CHECK(hist.size() == H);
     // Use doubles since this is what we have in JS.
     StimulationD stim{net};
@@ -577,7 +632,6 @@ struct NNEncoder {
   }
   
   const Network &net;
-  const int H, nsymbols, B, W;
 };
 
 int ToSymbol(char c) {
@@ -605,8 +659,54 @@ bool IsDense(int num_src_nodes,
   return true;
 }
 
+// For debugging, use a flat model. No history, base 10.
+struct ExampleEncoder : public ArithEncoder {
+  ExampleEncoder() : ArithEncoder(0, 3, 10, 2) {}
+
+  vector<pair<int, int>> Predict(const deque<int> &hist) override {
+    return {{0, 20},
+	    {1, 40},
+	    {2, 40}};
+  }
+};
+
 
 int main(int argc, char **argv) {
+#if 0
+  // Test some math.
+  printf("\n");
+  Big a(10, 123, 3);
+  Big b(10, 10, 1);
+  Big c = PlusSameDenom(a, a);
+  a.Shift(1);
+  b.Shift(3);
+  a.Unzero();
+  b.Unzero();
+  Big d(10, 199, 3);
+  Big e = MinusSameDenom(c, d);
+  Big f = Scale(e, 999, 3);
+  e.Shift(3);
+  printf("a: %s\n", a.ToString().c_str());
+  printf("b: %s\n", b.ToString().c_str());
+  printf("c: %s\n", c.ToString().c_str());
+  printf("d: %s\n", d.ToString().c_str());
+  printf("e: %s\n", e.ToString().c_str());
+  printf("f: %s\n", f.ToString().c_str());
+  CHECK(LessEq(a, b));
+  CHECK(Less(a, b));
+  CHECK(LessEq(a, a));
+  
+  CHECK(Less(f, e));
+  CHECK(LessEq(f, e));
+  CHECK(!Less(e, f));
+  CHECK(!LessEq(e, f));
+#endif
+
+  ExampleEncoder example;
+  example.Encode({2, 1, 0});
+
+  return 0;
+
   std::unique_ptr<Network> net{Network::ReadNetworkBinary("net.val")};
   CHECK(net.get());
   
