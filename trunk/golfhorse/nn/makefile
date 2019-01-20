@@ -1,7 +1,7 @@
 
 default: train.exe
 
-all: train.exe netjs.exe minprefix.exe
+all: train.exe netjs.exe minprefix.exe exact.exe
 
 # -fno-strict-aliasing
 CXXFLAGS=-Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -I. -I../../cc-lib -std=c++17 -g
@@ -48,12 +48,16 @@ CPPFLAGS= -DDISABLE_SOUND=1 -DPSS_STYLE=1 -DDUMMY_UI -DHAVE_ASPRINTF -Wno-write-
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 	@echo -n "."
 
-OBJECTS=$(UTIL_OBJECTS) network.o
+OBJECTS=$(UTIL_OBJECTS) network.o arith.o ../horseutil.o
 
 # without static, can't find lz or lstdcxx maybe?
 LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -static
 
-netjs.exe : $(OBJECTS) netjs.o
+netjs.exe : $(OBJECTS) netjs.o 
+	@$(CXX) $^ -o $@ $(LFLAGS)
+	@echo -n "!"
+
+exact.exe : $(OBJECTS) exact.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
