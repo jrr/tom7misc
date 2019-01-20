@@ -258,6 +258,58 @@ struct ArithEncoder {
 
       CHECK(a.denom_exp == b.denom_exp);
       Big w = MinusSameDenom(b, a);
+      a.Shift(W);
+      z.Shift(W);
+      for (const auto &p : pmf) {
+	Big wc = Scale(w, prob_sum, W); 
+	Big a0 = PlusSameDenom(a, wc);
+	prob_sum += p.second;
+	Big wd = Scale(w, prob_sum, W);
+	Big b0 = PlusSameDenom(a, wd);
+	a0.Unzero();
+	b0.Unzero();
+	CHECK(a0.denom_exp == z.denom_exp &&
+	      b0.denom_exp == z.denom_exp) <<
+	  a0.denom_exp << " / " << z.denom_exp << " / " <<
+	  b0.denom_exp;
+	if (true || VERBOSE) {
+	  printf("[%c,%d] (sum %d):\n"
+		 "a0: %s\n"
+		 " z: %s\n"
+		 "b0: %s\n",
+		 p.first + 'a', p.second, prob_sum,
+		 a0.ToString().c_str(),
+		 z.ToString().c_str(),
+		 b0.ToString().c_str());
+	}
+	if (LessEq(a0, z) && Less(z, b0)) {
+	  output.push_back(p.first);
+	  printf("\n[[%c]]\n", p.first + 'a');
+	  fflush(stdout);
+	  a = a0;
+	  b = b0;
+
+	  hist.pop_front();
+	  hist.push_back(p.first);
+
+	  goto next;
+	}
+	// a0 = b0;
+      }
+      printf("BAD a: %s\n", a.ToString().c_str());
+      printf("BAD b: %s\n", b.ToString().c_str());
+      CHECK(false) << "Nothing matched!!";
+    next:;
+    }
+    
+    #if 0
+    // Faster, but maybe buggy version?
+    vector<int> output;
+    for (int count = 0; count < num; count++) {
+      vector<pair<int, int>> pmf = Predict(hist);
+
+      CHECK(a.denom_exp == b.denom_exp);
+      Big w = MinusSameDenom(b, a);
       int prob_sum = 0;
       a.Shift(W);
       Big a0 = a;
@@ -301,7 +353,8 @@ struct ArithEncoder {
       CHECK(false) << "Nothing matched!!";
     next:;
     }
-
+    #endif
+    
     return output;
     
     /*
