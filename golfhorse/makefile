@@ -22,7 +22,7 @@ CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/base/stringprintf.o ../cc-lib/base/logg
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 	@bash -c "echo -n '.'"
 
-makedata.exe : makedata.o $(CCLIB_OBJECTS)
+makedata.exe : makedata.o horseutil.o $(CCLIB_OBJECTS)
 	${CXX} $^ -o $@ ${LFLAGS}
 
 clean:

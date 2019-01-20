@@ -12,6 +12,7 @@
 #include "../../cc-lib/base/stringprintf.h"
 #include "../../cc-lib/util.h"
 
+#include "timer.h"
 #include "network.h"
 
 using namespace std;
@@ -19,7 +20,7 @@ using namespace std;
 using int64 = int64_t;
 using uint32 = uint32_t;
 
-static constexpr bool VERBOSE = true;
+static constexpr bool VERBOSE = false;
 
 int ipow(int base, int exponent) {
   int res = 1;
@@ -233,15 +234,20 @@ struct ArithEncoder {
 		     int num) {
     CHECK(H == start_symbols.size()) << H << " / " << start_symbols.size();
     deque<int> hist;
-    printf("\n\nDecode hist: ");
     for (int i = 0; i < H; i++) {
-      printf("%c", start_symbols[i] + 'a');
       hist.push_back(start_symbols[i]);
     }
-    printf("\n");
 
-    printf("Decoding %d symbols!\n", num);
-    
+    if (VERBOSE) {
+      printf("\n\nDecode hist: ");
+      for (int i = 0; i < H; i++) {
+	printf("%c", start_symbols[i] + 'a');
+      }
+      printf("\n");
+
+      printf("Decoding %d symbols!\n", num);
+    }
+      
     z.Unzero();
 
     // It sucks that these numbers have to be so big.
@@ -258,8 +264,22 @@ struct ArithEncoder {
 
       CHECK(a.denom_exp == b.denom_exp);
       Big w = MinusSameDenom(b, a);
+      if (VERBOSE) {
+	printf("\nDecode %dth\n"
+	       "a: %s\n"
+	       "z: %s\n"
+	       "b: %s\n"
+	       "w: %s\n",
+	       count,
+	       a.ToString().c_str(),
+	       z.ToString().c_str(),
+	       b.ToString().c_str(),
+	       w.ToString().c_str());
+      }
+	
       a.Shift(W);
       z.Shift(W);
+      int prob_sum = 0;
       for (const auto &p : pmf) {
 	Big wc = Scale(w, prob_sum, W); 
 	Big a0 = PlusSameDenom(a, wc);
@@ -272,7 +292,7 @@ struct ArithEncoder {
 	      b0.denom_exp == z.denom_exp) <<
 	  a0.denom_exp << " / " << z.denom_exp << " / " <<
 	  b0.denom_exp;
-	if (true || VERBOSE) {
+	if (VERBOSE) {
 	  printf("[%c,%d] (sum %d):\n"
 		 "a0: %s\n"
 		 " z: %s\n"
@@ -284,13 +304,17 @@ struct ArithEncoder {
 	}
 	if (LessEq(a0, z) && Less(z, b0)) {
 	  output.push_back(p.first);
-	  printf("\n[[%c]]\n", p.first + 'a');
-	  fflush(stdout);
+	  if (VERBOSE) {
+	    printf("\n[[%c]]\n", p.first + 'a');
+	    fflush(stdout);
+	  }
 	  a = a0;
 	  b = b0;
 
-	  hist.pop_front();
-	  hist.push_back(p.first);
+	  if (H > 0) {
+	    hist.pop_front();
+	    hist.push_back(p.first);
+	  }
 
 	  goto next;
 	}
@@ -341,8 +365,10 @@ struct ArithEncoder {
 	  a = a0;
 	  b = b0;
 
-	  hist.pop_front();
-	  hist.push_back(p.first);
+	  if (H > 0) {
+	    hist.pop_front();
+	    hist.push_back(p.first);
+	  }
 
 	  goto next;
 	}
@@ -382,6 +408,7 @@ struct ArithEncoder {
   }
   
   void Encode(const vector<int> &symbols) {
+    Timer encode_timer;
     for (int x : symbols) {
       CHECK(x >= 0 && x < nsymbols) << x << " / " << nsymbols;
     }
@@ -417,8 +444,8 @@ struct ArithEncoder {
       // But 
       
       int actual = symbols[idx];
-      printf("Encoding [[%c]]\n", actual + 'a');
       if (VERBOSE) {
+	printf("Encoding [[%c]]\n", actual + 'a');
 	printf("----- ");
 	for (int s : hist) {
 	  printf("%c", (s + 'a'));
@@ -507,9 +534,11 @@ struct ArithEncoder {
       hist.push_back(actual);
     }
 
-    printf("Final a: %s\n", a.ToString().c_str());
-    printf("Final b: %s\n", b.ToString().c_str());
-
+    if (a.numer.size() < 1000) {
+      printf("Final a: %s\n", a.ToString().c_str());
+      printf("Final b: %s\n", b.ToString().c_str());
+    }
+      
     if (a.numer.size() == b.numer.size()) {
       printf("Same size numerator: %d\n",
 	     (int)a.numer.size());
@@ -543,10 +572,18 @@ struct ArithEncoder {
 	     (int)a.numer.size(), (int)b.numer.size());
     }
 
+    printf("Encoding took: %.2fs\n", encode_timer.MS() / 1000.0);
+    fflush(stdout);
+    
+    Timer decode_timer;
     vector<int> start_symbols;
     for (int i = 0; i < H; i++)
       start_symbols.push_back(symbols[i]);
-    (void)Decode(start_symbols, b, symbols.size() - H);
+    vector<int> decoded = Decode(start_symbols, a, symbols.size() - H);
+    printf("Decoding took: %.2fs\n", decode_timer.MS() / 1000.0);
+    for (int i = 0; i < decoded.size(); i++) {
+      CHECK_EQ(symbols[i + H], decoded[i]);
+    }
   }
   
   const int H, nsymbols, B, W;
@@ -567,7 +604,7 @@ struct NNEncoder : public ArithEncoder {
   // {symbol, mass} where each integral mass is > 0 and they
   // sum to B^W exactly.
   vector<pair<int, int>> Predict(const deque<int> &hist) override {
-    CHECK(hist.size() == H);
+    CHECK(hist.size() == H) << hist.size() << " / " << H;
     // Use doubles since this is what we have in JS.
     StimulationD stim{net};
 
@@ -713,15 +750,25 @@ bool IsDense(int num_src_nodes,
 }
 
 // For debugging, use a flat model. No history, base 10.
+#if 0
 struct ExampleEncoder : public ArithEncoder {
-  ExampleEncoder() : ArithEncoder(0, 3, 10, 2) {}
+  ExampleEncoder() : ArithEncoder(0, 3, 3, 3) {}
 
   vector<pair<int, int>> Predict(const deque<int> &hist) override {
-    return {{0, 20},
-	    {1, 40},
-	    {2, 40}};
+    return {{0, 1},
+	    {1, 25},
+	    {2, 1}};
   }
 };
+#endif
+
+vector<int> MakeSymbols(const string &str) {
+  vector<int> syms;
+  for (char s : str) {
+    syms.push_back(ToSymbol(s));
+  }
+  return syms;
+}
 
 
 int main(int argc, char **argv) {
@@ -755,11 +802,14 @@ int main(int argc, char **argv) {
   CHECK(!LessEq(e, f));
 #endif
 
+#if 0
   ExampleEncoder example;
-  example.Encode({2, 1, 0});
+  example.Encode(// {2, 1, 0}
+      MakeSymbols("acababaccabbb"));
 
   return 0;
-
+#endif
+  
   std::unique_ptr<Network> net{Network::ReadNetworkBinary("net.val")};
   CHECK(net.get());
   
@@ -822,17 +872,9 @@ int main(int argc, char **argv) {
   // Use the network to generate probability mass functions, and
   // feed those to arithmetic encoder.
 
-  NNEncoder encoder{*net, 5, 27, 100, 1};
-  auto MakeSymbols =
-    [](const string &str) {
-      vector<int> syms;
-      for (char s : str) {
-	syms.push_back(ToSymbol(s));
-      }
-      return syms;
-    };
+  NNEncoder encoder{*net, 5, 27, 124, 1};
 
-  dict.resize(8);
+  dict.resize(100000);
   vector<int> symbols = // MakeSymbols("antidisestablishmentarianism");
     MakeSymbols(dict);
   encoder.Encode(symbols);

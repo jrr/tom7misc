@@ -14,6 +14,10 @@
 #include "../cc-lib/randutil.h"
 #include "../cc-lib/gtl/top_n.h"
 
+#include "horseutil.h"
+
+#include "huffman.h"
+
 using namespace std;
 
 static constexpr bool ONLY_ONECODEPOINT_SOURCES = false;
@@ -164,109 +168,6 @@ static void InitRandom(const string &seed) {
     rcpool[i] = new ArcFour(subseed);
     rcpool[i]->Discard(512);
   }
-}
-
-// Compute a Huffman tree.
-struct Huffman {
-  Huffman() {};
-  struct Node {
-    Node(Node *l, Node *r) : left(l), right(r) {}
-    explicit Node(int s) : sym(s) {}
-    // Always both present (internal) or absent (leaf).
-    Node *left = nullptr, *right = nullptr;
-    // Symbol
-    int sym = -1;
-  };
-
-  // Symbol must be nonnegative.
-  void AddSymbol(int sym, int freq) {
-    CHECK(sym >= 0);
-    nodes.insert(make_pair(freq, new Node(sym)));
-    max_sym = std::max(max_sym, sym);
-  }
-
-  void MakeTree() {
-    while (nodes.size() > 1) {
-      int af, bf;
-      Node *a, *b;
-      std::tie(af, a) = PopFront();
-      std::tie(bf, b) = PopFront();
-      nodes.insert(make_pair(af + bf, new Node(a, b)));
-    }
-  }
-
-  // Outputs the codes. Empty vector means no code assigned.
-  // Assumes the input symbols are dense enough for this to
-  // be a reasonable representation.
-  vector<vector<bool>> MakeCodes() {
-    vector<vector<bool>> out;
-    out.resize(max_sym + 1);
-    vector<bool> code;
-    MakeCodesRec(&out, &code, nodes.begin()->second);
-    return out;
-  }
-  
-  void PrintCodes() {
-    CHECK(nodes.size() == 1);
-    PrintCodesRec("", nodes.begin()->second);
-  }
-
-  void PrintTree() {
-    for (const auto &p : nodes) {
-      printf("[Freq %d]\n", p.first);
-      PrintTreeRec(2, p.second);
-    }
-  }
-  
-private:
-  void MakeCodesRec(vector<vector<bool>> *out,
-		    vector<bool> *code,
-		    Node *n) {
-    if (n->left == nullptr) {
-      (*out)[n->sym] = *code;
-    } else {
-      code->push_back(false);
-      MakeCodesRec(out, code, n->left);
-      code->pop_back();
-      code->push_back(true);
-      MakeCodesRec(out, code, n->right);
-      code->pop_back();
-    }
-  }
-
-  void PrintCodesRec(string code, Node *n) {
-    if (n->left == nullptr) {
-      printf("%s '%c'\n", code.c_str(), n->sym);
-    } else {
-      PrintCodesRec(code + "0", n->left);
-      PrintCodesRec(code + "1", n->right);
-    }
-  }
-
-  void PrintTreeRec(int depth, Node *n) {
-    for (int i = 0; i < depth; i++) printf(" ");
-    if (n->left == nullptr) {
-      printf("'%c'\n", n->sym);
-    } else {
-      PrintTreeRec(depth + 2, n->left);
-      PrintTreeRec(depth + 2, n->right);
-    }
-  }
-  
-  std::pair<int, Node *> PopFront() {
-    CHECK(!nodes.empty());
-    auto ret = *nodes.begin();
-    nodes.erase(nodes.begin());
-    return ret;
-  }
-  std::multimap<int, Node *> nodes;
-  int max_sym = 0;
-};
-
-static int SharedPrefix(const string &a, const string &b) {
-  int i = 0;
-  while (i < a.size() && i < b.size() && a[i] == b[i]) i++;
-  return i;
 }
 
 // Count the number of occurrences of the substring, not allowing
@@ -891,88 +792,6 @@ static void WriteFile(const char *filename,
   fclose(out);
 }
 
-// Encode the word as a delta from the previous word.
-// If the previous word is "boughs"
-// then                    "bought"
-// can be encoded as       "AAAAAB"
-// where A means "character above +0" and B means "character above +1"
-// all mod 26 of course.
-// There are a number of options when the word is longer than the
-// previous one (which is typical). We can just treat the previous
-// word as being padded with a, which means that "run" -> "running"
-// is encoded as "AAANING".
-// And actually since encoding this way just uses A-Z, let's actually
-// just use lowercase.
-static vector<string> DeltaEncode(const vector<string> &words) {
-  vector<string> out;
-  out.reserve(words.size());
-  string prev_word = "";
-  for (const string &word : words) {
-    string new_word = word;
-    // Only the overlapping region needs to change.
-    for (int i = 0; i < std::min(word.size(), prev_word.size()); i++) {
-      int prev_char = prev_word[i];
-      int new_char = new_word[i];
-      int delta = new_char - prev_char;
-      int code = (delta + 26) % 26;
-      CHECK(code >= 0 && code < 26) << prev_word << " "
-				    << word << " " <<  i;
-      new_word[i] = ('a' + code);
-    }
-    out.push_back(std::move(new_word));
-    prev_word = word;
-  }
-  return out;
-}
-
-static string PrefixEncode(const vector<string> &words) {
-  string data;
-
-  if (MAX_PREFIX_9) {
-    CHECK(!SUFFIX_ENCODING) << "unsupported";
-    
-    int64 wasted = 0LL;
-    string lastword = "";
-    for (int i = 0; i < words.size(); i++) {
-      const string &word = words[i];
-      if (i == 0) {
-	data += word;
-      } else {
-	int real_pfx = SharedPrefix(lastword, word);
-	if (real_pfx > 9) wasted += (real_pfx - 9);
-	int pfx = std::min(real_pfx, 9);
-	data +=
-	  StringPrintf("%d%s", pfx,
-		       word.substr(pfx, string::npos).c_str());
-      }
-      lastword = word;
-    }
-    
-    data += "0";
-    fprintf(stderr, "Prefix encoding wasted %lld by only having 0-9\n",
-	    wasted);
-  } else {
-
-    // Almost the same, but here the order is
-    //    [newsuffix][length of prefix shared with prev]
-    string lastword = "";
-    for (int i = 0; i < words.size(); i++) {
-      const string &word = words[i];
-      int pfx = SharedPrefix(lastword, word);
-
-      int num = SUFFIX_ENCODING ? lastword.size() - pfx : pfx;
-      
-      data +=
-	StringPrintf("%s%d",
-		     word.substr(pfx, string::npos).c_str(),
-		     num);
-      lastword = word;
-    }
-  }
-  
-  return data;
-}
-
 string CharString(char c) {
   string ch = " ";
   ch[0] = c;
@@ -1486,7 +1305,7 @@ int main (int argc, char **argv) {
   }
   
   const string start_data =
-    USE_PREFIX ? PrefixEncode(words) :
+    USE_PREFIX ? PrefixEncode(words, MAX_PREFIX_9, SUFFIX_ENCODING) :
     USE_DELTA ? Util::Join(DeltaEncode(words), ",") :
     Util::Join(words, ",");
 
