@@ -65,8 +65,10 @@ string PrefixEncode(const vector<string> &words,
     }
     
     data += "0";
+    /*
     fprintf(stderr, "Prefix encoding wasted %lld by only having 0-9\n",
 	    wasted);
+    */
   } else {
 
     // Almost the same, but here the order is

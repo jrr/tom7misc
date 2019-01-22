@@ -18,11 +18,11 @@ verify : list.js
 
 CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/base/stringprintf.o ../cc-lib/base/logging.o ../cc-lib/arcfour.o
 
-%.o : %.cc *.h
+%.o : %.cc *.h nn/*.h
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 	@bash -c "echo -n '.'"
 
-makedata.exe : makedata.o horseutil.o $(CCLIB_OBJECTS)
+makedata.exe : makedata.o horseutil.o nn/arith.o $(CCLIB_OBJECTS)
 	${CXX} $^ -o $@ ${LFLAGS}
 
 clean:
