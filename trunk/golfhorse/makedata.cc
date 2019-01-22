@@ -17,6 +17,7 @@
 #include "horseutil.h"
 
 #include "huffman.h"
+#include "nn/arith.h"
 
 using namespace std;
 
@@ -542,9 +543,12 @@ static string Encode(const string &s) {
   return ret;
 }
 
+// encoded_reps output parameter is a hack for experimenting with
+// alternate coding of these. Only works in one of the decoder cases...
 static void WriteFile(const char *filename,
 		      const string &data,
-		      const vector<pair<string, string>> &reps) {
+		      const vector<pair<string, string>> &reps,
+		      string *encoded_reps) {
   // Self-checks
   if (ONLY_PRINTABLE) {
     auto PrintableStr =
@@ -668,12 +672,18 @@ static void WriteFile(const char *filename,
     for (int i = reps.size() - 1; i >= 0; i--) {
       CHECK(1 == fwrite(reps[i].first.data(), reps[i].first.size(), 1, out));
       // Must be *codepoints*, not bytes.
-      fprintf(out, "%d", Utf8Codepoints(reps[i].second) - base_cp_length);
+      int d = Utf8Codepoints(reps[i].second) - base_cp_length;
+      fprintf(out, "%d", d);
       CHECK(1 == fwrite(reps[i].second.data(), reps[i].second.size(), 1, out));
+      if (encoded_reps != nullptr) {
+	*encoded_reps += reps[i].first;
+	*encoded_reps += StringPrintf("%d", d);
+	*encoded_reps += reps[i].second;
+      }
     }
 
     // expression like +2 to modify the length. Also need to explicitly
-    // coerce the string to a number in this case, since '1'+2 is annoyingly,
+    // coerce the string to a number in this case, since '1'+2 is annoyingly
     // "12" and not 3. (But +'1'+2 is ok)
     string plus_min_pre, plus_min;
     if (base_cp_length > 0) {
@@ -1242,7 +1252,7 @@ int Metric(const string &data,
   return data.size() + reps.size() + rep_data_size;
 }
 
-static void HuffmanStats(const string &start_data) {
+static int HuffmanStats(const string &start_data) {
   Huffman huff;
   int freqs[256] = {};
   for (int i = 0; i < start_data.size(); i++)
@@ -1250,11 +1260,15 @@ static void HuffmanStats(const string &start_data) {
   for (int i = 0; i < 256; i++)
     if (freqs[i] > 0)
       huff.AddSymbol(i, freqs[i]);
+  /*
   if (VERBOSE >= 2)
     huff.PrintTree();
+  */
   huff.MakeTree();
+  /*
   if (VERBOSE >= 2)
     huff.PrintCodes();
+  */
   vector<vector<bool>> codes = huff.MakeCodes();
   int64 total_bits = 0LL;
   for (int i = 0; i < start_data.size(); i++) {
@@ -1265,10 +1279,83 @@ static void HuffmanStats(const string &start_data) {
     total_bits += code.size();
   }
   if (VERBOSE >= 1)
-    fprintf(stderr, "Total huffman bits: %lld = %lld bytes (vs %d)\n",
+    fprintf(stderr,
+	    "Input size: %d bytes\n"
+	    "Total huffman bits: %lld = %lld 8-bit bytes\n"
+	    " = %.2f base 124 (ideal)\n",
+	    (int)start_data.size(),
 	    total_bits, (total_bits >> 3) + 1,
-	    (int)start_data.size());
+	    total_bits / 6.9542);
+
+  return total_bits / 6.9542;
 }
+
+struct FreqEncoder : public ArithEncoder {
+  char ToChar(int s) {
+    if (s >= 0x0a) s++;
+    if (s >= 0x0d) s++;
+    if (s >= '\\') s++;
+    if (s >= '\'') s++;
+    return s;
+  }
+  int ToSymbol(char c) {
+    CHECK(c >= 0 && c < 128) << c;
+    CHECK(c != 0x0a && c != 0x0d && c != '\\' && c != '\'') << c;
+    int shift = 0;
+    if (c > 0x0a) shift++;
+    if (c > 0x0d) shift++;
+    if (c > '\\') shift++;
+    if (c > '\'') shift++;
+    return (int)c - shift;
+  }
+
+  vector<int> MakeSymbols(const string &s) {
+    vector<int> ret;
+    ret.reserve(s.size());
+    for (char c : s) ret.push_back(ToSymbol(c));
+    return ret;
+  }
+  
+  // No history; just use frequency table.
+  FreqEncoder(const string &word) : ArithEncoder(0, 124, 124, 2) {
+    vector<int> counts(nsymbols, 0);
+    for (char c : word) {
+      int sym = ToSymbol(c);
+      counts[sym]++;
+    }
+
+    vector<double> fracs;
+    for (int count : counts) {
+      fracs.push_back(count / (double)word.size());
+    }
+    
+    // Prepare predictions vector.
+    freqs = Discretize(fracs, false);
+    // But sort by symbol to simplify decoding.
+    std::sort(freqs.begin(), freqs.end(),
+	      [](const pair<int, int> &a,
+		 const pair<int, int> &b) {
+		return a.first < b.first;
+	      });
+
+    for (int i = 0; i < freqs.size(); i++) {
+      CHECK(freqs[i].first == i);
+      char c = ToChar(i);
+      if (i >= ' ' && i < 127) printf("%c", c);
+      else printf("[%d]", c);
+      printf(" x %d = %.5f\n",
+	     freqs[i].second, freqs[i].second / (double)(ipow(B, W)));
+    }
+    fflush(stdout);
+  }
+  
+  vector<pair<int, int>> Predict(const deque<int> &hist) override {
+    return freqs;
+  }
+
+  vector<pair<int, int>> freqs;
+};
+
 
 int main (int argc, char **argv) {
   if (argc < 3) {
@@ -1280,14 +1367,6 @@ int main (int argc, char **argv) {
     fprintf(stderr, "Couldn't open %s\n", argv[1]);
     return -2;
   }
-
-  #if 0
-  const vector<string> delta = DeltaEncode(words);
-  for (const string &s : delta) {
-    printf("  %s\n", s.c_str());
-  }
-  return 0;
-  #endif
 
   if (REVERSE_WORDS) {
     vector<string> reversed;
@@ -1311,8 +1390,9 @@ int main (int argc, char **argv) {
 
   if (VERBOSE >= 1)
     fprintf(stderr, "Encoded data size: %d\n", (int)start_data.size());
-  if (VERBOSE >= 1)
+  if (VERBOSE >= 1) {
     HuffmanStats(start_data);
+  }
   
   const vector<string> start_sources = GetSources();
 
@@ -1353,12 +1433,13 @@ int main (int argc, char **argv) {
 		 OUTER_THREADS);
 
     passes += OUTER_THREADS;
-    
+
+
     if (progress.ShouldDo(time(nullptr))) {
       fprintf(stderr, "... %d done best %d\n", passes, best_metric);
       if (dirty) {
 	dirty = false;
-	WriteFile(argv[2], best_data, best_reps);
+	WriteFile(argv[2], best_data, best_reps, nullptr);
 	fprintf(stderr, "Wrote %s\n", argv[2]);
       }
       fflush(stderr);
@@ -1373,9 +1454,87 @@ int main (int argc, char **argv) {
     break;
   }
 #endif    
-
-  HuffmanStats(best_data);
   
-  WriteFile(argv[2], best_data, best_reps);
+  string encoded_reps;
+  WriteFile(argv[2], best_data, best_reps, &encoded_reps);
+
+  int huffman_data = HuffmanStats(best_data);
+  int huffman_reps = HuffmanStats(encoded_reps);
+
+  // Use the same frequency table for both. XXX test separate!
+  FreqEncoder encoder(best_data + encoded_reps);
+
+  vector<int> syms_data = encoder.MakeSymbols(best_data);
+  vector<int> syms_reps = encoder.MakeSymbols(encoded_reps);
+
+  static constexpr int MAX_CHUNK = 1000;
+
+  auto EncodeChunks =
+    [&encoder](const vector<int> &input) {
+      vector<vector<int>> chunks;
+
+      int idx = 0;
+      while (idx < input.size()) {
+	vector<int> encodeme;
+	for (int i = 0; i < MAX_CHUNK; i++) {
+	  if (idx + i >= input.size())
+	    break;
+	  encodeme.push_back(input[idx + i]);
+	}
+	idx += encodeme.size();
+	chunks.push_back(std::move(encodeme));
+      }
+
+      printf("%d input -> %d chunks.\n",
+	     (int)input.size(),
+	     (int)chunks.size());
+      fflush(stdout);
+      
+      // Now, in parallel.
+      vector<int> sizes =
+	ParallelMapi(
+	    chunks,
+	    [&chunks, &encoder](int idx, const vector<int> &symbols) {
+	      Big res = encoder.Encode(symbols);
+	      
+	      printf("\n\n"
+		     "[%d/%d] Arith Encoded %d -> %d\n\n",
+		     idx, (int)chunks.size(),
+		     (int)symbols.size(), (int)res.numer.size());
+	      fflush(stdout);
+	      return (int)res.numer.size();
+	    },
+	    24);
+
+      int result_bytes = 0;
+      for (int s : sizes) result_bytes += s;
+      return result_bytes;
+    };
+
+  /*
+  Big arith_data = encoder.Encode(syms_data);
+  Big arith_reps = encoder.Encode(syms_reps);
+  printf("Bytes with freqencoder: %d + %d = %d\n",
+	 (int)arith_data.numer.size(),
+	 (int)arith_reps.numer.size(),
+	 (int)arith_data.numer.size() +
+	 (int)arith_reps.numer.size());
+  */
+
+  int asize_data = EncodeChunks(syms_data);
+  int asize_reps = EncodeChunks(syms_reps);
+
+  fflush(stdout);
+  fflush(stderr);
+  printf("-------------------------------------------------\n");
+  
+  printf("Original payload bytes: %d + %d = %d\n",
+	 (int)best_data.size(), (int)encoded_reps.size(),
+	 (int)best_data.size() + (int)encoded_reps.size());
+  printf("Ideal bytes with huffman: %d + %d = %d\n",
+	 huffman_data, huffman_reps, huffman_data + huffman_reps);
+  printf("Bytes with freqencoder: %d + %d = %d\n",
+	 asize_data, asize_reps, asize_data + asize_reps);
+
   return 0;
 }

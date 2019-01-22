@@ -41,6 +41,8 @@ struct Big {
     while (!numer.empty() && numer.back() == 0)
       numer.pop_back();
   }
+
+  void Validate() const;
   
   string ToString() const;
 
@@ -80,7 +82,12 @@ struct ArithEncoder {
     CHECK(nsymbols <= B);
   }
 
-  vector<pair<int, int>> Discretize(const vector<double> &out);
+  // If allow_zero is true, then an item with exactly 0.0 is treated
+  // as impossible and given a probability of 0. It cannot be encoded.
+  vector<pair<int, int>> Discretize(const vector<double> &out,
+				    bool allow_zero);
+
+  static void Norm(vector<double> *v);
   
   virtual vector<pair<int, int>> Predict(const deque<int> &hist) = 0;
 
@@ -88,7 +95,7 @@ struct ArithEncoder {
 		     Big z,
 		     int num);
   
-  void Encode(const vector<int> &symbols);
+  Big Encode(const vector<int> &symbols);
   
   const int H, nsymbols, B, W;
 };

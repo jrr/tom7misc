@@ -52,7 +52,11 @@ struct NNEncoder : public ArithEncoder {
     
     ForwardStimulationD(net, &stim);
 
-    return Discretize(stim.values.back());
+    // Norm in place. Norm here means make them all at least zero,
+    // which means we can treat them like a count.
+    Norm(&stim.values.back());
+    
+    return Discretize(stim.values.back(), false);
   }
   
   const Network &net;
@@ -106,35 +110,6 @@ vector<int> MakeSymbols(const string &str) {
 
 
 int main(int argc, char **argv) {
-#if 0
-  // Test some math.
-  printf("\n");
-  Big a(10, 123, 3);
-  Big b(10, 10, 1);
-  Big c = PlusSameDenom(a, a);
-  a.Shift(1);
-  b.Shift(3);
-  a.Unzero();
-  b.Unzero();
-  Big d(10, 199, 3);
-  Big e = MinusSameDenom(c, d);
-  Big f = Scale(e, 999, 3);
-  e.Shift(3);
-  printf("a: %s\n", a.ToString().c_str());
-  printf("b: %s\n", b.ToString().c_str());
-  printf("c: %s\n", c.ToString().c_str());
-  printf("d: %s\n", d.ToString().c_str());
-  printf("e: %s\n", e.ToString().c_str());
-  printf("f: %s\n", f.ToString().c_str());
-  CHECK(LessEq(a, b));
-  CHECK(Less(a, b));
-  CHECK(LessEq(a, a));
-  
-  CHECK(Less(f, e));
-  CHECK(LessEq(f, e));
-  CHECK(!Less(e, f));
-  CHECK(!LessEq(e, f));
-#endif
 
 #if 0
   ExampleEncoder example;

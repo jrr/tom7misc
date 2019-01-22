@@ -1,7 +1,7 @@
 
 default: train.exe
 
-all: train.exe netjs.exe minprefix.exe exact.exe
+all: train.exe netjs.exe minprefix.exe exact.exe arith_test.exe
 
 # -fno-strict-aliasing
 CXXFLAGS=-Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -I. -I../../cc-lib -std=c++17 -g
@@ -66,6 +66,10 @@ minprefix.exe : $(OBJECTS) minprefix.o
 	@echo -n "!"
 
 train.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o train.o
+	@$(CXX) $^ -o $@ $(LFLAGS)
+	@echo -n "!"
+
+arith_test.exe : $(OBJECTS) arith_test.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
