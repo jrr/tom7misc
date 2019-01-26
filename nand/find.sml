@@ -1,6 +1,44 @@
-structure Find =
+
+(*
+Control.Print.printDepth := 100;
+Control.Print.printLength := 1000;
+*)
+
+structure Exp =
 struct
-  exception Find of string
+  (* functions of type real * real -> real. *)
+  datatype bingate =
+    Plus
+  | Minus
+  | Times
+  | Div
+  | Hypot
+  | Rem
+  | Min
+  | Max
+  | Pow
+
+  datatype ungate =
+    Neg
+  | NanTo
+  | Reciprocal
+  | ZeroOver
+  | OnePlus
+  | MinusOne
+  | Abs
+  | DivSelf
+  | HypotNan
+  | ToNegOne
+
+  datatype exp =
+    Bingate of bingate * exp * exp
+  | Ungate of ungate * exp
+  | Zero
+  | Nan
+  | Inf
+  | One
+  | NegInf
+  | Atom of char
 
   val nan = 0.0 / 0.0
   val inf = Real.posInf
@@ -17,12 +55,207 @@ struct
          else (* For normal values *)
            Math.sqrt (x * x + y * y)
 
+  val nullgates =
+    [(Zero, 0.0),
+     (Nan, nan),
+     (Inf, inf),
+     (One, 1.0),
+     (NegInf, ~inf)]
+
+  val bingates =
+    [(Plus, Real.+),
+     (Minus, Real.-),
+     (Times, Real.* ),
+     (Div, Real./),
+     (Hypot, hypot),
+     (Rem, Real.rem),
+     (Min, Real.min),
+     (Max, Real.max),
+     (Pow, Math.pow)]
+
+  val ungates =
+    [(Neg, Real.~),
+     (* (NanTo, fn x => Math.pow(nan, x)), *)
+(*
+     (Reciprocal, fn x => 1.0 / x),
+     (ZeroOver, fn x => 0.0 / x),
+     (OnePlus, fn x => 1.0 + x),
+     (MinusOne, fn x => x - 1.0),
+*)
+     (Abs, fn x => Real.abs(x))
+(*     (DivSelf, fn x => x / x), *)
+     (* (HypotNan, fn x => hypot(x, nan)), *)
+     (* (ToNegOne, fn x => Math.pow(x, ~1.0)) *)]
+
+end
+
+(* A row is a fixed-size sequence of values. *)
+signature ROW =
+sig
+  type row
+  (* Must be orderable so that we can test for success,
+     and build splay set *)
+  val compare : row * row -> order
+
+  val make_nullary : real -> row
+  (* Pointwise *)
+  val apply_unary : (real -> real) -> row -> row
+  val apply_binary : (real * real -> real) -> (row * row) -> row
+
+end
+
+signature DATABASE =
+sig
+  (* From argument. *)
+  type row
+  (* Mutable db of all rows that are reachable from some
+     unspecified source row. *)
+  type db
+
+  (* Create a database initialized with the atoms (and other nullary
+     rows). *)
+  val init : (char * row) list -> db
+
+  (* Expand one step. *)
+  val expand_unary : db -> unit
+  val expand_binary : db -> unit
+
+  val contains : db -> row -> Exp.exp option
+
+end
+
+(* TODO: Could allow filter for some problems. Like if we
+   are searching for a row where all the values are distinct,
+   then any row with duplicates is known to be useless.
+   Other functions like NAND however do have duplicates in
+   some positions, so we don't want to require that in
+   the general case. *)
+functor Database(structure R : ROW) : DATABASE =
+struct
+  exception Database of string
+  type row = R.row
+  structure RM = SplayMapFn(type ord_key = row
+                            val compare = R.compare)
+
+  datatype exp = datatype Exp.exp
+  type db = exp RM.map ref
+
+  (* TODO: Mark inserted stuff as 'new' *)
+  fun maybe_update_db (db, row, exp) =
+    case RM.find (!db, row) of
+      NONE => db := RM.insert (!db, row, exp)
+      (* XXX do insert if smaller exp (and mark new) *)
+    | SOME _ => ()
+
+  (* XXX Init should also insert all nullary? *)
+  fun init l =
+    let
+      val db = ref RM.empty
+      fun add_atom (c, row) =
+        db := RM.insert (!db, row, Atom c)
+      fun add_null (n, r) =
+        maybe_update_db (db, R.make_nullary r, n)
+    in
+      app add_atom l;
+      app add_null Exp.nullgates;
+      db
+    end
+
+
+  (* Apply unary operators to everything in the database
+     and update it. *)
+  fun expand_unary db =
+    let
+      val start_db = !db
+      fun one (u : Exp.ungate, f : real -> real) =
+        RM.appi (fn (row_src, exp) =>
+                 let
+                   val row_dst = R.apply_unary f row_src
+                   val exp_dst = Exp.Ungate (u, exp)
+                 in
+                   maybe_update_db (db, row_dst, exp_dst)
+                 end) start_db
+    in
+      app one Exp.ungates
+    end
+
+  fun expand_binary db =
+    let
+      (* Only consider stuff currently in the db, not things
+         that are added in this pass. *)
+      val start_db = !db
+      fun one (b : Exp.bingate, f : real * real -> real) =
+        RM.appi
+        (fn (row_srca, expa) =>
+         RM.appi
+         (fn (row_srcb, expb) =>
+          let
+            val row_dst = R.apply_binary f (row_srca, row_srcb)
+            val exp_dst = Exp.Bingate (b, expa, expb)
+          in
+            maybe_update_db (db, row_dst, exp_dst)
+          end) start_db) start_db
+    in
+      app one Exp.bingates
+    end
+
+  fun contains db row = RM.find (!db, row)
+
+end
+
+
+structure Find =
+struct
+  exception Find of string
+
+  structure PairRow : ROW =
+  struct
+    type row = (real * real)
+
+    fun rcomp (a, b) =
+      (* NaNs first (all considered the same). *)
+      (case (Real.isNan a, Real.isNan b) of
+         (true, true) => EQUAL
+       | (true, false) => LESS
+       | (false, true) => GREATER
+       | (false, false) =>
+           Real.compare (a, b))
+
+    fun compare ((a, b), (aa, bb)) =
+      case rcomp (a, aa) of
+        EQUAL => rcomp (b, bb)
+      | ord => ord
+
+    fun make_nullary r = (r, r)
+    fun apply_unary f (a, b) = (f a, f b)
+    fun apply_binary f ((a, b), (aa, bb)) =
+      (f (a, aa), f (b, bb))
+  end
+
+  structure DB = Database(structure R = PairRow)
+
+  val nan = 0.0 / 0.0
+  val inf = Real.posInf
+
+  val start = [(#"x", (nan, inf) : PairRow.row)]
+  val want = (inf, nan) : PairRow.row
+
+  val db = DB.init start
+  fun expand () =
+    let in
+      DB.expand_unary db;
+      DB.expand_binary db;
+      DB.contains db want
+    end
+
+  (*
+
   (* Collection of binary operators real * real -> real,
      with their names. *)
   val bingates =
     [("+", Real.+),
      ("-", Real.-),
-     ("*", Real.*),
+     ("*", Real.* ),
      ("/", Real./),
      ("hypot", hypot),
      (* is IEEE? *)
@@ -129,10 +362,11 @@ struct
       trygen ()
     end
 
+
   (* TODO NEXT!
      I think the right way to do this search is to have a pool of
      pairs of values that can be reached by applying some function
-     to the source values. We never insert anything there the
+     to the source values. We never insert anything where the
      values are the same. We can grow the pool by applying a unary
      function to any value (subject to the constraint that it produces
      different outputs) or binary functions to any pair of values
@@ -147,4 +381,5 @@ struct
      (* raise (Find "unimplemented") *)
      end
 
+   *)
 end
