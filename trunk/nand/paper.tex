@@ -1,0 +1,115 @@
+
+flinf flops and NaN gates
+flip FLOPs and NaN gates?
+
+
+
+Some useful primitives:
+
+        These are called minNum and maxNum in IEE 754-2008 (5.3.1, p19)
+
+        "If exactly one argument is NaN, they return the other.
+        If both are NaN they return NaN.
+
+        NAND  0 1     MAX  nan inf
+             +---         +-------
+           0 |1 1     nan |nan inf
+           1 |1 0     inf |inf inf
+
+                    HYPOT  nan inf
+                          +-------
+                      nan |nan inf
+                      inf |inf inf
+
+        So if 0 = nan and 1 = inf, then MAX is OR.
+
+        We also have AND, since only inf*inf (aka 1 AND 1)
+        returns inf in that truth table.
+
+        Is AND and OR together complete? (I don't think so?)
+        Do we have NOT?
+
+
+YES!
+
+Here are some:
+Min(-x, -1.0) + inf
+hypot(nan, max(1/x, -inf))
+inf - max(x, 1)
+sqrt(copysign(inf, -x))
+
+
+Now direct search for some gates:
+NAND: inf - max(x + y, -inf)
+AND: x + y
+OR: hypot(x, y)
+XOR: Abs(max(y, -inf) - max(x, -inf))
+     Abs(min(y, -x) + max(y, -inf))
+     (Wouldn't be surprised if there's a simpler one,
+     but my search does not find it before it gets
+     out of hand...)
+    
+NOR: -inf / max(y, max(x, -1))
+     
+
+
+And how about if we leave out min, max? They are certainly
+reasonable since they are defined in IEEE 754, but perhaps
+not the best joke since they are not as math-y as e.g. hypot
+
+
+NOR: sqrt(copysign(-inf, -hypot(y, x)))
+(Here, hypot is just computing OR.)
+
+So another NOT is:
+sqrt(copysign(-inf, -x))  (actually can be inf)
+
+XOR: abs(copysign(-inf, y) - copysign(-inf, x))
+OR: hypot(y, x)
+AND: x + y
+NAND: inf - copysign(-inf, x + y)
+
+
+ok cool, but copysign kinda has the same problems as min,max.
+maybe without that?
+
+
+the database saturates with 36 entries if we remove
+copysign and min, max. They are these:
+
+[nan, nan, nan, nan] = NaN
+[nan, nan, nan, ~inf] = Minus(Neg(y), x)
+[nan, nan, nan, ~2.0] = Plus(Tanh(Minus(Neg(y), x)), -1)
+[nan, nan, nan, ~1.0] = Tanh(Minus(Neg(y), x))
+[nan, nan, nan, 0.0] = Pow(y, Neg(x))
+[nan, nan, nan, 1.0] = Exp(Pow(y, Neg(x)))
+[nan, nan, nan, 2.0] = Plus(Exp(Pow(y, Neg(x))), 1)
+[nan, nan, nan, inf] = Plus(y, x)
+[nan, nan, ~inf, ~inf] = Neg(y)
+[nan, nan, ~2.0, ~2.0] = Plus(Tanh(Neg(y)), -1)
+[nan, nan, ~1.0, ~1.0] = Tanh(Neg(y))
+[nan, nan, ~0.0, ~0.0] = Div(-1, y)
+[nan, nan, 1.0, 1.0] = Exp(Div(-1, y))
+[nan, nan, 2.0, 2.0] = Minus(1, Tanh(Neg(y)))
+[nan, nan, inf, inf] = y
+[nan, ~inf, nan, ~inf] = Neg(x)
+[nan, ~inf, ~inf, ~inf] = Neg(Hypot(y, x))
+[nan, ~2.0, nan, ~2.0] = Plus(Tanh(Neg(x)), -1)
+[nan, ~2.0, ~2.0, ~2.0] = Plus(Tanh(Neg(Hypot(y, x))), -1)
+[nan, ~1.0, nan, ~1.0] = Tanh(Neg(x))
+[nan, ~1.0, ~1.0, ~1.0] = Tanh(Neg(Hypot(y, x)))
+[nan, ~0.0, nan, ~0.0] = Div(-1, x)
+[nan, ~0.0, ~0.0, ~0.0] = Div(-1, Hypot(y, x))
+[nan, 1.0, nan, 1.0] = Exp(Div(-1, x))
+[nan, 1.0, 1.0, 1.0] = Exp(Div(-1, Hypot(y, x)))
+[nan, 2.0, nan, 2.0] = Minus(1, Tanh(Neg(x)))
+[nan, 2.0, 2.0, 2.0] = Minus(1, Tanh(Neg(Hypot(y, x))))
+[nan, inf, nan, inf] = x
+[nan, inf, inf, inf] = Hypot(y, x)
+[~inf, ~inf, ~inf, ~inf] = NegInf
+[~2.0, ~2.0, ~2.0, ~2.0] = Plus(-1, -1)
+[~1.0, ~1.0, ~1.0, ~1.0] = -1
+[0.0, 0.0, 0.0, 0.0] = 0
+[1.0, 1.0, 1.0, 1.0] = 1
+[2.0, 2.0, 2.0, 2.0] = Plus(1, 1)
+[inf, inf, inf, inf] = Inf
