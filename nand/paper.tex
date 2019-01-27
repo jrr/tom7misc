@@ -1,8 +1,129 @@
 
-flinf flops and NaN gates
-flip FLOPs and NaN gates?
+\documentclass[twocolumn]{article}
+\usepackage[top=0.5in, left=0.45in, right=0.45in, bottom=0.5in]{geometry}
+
+\usepackage{url}
+% \usepackage{code}
+% \usepackage{cite}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+
+\usepackage{nopageno}
+
+\interfootnotelinepenalty=0
+
+% lets me explicitly set a. or 1. etc. as enum label
+\usepackage{enumitem}
+
+\pagestyle{empty}
+
+\usepackage{ulem}
+% go back to italics for emphasis, though
+\normalem
+
+\usepackage{natbib}
+
+\setlength{\footnotesep}{2em}
+
+\newcommand\comment[1]{}
+\newcommand\sfrac[2]{\!{}\,^{#1}\!/{}\!_{#2}}
+
+\newcommand\nan{\textsf{NaN}}
+\renewcommand\inf{\textsf{inf}}
+
+\newcommand\plusminus{\pm}
+
+\begin{document} 
+
+% flInf flops?
+\title{NaN gates and flip FLOPS}
+\author{Dr.~Tom~Murphy~VII~Ph.D.\footnote{
+Copyright \copyright\ 2019 the Regents of the Wikiplia
+Foundation. Appears in SIGBOVIK 2019 with the
+XXX JOKE
+of the Association for Computational Heresy; 
+{\em IEEEEEE!} press, Verlag-Verlag volume no.~0x40-2A.
+\$-0.00 } }
+
+\renewcommand\th{\ensuremath{{}^{\textrm{th}}}}
+\newcommand\st{\ensuremath{{}^{\textrm{st}}}}
+\newcommand\rd{\ensuremath{{}^{\textrm{rd}}}}
+\newcommand\nd{\ensuremath{{}^{\textrm{nd}}}}
+\newcommand\at{\ensuremath{\scriptstyle @}}
+
+\date{1 April 2019}
+
+\maketitle \thispagestyle{empty}
+
+\begin{abstract}
+what do I put here
+\end{abstract}
+
+\section*{Introduction}
+
+Mathematics is fundamental to computer science, and the foundation of
+mathematics is the real numbers; this is obvious from the name. One of
+computing's dirtiest secrets, however, is that computers themselves
+are not based on real numbers---rather, they are based on so-called
+``ones'' and ``zeroes'' combined with ``logic gates'' simulated with
+transistors. While this suffices for most practical purposes, it is
+unsatisfying from a theoretical perspective.
+
+Recently, some progress has been made by human geniuses on completely
+replacing integer calculations with calculations on real
+numbers\cite{fluint8}. While this removes many of the hacks present in
+modern software, there are still many components of the computer (e.g.
+RAM, registers, the {\it scroll lock} LED, a tiny USB-powered fan that
+can cool you on hot summer days or during particularly strenuous
+programming sessions) % XXX cite skymall etc?
+that are not integer-based.
+
+In this paper I give a new foundation for computing based solely on
+real numbers. This ...
+
+I begin with a brief reminder of the definition of real numbers,
+although the reader is expected to be familiar as these are pretty
+fundamental to everything. The approach of the paper is then to
+identify a pair of real numbers that have nice properties
+(Section~\ref{sec:distinguished}), and then to give mathematical
+operations on these numbers that parallel the logical operations
+typically used in the construction of computers
+(Section~\ref{sec:logical}). I then discuss how these operations
+can be implemented efficiently (Section~\ref{sec:representations}).
+I conclude with some wild speculation.
+
+\section{Real numbers}
+The real numbers are described by IEEE 754, most recently revised in
+2008\cite{ieee754}. Every real number has a sign, a mantissa, and an
+exponent. Actually, this understates the elegance of real numbers,
+since there are a number of numbers, such as \nan\ (``not a number'')
+which are not of this form; \nan\ nas no sign nor mantissa nor
+exponent. We also have \inf\ and $-\inf$, which do have a sign, but no
+mantissa nor exponent. These are the infinite numbers that you get if
+you count very high or very low. Excitingly, we also have both
+positive and negative versions of 0.
+
+The real numbers have an equality operation {\tt ==}. This operation
+has some very exciting properties: It is not reflexive (\nan\ {\tt ==}
+\nan\ is false), and does not obey substitution (for $+0$ {\tt ==} $-0$
+is true, but $\sfrac{1}{+0}$ {\tt ==} $\sfrac{1}{-0}$ is false).
+
+Real numbers are an absolute joy to work with. 
 
 
+\subsection{Choosing some distinguished values} \label{sec:distinguished}
+
+use nan and inf because other real numbers can be ``easily confused''
+with one another. And do we really want ordering relationships on
+our fundamental particles, like $0 < 1$?
+
+
+% really lean into the joke that we choose the "number" NAN
+
+\nocite{fluint8}
+
+ha okay now there is just notes
 
 Some useful primitives:
 
@@ -113,3 +234,281 @@ copysign and min, max. They are these:
 [1.0, 1.0, 1.0, 1.0] = 1
 [2.0, 2.0, 2.0, 2.0] = Plus(1, 1)
 [inf, inf, inf, inf] = Inf
+
+
+IEEE 754, 3.3
+minimal encoding size:
+b, radix, 2
+p, precision, ?
+emax, maximum exponent, ?
+emin = always 1 - emax
+
+
+I deduce:
+p = t + 1
+    (because you get one implied bit by normalization)
+t = 1
+% using the table
+emax = $2^{k-p-1} - 1$, which is $2^{4-2-1}-1 = 2^1-1 = 1$
+bias = emax
+emin = 1 - emax = 0
+
+I think there's still some ambiguity about whether we have
+emax = 1, emin = 0,
+or
+emax = 0, emin = -1,
+probably both work, but I think the former has more support
+in the docs.
+
+\comment{
+a normal value is
+(-1)^sign x b^{exp} x significand
+(I think significand = mantissa?)
+
+by standard, need:
+- sign bit
+- exponent could maybe be empty, though it's sort of implied
+that you just have emax=0, emin= -1, so one bit
+- m could probably be empty (no bits mantissa = 0)
+
+
+DID YOU KNOW?
+``every finite floating point numbe is an integral multiple
+of the smallest subnormal magnitude b^{emin} * b^{1 - p}''
+
+fewest exponent bits w?
+The range of the encoding's biased exponent E shall include:
+- every integer between 1 and 2^{w}−2, inclusive, to encode normal numbers
+- the reserved value 0 to encode +/-0 and subnormal numbers
+- the reserved value 2^{w}−1 to encode +/-inf and NaNs
+
+so we need at least 0,
+and a reserved value for inf & nan,
+so if w = 1, we'd have 0 and 2^1-1 = 1,
+but this seems to violate the spec because you need
+``every integer between 1 and 2^w-2 inclusive'', and here 2^w-2 is 0,
+so either this interval is inverted (arguable?) and that's why it
+doesn't include its endpoints, or it's in violation
+but with w = 2,
+
+2^2 - 1 = 0b11 = 3 (inf, nan)
+1 to 2^2 - 2 = 0b01, 0b10 = 1,2 (normals)
+0 = 0b00 = 0 (zero, subnormals)
+
+(Note this is the biased exponent E, not e)
+
+2 bits looks clearly legal.
+
+ s       w bits           t bits
+[sign][ exponent ][  trailing significand T   ]
+
+when e=0b11, t determines inf or nan.
+- nan is any nonzero sign is ignored.
+(recall, nans can carry info, so that is why they get
+the nonzero case)
+- inf is zero
+
+so we clearly need 1 t-bit to encode inf vs nan,
+but it seems that this is enough
+
+so probable case is four bits:
+
+ - sign
+ - two exponent bits
+ - one mantissa bit
+
+The sign is always 0 (positive infinity; doesn't matter for nan)
+and the exponent is always 11 (since we always encode nan or
+positive inf). Unless we do any intermediate calculations
+(could check what all the intermediate values are in the above
+expressions and make sure they fit in 4 bits), a hardware
+realization of this could just hard-wire 3 of 4 bits? Is that
+better or worse?
+
+so another version of this joke is that a NAND gate is a super
+fast FPU for calculating inf - max(x + y, -inf) on four-bit
+IEEE 754 where the top 3 MSBs are fixed (although be careful,
+nan = 1 and inf = 0 in this representation. Is that maybe a
+better choice for this presentation? it just dualizes some
+gates)
+
+}
+
+\section{The binary4 representation}
+
+IEEE 754 natively defines several bit widths for floating-point
+values, such as the 32-bit binary32 (aka ``single-precision float'')
+and 64-bit binary64 (aka ``double-precision float''). The
+specification is parameterized to allow other bit widths; for example,
+half-precision 16-bit floats are common in GPU code for machine
+learning applications (XXX cite). Smaller floats sacrifice precision,
+but require less space and allow faster calculations. For our purposes
+in this paper, since we only need to represent the two values \nan\ and
+\inf, we are interested in the smallest possible representation. 
+
+% TODO: what if each bit in the float is itself represented as
+% inf or NaN?
+
+This section describes the binary4 representation, a four-bit floating
+point number that is clearly allowed by the IEEE 754 standard.
+
+The representation of any floating-point number has a single sign bit,
+some number $w$ of exponent bits, and some number $t$ of mantissa
+bits. For binary32, $w = 8$ and $t = 23$; and with the sign bit we
+have $23 + 8 + 1 = 32$ bits as expected. We need at least a sign bit,
+but what are the smallest permissible values of $w$ and $t$?
+
+The most stringent constraint on $w$ comes in IEEE-754-2008~3.4, which
+states
+\begin{quote}
+  The range of the encoding's biased exponent E shall include:
+  \begin{enumerate}[label=---]
+    \item every integer between 1 and $2^w - 2$, inclusive, to encode
+      normal numbers
+    \item the reserved value 0 to encode $\plusminus 0$ and subnormal
+      numbers
+    \item the reserved value $2^w - 1$ to encode $\plusminus \infty$
+      and NaNs.
+  \end{enumerate}
+\end{quote}
+
+$E$ is the binary number encoded by $w$. It must include at least the
+two special values consisting of all zeroes and all ones (second and
+third clause). A conservative reading of ``every integer between 1 and
+$2^w - 2$'' seems to require that $1 \leq 2^w - 2$ (otherwise how
+could the interval be inclusive of its endpoints?), which would imply
+that $w$ is at least 2. (However, see Section~\ref{sec:binary3} for
+the hypothesized case where $w=1$.)
+
+The representation of \nan\ and \inf\ are distinguished by the value
+of $t$ when $E$ is all ones. We certainly need to distinguish these,
+so $t = 1$ is the minimal size.
+
+We have one sign bit, two exponent bits, and one mantissa bit, for a
+total of four. Since ``single precision'' is 32 bits, ``half
+precision'' is 16, 4 bits is ``eighth precision.'' Given how nicely
+all this works out, shouldn't there be a {\tt eighth} base type in
+most modern programming languages and GPUs? Since there are so few
+values representable, it would be practical for all the standard
+operations to be done in constant time via table lookups. All 16
+possible values are given in Figure~\ref{fig:binary4}.
+
+
+\begin{figure*}[tp]
+\begin{tabular}{|l|c|c|c|c|c|c|}
+  \hline
+  parameter & {\bf binary4} & binary16 & binary32 & binary64 & binary128 & binary$_k$ \\
+  \hline
+  $k$, storage in bits & {\bf 4} & 16 & 32 & 64 & 128 & multiple of 32 \\
+  $p$, precision in bits & {\bf 2} & 11 & 24 & 53 & 113 & $k$ - round(4 * log$_2$(k)) + 13 \\
+  $emax$, maximum exponent e & {\bf 1} & 15 & 127 & 1023 & 16383 & $2^{k-p-1}$ - 1 \\
+  $bias$ = $E$ - $e$ & {\bf 1} & 15 & 127 & 1023 & 16383 & emax \\
+  $sign bits$ & {\bf 1} & 1 & 1 & 1 & 1 & 1 \\
+  $w$, exponent width & {\bf 2} & 5 & 8 & 11 & 15 & round(4 * log$_2$(k)) - 13 \\
+  $t$, trailing significand width & {\bf 1} & 10 & 23 & 52 & 112 & k - w - 1 \\
+  $k$, storage width & {\bf 4} & 16 & 32 & 64 & 128 & 1 + w + t \\
+\hline
+\end{tabular}
+\caption{Parameters for the newly-introduced {\bf binary4} encoding
+  for IEEE-754, compared to the standard widths (see Table~3.5 in the
+  standard\cite{ieee754}). } \label{fig:binary4}
+\end{figure*}
+
+% bias = 1
+
+\begin{figure}[h]
+\begin{tabular}{|l@{\,}c@{\,}l|p{2.5in}|}
+\hline
+  $s$ & $E$ & $T$ & value \\
+  \hline
+0 & 00 & 0 &   $+0$ \\
+0 & 00 & 1 &    subnormal: % $2^{emin} * 2^{1-p} * T$ =
+                $2^0 * 2^{1-2} * 1$ =
+                $1 * \sfrac{1}{2} * 1$ = 0.5 \\
+0 & 01 & 0 &    normal: % $2^{E - bias} * (1 + 2^{1-p} * T)$
+                $2^0 * (1 + \sfrac{1}{2} * 0)$ = 1 \\
+0 & 01 & 1 &    $2^0 * (1 + \sfrac{1}{2} * 1)$ = 1.5 \\
+0 & 10 & 0 &    $2^1 * (1 + \sfrac{1}{2} * 0)$ = 2 \\
+0 & 10 & 1 &    $2^1 * (1 + \sfrac{1}{2} * 1)$ = 3 \\
+0 & 11 & 0 &   $+\infty$ \\
+0 & 11 & 1 &    \nan \\
+1 & 00 & 0 &   $-0$ \\
+1 & 00 & 1 &   $-0.5$ \\
+1 & 01 & 0 &   $-1$ \\ 
+1 & 01 & 1 &   $-1.5$ \\
+1 & 10 & 0 &   $-2$ \\
+1 & 10 & 1 &   $-3$ \\ 
+1 & 11 & 0 &   $-\infty$ \\
+1 & 11 & 1 &    \nan \\
+\hline
+\end{tabular}
+\caption{All 16 values representable in binary4 floating-point.
+  The format works reasonably well even at this very low precision,
+  although note how many of the values are not finite.} \label{fig:allvalues4}
+\end{figure}
+
+
+\subsection{The hypothesized binary3 format} \label{sec:binary3}
+The IEEE-754 representation clearly requires a sign bit, and for this
+purpose we need at least one bit for the mantissa in order to
+distinguish \nan\ and \inf. It is perhaps a stretch of the wording,
+but arguably the spec permits a 1-bit exponent ($w = 1$). To
+rationalize this we need to interpret the phrase ``every integer
+between $1$ and $2^w-2$ inclusive'' (that is, between 1 and 0 inclusive)
+as denoting the empty set.
+
+With one bit for sign, exponent, and mantissa, we can represent just 8
+different values. Here $emax$ is $0$, and the standard clearly
+requires $emin = 1 - emax$, so $emin = 1$. Certainly fishy for $emin$
+to be larger than $emax$, but we can just not stress out about it; the
+representable values are all reasonable-looking
+(Figure~\ref{fig:allvalues3}).
+
+% here, precision is still 2 (just one mantissa bit)
+% so emax is 2^{k-p-1}-1, which is 2^{3-2-1}-1 = 0
+% bias = 0
+% emin is 1 - emax = 1 (!?)
+% this is kind of absurd, it may still "work"?
+
+\begin{figure}[h]
+\begin{tabular}{|l@{\,}c@{\,}l|p{2.5in}|}
+\hline
+  $s$ & $E$ & $T$ & value \\
+  \hline
+0 & 0 & 0 &   $+0$ \\
+0 & 0 & 1 &    subnormal: % $2^{emin} * 2^{1-p} * T$ =
+                $2^1 * 2^{1-2} * 1$ =
+                $2 * \sfrac{1}{2} * 1$ = 1 \\
+0 & 1 & 0 &   $+\infty$ \\
+0 & 1 & 1 &    \nan \\
+1 & 0 & 0 &   $-0$ \\
+1 & 0 & 1 &   $-1$ \\
+1 & 1 & 0 &   $-\infty$ \\
+1 & 1 & 1 &    \nan \\
+\hline
+\end{tabular}
+\caption{All 8 values of the hypothetical binary3 representation.
+  There are no normal values; the only finite values are the
+  positive and negative zero and a single subnormal which
+  denotes $1$ (or $-1$).
+} \label{fig:allvalues3}
+\end{figure}
+
+% TODO: We could do without a mantissa if we didn't care about
+% distinguishing NaN and inf. With an empty t, we should
+% consider it to have value 0 (true? maybe it is defined as
+% a product so the empty string is the multiplicative unit 1?)
+% which means that we encode +/- inf, and nan cannot be encoded.
+% Now the operations will not be closed since e.g. 0/0 needs to
+% result in nan.
+
+% TODO: What if we have no mantissa or exponent, just a sign bit?
+% When E=0 and T=0, we can only encode +/- zero. This definitely
+% involves some leaps (and is not closed as above), but could
+% we find expressions that work for just +/- 0?
+
+\nocite{ieee754}
+\bibliography{nand}{}
+\bibliographystyle{plain}
+
+\end{document}
