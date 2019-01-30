@@ -216,6 +216,7 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   if (file == nullptr) {
     printf("  ... failed. If it's present, there may be a "
 	   "permissions problem?\n");
+    fflush(stdout);
     return nullptr;
   }
 
@@ -250,14 +251,16 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   // These values determine the size of the network vectors.
   int file_num_layers = Read32();
   CHECK_GE(file_num_layers, 0);
-  printf("%s: %d layers.\n", filename.c_str(), file_num_layers);
+  printf("%s: %lld rounds, %lld examples, %d layers.\n",
+	 filename.c_str(), round, examples, file_num_layers);
   vector<int> num_nodes(file_num_layers + 1, 0);
   printf("%s: num nodes: ", filename.c_str());
   for (int i = 0; i < file_num_layers + 1; i++) {
     num_nodes[i] = Read32();
     printf("%d ", num_nodes[i]);
   }
-
+  printf("\n");
+  
   vector<int> width, height, channels;
   for (int i = 0; i < file_num_layers + 1; i++)
     width.push_back(Read32());
@@ -269,6 +272,10 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   CHECK(num_nodes.size() == height.size());
   CHECK(num_nodes.size() == channels.size());
 
+  for (int i = 0; i < file_num_layers + 1; i++) {
+    printf("Layer %d: %d x %d x %d\n", i - 1, width[i], height[i], channels[i]);
+  }
+  
   printf("\n%s: indices per node/fns: ", filename.c_str());
   vector<int> indices_per_node(file_num_layers, 0);
   vector<TransferFunction> transfer_functions(file_num_layers, SIGMOID);
@@ -335,6 +342,10 @@ void Network::SaveNetworkBinary(const Network &net,
   Write64(net.rounds);
   Write64(net.examples);
   Write32(net.num_layers);
+  CHECK(net.num_nodes.size() == net.num_layers + 1);
+  CHECK(net.width.size() == net.num_layers + 1) << net.width.size();
+  CHECK(net.height.size() == net.num_layers + 1);
+  CHECK(net.channels.size() == net.num_layers + 1);
   for (const int i : net.num_nodes) Write32(i);
   for (const int w : net.width) Write32(w);
   for (const int h : net.height) Write32(h);

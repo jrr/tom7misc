@@ -285,3 +285,28 @@ Over 50000 positions:
   182682 total mistakes (3.65/pos)
 
 so, getting slightly better, but maybe has plateaued?
+
+ModelInfo [306268 rounds, 154376512 examples]
+Over 50000 positions:
+  9479 exactly correct (18.96%)
+  161709 piece mistakes (3.23/pos)
+  1624 castling mistakes (0.03/pos)
+  19071 move mistakes (0.38/pos)
+  182404 total mistakes (3.65/pos)
+
+ModelInfo [315518 rounds, 173320512 examples]
+Over 50000 positions:
+  9507 exactly correct (19.01%)
+  161500 piece mistakes (3.23/pos)
+  1635 castling mistakes (0.03/pos)
+  19028 move mistakes (0.38/pos)
+  182163 total mistakes (3.64/pos)
+
+ModelInfo [337982 rounds, 219326784 examples]
+Over 50000 positions:
+  9565 exactly correct (19.13%)
+  161083 piece mistakes (3.22/pos)
+  1624 castling mistakes (0.03/pos)
+  18989 move mistakes (0.38/pos)
+  181696 total mistakes (3.63/pos)
+

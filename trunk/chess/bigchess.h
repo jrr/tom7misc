@@ -5,8 +5,15 @@
 
 #include <shared_mutex>
 #include <cstdint>
+#include <thread>
+#include <deque>
+#include <vector>
+
+#include "../cc-lib/base/logging.h"
+
 
 using int64 = int64_t;
+using uint8 = uint8_t;
 
 template<class K, class C>
 inline bool ContainsKey(const C &container, const K &key) {
@@ -81,7 +88,7 @@ struct WorkQueue {
 	  } else {
 	    if /* constexpr */ (max_chunk > 1LL) {
 	      int64 get_up_to = std::max(1LL, pending / this->num_workers);
-	      vector<W> local_work;
+	      std::vector<W> local_work;
 	      local_work.reserve(get_up_to);
 	      while (!todo.empty() && get_up_to--) {
 		local_work.emplace_back(todo.front());
@@ -180,7 +187,7 @@ struct PGNTextStream {
     CHECK(f != nullptr) << filename;
   }
 
-  bool NextPGN(string *pgn_text) {
+  bool NextPGN(std::string *pgn_text) {
     if (f == nullptr)
       return false;
   

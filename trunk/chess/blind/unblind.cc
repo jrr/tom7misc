@@ -345,6 +345,12 @@ struct NetworkConfiguration {
   }
 };
 
+// This does not affect the model's training and isn't saved with it;
+// it's just used for display.
+struct UIConfiguration {
+  // XXX ... renderstyle here ...
+};
+
 // A stimulation is an evaluation (perhaps an in-progress one) of a
 // network on a particular input; when it's complete we have the
 // activation value of each node on each layer, plus the input itself.
@@ -1767,6 +1773,10 @@ static void TrainThread() {
     Printf("Initializing new network...\n");
     NetworkConfiguration nc;
     net.reset(new Network(nc.num_nodes, nc.indices_per_node, nc.transfer_functions));
+    net->width = nc.width;
+    net->height = nc.height;
+    net->channels = nc.channels;
+
     Printf("Randomize weights:\n");
     RandomizeNetwork(&rc, net.get());
     Printf("Gen indices:\n");
@@ -1922,7 +1932,7 @@ static void TrainThread() {
   // Training round: Loop over all images in random order.
   double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
     fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0,
-    output_error_ms = 0.0, update_ms = 0.0, writing_ms = 0.0,
+    output_error_ms = 0.0, update_ms = 0.0, 
     error_history_ms = 0.0, eval_ms = 0.0;
   Timer total_timer;
   for (int rounds_executed = 0; ; rounds_executed++) {
@@ -2287,8 +2297,7 @@ static void TrainThread() {
 	     "%.1fms in backwards pass (%.1f%%),\n"
 	     "%.1fms in error for output layer (%.1f%%),\n"
 	     "%.1fms in error history diagnostics (%.1f%%),\n"
-	     "%.1fms in updating weights (%.1f%%),\n"
-	     "%.1fms in writing images (%.1f%%),\n",
+	     "%.1fms in updating weights (%.1f%%),\n",
 	     total_ms / 1000.0,
 	     (total_ms / 1000.0) / denom,
 	     setup_ms / denom, Pct(setup_ms),
@@ -2301,8 +2310,7 @@ static void TrainThread() {
 	     backward_ms / denom, Pct(backward_ms),
 	     output_error_ms / denom, Pct(output_error_ms),
 	     error_history_ms / denom, Pct(error_history_ms),
-	     update_ms / denom, Pct(update_ms),
-	     writing_ms / denom, Pct(writing_ms));
+	     update_ms / denom, Pct(update_ms));
   }
 
   Printf(" ** Done. **");

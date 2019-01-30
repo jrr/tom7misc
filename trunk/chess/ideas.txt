@@ -17,15 +17,16 @@ find interesting games
  - en passant to mate!
  - most queens
  - promotion not to queen
+    (perhaps specifically to avoid stalemate)
+ - rarest mate pattens
+ - triple check checkmate
  - highest number of king moves with queens still on the board
  - longest consecutive series of checks
  - longest forced sequence (with literally just one legal move)
+ - 
 
 find positions that are reached in two games but after long divergence
 (and have a minimum number of pieces or whatever)
-- like generally, build a thing that lets you "score" games/positions
-   or sets of games, and then it finds the best with that quality, a la
-   mapreduce
 
 find powerful patterns; arrangements of pieces (e.g. alekhine's gun) that
 tend to lead to wins

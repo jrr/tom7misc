@@ -1181,13 +1181,14 @@ bool Position::NotIntoCheck(Move m) {
 	});
 }
 
-bool Position::IsMated() {
+bool Position::IsInCheck() {
   int kingr, kingc;
   std::tie(kingr, kingc) = GetKing();
-  // King must be in check.
-  if (!Attacked(kingr, kingc))
-    return false;
-  return !HasLegalMoves();
+  return Attacked(kingr, kingc);
+}
+
+bool Position::IsMated() {
+  return IsInCheck() && !HasLegalMoves();
 }
 
 bool Position::IsCastling(Move m) const {

@@ -139,6 +139,17 @@ struct Position {
 
   // Assuming the move is legal, is it an en passant capture?
   bool IsEnPassant(Move m) const;
+
+  // The following two are used in 50/75-move draw rules.
+  // Assuming the move is legal, is it a pawn move?
+  bool IsPawnMove(Move m) const {
+    return (PieceAt(m.src_row, m.src_col) & TYPE_MASK) == PAWN;
+  }
+  // Assuming the move is legal, is it a capturing move?
+  bool IsCapturing(Move m) const {
+    return IsEnPassant(m) ||
+      PieceAt(m.dst_row, m.dst_col) != EMPTY;
+  }
   
   // Is the move legal in this current board state? The move must be
   // well-formed (positions within the board).
@@ -179,11 +190,15 @@ struct Position {
     }
   }
   
+  // True if the current player is in check.
+  bool IsInCheck();
+
   // True if the current player is checkmated.
   bool IsMated();
 
   // Return true if there are any legal moves. This is faster than
-  // enumerating them all.
+  // enumerating them all. If there are none, then the player is
+  // either checkmated (IsInCheck) or stalemated.
   bool HasLegalMoves();
   // Get all the legal moves.
   std::vector<Move> GetLegalMoves();
@@ -197,7 +212,7 @@ struct Position {
   // on that square, not considering check. Does not include en passant.
   // The square is typically unoccupied.
   bool Attacked(int r, int c) const;
-  
+
   template<class F>
   auto SetExcursion(int r, int c, uint8 piece, const F &f) -> decltype(f()) {
     const uint8 old = PieceAt(r, c);
@@ -207,20 +222,30 @@ struct Position {
     return ret;
   }
 
-  #if 0
   // Apply the move to the current board state, and execute the
   // function with that state applied. Return the return value
   // of the function after undoing the applied move. As above,
   // the move must be legal.
   template<class F>
   auto MoveExcursion(Move m, const F &f) -> decltype(f()) {
-    // TODO
-    return f();
+    // PERF: Modify in place.
+    Position copy = *this;
+    ApplyMove(m);
+    auto ret = f();
+    *this = copy;
+    return ret;
   }
-  #endif
 
   bool BlackMove() const {
     return !!(bits & BLACK_MOVE);
+  }
+
+  void SetBlackMove(bool black_move) {
+    if (black_move) {
+      bits |= BLACK_MOVE;
+    } else {
+      bits &= ~BLACK_MOVE;
+    }
   }
   
  private:
