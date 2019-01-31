@@ -770,16 +770,18 @@ bool Position::IsLegal(Move m) {
     // moves, so make sure it is legal first.
     if (blackmove) {
       if (m.dst_row == 7) {
-	return (m.promote_to & COLOR_MASK) == BLACK &&
-	  LegalPromotion(m.promote_to & TYPE_MASK);
+	if (!((m.promote_to & COLOR_MASK) == BLACK &&
+	      LegalPromotion(m.promote_to & TYPE_MASK)))
+	  return false;
       } else {
 	if (m.promote_to != 0)
 	  return false;
       }
     } else {
       if (m.dst_row == 0) {
-	return (m.promote_to & COLOR_MASK) == WHITE &&
-	  LegalPromotion(m.promote_to & TYPE_MASK);
+	if (!(m.promote_to & COLOR_MASK) == WHITE &&
+	    LegalPromotion(m.promote_to & TYPE_MASK))
+	  return false;
       } else {
 	if (m.promote_to != 0)
 	  return false;
@@ -1243,6 +1245,83 @@ string Position::LongMoveString(Move m) const {
 	  '1' + (7 - m.dst_row),
 	  promote.c_str());
   return (string)buf;
+}
+
+string Position::ShortMoveString(Move m) {
+  if (IsCastling(m)) {
+    return m.dst_col < m.src_col ? "O-O-O" : "O-O";
+  }
+
+  const bool capture = IsEnPassant(m) ||
+    PieceAt(m.dst_row, m.dst_col) != EMPTY;
+
+  // Should be uppercase.
+  const string promote =
+    m.promote_to ? "=" + HumanPieceString(m.promote_to & TYPE_MASK) : "";
+  
+  // type of piece being moved
+  const uint8 type = PieceAt(m.src_row, m.src_col) & TYPE_MASK;
+  if (type == PAWN) {
+    // If a pawn, the result is never ambiguous!
+
+    string ret;
+    if (capture) {
+      ret += ('a' + m.src_col);
+      ret += 'x';
+    }
+    
+    ret += ('a' + m.dst_col);
+    ret += ('1' + (7 - m.dst_row));
+    ret += promote;
+    return ret;
+
+  } else {
+    // If a normal piece (say, a rook), then check to see if the move
+    // is ambiguous. Find all rooks on the board that could legally
+    // move to the same square.
+    bool need_disamb = false;
+    bool same_row = false, same_col = false;
+    for (int r = 0; r < 8; r++) {
+      for (int c = 0; c < 8; c++) {
+	if ((r != m.src_row || c != m.src_col) &&
+	    (PieceAt(r, c) & TYPE_MASK) == type) {
+	  Move alt = m;
+	  alt.src_row = r;
+	  alt.src_col = c;
+	  if (IsLegal(alt)) {
+	    need_disamb = true;
+
+	    if (c == m.src_col)
+	      same_col = true;
+
+	    if (r == m.src_row)
+	      same_row = true;
+	  }
+	}
+      }
+    }
+    
+    string ret = HumanPieceString(type);
+    if (need_disamb) {
+      if (same_col && same_row) {
+	ret += ('a' + m.src_col);
+	ret += ('1' + (7 - m.src_row));
+      } else if (same_col) {
+	ret += ('1' + (7 - m.src_row));
+      } else {
+	// (Also prefer column disambiguation in the case where it is
+	// neither same row nor same col.)
+	ret += ('a' + m.src_col);
+      }
+    }
+    if (capture)
+      ret += 'x';
+
+    ret += ('a' + m.dst_col);
+    ret += ('1' + (7 - m.dst_row));
+    ret += promote;
+    return ret;
+  }
 }
 
 namespace {

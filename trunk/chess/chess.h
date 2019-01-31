@@ -99,6 +99,10 @@ struct Position {
   // disambiguation; returns stuff like Qd3d5 and e2e4.
   // Does not annotate with check or checkmate marks.
   std::string LongMoveString(Move m) const;
+
+  // PGN-style move, disambiguated. Doesn't annotate with
+  // check/checkmate marks.
+  std::string ShortMoveString(Move m);
   
   // Show a 2D ASCII board.
   std::string BoardString() const;
@@ -309,6 +313,43 @@ struct Position {
   // TODO: can use the last two bits here for castling status...
   // static constexpr uint8 KING_POS_MASK = 0b00111111;
   // uint8 white_king = 60u, black_king = 4u;
+
+  friend class PositionHash;
+  friend class PositionEq;
+};
+
+struct PositionEq {
+  constexpr bool operator()(const Position &a,
+			    const Position &b) const {
+    return a.bits == b.bits &&
+      a.rows[0] == b.rows[0] &&
+      a.rows[1] == b.rows[1] &&
+      a.rows[2] == b.rows[2] &&
+      a.rows[3] == b.rows[3] &&
+      a.rows[4] == b.rows[4] &&
+      a.rows[5] == b.rows[5] &&
+      a.rows[6] == b.rows[6] &&
+      a.rows[7] == b.rows[7];
+  };
+};
+
+struct PositionHash {
+  constexpr std::size_t operator ()(const Position &p) const {
+    uint64_t res = 0x3141572653589ULL;
+    res += p.bits;
+    res = (res << 11) | (res >> (64 - 11));
+    res ^= ((uint64_t)p.rows[0] << 32) | p.rows[1];
+    res *= 0x31337;
+    res = (res << 43) | (res >> (64 - 43));
+    res ^= ((uint64_t)p.rows[2] << 32) | p.rows[3];
+    res *= 65537;
+    res = (res << 7) | (res >> (64 - 7));
+    res ^= ((uint64_t)p.rows[4] << 32) | p.rows[5];
+    res *= 0x10FA3010359;
+    res = (res << 19) | (res >> (64 - 19));
+    res ^= ((uint64_t)p.rows[6] << 32) | p.rows[7];
+    return res;
+  }
 };
 
 #endif
