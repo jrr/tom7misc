@@ -316,6 +316,54 @@ static void ValidMoves2() {
   CHECK(kingrow == 4 && kingcol == 1) << kingrow << ", " << kingcol;
 }
 
+static void TestShortMove() {
+  // With + for check filtered out.
+  vector<string> pgn_moves = {
+  "e4", "d5", "exd5", "e5", "dxe6", "Ne7", "g3", "h5",
+  "Bg2", "a5", "Nh3", "Rh6", "O-O", "Ra6", "a4", "Nbc6",
+  "Ra3", "Ne5", "Re1", "N7g6", "Rae3", "Nh8", "exf7", "Nxf7",
+  "Rxe5", "Rhe6", "Rxe6", "Kd7", "d4", "Ba3", "d5", "Bxb2",
+  "Rh6", "Ne5", "d6", "Ke8", "dxc7", "Bxh3", "cxd8=R", "Kf7",
+  "Re8", "Nf3", "Kh1", "Bd7", "R1e6", "Bxa4", "Ref6", "gxf6",
+  "Qxf3", "Bxc2", "g4", "hxg4", "Qxg4", "a4", "Be3", "a3",
+  "Bxb7", "a2", "f3", "a1=Q", "Qe6", "Kg7", "Rhh8", "Qxb1",
+  "Kg2", "Rxe6", "Rxe6", "Kxh8", "Re8", "Kg7", "Bh6", "Kxh6",
+  "Rh8", "Bh7", "Rxh7", "Kxh7", "Be4", "Kg7", "Bxb1", "f5",
+  "Bxf5", "Bd4", "h4", "Kh6"
+  };
+
+  Position pos;
+  for (const string &move_string : pgn_moves) {
+    Move m;
+    CHECK(pos.ParseMove(move_string.c_str(), &m)) << move_string;
+    CHECK(pos.IsLegal(m)) << move_string;
+    string sm = pos.ShortMoveString(m);
+    CHECK(move_string == sm) << "Wanted " << move_string
+			     << " but got " << sm << " in:\n"
+			     << pos.BoardString();
+    pos.ApplyMove(m);
+  }
+}
+
+static void RegressionBxa8n() {
+  Position pos;
+  CHECK(Position::ParseFEN(
+	    "1rbqkbnr/pPpppppp/8/P7/8/8/2PPPPPP/RNBQKBNR w KQk - 1 7",
+	    &pos));
+  CHECK(pos.PieceAt(0, 0) == Position::EMPTY);
+
+  Move m;
+  m.src_row = 1;
+  m.src_col = 1;
+  m.dst_row = 0;
+  m.dst_col = 0;
+  m.promote_to = Position::KNIGHT | Position::WHITE;
+  CHECK(!pos.IsLegal(m)) << pos.BoardString();
+  // This would be a bad test because ParseMove is allowed to return a
+  // different legal move since the input is illegal.
+  // CHECK(!pos.ParseMove("bxa8=N", &m)) << pos.BoardString();
+}
+
 static void TestEp() {
   const char *kGame = R"_([Event "Test"]
 1. e4 e5 2. Ke2 Ke7 3. f4 exf4 4. g4 
@@ -350,6 +398,10 @@ int main(int argc, char **argv) {
   ValidMoves2();
 
   TestEp();
+
+  TestShortMove();
+
+  RegressionBxa8n();
   return 0;
 }
 

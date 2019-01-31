@@ -41,10 +41,15 @@ static bool IsChecking(Position *pos, const Move &m) {
 
 struct FirstMovePlayer : public Player {
 
-  // TODO: Flip this when playing as black, right?
-  static int GetCode(const Move &m) {
+  static int WhiteCode(const Move &m) {
     int src = (int)m.src_row * 8 + (int)m.src_col;
-    int dst = (int)m.dst_row * 8 + (int)m.dst_row;
+    int dst = (int)m.dst_row * 8 + (int)m.dst_col;
+    return (src * 64 + dst) * 8 + (int)m.promote_to;
+  }
+
+  static int BlackCode(const Move &m) {
+    int src = (int)(7 - m.src_row) * 8 + (int)m.src_col;
+    int dst = (int)(7 - m.dst_row) * 8 + (int)m.dst_col;
     return (src * 64 + dst) * 8 + (int)m.promote_to;
   }
   
@@ -52,10 +57,17 @@ struct FirstMovePlayer : public Player {
     Position pos = orig_pos;
     std::vector<Move> legal = pos.GetLegalMoves();
 
-    return GetBest(legal, 
-		   [](const Move &a, const Move &b) {
-		     return GetCode(a) < GetCode(b);
-		   });
+    if (pos.BlackMove()) {
+      return GetBest(legal, 
+		     [](const Move &a, const Move &b) {
+		       return BlackCode(a) < BlackCode(b);
+		     });
+    } else {
+      return GetBest(legal, 
+		     [](const Move &a, const Move &b) {
+		       return WhiteCode(a) < WhiteCode(b);
+		     });
+    }
   }
   
   const char *Name() const override { return "first_move"; }
@@ -145,10 +157,11 @@ struct CCCPPlayer : public Player {
   }
 
   // This is just used to make a total order where we do
-  // not have a preference.
+  // not have a preference. (XXX this produces pretty
+  // different behavior between black and white...)
   static int MoveCode(const Move &m) {
     int src = (int)m.src_row * 8 + (int)m.src_col;
-    int dst = (int)m.dst_row * 8 + (int)m.dst_row;
+    int dst = (int)m.dst_row * 8 + (int)m.dst_col;
     return (src * 64 + dst) * 8 + (int)m.promote_to;
   }
   
