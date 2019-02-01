@@ -1354,6 +1354,14 @@ struct OneMC {
   int count = 0;
 };
 
+struct CountMC {
+  bool Push(Move m) {
+    count++;
+    return false;
+  }
+  int count = 0;
+};
+
 template<class MoveCollector>
 static void CollectLegalMoves(Position &pos, MoveCollector &mc) {
   const bool blackmove = pos.BlackMove();
@@ -1490,4 +1498,10 @@ int Position::ExactlyOneLegalMove() {
   OneMC omc;
   CollectLegalMoves(*this, omc);
   return omc.count;
+}
+
+int Position::NumLegalMoves() {
+  CountMC cmc;
+  CollectLegalMoves(*this, cmc);
+  return cmc.count;
 }
