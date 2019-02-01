@@ -194,6 +194,8 @@ struct CCCPPlayer : public Player {
 		       return a.is_check;
 
 		     // If capturing, prefer larger value!
+		     // (XXX If multiple captures are available, use the
+		     // lowest-value capturing piece?)
 		     if (a.captured != b.captured)
 		       return PieceValue(b.captured) < PieceValue(a.captured);
 
@@ -232,6 +234,65 @@ struct CCCPPlayer : public Player {
   }
 };
 
+struct MinOpponentMovesPlayer : public Player {
+  MinOpponentMovesPlayer() : rc(GetSeed()) {
+    rc.Discard(800);
+  }
+    
+  struct LabeledMove {
+    Move m;
+    int opponent_moves = 0;
+    uint32 r = 0u;
+  };
+
+  virtual Move MakeMove(const Position &orig_pos) override {
+    Position pos = orig_pos;
+    std::vector<LabeledMove> labeled;
+    for (const Move &m : pos.GetLegalMoves()) {
+      LabeledMove lm;
+      lm.m = m;
+      lm.r = Rand32(&rc);
+      pos.MoveExcursion(m,
+			[&pos, &lm]() {
+			  lm.opponent_moves = pos.NumLegalMoves();
+			  return 0;
+			});
+      labeled.push_back(lm);
+    }
+    CHECK(!labeled.empty());
+
+    return GetBest(labeled,
+		   [](const LabeledMove &a,
+		      const LabeledMove &b) {
+		     if (a.opponent_moves != b.opponent_moves)
+		       return a.opponent_moves < b.opponent_moves;
+
+		     return a.r < b.r;
+		   }).m;
+  }
+  
+  const char *Name() const override { return "min_opponent_moves"; }
+  const char *Desc() const override {
+    return "Take a random move that minimizes the opponent's number "
+      "of legal moves.";
+  }
+
+  ArcFour rc;
+};
+
+
+// TODO:
+//  - Stockfish, with and without opening book / endgame tablebases
+//  - Maximize net control of squares
+//  - Try to move your pieces to certain squares:
+//       - put your pieces on squares of your color, or opponent color
+//       - try to get your pieces into the starting position, but
+//         mirrored into the opponent's camp
+//       - try to get all pieces close to the center
+//  - attack the opponent's piece of maximum value with your piece
+//    of minimum value
+//  - "suicide king" -- only move the king towards the opponent
+//    king
 
 }  // namespace
 
@@ -245,4 +306,8 @@ Player *CreateRandom() {
 
 Player *CreateCCCP() {
   return new CCCPPlayer;
+}
+
+Player *CreateMinOpponentMoves() {
+  return new MinOpponentMovesPlayer;
 }

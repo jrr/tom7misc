@@ -207,6 +207,10 @@ struct Position {
   // Get all the legal moves.
   std::vector<Move> GetLegalMoves();
 
+  // Number of distinct legal moves. Note that different promotions
+  // count as different moves.
+  int NumLegalMoves();
+  
   // Returns 0 if mated, 1 if exactly one, 2 if 2 or more.
   int ExactlyOneLegalMove();
   
