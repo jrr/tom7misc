@@ -1173,7 +1173,7 @@ bool Position::NotIntoCheck(Move m) {
 		m.dst_row, m.dst_col, p,
 		[&]() {
 		  int r, c;
-		  std::tie(r, c) = GetKing();
+		  std::tie(r, c) = GetCurrentKing();
 		  IFDEBUG printf("King at %d,%d\n", r, c);
 		  bool attacked = Attacked(r, c);
 		  IFDEBUG printf("King is %s\n",
@@ -1185,7 +1185,7 @@ bool Position::NotIntoCheck(Move m) {
 
 bool Position::IsInCheck() {
   int kingr, kingc;
-  std::tie(kingr, kingc) = GetKing();
+  std::tie(kingr, kingc) = GetCurrentKing();
   return Attacked(kingr, kingc);
 }
 

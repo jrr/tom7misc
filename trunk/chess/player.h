@@ -29,5 +29,6 @@ Player *CreateFirstMove();
 Player *CreateRandom();
 Player *CreateCCCP();
 Player *CreateMinOpponentMoves();
+Player *CreateSuicideKing();
 
 #endif

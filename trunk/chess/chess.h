@@ -164,18 +164,21 @@ struct Position {
   void ApplyMove(Move m);
   
   // Get the row, col with the current player's king.
-  inline std::pair<int, int> GetKing() const {
-    const bool blackmove = !!(bits & BLACK_MOVE);
+  inline std::pair<int, int> GetCurrentKing() const {
+    return GetKing(!!(bits & BLACK_MOVE));
+  }
+
+  inline std::pair<int, int> GetKing(bool blackmove) const {
     /*
     const uint8 pos = KING_POS_MASK & (blackmove ? black_king : white_king);
     return std::pair<int, int>(pos >> 3, pos & 7);
     */
 
-    const uint8 my_color = blackmove ? BLACK : WHITE;
+    const uint8 king = blackmove ? (BLACK | KING) : (WHITE | KING);
 
     for (int r = 0; r < 8; r++)
       for (int c = 0; c < 8; c++)
-	if (PieceAt(r, c) == (my_color | KING))
+	if (PieceAt(r, c) == king)
 	  return {r, c};
 
     // Invalid board -- could assert here.
