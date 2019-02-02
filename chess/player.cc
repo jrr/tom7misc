@@ -53,7 +53,7 @@ struct FirstMovePlayer : public Player {
     return (src * 64 + dst) * 8 + (int)m.promote_to;
   }
   
-  virtual Move MakeMove(const Position &orig_pos) override {
+  Move MakeMove(const Position &orig_pos) override {
     Position pos = orig_pos;
     std::vector<Move> legal = pos.GetLegalMoves();
 
@@ -93,7 +93,7 @@ struct RandomPlayer : public Player {
     rc.Discard(800);
   }
     
-  virtual Move MakeMove(const Position &orig_pos) override {
+  Move MakeMove(const Position &orig_pos) override {
     Position pos = orig_pos;
     std::vector<Move> legal = pos.GetLegalMoves();
     CHECK(!legal.empty());
@@ -165,7 +165,7 @@ struct CCCPPlayer : public Player {
     return (src * 64 + dst) * 8 + (int)m.promote_to;
   }
   
-  virtual Move MakeMove(const Position &orig_pos) override {
+  Move MakeMove(const Position &orig_pos) override {
     Position pos = orig_pos;
     bool black = pos.BlackMove();
     std::vector<LabeledMove> labeled;
@@ -219,9 +219,9 @@ struct CCCPPlayer : public Player {
 		     }
 
 		     // Promote to the better piece.
-		     if (b.m.promote_to != a.m.promote_to)
-		       return PieceValue(b.m.promote_to) <
-			 PieceValue(a.m.promote_to);
+		     if (a.m.promote_to != b.m.promote_to)
+		       return PieceValue(b.m.promote_to & Position::TYPE_MASK) <
+			 PieceValue(a.m.promote_to & Position::TYPE_MASK);
 
 		     // Otherwise, we don't express a preference.
 		     return MoveCode(a.m) < MoveCode(b.m);
@@ -245,7 +245,7 @@ struct MinOpponentMovesPlayer : public Player {
     uint32 r = 0u;
   };
 
-  virtual Move MakeMove(const Position &orig_pos) override {
+  Move MakeMove(const Position &orig_pos) override {
     Position pos = orig_pos;
     std::vector<LabeledMove> labeled;
     for (const Move &m : pos.GetLegalMoves()) {
@@ -280,6 +280,70 @@ struct MinOpponentMovesPlayer : public Player {
   ArcFour rc;
 };
 
+// Base class for a player orders by some metric on the board
+// state after the move, and breaks ties at random.
+struct EvalResultPlayer : public Player {
+  EvalResultPlayer() : rc(GetSeed()) {
+    rc.Discard(800);
+  }
+
+  // With smaller scores being better.
+  virtual int64 PositionPenalty(Position *p) = 0;
+  
+  struct LabeledMove {
+    Move m;
+    int64 penalty = 0.0;
+    uint32 r = 0u;
+  };
+
+  Move MakeMove(const Position &orig_pos) override {
+    Position pos = orig_pos;
+    std::vector<LabeledMove> labeled;
+    for (const Move &m : pos.GetLegalMoves()) {
+      LabeledMove lm;
+      lm.m = m;
+      lm.r = Rand32(&rc);
+      pos.MoveExcursion(m,
+			[this, &pos, &lm]() {
+			  lm.penalty = PositionPenalty(&pos);
+			  return 0;
+			});
+      labeled.push_back(lm);
+    }
+    CHECK(!labeled.empty());
+
+    return GetBest(labeled,
+		   [](const LabeledMove &a,
+		      const LabeledMove &b) {
+		     if (a.penalty != b.penalty)
+		       return a.penalty < b.penalty;
+
+		     return a.r < b.r;
+		   }).m;
+  }
+  
+  ArcFour rc;
+};
+
+struct SuicideKingPlayer : public EvalResultPlayer {
+
+  int64 PositionPenalty(Position *p) override {
+    // Distance is symmetric, so we don't care which is "my" king.
+    int br, bc, wr, wc;
+    std::tie(br, bc) = p->GetKing(true);
+    std::tie(wr, wc) = p->GetKing(false);
+    // "Chebyshev distance" which is like Manhattan distance but
+    // with diagonal moves.
+    return std::max(std::abs(br - wr), std::abs(bc - wc));
+  }
+  
+  const char *Name() const override { return "suicide_king"; }
+  const char *Desc() const override {
+    return "Take a random move that minimizes the distance "
+      "between the two kings.";
+  }
+};
+
 
 // TODO:
 //  - Stockfish, with and without opening book / endgame tablebases
@@ -291,8 +355,6 @@ struct MinOpponentMovesPlayer : public Player {
 //       - try to get all pieces close to the center
 //  - attack the opponent's piece of maximum value with your piece
 //    of minimum value
-//  - "suicide king" -- only move the king towards the opponent
-//    king
 
 }  // namespace
 
@@ -310,4 +372,8 @@ Player *CreateCCCP() {
 
 Player *CreateMinOpponentMoves() {
   return new MinOpponentMovesPlayer;
+}
+
+Player *CreateSuicideKing() {
+  return new SuicideKingPlayer;
 }
