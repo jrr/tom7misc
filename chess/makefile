@@ -130,7 +130,7 @@ chessreduce.exe : chessreduce.o chess.o pgn.o fate-data.o $(CCLIB_OBJECTS)
 maketable.exe : maketable.o chess.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-tournament.exe : tournament.o chess.o player.o $(CCLIB_OBJECTS)
+tournament.exe : tournament.o chess.o player.o stockfish.o subprocess.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 clean :

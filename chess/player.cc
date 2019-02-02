@@ -29,6 +29,29 @@ static const T &GetBest(const std::vector<T> &v, F f) {
   return v[best_i];
 }
 
+static int TypeValue(uint8 t) {
+  switch (t) {
+  case Position::PAWN:
+    return 1;
+
+  case Position::BISHOP:
+  case Position::KNIGHT:
+    return 3;
+
+  case Position::ROOK:
+  case Position::C_ROOK:
+    return 5;
+
+  case Position::QUEEN:
+    return 9;
+
+  default:
+    // Note, this includes king.
+    return 0;
+  }
+}
+
+
 #if 0
 static bool IsMating(Position *pos, const Move &m) {
   return pos->MoveExcursion(m, [pos]() { return pos->IsMated(); });
@@ -119,28 +142,6 @@ struct CCCPPlayer : public Player {
     uint8 captured = Position::EMPTY;
   };
 
-  static int PieceValue(uint8 p) {
-    switch (p) {
-    case Position::PAWN:
-      return 1;
-
-    case Position::BISHOP:
-    case Position::KNIGHT:
-      return 3;
-
-    case Position::ROOK:
-    case Position::C_ROOK:
-      return 5;
-
-    case Position::QUEEN:
-      return 9;
-
-    default:
-      // Note, this includes king.
-      return 0;
-    }
-  }
-
   // Here, lower is better.
   static int CenterDistance(uint8 col) {
     switch (col) {
@@ -197,7 +198,7 @@ struct CCCPPlayer : public Player {
 		     // (XXX If multiple captures are available, use the
 		     // lowest-value capturing piece?)
 		     if (a.captured != b.captured)
-		       return PieceValue(b.captured) < PieceValue(a.captured);
+		       return TypeValue(b.captured) < TypeValue(a.captured);
 
 		     // Otherwise, prefer move depth.
 		     if (a.m.dst_row != b.m.dst_row) {
@@ -220,8 +221,8 @@ struct CCCPPlayer : public Player {
 
 		     // Promote to the better piece.
 		     if (a.m.promote_to != b.m.promote_to)
-		       return PieceValue(b.m.promote_to & Position::TYPE_MASK) <
-			 PieceValue(a.m.promote_to & Position::TYPE_MASK);
+		       return TypeValue(b.m.promote_to & Position::TYPE_MASK) <
+			 TypeValue(a.m.promote_to & Position::TYPE_MASK);
 
 		     // Otherwise, we don't express a preference.
 		     return MoveCode(a.m) < MoveCode(b.m);
@@ -423,6 +424,34 @@ struct ReverseStartingPlayer : public EvalResultPlayer {
   }
 };
 
+struct GenerousPlayer : public EvalResultPlayer {
+  int64 PositionPenalty(Position *p) override {
+    // This will be increasingly negative (better), the more material
+    // we can capture.
+    int64 dist = 0LL;
+    // From the opponent's perspective. Of the current legal moves,
+    // how many capture pieces? Repeatedly count capturing the same
+    // piece, since this is even more generous to random players.
+    for (const Move &m : p->GetLegalMoves()) {
+      uint8 pd = p->PieceAt(m.dst_row, m.dst_col);
+      if (pd == Position::EMPTY) {
+	if (p->IsEnPassant(m)) dist--;
+      } else {
+	dist -= TypeValue(pd & Position::TYPE_MASK);
+      }
+    }
+    
+    return dist;
+  }
+  
+  const char *Name() const override { return "generous"; }
+  const char *Desc() const override {
+    return "Try to move pieces so that they can be legally captured "
+      "by the opponent.";
+  }
+};
+
+
 
 // TODO:
 //  - Stockfish, with and without opening book / endgame tablebases
@@ -457,4 +486,8 @@ Player *CreateSuicideKing() {
 
 Player *CreateReverseStarting() {
   return new ReverseStartingPlayer;
+}
+
+Player *CreateGenerous() {
+  return new GenerousPlayer;
 }
