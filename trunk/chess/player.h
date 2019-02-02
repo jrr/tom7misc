@@ -31,5 +31,6 @@ Player *CreateCCCP();
 Player *CreateMinOpponentMoves();
 Player *CreateSuicideKing();
 Player *CreateReverseStarting();
+Player *CreateGenerous();
 
 #endif

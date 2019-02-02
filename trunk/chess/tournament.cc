@@ -12,12 +12,19 @@
 
 #include "chess.h"
 #include "player.h"
+#include "stockfish.h"
 
 #define TESTING true
 
 using Move = Position::Move;
 using namespace std;
 
+// Number of round-robin rounds.
+// (Maybe should be based on the total number of games we want
+// to simulate?)
+static constexpr int TOTAL_ROUNDS = 750;
+static constexpr int THREADS = 60;
+static constexpr int ROUNDS_PER_THREAD = TOTAL_ROUNDS / THREADS;
 
 typedef Player *(*Entrant)();
 // using Entrant = Player *(*)();
@@ -28,7 +35,8 @@ const vector<Entrant> &GetEntrants() {
 			CreateCCCP,
 			CreateMinOpponentMoves,
 			CreateSuicideKing,
-			CreateReverseStarting,};
+			CreateReverseStarting,
+			CreateGenerous,};
   return *entrants;
 }
 
@@ -151,12 +159,6 @@ struct Cell {
   vector<Move> example_black_win, example_black_loss, example_black_draw;
 };
 
-// Number of round-robin rounds.
-// (Maybe should be based on the total number of games we want
-// to simulate?)
-static constexpr int TOTAL_ROUNDS = 1000;
-static constexpr int THREADS = 60;
-static constexpr int ROUNDS_PER_THREAD = TOTAL_ROUNDS / THREADS;
 static void TournamentThread(int thread_id,
 			     vector<Cell> *outcomes) {
   // Create thread-local instances of each entrant.
@@ -177,46 +179,52 @@ static void TournamentThread(int thread_id,
 	Cell *cell = &(*outcomes)[row * num_entrants + col];
 
 	// One game as white, one game as black.
-	vector<Move> as_white;
-	switch (PlayGame(entrants[row], entrants[col], &as_white)) {
-	case Result::WHITE_WINS:
-	  if (cell->row_wins == 0)
-	    cell->example_white_win = as_white;
-	  cell->row_wins++;
-	  break;
-	case Result::BLACK_WINS:
-	  if (cell->row_losses == 0)
-	    cell->example_white_loss = as_white;
-	  cell->row_losses++;
-	  break;
+	{
+	  vector<Move> as_white;
+	  switch (PlayGame(entrants[row], entrants[col], &as_white)) {
+	  case Result::WHITE_WINS:
+	    if (cell->row_wins == 0)
+	      cell->example_white_win = as_white;
+	    cell->row_wins++;
+	    break;
+	  case Result::BLACK_WINS:
+	    if (cell->row_losses == 0)
+	      cell->example_white_loss = as_white;
+	    cell->row_losses++;
+	    break;
 	  
-	case Result::DRAW_STALEMATE:
-	case Result::DRAW_75MOVES:
-	case Result::DRAW_5REPETITIONS:
-	  if (cell->draws == 0)
-	    cell->example_white_draw = as_white;
-	  cell->draws++;
+	  case Result::DRAW_STALEMATE:
+	  case Result::DRAW_75MOVES:
+	  case Result::DRAW_5REPETITIONS:
+	    if (cell->draws == 0)
+	      cell->example_white_draw = as_white;
+	    cell->draws++;
+	    break;
+	  }
 	}
-
-	vector<Move> as_black;
-	switch (PlayGame(entrants[col], entrants[row], &as_black)) {
-	case Result::WHITE_WINS:
-	  if (cell->row_losses == 0)
-	    cell->example_black_loss = as_white;
-	  cell->row_losses++;
-	  break;
-	case Result::BLACK_WINS:
-	  if (cell->row_wins == 0)
-	    cell->example_black_win = as_white;
-	  cell->row_wins++;
-	  break;
+	
+	{
+	  vector<Move> as_black;
+	  switch (PlayGame(entrants[col], entrants[row], &as_black)) {
+	  case Result::WHITE_WINS:
+	    if (cell->row_losses == 0)
+	      cell->example_black_loss = as_black;
+	    cell->row_losses++;
+	    break;
+	  case Result::BLACK_WINS:
+	    if (cell->row_wins == 0)
+	      cell->example_black_win = as_black;
+	    cell->row_wins++;
+	    break;
 	  
-	case Result::DRAW_STALEMATE:
-	case Result::DRAW_75MOVES:
-	case Result::DRAW_5REPETITIONS:
-	  if (cell->draws == 0)
-	    cell->example_black_draw = as_black;
-	  cell->draws++;
+	  case Result::DRAW_STALEMATE:
+	  case Result::DRAW_75MOVES:
+	  case Result::DRAW_5REPETITIONS:
+	    if (cell->draws == 0)
+	      cell->example_black_draw = as_black;
+	    cell->draws++;
+	    break;
+	  }
 	}
       }
     }
@@ -358,7 +366,9 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  RunTournament();
+  Stockfish fish;
+  
+  // RunTournament();
   // implement!
   return 0;
 }
