@@ -27,7 +27,8 @@ const vector<Entrant> &GetEntrants() {
 			CreateFirstMove,
 			CreateCCCP,
 			CreateMinOpponentMoves,
-			CreateSuicideKing};
+			CreateSuicideKing,
+			CreateReverseStarting,};
   return *entrants;
 }
 
@@ -88,7 +89,6 @@ Result PlayGame(Player *white, Player *black, vector<Move> *moves) {
 	white_stale_moves++;
       }
 
-      // printf("%d. %s ", movenum, pos.ShortMoveString(m).c_str());
       pos.ApplyMove(m);
       moves->push_back(m);
       
@@ -110,7 +110,6 @@ Result PlayGame(Player *white, Player *black, vector<Move> *moves) {
       if (DrawByRule75())
 	return Result::DRAW_75MOVES;
 
-      // printf("%s\n\n", pos.BoardString().c_str());
     }
       
     if (TESTING) { CHECK(pos.BlackMove()); }
@@ -125,7 +124,6 @@ Result PlayGame(Player *white, Player *black, vector<Move> *moves) {
 	black_stale_moves++;
       }
 
-      // printf("%s ", pos.ShortMoveString(m).c_str());
       pos.ApplyMove(m);
       moves->push_back(m);
       
@@ -143,8 +141,6 @@ Result PlayGame(Player *white, Player *black, vector<Move> *moves) {
       
       if (DrawByRule75())
 	return Result::DRAW_75MOVES;
-
-      // printf("%s\n\n", pos.BoardString().c_str());
     }
   }
 }

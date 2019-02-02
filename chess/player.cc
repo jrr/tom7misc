@@ -234,52 +234,6 @@ struct CCCPPlayer : public Player {
   }
 };
 
-struct MinOpponentMovesPlayer : public Player {
-  MinOpponentMovesPlayer() : rc(GetSeed()) {
-    rc.Discard(800);
-  }
-    
-  struct LabeledMove {
-    Move m;
-    int opponent_moves = 0;
-    uint32 r = 0u;
-  };
-
-  Move MakeMove(const Position &orig_pos) override {
-    Position pos = orig_pos;
-    std::vector<LabeledMove> labeled;
-    for (const Move &m : pos.GetLegalMoves()) {
-      LabeledMove lm;
-      lm.m = m;
-      lm.r = Rand32(&rc);
-      pos.MoveExcursion(m,
-			[&pos, &lm]() {
-			  lm.opponent_moves = pos.NumLegalMoves();
-			  return 0;
-			});
-      labeled.push_back(lm);
-    }
-    CHECK(!labeled.empty());
-
-    return GetBest(labeled,
-		   [](const LabeledMove &a,
-		      const LabeledMove &b) {
-		     if (a.opponent_moves != b.opponent_moves)
-		       return a.opponent_moves < b.opponent_moves;
-
-		     return a.r < b.r;
-		   }).m;
-  }
-  
-  const char *Name() const override { return "min_opponent_moves"; }
-  const char *Desc() const override {
-    return "Take a random move that minimizes the opponent's number "
-      "of legal moves.";
-  }
-
-  ArcFour rc;
-};
-
 // Base class for a player orders by some metric on the board
 // state after the move, and breaks ties at random.
 struct EvalResultPlayer : public Player {
@@ -325,8 +279,19 @@ struct EvalResultPlayer : public Player {
   ArcFour rc;
 };
 
-struct SuicideKingPlayer : public EvalResultPlayer {
+struct MinOpponentMovesPlayer : public EvalResultPlayer {
+  int64 PositionPenalty(Position *p) override {
+    return p->NumLegalMoves();
+  }
+  
+  const char *Name() const override { return "min_opponent_moves"; }
+  const char *Desc() const override {
+    return "Take a random move that minimizes the opponent's number "
+      "of legal moves.";
+  }
+};
 
+struct SuicideKingPlayer : public EvalResultPlayer {
   int64 PositionPenalty(Position *p) override {
     // Distance is symmetric, so we don't care which is "my" king.
     int br, bc, wr, wc;
@@ -344,14 +309,126 @@ struct SuicideKingPlayer : public EvalResultPlayer {
   }
 };
 
+// Return the distance between the two given squares in Knight's
+// moves, on an infinite chessboard, with no obstructions.
+// (Note that unlike other metrics, the borders really do change
+// the meaning here. The distance from (0,0) to (1,1) on a
+// real chessboard is 4 (I think) but this function returns 2
+// by allowing you to momentarily jump off the board.)
+static int KnightDistance(int r1, int c1, int r2, int c2) {
+  int r = std::abs(r2 - r1);
+  int c = std::abs(c2 - c1);
+
+  static constexpr int kDistance[64] = {
+    0, 3, 2, 3, 2, 3, 4, 5,  
+    3, 2, 1, 2, 3, 4, 3, 4, 
+    2, 1, 4, 3, 2, 3, 4, 5, 
+    3, 2, 3, 2, 3, 4, 3, 4, 
+    2, 3, 2, 3, 4, 3, 4, 5, 
+    3, 4, 3, 4, 3, 4, 5, 4, 
+    4, 3, 4, 3, 4, 5, 4, 5, 
+    5, 4, 5, 4, 5, 4, 5, 6, 
+  };
+  return kDistance[r * 8 + c];
+}
+
+struct ReverseStartingPlayer : public EvalResultPlayer {
+  int64 PositionPenalty(Position *p) override {
+    int64 dist = 0LL;
+    // We're evaluating after making the move, so my pieces are
+    // the opposite color of the current move.
+    const bool black = !p->BlackMove();
+    const int my_mask = black ? Position::BLACK : Position::WHITE;
+    const int pawn_row = black ? 6 : 1;
+    const int back_row = black ? 7 : 0;
+    for (int r = 0; r < 8; r++) {
+      for (int c = 0; c < 8; c++) {
+	uint8 piece = p->PieceAt(r, c);
+	if ((piece & Position::COLOR_MASK) == my_mask) {
+	  switch (piece & Position::TYPE_MASK) {
+	  default:
+	  case Position::EMPTY:
+	    break;
+	  case Position::PAWN:
+	    dist += std::abs(r - pawn_row);
+	    break;
+	  case Position::C_ROOK:
+	  case Position::ROOK:
+	    dist += std::abs(r - back_row);
+	    dist += std::min(std::abs(c - 0),
+			     std::abs(c - 7));
+	    break;
+	    
+	  case Position::KNIGHT:
+	    dist += std::min(KnightDistance(r, c,
+					    back_row, 1),
+			     KnightDistance(r, c,
+					    back_row, 6));
+	    break;
+
+	  case Position::QUEEN:
+	    dist += std::max(std::abs(r - back_row),
+			     std::abs(c - 3));
+	    break;
+
+	  case Position::KING:
+	    dist += std::max(std::abs(r - back_row),
+			     std::abs(c - 4));
+	    break;
+
+	  case Position::BISHOP: {
+	    // Bishops can't leave their color, so we say that the
+	    // black bishop is trying to get to c1 (which also mirrors
+	    // horizontally).
+	    const bool black_bishop =
+	      Position::IsBlackSquare(r, c);
+	    const int dest_col = black_bishop ?
+	      (black ? 2 : 5) :
+	      (black ? 5 : 2);
+
+	    // Distance along row and column.
+	    const int dr = std::abs(r - back_row);
+	    const int dc = std::abs(c - dest_col);
+
+	    // Assuming the square is reachable (which will be true by
+	    // construction above), it follows a very regular pattern,
+	    // with shells that simply increase by 1.
+	    //
+	    // 0  -  2  -  4  -
+	    //
+	    // -  1  -  3  -  5
+	    //
+	    // 2  -  2  -  4  -
+	    //
+	    // -  3  -  3  -  5
+	    //
+	    // 4  -  4  -  4  -
+	    //
+	    // -  5  -  5  -  5
+				    
+	    dist += std::max(dr, dc);
+	    break;
+	  }
+	  }
+	}
+      }
+    }
+    return dist;
+  }
+  
+  const char *Name() const override { return "reverse_starting"; }
+  const char *Desc() const override {
+    return "Try to move pieces such that they mirror the starting "
+      "position, but in the opponent's camp.";
+  }
+};
+
 
 // TODO:
 //  - Stockfish, with and without opening book / endgame tablebases
 //  - Maximize net control of squares
 //  - Try to move your pieces to certain squares:
 //       - put your pieces on squares of your color, or opponent color
-//       - try to get your pieces into the starting position, but
-//         mirrored into the opponent's camp
 //       - try to get all pieces close to the center
 //  - attack the opponent's piece of maximum value with your piece
 //    of minimum value
@@ -376,4 +453,8 @@ Player *CreateMinOpponentMoves() {
 
 Player *CreateSuicideKing() {
   return new SuicideKingPlayer;
+}
+
+Player *CreateReverseStarting() {
+  return new ReverseStartingPlayer;
 }
