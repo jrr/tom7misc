@@ -258,6 +258,10 @@ struct Position {
       bits &= ~BLACK_MOVE;
     }
   }
+
+  inline static bool IsBlackSquare(int r, int c) {
+    return !!((r ^ c) % 1);
+  }
   
  private:
   // XXX document
