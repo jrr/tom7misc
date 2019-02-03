@@ -7,15 +7,13 @@
 #include <errno.h>
 #include <fcntl.h>
 
-// #define pipe(fds) _pipe(fds,4096, _O_BINARY) 
-
-// no pseudoterminal support on windows
-// #include <pty.h>
-  // CHECK(0 == forkpty(&amaster, nullptr, nullptr, nullptr));
-
 #include <string>
+#include <mutex>
 
 #include "../cc-lib/base/logging.h"
+#include "../cc-lib/base/stringprintf.h"
+#include "../cc-lib/threadutil.h"
+#include "../cc-lib/util.h"
 
 #include "subprocess.h"
 
@@ -26,7 +24,7 @@ using namespace std;
 // note that x86-64-modern just segfaults. Might be a performance
 // win here if I could figure out why.
 
-Stockfish::Stockfish(int ) {
+Stockfish::Stockfish(int level) {
   subprocess.reset(
       Subprocess::Create(
 	  "..\\..\\stockfish\\src\\stockfish.exe"));
@@ -40,35 +38,52 @@ Stockfish::Stockfish(int ) {
     // fflush(stdout);
     if (line == "uciok") break;
   }
+
+  subprocess->Write(StringPrintf("setoption name Skill Level value %d\n", level));
+
+  // XXX: Set time limit?
+}
+
+void Stockfish::GetMove(const string &fen, string *move, Score *score) {
+  // XXX clear hash?
+  MutexLock ml(&subprocess_m);
+  subprocess->Write(StringPrintf("position fen %s\ngo\n", fen.c_str()));
   
-#if 0
-  printf("Try open stockfish...\n");
-  fflush(stdout);
+  string line;
+  string info;
+  do {
+    CHECK(subprocess->ReadLine(&line));
+    if (line.find("info") == 0) info = line;
+  } while (line.find("bestmove") != 0);
 
-  int amaster = 0;
+  CHECK("bestmove" == Util::chop(line));
+  *move = Util::chop(line);
 
-
-  const char *argv[2] = {"stockfish.exe", nullptr};
-  const char *env[1] = {nullptr};
-  PipeChild("..\\..\\stockfish\\src\\stockfish.exe",
-	    argv, env, "uci\n");
-#endif
+  // printf("%s -> [%s]\n", fen.c_str(), move->c_str());
+  // fflush(stdout);
   
-  #if 0
-  // alas, no bidirectional popen in mingw.
-  FILE *f = popen("..\\..\\stockfish\\src\\stockfish.exe", "r+");
-  CHECK(f);
+  // On an info line, score has one of these two forms (from uci.cpp):
+  /// cp <x>    The score from the engine's point of view in centipawns.
+  /// mate <y>  Mate in y moves, not plies. If the engine is getting mated
+  ///           use negative values for y.
 
-  fprintf(f, "uci\n");
-  for (;;) {
-    string line = freadline(f);
-    printf("line [%s]\n", line.c_str());
-    if (line == "uciok") {
-      break;
+  if (score != nullptr) {
+    string tok;
+    while (!(tok = Util::chop(info)).empty()) {
+      if (tok == "score") {
+	string typ = Util::chop(info);
+	string val = Util::chop(info);
+	if (typ == "cp") {
+	  score->is_mate = false;
+	} else if (typ == "mate") {
+	  score->is_mate = true;
+	} else {
+	  LOG(FATAL) << "Unknown score type " << typ;
+	}
+
+	score->value = atoi(val.c_str());
+	break;
+      }
     }
-  }
-
-  // XXX
-  pclose(f);
-#endif
+  } 
 }

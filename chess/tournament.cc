@@ -12,7 +12,8 @@
 
 #include "chess.h"
 #include "player.h"
-#include "stockfish.h"
+// #include "stockfish.h"
+#include "stockfish-player.h"
 
 #define TESTING true
 
@@ -22,21 +23,31 @@ using namespace std;
 // Number of round-robin rounds.
 // (Maybe should be based on the total number of games we want
 // to simulate?)
-static constexpr int TOTAL_ROUNDS = 750;
-static constexpr int THREADS = 60;
+static constexpr int TOTAL_ROUNDS = 250;
+static constexpr int THREADS = 50;
 static constexpr int ROUNDS_PER_THREAD = TOTAL_ROUNDS / THREADS;
 
 typedef Player *(*Entrant)();
 // using Entrant = Player *(*)();
 const vector<Entrant> &GetEntrants() {
   static vector<Entrant> *entrants =
-    new vector<Entrant>{CreateRandom,
+    new vector<Entrant>{
+			CreateWorstfish,
+			CreateRandom,
 			CreateFirstMove,
 			CreateCCCP,
+			CreateSameColor,
+			CreateOppositeColor,
 			CreateMinOpponentMoves,
 			CreateSuicideKing,
 			CreateReverseStarting,
-			CreateGenerous,};
+			CreateGenerous,
+						CreateStockfish0,
+			// CreateStockfish5,
+			// CreateStockfish10,
+			// CreateStockfish15,
+						CreateStockfish20,
+  };
   return *entrants;
 }
 
@@ -169,7 +180,8 @@ static void TournamentThread(int thread_id,
   const int num_entrants = entrants.size();
 
   CHECK(outcomes->size() == num_entrants * num_entrants);
-  
+
+  int64 last_message = time(nullptr);
   for (int round = 0; round < ROUNDS_PER_THREAD; round++) {
     for (int row = 0; row < num_entrants; row++) {
       for (int col = 0; col < num_entrants; col++) {
@@ -228,10 +240,13 @@ static void TournamentThread(int thread_id,
 	}
       }
     }
-    if (round % 25 == 0) {
+
+    int64 now = time(nullptr);
+    if (now - last_message > 10) {
       printf("[%d] %d/%d %d%%\n", thread_id, round, ROUNDS_PER_THREAD,
 	     (round * 100) / ROUNDS_PER_THREAD);
       fflush(stdout);
+      last_message = now;
     }
   }
   
@@ -246,6 +261,14 @@ static void RunTournament() {
   }
   int num_entrants = entrants.size();
 
+  int actual_rounds = THREADS * ROUNDS_PER_THREAD;
+  int games_per_round = 2 * num_entrants * num_entrants;
+  printf("Will run %d rounds, each %d^2 x 2 = %d games,\n"
+	 "for a total of %d games.\n",
+	 actual_rounds, num_entrants, games_per_round,
+	 games_per_round * actual_rounds);
+  fflush(stdout);
+  
   auto AddOutcomes =
     [](const vector<Cell> &a,
        const vector<Cell> &b) {
@@ -321,10 +344,10 @@ static void RunTournament() {
   
   fprintf(f, "<table><tr><td>&nbsp;</td>\n");
   for (Player *p : entrants)
-    fprintf(f, " <td>%s</td>\n", p->Name());
+    fprintf(f, " <td>%s</td>\n", p->Name().c_str());
   fprintf(f, "</tr>\n");
   for (int row = 0; row < num_entrants; row++) {
-    fprintf(f, "<tr><td>%s</td>\n", entrants[row]->Name());
+    fprintf(f, "<tr><td>%s</td>\n", entrants[row]->Name().c_str());
     for (int col = 0; col < num_entrants; col++) {
       int idx = row * num_entrants + col;
       const Cell &cell = outcomes[idx];
@@ -342,33 +365,7 @@ static void RunTournament() {
 
 
 int main(int argc, char **argv) {
-#if 0
-  std::unique_ptr<Player> rplayer{CreateRandom()};
-  std::unique_ptr<Player> fmplayer{CreateFirstMove()};
-  std::unique_ptr<Player> cccpplayer{CreateCCCP()};
-
-  switch (PlayGame(fmplayer.get(), fmplayer.get())) {
-  case Result::WHITE_WINS:
-    printf("White wins!\n");
-    break;
-  case Result::BLACK_WINS:
-    printf("Black wins!\n");
-    break;
-  case Result::DRAW_STALEMATE:
-    printf("Draw (stalemate)!\n");
-    break;
-  case Result::DRAW_75MOVES:
-    printf("Draw (75 moves)!\n");
-    break;
-  case Result::DRAW_5REPETITIONS:
-    printf("Draw (5-fold repetition)!\n");
-    break;
-  }
-#endif
-
-  Stockfish fish;
-  
-  // RunTournament();
+  RunTournament();
   // implement!
   return 0;
 }

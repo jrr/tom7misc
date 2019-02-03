@@ -10,24 +10,13 @@
 #include "../cc-lib/base/logging.h"
 #include "../cc-lib/base/stringprintf.h"
 
+#include "player-util.h"
+
 using namespace std;
 using int64 = int64_t;
 using Move = Position::Move;
 
 namespace {
-
-template<class T, class F>
-static const T &GetBest(const std::vector<T> &v, F f) {
-  CHECK(!v.empty());
-  int best_i = 0;
-  for (int i = 1; i < v.size(); i++) {
-    // f is <, so this means a strict improvement
-    if (f(v[i], v[best_i])) {
-      best_i = i;
-    }
-  }
-  return v[best_i];
-}
 
 static int TypeValue(uint8 t) {
   switch (t) {
@@ -51,17 +40,6 @@ static int TypeValue(uint8 t) {
   }
 }
 
-
-#if 0
-static bool IsMating(Position *pos, const Move &m) {
-  return pos->MoveExcursion(m, [pos]() { return pos->IsMated(); });
-}
-
-static bool IsChecking(Position *pos, const Move &m) {
-  return pos->MoveExcursion(m, [pos]() { return pos->IsInCheck(); });
-}
-#endif
-
 struct FirstMovePlayer : public Player {
 
   static int WhiteCode(const Move &m) {
@@ -81,38 +59,28 @@ struct FirstMovePlayer : public Player {
     std::vector<Move> legal = pos.GetLegalMoves();
 
     if (pos.BlackMove()) {
-      return GetBest(legal, 
-		     [](const Move &a, const Move &b) {
-		       return BlackCode(a) < BlackCode(b);
-		     });
+      return PlayerUtil::GetBest(
+	  legal, 
+	  [](const Move &a, const Move &b) {
+	    return BlackCode(a) < BlackCode(b);
+	  });
     } else {
-      return GetBest(legal, 
-		     [](const Move &a, const Move &b) {
-		       return WhiteCode(a) < WhiteCode(b);
-		     });
+      return PlayerUtil::GetBest(
+	  legal, 
+	  [](const Move &a, const Move &b) {
+	    return WhiteCode(a) < WhiteCode(b);
+	  });
     }
   }
   
-  const char *Name() const override { return "first_move"; }
-  const char *Desc() const override {
+  string Name() const override { return "first_move"; }
+  string Desc() const override {
     return "Makes the lexicographically first legal move.";
   }
 };
 
-static std::mutex seed_m;
-static string GetSeed() {
-  static int64 counter = 0LL;
-  int64 c = 0LL;
-  seed_m.lock();
-  c = counter++;
-  seed_m.unlock();
-
-  int64 t = time(nullptr);
-  return StringPrintf("s%lld.%lld", c, t);
-}
-
 struct RandomPlayer : public Player {
-  RandomPlayer() : rc(GetSeed()) {
+  RandomPlayer() : rc(PlayerUtil::GetSeed()) {
     rc.Discard(800);
   }
     
@@ -124,8 +92,8 @@ struct RandomPlayer : public Player {
     return legal[RandTo32(&rc, legal.size())];
   }
   
-  const char *Name() const override { return "random_move"; }
-  const char *Desc() const override {
+  string Name() const override { return "random_move"; }
+  string Desc() const override {
     return "Choose a legal move, uniformly at random.";
   }
 
@@ -185,99 +153,55 @@ struct CCCPPlayer : public Player {
     }
     CHECK(!labeled.empty());
 
-    return GetBest(labeled,
-		   [black](const LabeledMove &a,
-			   const LabeledMove &b) {
-		     if (a.is_checkmate != b.is_checkmate)
-		       return a.is_checkmate;
+    return PlayerUtil::GetBest(
+	labeled,
+	[black](const LabeledMove &a,
+		const LabeledMove &b) {
+	  if (a.is_checkmate != b.is_checkmate)
+	    return a.is_checkmate;
 
-		     if (a.is_check != b.is_check)
-		       return a.is_check;
+	  if (a.is_check != b.is_check)
+	    return a.is_check;
 
-		     // If capturing, prefer larger value!
-		     // (XXX If multiple captures are available, use the
-		     // lowest-value capturing piece?)
-		     if (a.captured != b.captured)
-		       return TypeValue(b.captured) < TypeValue(a.captured);
+	  // If capturing, prefer larger value!
+	  // (XXX If multiple captures are available, use the
+	  // lowest-value capturing piece?)
+	  if (a.captured != b.captured)
+	    return TypeValue(b.captured) < TypeValue(a.captured);
 
-		     // Otherwise, prefer move depth.
-		     if (a.m.dst_row != b.m.dst_row) {
-		       if (black) {
-			 // Prefer moving to larger rows
-			 return b.m.dst_row < a.m.dst_row;
-		       } else {
-			 return a.m.dst_row < b.m.dst_row;
-		       }
-		     }
+	  // Otherwise, prefer move depth.
+	  if (a.m.dst_row != b.m.dst_row) {
+	    if (black) {
+	      // Prefer moving to larger rows
+	      return b.m.dst_row < a.m.dst_row;
+	    } else {
+	      return a.m.dst_row < b.m.dst_row;
+	    }
+	  }
 
-		     // Otherwise, prefer moving towards the
-		     // center.
-		     if (a.m.dst_col != b.m.dst_col) {
-		       int acs = CenterDistance(a.m.dst_col);
-		       int bcs = CenterDistance(b.m.dst_col);
-		       if (acs != bcs)
-			 return acs < bcs;
-		     }
+	  // Otherwise, prefer moving towards the
+	  // center.
+	  if (a.m.dst_col != b.m.dst_col) {
+	    int acs = CenterDistance(a.m.dst_col);
+	    int bcs = CenterDistance(b.m.dst_col);
+	    if (acs != bcs)
+	      return acs < bcs;
+	  }
 
-		     // Promote to the better piece.
-		     if (a.m.promote_to != b.m.promote_to)
-		       return TypeValue(b.m.promote_to & Position::TYPE_MASK) <
-			 TypeValue(a.m.promote_to & Position::TYPE_MASK);
+	  // Promote to the better piece.
+	  if (a.m.promote_to != b.m.promote_to)
+	    return TypeValue(b.m.promote_to & Position::TYPE_MASK) <
+	      TypeValue(a.m.promote_to & Position::TYPE_MASK);
 
-		     // Otherwise, we don't express a preference.
-		     return MoveCode(a.m) < MoveCode(b.m);
-		   }).m;
+	  // Otherwise, we don't express a preference.
+	  return MoveCode(a.m) < MoveCode(b.m);
+	}).m;
   }
   
-  const char *Name() const override { return "cccp"; }
-  const char *Desc() const override {
+  string Name() const override { return "cccp"; }
+  string Desc() const override {
     return "Checkmate, check, capture, push.";
   }
-};
-
-// Base class for a player orders by some metric on the board
-// state after the move, and breaks ties at random.
-struct EvalResultPlayer : public Player {
-  EvalResultPlayer() : rc(GetSeed()) {
-    rc.Discard(800);
-  }
-
-  // With smaller scores being better.
-  virtual int64 PositionPenalty(Position *p) = 0;
-  
-  struct LabeledMove {
-    Move m;
-    int64 penalty = 0.0;
-    uint32 r = 0u;
-  };
-
-  Move MakeMove(const Position &orig_pos) override {
-    Position pos = orig_pos;
-    std::vector<LabeledMove> labeled;
-    for (const Move &m : pos.GetLegalMoves()) {
-      LabeledMove lm;
-      lm.m = m;
-      lm.r = Rand32(&rc);
-      pos.MoveExcursion(m,
-			[this, &pos, &lm]() {
-			  lm.penalty = PositionPenalty(&pos);
-			  return 0;
-			});
-      labeled.push_back(lm);
-    }
-    CHECK(!labeled.empty());
-
-    return GetBest(labeled,
-		   [](const LabeledMove &a,
-		      const LabeledMove &b) {
-		     if (a.penalty != b.penalty)
-		       return a.penalty < b.penalty;
-
-		     return a.r < b.r;
-		   }).m;
-  }
-  
-  ArcFour rc;
 };
 
 struct MinOpponentMovesPlayer : public EvalResultPlayer {
@@ -285,8 +209,8 @@ struct MinOpponentMovesPlayer : public EvalResultPlayer {
     return p->NumLegalMoves();
   }
   
-  const char *Name() const override { return "min_opponent_moves"; }
-  const char *Desc() const override {
+  string Name() const override { return "min_opponent_moves"; }
+  string Desc() const override {
     return "Take a random move that minimizes the opponent's number "
       "of legal moves.";
   }
@@ -303,8 +227,8 @@ struct SuicideKingPlayer : public EvalResultPlayer {
     return std::max(std::abs(br - wr), std::abs(bc - wc));
   }
   
-  const char *Name() const override { return "suicide_king"; }
-  const char *Desc() const override {
+  string Name() const override { return "suicide_king"; }
+  string Desc() const override {
     return "Take a random move that minimizes the distance "
       "between the two kings.";
   }
@@ -417,8 +341,8 @@ struct ReverseStartingPlayer : public EvalResultPlayer {
     return dist;
   }
   
-  const char *Name() const override { return "reverse_starting"; }
-  const char *Desc() const override {
+  string Name() const override { return "reverse_starting"; }
+  string Desc() const override {
     return "Try to move pieces such that they mirror the starting "
       "position, but in the opponent's camp.";
   }
@@ -444,23 +368,82 @@ struct GenerousPlayer : public EvalResultPlayer {
     return dist;
   }
   
-  const char *Name() const override { return "generous"; }
-  const char *Desc() const override {
+  string Name() const override { return "generous"; }
+  string Desc() const override {
     return "Try to move pieces so that they can be legally captured "
       "by the opponent.";
   }
 };
 
+struct SameColorPlayer : public EvalResultPlayer {
+  int64 PositionPenalty(Position *p) override {
+    int64 penalty = 0LL;
+    // Just reduce the penalty (always non-positive) for each piece on
+    // the same-color square. Increasing the penalty would encourage
+    // us to sac pieces.
+
+    // (Reversed since we are on the following move now.)
+    const bool black = !p->BlackMove();
+    const uint8 my_mask = black ? Position::BLACK : Position::WHITE;
+    for (int r = 0; r < 8; r++) {
+      for (int c = 0; c < 8; c++) {
+	const uint8 piece = p->PieceAt(r, c);
+	if (piece != Position::EMPTY &&
+	    (piece & Position::COLOR_MASK) == my_mask) {
+	  if (black == Position::IsBlackSquare(r, c)) penalty--;
+	}
+      }
+    }
+    return penalty;
+  }
+  
+  string Name() const override { return "same_color"; }
+  string Desc() const override {
+    return "If white, put pieces on white squares.";
+  }
+};
+
+struct OppositeColorPlayer : public EvalResultPlayer {
+  int64 PositionPenalty(Position *p) override {
+    int64 penalty = 0LL;
+    // Just reduce the penalty (always non-positive) for each piece on
+    // the same-color square. Increasing the penalty would encourage
+    // us to sac pieces.
+
+    // (Reversed since we are on the following move now.)
+    const bool black = !p->BlackMove();
+    const uint8 my_mask = black ? Position::BLACK : Position::WHITE;
+    for (int r = 0; r < 8; r++) {
+      for (int c = 0; c < 8; c++) {
+	const uint8 piece = p->PieceAt(r, c);
+	if (piece != Position::EMPTY &&
+	    (piece & Position::COLOR_MASK) == my_mask) {
+	  if (black != Position::IsBlackSquare(r, c)) penalty--;
+	}
+      }
+    }
+    return penalty;
+  }
+  
+  string Name() const override { return "opposite_color"; }
+  string Desc() const override {
+    return "If white, put pieces on black squares.";
+  }
+};
 
 
 // TODO:
 //  - Stockfish, with and without opening book / endgame tablebases
 //  - Maximize net control of squares
 //  - Try to move your pieces to certain squares:
-//       - put your pieces on squares of your color, or opponent color
 //       - try to get all pieces close to the center
 //  - attack the opponent's piece of maximum value with your piece
 //    of minimum value
+//  - buddy system; if you are alone then only move next to a buddy.
+//    if you are with a buddy, then you may move away
+//
+//  - select eligible squares with langton's ant, game of life
+
 
 }  // namespace
 
@@ -490,4 +473,12 @@ Player *CreateReverseStarting() {
 
 Player *CreateGenerous() {
   return new GenerousPlayer;
+}
+
+Player *CreateSameColor() {
+  return new SameColorPlayer;
+}
+
+Player *CreateOppositeColor() {
+  return new OppositeColorPlayer;
 }
