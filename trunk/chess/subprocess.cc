@@ -97,8 +97,8 @@ Subprocess *Subprocess::Create(const string &filename) {
   saAttr.bInheritHandle = TRUE;
   saAttr.lpSecurityDescriptor = nullptr;
 
-  printf("Create Subprocess struct...\n");
-  fflush(stdout);
+  // printf("Create Subprocess struct...\n");
+  // fflush(stdout);
   
   std::unique_ptr<SubprocessImpl> sub{new SubprocessImpl};
 
@@ -119,8 +119,8 @@ Subprocess *Subprocess::Create(const string &filename) {
   if (!SetHandleInformation(sub->g_hChildStd_IN_Wr, HANDLE_FLAG_INHERIT, 0))
     return nullptr;
 
-  printf("Created handles...\n");
-  fflush(stdout);
+  // printf("Created handles...\n");
+  // fflush(stdout);
   
   // Now create the child process.
   PROCESS_INFORMATION piProcInfo;
@@ -141,8 +141,8 @@ Subprocess *Subprocess::Create(const string &filename) {
   // ugh, CreateProcess needs a non-const pointer
   string filename_copy = filename;
 
-  printf("CreateProcess...\n");
-  fflush(stdout);
+  // printf("CreateProcess...\n");
+  // fflush(stdout);
   
   if (!CreateProcess(nullptr,
 		     // command line
@@ -165,8 +165,8 @@ Subprocess *Subprocess::Create(const string &filename) {
 		     &piProcInfo))
     return nullptr;
 
-  printf("CreateProcess...\n");
-  fflush(stdout);
+  // printf("CreateProcess...\n");
+  // fflush(stdout);
   
   // TODO: Keep these in Subprocess struct.
   // Close handles to the child process and its primary thread.
@@ -175,8 +175,8 @@ Subprocess *Subprocess::Create(const string &filename) {
   CloseHandle(piProcInfo.hProcess);
   CloseHandle(piProcInfo.hThread);
 
-  printf("OK...\n");
-  fflush(stdout);
+  // printf("OK...\n");
+  // fflush(stdout);
   
   return sub.release();
 }

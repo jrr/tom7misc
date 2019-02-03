@@ -114,10 +114,17 @@ struct Position {
   // Distinguishes black and white pieces. Space for empty.
   static const char *HTMLEntity(uint8 piece);
   
-  // TODO: Parse FEN.
+  // TODO: This does not handle castling and en passant correctly.
+  // It ignores the move counts.
   // e.g. rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
   static bool ParseFEN(const char *fen, Position *pos);
 
+  // Requires the caller to specify the move clock (number of half-moves
+  // since a pawn move or capture) and full move count (starts at 1
+  // and incremented after black moves), since we don't keep track
+  // of those.
+  std::string ToFEN(int halfmove_clock, int fullmove_number) const;
+  
   // Parse a PGN-style move m in the current board state.
   // A move is the "Nc3!?" part of PGN. Move numbers, evaluations,
   // etc. should not be included. Does not do syntactic validation
@@ -260,7 +267,7 @@ struct Position {
   }
 
   inline static bool IsBlackSquare(int r, int c) {
-    return !!((r ^ c) % 1);
+    return !!((r ^ c) & 1);
   }
   
  private:

@@ -2,6 +2,8 @@
 #ifndef __PLAYER_H
 #define __PLAYER_H
 
+#include <string>
+
 #include "chess.h"
 
 // Interface for a chess-playing algorithm.
@@ -16,9 +18,9 @@ struct Player {
 
   // Return the name of the algorithm. Should be distinct
   // across all implementations of the interface.
-  virtual const char *Name() const = 0;
+  virtual std::string Name() const = 0;
   // Brief description of how the player works.
-  virtual const char *Desc() const = 0;
+  virtual std::string Desc() const = 0;
 
   virtual ~Player() {}
 };
@@ -32,5 +34,7 @@ Player *CreateMinOpponentMoves();
 Player *CreateSuicideKing();
 Player *CreateReverseStarting();
 Player *CreateGenerous();
+Player *CreateSameColor();
+Player *CreateOppositeColor();
 
 #endif

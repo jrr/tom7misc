@@ -1183,6 +1183,65 @@ bool Position::NotIntoCheck(Move m) {
 	});
 }
 
+string Position::ToFEN(int halfmove_clock, int fullmove_number) const {
+  string ret;
+
+  for (int r = 0; r < 8; r++) {
+    int empty_run = 0;
+    auto FlushRun =
+      [&ret, &empty_run]() {
+	if (empty_run > 0) {
+	  ret.push_back('0' + empty_run);
+	  empty_run = 0;
+	}
+      };
+    for (int c = 0; c < 8; c++) {
+      uint8 p = PieceAt(r, c);
+      if (p == EMPTY) {
+	empty_run++;
+      } else {
+	FlushRun();
+	ret.push_back(HumanPieceChar(p));
+      }
+    }
+    FlushRun();
+    if (r != 7) ret.push_back('/');
+  }
+
+  // Whose move?
+  ret.push_back(' ');
+  ret.push_back(BlackMove() ? 'b' : 'w');
+  ret.push_back(' ');
+
+  {
+    string cast;
+    if (CanStillCastle(true, true)) cast.push_back('K');
+    if (CanStillCastle(true, false)) cast.push_back('Q');
+    if (CanStillCastle(false, true)) cast.push_back('k');
+    if (CanStillCastle(false, false)) cast.push_back('q');
+    if (cast.empty()) cast = "-";
+    ret += cast;
+  }
+
+  ret.push_back(' ');
+  if (0 != (bits & DOUBLE)) {
+    ret.push_back('a' + (bits & PAWN_COL));
+    // If it's black's move, then white just
+    // did the double move, so the spot "behind"
+    // the pawn is on the 3rd rank (else 6th).
+    ret.push_back(BlackMove() ? '3' : '6');
+  } else {
+    ret.push_back('-');
+  }
+
+  ret.push_back(' ');
+  ret += to_string(halfmove_clock);
+  ret.push_back(' ');
+  ret += to_string(fullmove_number);
+
+  return ret;
+}
+
 bool Position::IsInCheck() {
   int kingr, kingc;
   std::tie(kingr, kingc) = GetCurrentKing();

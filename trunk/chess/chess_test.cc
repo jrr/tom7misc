@@ -60,6 +60,8 @@ static void CheckInit() {
   static const char *START_FEN =
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
   CHECK(Position::ParseFEN(START_FEN, &pos));
+  string fen_out = pos.ToFEN(0, 1);
+  CHECK(START_FEN == fen_out) << fen_out;
   const string fen_pos = pos.BoardString();
   CHECK(init_pos == fen_pos) << init_pos << "\n\n" << fen_pos;
 }
@@ -312,7 +314,7 @@ static void ValidMoves2() {
   CHECK(!pos.HasLegalMoves());
 
   int kingrow, kingcol;
-  std::tie(kingrow, kingcol) = pos.GetKing();
+  std::tie(kingrow, kingcol) = pos.GetCurrentKing();
   CHECK(kingrow == 4 && kingcol == 1) << kingrow << ", " << kingcol;
 }
 
@@ -370,13 +372,16 @@ static void TestEp() {
 )_";
   Position pos = MakePos(kGame);
   CHECK(!pos.IsMated());
+  string fen = pos.ToFEN(0, 4);
+  CHECK("rnbq1bnr/ppppkppp/8/8/4PpP1/8/PPPPK2P/RNBQ1BNR b - g3 0 4" ==
+	fen) << fen;
   Move ep;
   CHECK(pos.ParseMove("fxg3", &ep));
   CHECK(pos.IsEnPassant(ep));
   CHECK(pos.IsLegal(ep));
   CHECK(pos.HasLegalMoves());
   int kingrow, kingcol;
-  std::tie(kingrow, kingcol) = pos.GetKing();
+  std::tie(kingrow, kingcol) = pos.GetCurrentKing();
   CHECK(kingrow == 1 && kingcol == 4) << kingrow << ", " << kingcol;
 }
 
