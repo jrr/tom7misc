@@ -5,6 +5,7 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <cstdint>
 
 struct MutexLock {
   explicit MutexLock(std::mutex *m) : m(m) { m->lock(); }
@@ -35,49 +36,46 @@ void WriteWithLock(std::mutex *m, T *t, const T &val) {
 // tuple per thread and only adding them at the end. Would save a
 // lot of synchronization.
 
-// TODO: Could have an optimism parameter that causes each thread
-// to grab up to N work items (using num_threads as a stride) before
-// starting to synchronize for indices. If each item takes the
-// same amount of time, this just has less overhead.
+// TODO: Could have an optimism parameter for most of these that
+// causes each thread to grab up to N work items (using num_threads as
+// a stride) before starting to synchronize for indices. If each item
+// takes the same amount of time, this just has less overhead.
 
 // Res should be a small copyable type, like a pair of ints.
 // add should be commutative and associative, with zero as its zero value.
-// f should apply to int (the element's index), const T& (the element),
-// and Res*, returning void. It has exclusive access to res. Typical would
-// be to += into it.
-template<class T, class Res, class Add, class F>
-void ParallelAccumulatei(const std::vector<T> &vec,
-			 Res zero,
-			 const Add &add,
-			 const F &f,
-			 int max_concurrency) {
-  // TODO: XXX This cast may really be unsafe, since these vectors
-  // could exceed 32 bit ints in practice.
-  max_concurrency = std::min((int)vec.size(), max_concurrency);
+// f is applied to every int in [0, num - 1] and Res*, returning void.
+// It has exclusive access to res. Typical would be to += into it.
+template<class Res, class Add, class F>
+Res ParallelAccumulate(int64_t num,
+		       Res zero,
+		       const Add &add,
+		       const F &f,
+		       int max_concurrency) {
+  if (max_concurrency > num) max_concurrency = num;
   // Need at least one thread for correctness.
   int num_threads = std::max(max_concurrency, 1);
 
   std::mutex index_m;
   // First num_threads indices are assigned from the start
-  int next_index = num_threads;
+  int64_t next_index = num_threads;
 
   // Each thread gets its own accumulator so there's no need to
   // synchronize access.
   std::vector<Res> accs(num_threads, zero);
   
   auto th = [&zero, &accs,
-	     &index_m, &next_index, &vec, &f](int thread_num) {
+	     &index_m, &next_index, num, &f](int thread_num) {
     // PERF consider creating the accumulator in the thread as
     // a local, for numa etc.?
     int my_idx = thread_num;
     Res *my_acc = &accs[thread_num];
     do {
       // Do work, not holding any locks.
-      (void)f(my_idx, vec[my_idx], my_acc);
+      (void)f(my_idx, my_acc);
 
       // Get next index, if any.
       index_m.lock();
-      if (next_index == vec.size()) {
+      if (next_index == num) {
 	// All done. Don't increment counter so that other threads can
 	// notice this too.
 	index_m.unlock();
@@ -104,6 +102,8 @@ void ParallelAccumulatei(const std::vector<T> &vec,
   return res;
 }
 
+// TODO: Easy to have version of the above that applies to each
+// element of a vector, etc.
 
 // Do progress meter.
 // It should be thread safe and have a way for a thread to register a sub-meter.

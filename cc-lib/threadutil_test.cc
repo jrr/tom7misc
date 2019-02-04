@@ -22,6 +22,24 @@ static void CheckSameVec(const vector<T> &a,
   }
 }
 
+static void TestAccumulate() {
+  int NUM = 100000;
+  // Note that vector<bool> is no good here; it does not have
+  // thread-safe access to individual elements (which are packed into
+  // words).
+  vector<int> did_run(NUM, 0);
+  int64 acc =
+    ParallelAccumulate(NUM, 0LL, [](int64 a, int64 b) { return a + b; },
+		       [&did_run](int idx, int64 *acc) {
+			 CHECK(did_run[idx] == 0) << idx << " = "
+						  << did_run[idx];
+			 did_run[idx] = idx;
+			 ++*acc;
+		       }, 25);
+  for (int i = 0; i < NUM; i++) CHECK(did_run[i] == i) << i;
+  CHECK_EQ(acc, NUM) << acc;
+}
+
 int main(int argc, char **argv) {
   {
     vector<int> v = { 3, 2, 1 };
@@ -45,8 +63,10 @@ int main(int argc, char **argv) {
     for (int i = 0; i < 20; i++) {
       CheckSameVec(UnParallelMap(v, F, i), ParallelMap(v, F, i));
     }
-    
+
   }
+
+  TestAccumulate();
   
   printf("OK.\n");
   return 0;
