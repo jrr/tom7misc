@@ -1431,7 +1431,7 @@ static void CollectLegalMoves(Position &pos, MoveCollector &mc) {
       if (mc.Push(m)) return;            \
     }					 \
   } while(0)
-  
+
   for (int srcr = 0; srcr < 8; srcr++) {
     for (int srcc = 0; srcc < 8; srcc++) {
       const uint8 p = pos.PieceAt(srcr, srcc);
@@ -1484,26 +1484,76 @@ static void CollectLegalMoves(Position &pos, MoveCollector &mc) {
 	      TRY_MOVE(m);
 
 	      m.dst_col = srcc + udc;
-	      m.dst_row = srcr + 2* udr;
+	      m.dst_row = srcr + 2 * udr;
 	      TRY_MOVE(m);
 	    }
 	  }
 	  break;
-	  
-	case Position::BISHOP:
 
 	case Position::C_ROOK:
 	case Position::ROOK:
 
-	case Position::QUEEN:
-	  // PERF this just checks every possible move!
-	  // Need to write move enumerators for these
-	  // three.
+	  // Horizontal.
+	  m.dst_row = srcr;
+	  for (int dstc = 0; dstc < 8; dstc++) {
+	    m.dst_col = dstc;
+	    TRY_MOVE(m);
+	  }
+
+	  // Vertical.
+	  m.dst_col = srcc;
 	  for (int dstr = 0; dstr < 8; dstr++) {
-	    for (int dstc = 0; dstc < 8; dstc++) {
-	      m.dst_col = dstc;
-	      m.dst_row = dstr;
-	      TRY_MOVE(m);
+	    m.dst_row = dstr;
+	    TRY_MOVE(m);
+	  }
+
+	  break;
+	  
+	case Position::BISHOP:
+
+	  for (const int udr : { -1, 1 }) {
+	    for (const int udc : { -1, 1 }) {
+	      int dr = m.src_row + udr;
+	      int dc = m.src_col + udc;
+	      while (dr >= 0 && dc >= 0 && dr < 8 && dc < 8) {
+		m.dst_row = dr;
+		m.dst_col = dc;
+		TRY_MOVE(m);
+		dr += udr;
+		dc += udc;
+	      }
+	    }
+	  }
+	  break;
+	  
+	case Position::QUEEN:
+
+	  // Horizontal.
+	  m.dst_row = srcr;
+	  for (int dstc = 0; dstc < 8; dstc++) {
+	    m.dst_col = dstc;
+	    TRY_MOVE(m);
+	  }
+
+	  // Vertical.
+	  m.dst_col = srcc;
+	  for (int dstr = 0; dstr < 8; dstr++) {
+	    m.dst_row = dstr;
+	    TRY_MOVE(m);
+	  }
+
+	  // Diagonals.
+	  for (const int udr : { -1, 1 }) {
+	    for (const int udc : { -1, 1 }) {
+	      int dr = m.src_row + udr;
+	      int dc = m.src_col + udc;
+	      while (dr >= 0 && dc >= 0 && dr < 8 && dc < 8) {
+		m.dst_row = dr;
+		m.dst_col = dc;
+		TRY_MOVE(m);
+		dr += udr;
+		dc += udc;
+	      }
 	    }
 	  }
 

@@ -30,11 +30,15 @@ struct Player {
 Player *CreateFirstMove();
 Player *CreateRandom();
 Player *CreateCCCP();
+Player *CreatePacifist();
 Player *CreateMinOpponentMoves();
 Player *CreateSuicideKing();
 Player *CreateReverseStarting();
 Player *CreateGenerous();
+Player *CreateNoIInsist();
 Player *CreateSameColor();
 Player *CreateOppositeColor();
+Player *CreateSinglePlayer();
+
 
 #endif

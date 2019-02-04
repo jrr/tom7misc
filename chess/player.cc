@@ -204,12 +204,47 @@ struct CCCPPlayer : public Player {
   }
 };
 
+struct PacifistPlayer : public EvalResultPlayer {
+
+  int64 PositionPenalty(Position *p) override {
+    if (p->IsMated())
+      return 0xFFFF'FFFF'FFFF;
+    int64 material = 0LL;
+    const uint8 opponent_mask = p->BlackMove() ? Position::BLACK : Position::WHITE;
+    for (int r = 0; r < 8; r++) {
+      for (int c = 0; c < 8; c++) {
+	const uint8 piece = p->PieceAt(r, c);
+	if (piece != Position::EMPTY &&
+	    (piece & Position::COLOR_MASK) == opponent_mask) {
+	  material += TypeValue(piece & Position::TYPE_MASK);
+	}
+      }
+    }
+
+    // Negate opponent material value to avoid capturing.
+    // Then we lexicographically avoid checking by giving a large
+    // additional penalty in that case (but still we can tiebreak
+    // checks by not capturing, or capturing weak pieces).
+    if (p->IsInCheck()) {
+      return 1000000 - material;
+    } else {
+      return -material;
+    }
+  }
+  
+  string Name() const override { return "pacifist"; }
+  string Desc() const override {
+    return "Only make checking or capturing moves if forced.";
+  }
+};
+
+
 struct MinOpponentMovesPlayer : public EvalResultPlayer {
   int64 PositionPenalty(Position *p) override {
     return p->NumLegalMoves();
   }
   
-  string Name() const override { return "min_opponent_moves"; }
+  string Name() const override { return "min_oppt_moves"; }
   string Desc() const override {
     return "Take a random move that minimizes the opponent's number "
       "of legal moves.";
@@ -348,6 +383,7 @@ struct ReverseStartingPlayer : public EvalResultPlayer {
   }
 };
 
+
 struct GenerousPlayer : public EvalResultPlayer {
   int64 PositionPenalty(Position *p) override {
     // This will be increasingly negative (better), the more material
@@ -374,6 +410,68 @@ struct GenerousPlayer : public EvalResultPlayer {
       "by the opponent.";
   }
 };
+
+struct NoIInsistPlayer : public EvalResultPlayer {
+  int64 PositionPenalty(Position *p) override {
+    // This is just like "generous," but tries to constrain the opponent
+    // to *have* to capture. There are three tiers:
+    //   - Player is now mated. This would be quite rude, so it gets
+    //     the highest penalty.
+    //   - Every legal move captures one of our pieces. This is
+    //     the most polite because it is impossible for the opponent to
+    //     refuse our gift. In this case, the score is the negative
+    //     of the value of the worst gift.
+    //   - Otherwise, the expected value of the gift.
+
+    int total_capture = 0;
+    int min_capture = 0;
+    // From the opponent's perspective. Of the current legal moves,
+    // how many capture pieces? Repeatedly count capturing the same
+    // piece, since this is even more generous to random players.
+    const std::vector<Move> moves = p->GetLegalMoves();
+    for (const Move &m : moves) {
+      uint8 pd = p->PieceAt(m.dst_row, m.dst_col);
+      if (pd == Position::EMPTY) {
+	if (p->IsEnPassant(m)) {
+	  min_capture = std::min(min_capture, 1);
+	  total_capture++;
+	} else {
+	  min_capture = 0;
+	}
+      } else {
+	int value = TypeValue(pd & Position::TYPE_MASK);
+	min_capture = std::min(min_capture, value);
+	total_capture += value;
+      }
+    }
+
+    const int num_moves = moves.size();
+    if (num_moves == 0) {
+      if (p->IsInCheck()) {
+	return 0xFFFF'FFFF'FFFF;
+      } else {
+	// Also penalize stalemate, but not as much. It is more
+	// canonical for two polite players to form a draw by
+	// repetition, from continually offering up material to one
+	// another and declining it.
+	return 0xFFFF'FFFF;
+      }
+    } else if (min_capture > 0) {
+      return -min_capture;
+    } else {
+      // Otherwise, the expected value.
+      double expected = (total_capture * 1000000.0) / num_moves;
+      return -expected;
+    }
+  }
+  
+  string Name() const override { return "no_i_insist"; }
+  string Desc() const override {
+    return "Move such that the opponent's moves have the highest "
+      "forced material gain (or else average gain).";
+  }
+};
+
 
 struct SameColorPlayer : public EvalResultPlayer {
   int64 PositionPenalty(Position *p) override {
@@ -431,6 +529,93 @@ struct OppositeColorPlayer : public EvalResultPlayer {
   }
 };
 
+struct SinglePlayerPlayer : public Player {
+  explicit SinglePlayerPlayer(int max_depth) : 
+    max_depth(max_depth), 
+    rc(PlayerUtil::GetSeed()) {
+    rc.Discard(800);
+  }
+
+  struct LabeledMove {
+    Position::Move m;
+    int64_t penalty = 0.0;
+    uint32_t r = 0u;
+  };
+  
+  static constexpr int64 CHECKMATE = -1'000'000'000LL;
+  
+  int64 GetLowestPenalty(bool black, int depth, Position *p) {
+    // Position should have the opponent's move.
+    CHECK(p->BlackMove() != black);
+
+    const int opponent_moves = p->NumLegalMoves();
+    // If the opponent is in check, then it would be an illegal
+    // position if we switched the side. So we just have to
+    // return in such situations.
+    if (p->IsInCheck())
+      return (opponent_moves == 0) ? CHECKMATE : opponent_moves;
+
+    // Otherwise, temporarily set the game to be my turn again.
+    p->SetBlackMove(black);
+    int64 lowest_penalty = 1'000'000'000LL;
+    for (const Move &m : p->GetLegalMoves()) {
+      p->MoveExcursion(
+	  m, [this, black, depth, p, &lowest_penalty]() {
+	       if (depth == 0) {
+		 lowest_penalty =
+		   std::min(lowest_penalty,
+			    (int64)p->NumLegalMoves());
+	       } else {
+		 lowest_penalty =
+		   std::min(lowest_penalty,
+			    GetLowestPenalty(black, depth - 1, p));
+	       }
+	       return 0;
+	     });
+    }
+    p->SetBlackMove(!black);
+    return lowest_penalty;
+  }
+  
+  Move MakeMove(const Position &orig_pos) override {
+    Position pos = orig_pos;
+    const bool black = pos.BlackMove();
+
+    std::vector<LabeledMove> labeled;
+    for (const Move &m : pos.GetLegalMoves()) {
+      LabeledMove lm;
+      lm.m = m;
+      pos.MoveExcursion(m,
+			[this, black, &pos, &lm]() {
+			  lm.penalty = GetLowestPenalty(black, max_depth, &pos);
+			  return 0;
+			});
+      labeled.push_back(lm);
+    }
+    CHECK(!labeled.empty());
+
+    return PlayerUtil::GetBest(
+      labeled,
+      [](const LabeledMove &a,
+	 const LabeledMove &b) {
+	if (a.penalty != b.penalty)
+	  return a.penalty < b.penalty;
+	
+	return a.r < b.r;
+      }).m;
+  }
+  
+  string Name() const override {
+    return StringPrintf("single_player%d", max_depth); 
+  }
+  string Desc() const override {
+    return StringPrintf("Search (to depth %d), but as though the "
+			"opponent takes no turns.", max_depth);
+  }
+
+  const int max_depth;
+  ArcFour rc;
+};
 
 // TODO:
 //  - Stockfish, with and without opening book / endgame tablebases
@@ -441,9 +626,11 @@ struct OppositeColorPlayer : public EvalResultPlayer {
 //    of minimum value
 //  - buddy system; if you are alone then only move next to a buddy.
 //    if you are with a buddy, then you may move away
+//  - prefer moves that can be mirrored by the opponent
+//  - Move to maximize acutal board symmetry.
 //
 //  - select eligible squares with langton's ant, game of life
-
+//  - sort ShortMoveStrings alphabetically
 
 }  // namespace
 
@@ -457,6 +644,10 @@ Player *CreateRandom() {
 
 Player *CreateCCCP() {
   return new CCCPPlayer;
+}
+
+Player *CreatePacifist() {
+  return new PacifistPlayer;
 }
 
 Player *CreateMinOpponentMoves() {
@@ -475,10 +666,18 @@ Player *CreateGenerous() {
   return new GenerousPlayer;
 }
 
+Player *CreateNoIInsist() {
+  return new NoIInsistPlayer;
+}
+
 Player *CreateSameColor() {
   return new SameColorPlayer;
 }
 
 Player *CreateOppositeColor() {
   return new OppositeColorPlayer;
+}
+
+Player *CreateSinglePlayer() {
+  return new SinglePlayerPlayer(1);
 }
