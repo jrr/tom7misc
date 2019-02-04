@@ -23,8 +23,8 @@ using namespace std;
 // Number of round-robin rounds.
 // (Maybe should be based on the total number of games we want
 // to simulate?)
-static constexpr int TOTAL_ROUNDS = 250;
-static constexpr int THREADS = 50;
+static constexpr int TOTAL_ROUNDS = 54; // 250;
+static constexpr int THREADS = 54;
 static constexpr int ROUNDS_PER_THREAD = TOTAL_ROUNDS / THREADS;
 
 typedef Player *(*Entrant)();
@@ -32,21 +32,24 @@ typedef Player *(*Entrant)();
 const vector<Entrant> &GetEntrants() {
   static vector<Entrant> *entrants =
     new vector<Entrant>{
-			CreateWorstfish,
-			CreateRandom,
+			// CreateWorstfish,
+			// CreateRandom,
 			CreateFirstMove,
 			CreateCCCP,
+			CreateNoIInsist,
+			CreatePacifist,
 			CreateSameColor,
-			CreateOppositeColor,
+			// CreateOppositeColor,
 			CreateMinOpponentMoves,
-			CreateSuicideKing,
-			CreateReverseStarting,
-			CreateGenerous,
-						CreateStockfish0,
+			// 			CreateSuicideKing,
+			// CreateReverseStarting,
+			// CreateGenerous,
+			CreateSinglePlayer,
+			// CreateStockfish0,
 			// CreateStockfish5,
 			// CreateStockfish10,
 			// CreateStockfish15,
-						CreateStockfish20,
+			// CreateStockfish20,
   };
   return *entrants;
 }
@@ -351,9 +354,9 @@ static void RunTournament() {
     for (int col = 0; col < num_entrants; col++) {
       int idx = row * num_entrants + col;
       const Cell &cell = outcomes[idx];
-      fprintf(f, "  <td><span class=\"c\" onclick=\"show(%d)\">"
+      fprintf(f, "  <td id=\"c%d\"><span class=\"c\" onclick=\"show(%d)\">"
 	      "%d w, %d l, %d d</span></td>\n",
-	      idx,
+	      idx, idx,
 	      cell.row_wins, cell.row_losses, cell.draws);
     }
     fprintf(f, "</tr>\n");

@@ -140,8 +140,9 @@ struct WorstfishPlayer : public EvalResultPlayer {
 	return -MATE + score.value;
       } else {
 	// White can mate in x moves. This is good for white, so the
-	// penalty must be high. The closer we are to mate, the better
-	return MATE - score.value;
+	// penalty must be high. Value is negative, so add it to
+	// MATE; a mate in -1 is better for white than a mate in -7.
+	return MATE + score.value;
       }
     } else {
       // If centipawns is positive here, then "black" is winning.

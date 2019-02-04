@@ -9,6 +9,9 @@
  body {
    font: 14px sans-serif
  }
+ .sel {
+   background-color: #AAF;
+ }
 </style>
 
 <script>
@@ -28,7 +31,14 @@
    return e;
  }
 
+ let selected_cell = null;
  function show(idx) {
+   if (selected_cell)
+     selected_cell.classList.remove('sel');
+   let cell = document.getElementById('c' + idx);
+   cell.classList.add('sel');
+   selected_cell = cell;
+   
    let elt = document.getElementById('detail');
    elt.innerHTML = '';
    elt.appendChild(TEXT('examples for cell #' + idx));
