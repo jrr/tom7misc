@@ -204,6 +204,39 @@ struct CCCPPlayer : public Player {
   }
 };
 
+struct AlphabeticalPlayer : public Player {
+
+  struct LabeledMove {
+    Move m;
+    string move_string;
+  };
+  
+  Move MakeMove(const Position &orig_pos) override {
+    Position pos = orig_pos;
+    std::vector<LabeledMove> labeled;
+    for (const Move &m : pos.GetLegalMoves()) {
+      LabeledMove lm;
+      lm.m = m;
+      lm.move_string = pos.ShortMoveString(m);
+      labeled.push_back(lm);
+    }
+    CHECK(!labeled.empty());
+
+    return PlayerUtil::GetBest(
+	labeled,
+	[](const LabeledMove &a,
+	   const LabeledMove &b) {
+	  return a.move_string < b.move_string;
+	}).m;
+  }
+  
+  string Name() const override { return "alphabetical"; }
+  string Desc() const override {
+    return "Return the alphabetically earliest move, using "
+      "standard algebraic notation.";
+  }
+};
+
 struct PacifistPlayer : public EvalResultPlayer {
 
   int64 PositionPenalty(Position *p) override {
@@ -454,7 +487,7 @@ struct NoIInsistPlayer : public EvalResultPlayer {
 	// canonical for two polite players to form a draw by
 	// repetition, from continually offering up material to one
 	// another and declining it.
-	return 0xFFFF'FFFF;
+	return 0xFFFFFFFF;
       }
     } else if (min_capture > 0) {
       return -min_capture;
@@ -557,7 +590,7 @@ struct SinglePlayerPlayer : public Player {
 
     // Otherwise, temporarily set the game to be my turn again.
     p->SetBlackMove(black);
-    int64 lowest_penalty = 1'000'000'000LL;
+    int64 lowest_penalty = 1000'000'000LL;
     for (const Move &m : p->GetLegalMoves()) {
       p->MoveExcursion(
 	  m, [this, black, depth, p, &lowest_penalty]() {
@@ -630,7 +663,6 @@ struct SinglePlayerPlayer : public Player {
 //  - Move to maximize acutal board symmetry.
 //
 //  - select eligible squares with langton's ant, game of life
-//  - sort ShortMoveStrings alphabetically
 
 }  // namespace
 
@@ -640,6 +672,10 @@ Player *CreateFirstMove() {
 
 Player *CreateRandom() {
   return new RandomPlayer;
+}
+
+Player *CreateAlphabetical() {
+  return new AlphabeticalPlayer;
 }
 
 Player *CreateCCCP() {

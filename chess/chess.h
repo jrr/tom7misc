@@ -12,6 +12,8 @@
 using uint8 = std::uint8_t;
 using uint32 = std::uint32_t;
 
+#define INDEX_KING true
+
 // Alternatives to consider:
 //  - there are a maximum of 32 pieces on the board.
 //    store each piece's position.
@@ -68,13 +70,13 @@ struct Position {
   }
 
   inline void SetPiece(int row, int col, uint8 p) {
-    /*
+    #if INDEX_KING
     if (p == (BLACK | KING)) {
       black_king = (row << 3) | col;
     } else if (p == (WHITE | KING)) {
       white_king = (row << 3) | col;
     }
-    */
+    #endif
     uint32 &r = rows[row];
     uint32 mask = 0xF0000000 >> (col * 4);
     uint32 shift = p << (4 * (7 - col));
@@ -176,10 +178,11 @@ struct Position {
   }
 
   inline std::pair<int, int> GetKing(bool blackmove) const {
-    /*
+    #if INDEX_KING
     const uint8 pos = KING_POS_MASK & (blackmove ? black_king : white_king);
     return std::pair<int, int>(pos >> 3, pos & 7);
-    */
+
+    #else
 
     const uint8 king = blackmove ? (BLACK | KING) : (WHITE | KING);
 
@@ -190,6 +193,7 @@ struct Position {
 
     // Invalid board -- could assert here.
     return {0, 0};
+    #endif
   }
 
   // True if castling is still allowed. This is just the state of
@@ -227,8 +231,8 @@ struct Position {
   // Returns true if the indicated square is attacked (by the other
   // player) in the current position. "Attacked" here means an otherwise
   // unrestricted piece would be able to move in its fashion to capture
-  // on that square, not considering check. Does not include en passant.
-  // The square is typically unoccupied.
+  // on that square, not considering check.
+  // The square is typically unoccupied but it need not be.
   bool Attacked(int r, int c) const;
 
   template<class F>
@@ -329,11 +333,13 @@ struct Position {
   uint8 bits = 0u;
 
   // TODO: can use the last two bits here for castling status...
-  // static constexpr uint8 KING_POS_MASK = 0b00111111;
-  // uint8 white_king = 60u, black_king = 4u;
+  #if INDEX_KING
+  static constexpr uint8 KING_POS_MASK = 0b00111111;
+  uint8 white_king = 60u, black_king = 4u;
+  #endif
 
-  friend class PositionHash;
-  friend class PositionEq;
+  friend struct PositionHash;
+  friend struct PositionEq;
 };
 
 struct PositionEq {

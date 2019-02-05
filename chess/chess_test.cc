@@ -85,6 +85,45 @@ static void PlayGame(std::initializer_list<const char *> game) {
   }
 }
 
+static void PromotionRegression() {
+  {
+    Position pos;
+    // White pawn about to promote on column 2.
+    CHECK(Position::ParseFEN(
+	      "8/2P5/7k/8/7K/8/8/8 w - 0 1", &pos));
+    Move m;
+    m.src_row = 1;
+    m.src_col = 2;
+    m.dst_row = 0;
+    m.dst_col = 2;
+    m.promote_to = 0;
+    // This wasn't properly rejecting some promotions.
+    CHECK(!pos.IsLegal(m));
+    m.promote_to = Position::BLACK | Position::KNIGHT;
+    CHECK(!pos.IsLegal(m));
+    m.promote_to = Position::WHITE | Position::KNIGHT;
+    CHECK(pos.IsLegal(m));
+  }
+
+  {
+    Position pos;
+    // Black pawn about to promote on column 2.
+    CHECK(Position::ParseFEN(
+	      "8/8/7k/8/7K/8/2p5/8 b - 0 1", &pos));
+    Move m;
+    m.src_row = 6;
+    m.src_col = 2;
+    m.dst_row = 7;
+    m.dst_col = 2;
+    m.promote_to = 0;
+    CHECK(!pos.IsLegal(m));
+    m.promote_to = Position::BLACK | Position::KNIGHT;
+    CHECK(pos.IsLegal(m));
+    m.promote_to = Position::WHITE | Position::KNIGHT;
+    CHECK(!pos.IsLegal(m));
+  }
+}
+
 static void ReadPGN() {
   PGN pgn;
   const char *kGame =
@@ -398,6 +437,8 @@ int main(int argc, char **argv) {
   Regression2();
 
   Regression2Game();
+
+  PromotionRegression();
 
   ValidMoves1();
   ValidMoves2();

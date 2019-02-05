@@ -35,6 +35,7 @@ const vector<Entrant> &GetEntrants() {
 			// CreateWorstfish,
 			// CreateRandom,
 			CreateFirstMove,
+			CreateAlphabetical,
 			CreateCCCP,
 			CreateNoIInsist,
 			CreatePacifist,
@@ -369,7 +370,6 @@ static void RunTournament() {
 
 int main(int argc, char **argv) {
   RunTournament();
-  // implement!
   return 0;
 }
 
