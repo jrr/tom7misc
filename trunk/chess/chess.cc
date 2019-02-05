@@ -770,8 +770,9 @@ bool Position::IsLegal(Move m) {
     // moves, so make sure it is legal first.
     if (blackmove) {
       if (m.dst_row == 7) {
-	if (!((m.promote_to & COLOR_MASK) == BLACK &&
-	      LegalPromotion(m.promote_to & TYPE_MASK)))
+	if ((m.promote_to & COLOR_MASK) != BLACK)
+	  return false;
+	if (!LegalPromotion(m.promote_to & TYPE_MASK))
 	  return false;
       } else {
 	if (m.promote_to != 0)
@@ -779,8 +780,9 @@ bool Position::IsLegal(Move m) {
       }
     } else {
       if (m.dst_row == 0) {
-	if (!(m.promote_to & COLOR_MASK) == WHITE &&
-	    LegalPromotion(m.promote_to & TYPE_MASK))
+	if ((m.promote_to & COLOR_MASK) != WHITE)
+	  return false;
+	if (!LegalPromotion(m.promote_to & TYPE_MASK))
 	  return false;
       } else {
 	if (m.promote_to != 0)
@@ -985,24 +987,6 @@ bool Position::Attacked(int r, int c) const {
   IFDEBUG printf("Attacked %d,%d? With board:\n%s\n",
 		 r, c, BoardString().c_str());
 
-  // TODO this logic can move into the vector search below.
-  // Check the pawn attacks since these are not symmetric.
-  if (blackmove) {
-    if (r < 7) {
-      if (c > 0 && PieceAt(r + 1, c - 1) == (attacker_color | PAWN))
-	return true;
-      if (c < 7 && PieceAt(r + 1, c + 1) == (attacker_color | PAWN))
-	return true;
-    }
-  } else {
-    if (r > 0) {
-      if (c > 0 && PieceAt(r - 1, c - 1) == (attacker_color | PAWN))
-	return true;
-      if (c < 7 && PieceAt(r - 1, c + 1) == (attacker_color | PAWN))
-	return true;
-    }
-  }
-
   // Now knight moves.
   auto HasKnight =
     [&](int r, int c) {
@@ -1021,15 +1005,15 @@ bool Position::Attacked(int r, int c) const {
     }
   }
 
-  // Now check queen moves for pieces that can make those moves.
-  // Note that for this purpose, king is equivalently a queen that
-  // can only move 1 square!
+  // Now check all the queen move vectors (moving outward from the
+  // queried square) for opponent pieces. This covers all the
+  // non-jumping piece types -- note that for this purpose, king is
+  // equivalently a queen that can only move 1 square!
   for (const int dr : { -1, 0, 1 }) {
     for (const int dc : { -1, 0, 1 }) {
       // Skip the degenerate vector.
       if (dr == 0 && dc == 0) continue;
 
-      // Along any dimension, we 
       for (int rr = r + dr, cc = c + dc;
 	   rr >= 0 && cc >= 0 && rr < 8 && cc < 8;
 	   rr += dr, cc += dc) {
@@ -1040,8 +1024,26 @@ bool Position::Attacked(int r, int c) const {
 	if ((p & COLOR_MASK) == attacker_color) {
 	  switch (p & TYPE_MASK) {
 	  case PAWN:
-	    // XXX TODO: actually this is quite easy to just do here.
-	    // Move the special-case logic from above here.
+	    // Ignoring en passant (which is not handled by this
+	    // function), pawns can only capture diagonally one
+	    // square, and only in a single direction.
+
+	    // Leaving -1 and 1 as valid.
+	    if (dc == 0)
+	      break;
+
+	    // And we have to be exactly one row removed in the
+	    // correct direction for the color. Note several
+	    // ways to get this sign wrong: We are tracing from
+	    // the attacked piece towards the attacked; rows are
+	    // indexed in the opposite order as in algebraic
+	    // notation, etc.
+	    if (attacker_color == BLACK) {
+	      if (rr - r == -1) return true;
+	    } else {
+	      if (rr - r == 1) return true;
+	    }
+	    
 	    break;
 	  case KING:
 	    if (abs(rr - r) <= 1 && abs(cc - c) <= 1)
@@ -1150,7 +1152,7 @@ void Position::ApplyMove(Move m) {
   // All moves clear the source square and populate the destination.
   SetPiece(m.src_row, m.src_col, EMPTY);
   // Note: This updates the position of the king if source_piece is
-  // one of the two kings.
+  // one of the two kings (and we are using king indexing).
   SetPiece(m.dst_row, m.dst_col, source_piece);
 
   // And pass to the other player.
@@ -1421,6 +1423,8 @@ struct CountMC {
   int count = 0;
 };
 
+#define MOVEGEN_STOP_PIECE true
+
 template<class MoveCollector>
 static void CollectLegalMoves(Position &pos, MoveCollector &mc) {
   const bool blackmove = pos.BlackMove();
@@ -1432,6 +1436,11 @@ static void CollectLegalMoves(Position &pos, MoveCollector &mc) {
     }					 \
   } while(0)
 
+  // Note that there are several places in this function where we create
+  // out of bounds moves, either by e.g. adding a small number to column 7
+  // or subtracting from row 0 (which wraps around since the fields
+  // are unsigned). This is safe since IsLegalMove checks that moves are
+  // in bounds, but something to be careful about.
   for (int srcr = 0; srcr < 8; srcr++) {
     for (int srcc = 0; srcc < 8; srcc++) {
       const uint8 p = pos.PieceAt(srcr, srcc);
@@ -1519,6 +1528,10 @@ static void CollectLegalMoves(Position &pos, MoveCollector &mc) {
 		m.dst_row = dr;
 		m.dst_col = dc;
 		TRY_MOVE(m);
+		#if MOVEGEN_STOP_PIECE
+		if (pos.PieceAt(dr, dc) != Position::EMPTY)
+		  break;
+		#endif
 		dr += udr;
 		dc += udc;
 	      }
@@ -1551,6 +1564,10 @@ static void CollectLegalMoves(Position &pos, MoveCollector &mc) {
 		m.dst_row = dr;
 		m.dst_col = dc;
 		TRY_MOVE(m);
+		#if MOVEGEN_STOP_PIECE
+		if (pos.PieceAt(dr, dc) != Position::EMPTY)
+		  break;
+		#endif
 		dr += udr;
 		dc += udc;
 	      }

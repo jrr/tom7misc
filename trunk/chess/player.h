@@ -29,6 +29,7 @@ struct Player {
 // Each returns a new-ly created object, owned by the caller.
 Player *CreateFirstMove();
 Player *CreateRandom();
+Player *CreateAlphabetical();
 Player *CreateCCCP();
 Player *CreatePacifist();
 Player *CreateMinOpponentMoves();
@@ -39,6 +40,5 @@ Player *CreateNoIInsist();
 Player *CreateSameColor();
 Player *CreateOppositeColor();
 Player *CreateSinglePlayer();
-
 
 #endif
