@@ -9,6 +9,8 @@
 #include "../cc-lib/base/stringprintf.h"
 #include "../cc-lib/threadutil.h"
 #include "../cc-lib/util.h"
+#include "../cc-lib/arcfour.h"
+#include "../cc-lib/randutil.h"
 
 #include "chess.h"
 #include "player.h"
@@ -23,7 +25,7 @@ using namespace std;
 // Number of round-robin rounds.
 // (Maybe should be based on the total number of games we want
 // to simulate?)
-static constexpr int TOTAL_ROUNDS = 108; // 250;
+static constexpr int TOTAL_ROUNDS = 54; // 250;
 static constexpr int THREADS = 54;
 static constexpr int ROUNDS_PER_THREAD = TOTAL_ROUNDS / THREADS;
 
@@ -32,30 +34,30 @@ typedef Player *(*Entrant)();
 const vector<Entrant> &GetEntrants() {
   static vector<Entrant> *entrants =
     new vector<Entrant>{
-			// CreateWorstfish,
-			// CreateRandom,
-			// CreateFirstMove,
-			// CreateAlphabetical,
-			// CreateCCCP,
-			// CreateNoIInsist,
-			// CreatePacifist,
-			// CreateSameColor,
+			CreateWorstfish,
+			CreateRandom,
+			CreateFirstMove,
+			CreateAlphabetical,
+			CreateCCCP,
+			CreateNoIInsist,
+			CreatePacifist,
+			CreateSameColor,
 			CreateMirrorYSymmetry,
 			CreateMirrorXSymmetry,
 			CreateSymmetry180,
-			// CreateOppositeColor,
-			// CreateMinOpponentMoves,
-			// CreateSuicideKing,
-			// CreateReverseStarting,
+			CreateOppositeColor,
+			CreateMinOpponentMoves,
+			CreateSuicideKing,
+			CreateReverseStarting,
 			CreateHuddle,
 			CreateSwarm,
-			// CreateGenerous,
+			CreateGenerous,
 			// CreateSinglePlayer,
 			CreateStockfish0,
-			// CreateStockfish5,
-			// CreateStockfish10,
-			// CreateStockfish15,
-			// CreateStockfish20,
+			CreateStockfish5,
+			CreateStockfish10,
+			CreateStockfish15,
+			CreateStockfish20,
   };
   return *entrants;
 }
@@ -262,19 +264,25 @@ static void TournamentThread(int thread_id,
   for (Player *p : entrants) delete p;
 }
 
-#if 0
-// With the win/loss/draw matrix, compute elo ratings for each player.
-static void ComputeElo(int num_entrants, const std::vector<Cell> &outcomes) {
-  CHECK(outcomes.size() = num_entrants * num_entrants);
+static constexpr double ELO_START = 1000.0;
 
-  // Like Cell, but ignoring whether the is white or black.
-  struct Matchup {
-    int player1_wins = 0, player2_wins = 0, draw = 0;
-  };
-  // num_entrants^2 size, player1-major. We could normalize such that
-  // player1 < player2, but this is easier.
-  vector<Matchup> matchups;
-  matchups.resize(num_entrants * num_entrants);
+struct Elo {
+  double elo = ELO_START;
+  // Used to determine k-factor.
+  int games = 0;
+  // Totals.
+  int wins = 0, losses = 0, draws = 0;
+};
+
+// With the win/loss/draw matrix, compute elo ratings for each player.
+static vector<Elo> ComputeElo(int num_entrants, const std::vector<Cell> &orig_outcomes) {
+  CHECK(orig_outcomes.size() == num_entrants * num_entrants);
+  // We don't need the examples, but it's easiest to just copy
+  // everything. We will modify wins/losses/draws to replay the games.
+  std::vector<Cell> outcomes = orig_outcomes;
+  
+  vector<Elo> elos;
+  elos.resize(num_entrants);
   
   ArcFour rc(StringPrintf("elo.%lld", (int64)time(nullptr)));
   // Perform iterative updates in random order.
@@ -283,14 +291,98 @@ static void ComputeElo(int num_entrants, const std::vector<Cell> &outcomes) {
   for (int white = 0; white < num_entrants; white++) {
     for (int black = 0; black < num_entrants; black++) {
       if (white != black) {
-	// Maintain invariant that the matchup is nonempty.
-	Matchup *matchup = matchups[white * num_entrants + black];
-	
+	Cell *cell = &outcomes[white * num_entrants + black];
+	if (cell->row_wins != 0 ||
+	    cell->row_losses != 0 ||
+	    cell->draws != 0) {
+	  nonempty_matchups.emplace_back(white, black);
+	}
       }
     }
   }
+
+  auto ClaimResult =
+    [&rc](Cell *cell) {
+      // Pick uniformly in proportion to the number of games
+      // played, not the three (non-empty) categories.
+      int total_mass = cell->row_wins + cell->row_losses + cell->draws;
+      CHECK(total_mass > 0) << "Invariant";
+      int idx = RandTo32(&rc, total_mass);
+      if (idx < cell->row_wins) {
+	cell->row_wins--;
+	return 1;
+      }
+      idx -= cell->row_wins;
+      if (idx < cell->row_losses) {
+	cell->row_losses--;
+	return -1;
+      }
+      idx -= cell->row_losses;
+      CHECK(idx < cell->draws) << "Bug? " << idx << " " << cell->draws;
+      cell->draws--;
+      return 0;
+    };
+  
+  while (!nonempty_matchups.empty()) {
+    Shuffle(&rc, &nonempty_matchups);
+    vector<pair<int, int>> next_matchups;
+    for (pair<int, int> p : nonempty_matchups) {
+      const int white = p.first, black = p.second;
+      Cell *cell = &outcomes[white * num_entrants + black];
+      // Randomly pick one of the wins, losses or draws. 1 means
+      // 1 white wins.
+      const int result = ClaimResult(cell);
+      
+      const double q_white = pow(10.0, elos[white].elo / 400.0);
+      const double q_black = pow(10.0, elos[black].elo / 400.0);
+      // Expected score.
+      const double e_white = q_white / (q_white + q_black);
+      const double e_black = 1.0 - e_white;
+      // Actual score.
+      double s_white = 0.0, s_black = 0.0;
+      switch (result) {
+      case -1:
+	s_black = 1.0;
+	elos[white].losses++;
+	elos[black].wins++;
+	break;
+      case 1:
+	s_white = 1.0;
+	elos[white].wins++;
+	elos[black].losses++;
+	break;
+      default:
+      case 0:
+	s_white = 0.5;
+	s_black = 0.5;
+	elos[white].draws++;
+	elos[black].draws++;
+      }
+
+      // TODO: Perhaps should use diminishing k as games go on.
+      // Modulating this based on the rating does not make that much sense to me;
+      // I think this is intended to capture the fact that true human skill changes
+      // over time. Our computer players are not like that.
+      const double k_white = 10.0;
+      const double k_black = 10.0;
+
+      elos[white].elo += k_white * (s_white - e_white);
+      elos[black].elo += k_black * (s_black - e_black);
+      
+      elos[white].games++;
+      elos[black].games++;
+
+      // Only keep it around if there are more games to simulate.
+      if (cell->row_wins > 0 ||
+	  cell->row_losses > 0 ||
+	  cell->draws > 0) {
+	next_matchups.push_back(p);
+      }
+    }
+    nonempty_matchups = std::move(next_matchups);
+  }
+  return elos;
 }
-#endif
 
 // TODO...
 static void RunTournament() {
@@ -340,13 +432,22 @@ static void RunTournament() {
 	TournamentThread,
 	THREADS);
   CHECK(outcomes.size() == num_entrants * num_entrants);
-  
+
+  printf("Running elo:\n");
+  fflush(stdout);
+  const int64 start_elo = time(nullptr);
+  const vector<Elo> elos = ComputeElo(num_entrants, outcomes);
+  printf("Done in %lld sec.\n", time(nullptr) - start_elo);
+  fflush(stdout);
+    
   // Print the matrix!
   string prelude = Util::ReadFile("tournament-prelude.html");
   FILE *f = fopen("tournament.html", "wb");
   CHECK(f);
   
-  fprintf(f, "<!doctype html>\n%s", prelude.c_str());
+  fprintf(f, "<!doctype html>\n"
+	  "<meta charset=\"utf-8\" />\n"
+	  "%s", prelude.c_str());
 
   fprintf(f, "<script>\n"
 	  "const cells = [\n");
@@ -380,8 +481,9 @@ static void RunTournament() {
     if (i != outcomes.size() - 1) fprintf(f, ",\n");
   }
   fprintf(f, "];\n</script>\n\n");
-  
-  fprintf(f, "<table><tr><td>&nbsp;</td>\n");
+
+  // U+FF3C fullwidth reverse solidus
+  fprintf(f, "<table><tr><td>white \uFF3C black</td>\n");
   for (Player *p : entrants)
     fprintf(f, " <td>%s</td>\n", p->Name().c_str());
   fprintf(f, "</tr>\n");
@@ -397,8 +499,22 @@ static void RunTournament() {
     }
     fprintf(f, "</tr>\n");
   }
-  fprintf(f, "</table>\n"
-	  "<div id=\"detail\"></div>\n");
+  fprintf(f, "</table>\n");
+
+
+  // TODO: Sort elos!
+  fprintf(f, "<table><tr><td>player</td><td>elo</td><td>w/l/d</tr>\n");
+  for (int i = 0; i < num_entrants; i++) {
+    fprintf(f, " <tr><td>%s</td><td>%.6f</td><td>%d/%d/%d</td></tr>\n",
+	    entrants[i]->Name().c_str(),
+	    elos[i].elo,
+	    elos[i].wins,
+	    elos[i].losses,
+	    elos[i].draws);
+  }
+  fprintf(f, "</table>\n");
+
+  fprintf(f, "<div id=\"detail\"></div>\n");
   fclose(f);
 }
 
