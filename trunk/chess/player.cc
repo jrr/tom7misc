@@ -562,6 +562,80 @@ struct OppositeColorPlayer : public EvalResultPlayer {
   }
 };
 
+struct SymmetryPlayer : public EvalResultPlayer {
+  // Get the actual piece at the location symmetric to r, c.
+  virtual uint8 BizarroPieceAt(Position *pos, int r, int c) = 0;
+  
+  int64 PositionPenalty(Position *pos) override {
+    int64 penalty = 0LL;
+    for (int r = 0; r < 8; r++) {
+      for (int c = 0; c < 8; c++) {
+	const uint8 piece = pos->PieceAt(r, c);
+	const uint8 other = BizarroPieceAt(pos, r, c);
+	if (piece == Position::EMPTY && other == Position::EMPTY)
+	  continue;
+	if (piece == Position::EMPTY) {
+	  penalty += 10;
+	  continue;
+	}
+	if (other == Position::EMPTY) {
+	  penalty += 10;
+	  continue;
+	}
+	// They should be opposite colors.
+	if ((piece & Position::COLOR_MASK) ==
+	    (other & Position::COLOR_MASK)) {
+	  penalty += 5;
+	  continue;
+	}
+	// But the same type.
+	if ((piece & Position::TYPE_MASK) !=
+	    (other & Position::TYPE_MASK)) {
+	  penalty++;
+	  continue;
+	}
+      }
+    }
+    return penalty;
+  }
+};
+
+struct MirrorYSymmetryPlayer : public SymmetryPlayer {
+  uint8 BizarroPieceAt(Position *pos, int r, int c) override {
+    return pos->PieceAt(7 - r, c);
+  }
+  string Name() const override { return "sym_mirror_y"; }
+  string Desc() const override {
+    return "Move to maximize symmetry (mirroring along the "
+      "y axis).";
+  }
+};
+
+struct MirrorXSymmetryPlayer : public SymmetryPlayer {
+  uint8 BizarroPieceAt(Position *pos, int r, int c) override {
+    return pos->PieceAt(r, 7 - c);
+  }
+  string Name() const override { return "sym_mirror_x"; }
+  string Desc() const override {
+    return "Move to maximize symmetry (mirroring along the "
+      "x axis).";
+  }
+};
+
+// a b c      i h g     (0,0) (0,1) (0,2)      (2,2) (2,1) (2,0)
+// d e f  ->  f e d     (1,0) (1,1) (1,2)  ->  (1,2) (1,1) (1,0)
+// g h i      c b a     (2,0) (2,1) (2,2)      (0,2) (0,1) (0,0)
+
+struct Symmetry180Player : public SymmetryPlayer {
+  uint8 BizarroPieceAt(Position *pos, int r, int c) override {
+    return pos->PieceAt(7 - r, 7 - c);
+  }
+  string Name() const override { return "sym_180"; }
+  string Desc() const override {
+    return "Move to maximize symmetry (180 degree rotation).";
+  }
+};
+
 struct SinglePlayerPlayer : public Player {
   explicit SinglePlayerPlayer(int max_depth) : 
     max_depth(max_depth), 
@@ -575,7 +649,7 @@ struct SinglePlayerPlayer : public Player {
     uint32_t r = 0u;
   };
   
-  static constexpr int64 CHECKMATE = -1'000'000'000LL;
+  static constexpr int64 CHECKMATE = -1000'000'000LL;
   
   int64 GetLowestPenalty(bool black, int depth, Position *p) {
     // Position should have the opponent's move.
@@ -712,6 +786,18 @@ Player *CreateSameColor() {
 
 Player *CreateOppositeColor() {
   return new OppositeColorPlayer;
+}
+
+Player *CreateMirrorYSymmetry() {
+  return new MirrorYSymmetryPlayer;
+}
+
+Player *CreateMirrorXSymmetry() {
+  return new MirrorXSymmetryPlayer;
+}
+
+Player *CreateSymmetry180() {
+  return new Symmetry180Player;
 }
 
 Player *CreateSinglePlayer() {

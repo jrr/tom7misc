@@ -13,7 +13,7 @@
 #include "chess.h"
 #include "player.h"
 // #include "stockfish.h"
-#include "stockfish-player.h"
+// #include "stockfish-player.h"
 
 #define TESTING true
 
@@ -23,8 +23,8 @@ using namespace std;
 // Number of round-robin rounds.
 // (Maybe should be based on the total number of games we want
 // to simulate?)
-static constexpr int TOTAL_ROUNDS = 54; // 250;
-static constexpr int THREADS = 54;
+static constexpr int TOTAL_ROUNDS = 40; // 250;
+static constexpr int THREADS = 1;
 static constexpr int ROUNDS_PER_THREAD = TOTAL_ROUNDS / THREADS;
 
 typedef Player *(*Entrant)();
@@ -35,17 +35,20 @@ const vector<Entrant> &GetEntrants() {
 			// CreateWorstfish,
 			// CreateRandom,
 			CreateFirstMove,
-			CreateAlphabetical,
-			CreateCCCP,
-			CreateNoIInsist,
-			CreatePacifist,
-			CreateSameColor,
+			// CreateAlphabetical,
+			// CreateCCCP,
+			// CreateNoIInsist,
+			// CreatePacifist,
+			// CreateSameColor,
+			CreateMirrorYSymmetry,
+			CreateMirrorXSymmetry,
+			CreateSymmetry180,
 			// CreateOppositeColor,
-			CreateMinOpponentMoves,
-			// 			CreateSuicideKing,
+			// CreateMinOpponentMoves,
+			CreateSuicideKing,
 			// CreateReverseStarting,
-			// CreateGenerous,
-			CreateSinglePlayer,
+			CreateGenerous,
+			// CreateSinglePlayer,
 			// CreateStockfish0,
 			// CreateStockfish5,
 			// CreateStockfish10,

@@ -39,6 +39,9 @@ Player *CreateGenerous();
 Player *CreateNoIInsist();
 Player *CreateSameColor();
 Player *CreateOppositeColor();
+Player *CreateMirrorYSymmetry();
+Player *CreateMirrorXSymmetry();
+Player *CreateSymmetry180();
 Player *CreateSinglePlayer();
 
 #endif

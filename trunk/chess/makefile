@@ -133,6 +133,9 @@ maketable.exe : maketable.o chess.o $(CCLIB_OBJECTS)
 tournament.exe : tournament.o chess.o player.o stockfish-player.o player-util.o stockfish.o subprocess.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+bench.exe : chess.o player.o bench.o player-util.o $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 clean :
 	rm -f *.o *.exe $(CCLIB_OBJECTS)
 

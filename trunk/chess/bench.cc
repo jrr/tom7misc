@@ -117,7 +117,7 @@ Result PlayGame(Player *white, Player *black, vector<Move> *moves) {
   }
 }
 
-static constexpr int NUM_GAMES = 10;
+static constexpr int NUM_GAMES = 100;
 
 static void RunBenchmark() {
   std::unique_ptr<Player> white{CreateCCCP()};
