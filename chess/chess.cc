@@ -1543,10 +1543,28 @@ static void CollectLegalMoves(Position &pos, MoveCollector &mc) {
 
 	  // Horizontal.
 	  m.dst_row = srcr;
+	  #if MOVEGEN_STOP_PIECE
+	  // Left.
+	  for (int dstc = srcc - 1; dstc >= 0; dstc--) {
+	    m.dst_col = dstc;
+	    TRY_MOVE(m);
+	    if (pos.PieceAt(srcr, dstc) != Position::EMPTY)
+	      break;
+	  }
+	  // Right.
+	  for (int dstc = srcc + 1; dstc < 8; dstc++) {
+	    m.dst_col = dstc;
+	    TRY_MOVE(m);
+	    if (pos.PieceAt(srcr, dstc) != Position::EMPTY)
+	      break;
+	  }
+
+          #else
 	  for (int dstc = 0; dstc < 8; dstc++) {
 	    m.dst_col = dstc;
 	    TRY_MOVE(m);
 	  }
+	  #endif
 
 	  // Vertical.
 	  m.dst_col = srcc;
