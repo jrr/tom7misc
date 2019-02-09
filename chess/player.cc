@@ -416,6 +416,64 @@ struct ReverseStartingPlayer : public EvalResultPlayer {
   }
 };
 
+struct HuddlePlayer : public EvalResultPlayer {
+  int64 PositionPenalty(Position *pos) override {
+    // (Reversed since we are on the opposite move now.)
+    const bool black = !pos->BlackMove();
+    const uint8 my_mask = black ? Position::BLACK : Position::WHITE;
+
+    int kr, kc;
+    std::tie(kr, kc) = pos->GetKing(black);
+    
+    int64 dist = 0LL;
+    for (int r = 0; r < 8; r++) {
+      for (int c = 0; c < 8; c++) {
+	uint8 piece = pos->PieceAt(r, c);
+	if (piece != Position::EMPTY &&
+	    (piece & Position::COLOR_MASK) == my_mask) {
+	  dist += std::max(std::abs(r - kr),
+			   std::abs(c - kc));
+	}
+      }
+    }
+    return dist;
+  }
+  
+  string Name() const override { return "huddle"; }
+  string Desc() const override {
+    return "Try to move pieces to surround our own king.";
+  }
+};
+
+struct SwarmPlayer : public EvalResultPlayer {
+  int64 PositionPenalty(Position *pos) override {
+    // (Reversed since we are on the opposite move now.)
+    const bool black = !pos->BlackMove();
+    const uint8 my_mask = black ? Position::BLACK : Position::WHITE;
+
+    // Same as Huddle, but target the enemy's king.
+    int kr, kc;
+    std::tie(kr, kc) = pos->GetKing(!black);
+    
+    int64 dist = 0LL;
+    for (int r = 0; r < 8; r++) {
+      for (int c = 0; c < 8; c++) {
+	uint8 piece = pos->PieceAt(r, c);
+	if (piece != Position::EMPTY &&
+	    (piece & Position::COLOR_MASK) == my_mask) {
+	  dist += std::max(std::abs(r - kr),
+			   std::abs(c - kc));
+	}
+      }
+    }
+    return dist;
+  }
+  
+  string Name() const override { return "swarm"; }
+  string Desc() const override {
+    return "Try to move pieces to surround the opponent's king.";
+  }
+};
 
 struct GenerousPlayer : public EvalResultPlayer {
   int64 PositionPenalty(Position *p) override {
@@ -734,7 +792,6 @@ struct SinglePlayerPlayer : public Player {
 //  - buddy system; if you are alone then only move next to a buddy.
 //    if you are with a buddy, then you may move away
 //  - prefer moves that can be mirrored by the opponent
-//  - Move to maximize acutal board symmetry.
 //
 //  - select eligible squares with langton's ant, game of life
 
@@ -770,6 +827,14 @@ Player *CreateSuicideKing() {
 
 Player *CreateReverseStarting() {
   return new ReverseStartingPlayer;
+}
+
+Player *CreateHuddle() {
+  return new HuddlePlayer;
+}
+
+Player *CreateSwarm() {
+  return new SwarmPlayer;
 }
 
 Player *CreateGenerous() {

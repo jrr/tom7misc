@@ -1423,6 +1423,9 @@ struct CountMC {
   int count = 0;
 };
 
+// If true, movegen stops iterating moves after it reaches another
+// piece. On the macbook this was worse, but on mingw/threadripper it
+// is faster.
 #define MOVEGEN_STOP_PIECE true
 
 template<class MoveCollector>
@@ -1504,17 +1507,53 @@ static void CollectLegalMoves(Position &pos, MoveCollector &mc) {
 
 	  // Horizontal.
 	  m.dst_row = srcr;
+	  #if MOVEGEN_STOP_PIECE
+	  // Left.
+	  for (int dstc = srcc - 1; dstc >= 0; dstc--) {
+	    m.dst_col = dstc;
+	    TRY_MOVE(m);
+	    if (pos.PieceAt(srcr, dstc) != Position::EMPTY)
+	      break;
+	  }
+	  // Right.
+	  for (int dstc = srcc + 1; dstc < 8; dstc++) {
+	    m.dst_col = dstc;
+	    TRY_MOVE(m);
+	    if (pos.PieceAt(srcr, dstc) != Position::EMPTY)
+	      break;
+	  }
+
+          #else
 	  for (int dstc = 0; dstc < 8; dstc++) {
 	    m.dst_col = dstc;
 	    TRY_MOVE(m);
 	  }
+	  #endif
 
 	  // Vertical.
 	  m.dst_col = srcc;
+	  #if MOVEGEN_STOP_PIECE
+	  // Left.
+	  for (int dstr = srcr - 1; dstr >= 0; dstr--) {
+	    m.dst_row = dstr;
+	    TRY_MOVE(m);
+	    if (pos.PieceAt(dstr, srcc) != Position::EMPTY)
+	      break;
+	  }
+	  // Right.
+	  for (int dstr = srcr + 1; dstr < 8; dstr++) {
+	    m.dst_row = dstr;
+	    TRY_MOVE(m);
+	    if (pos.PieceAt(dstr, srcc) != Position::EMPTY)
+	      break;
+	  }
+
+	  #else
 	  for (int dstr = 0; dstr < 8; dstr++) {
 	    m.dst_row = dstr;
 	    TRY_MOVE(m);
 	  }
+	  #endif
 
 	  break;
 	  
@@ -1568,11 +1607,29 @@ static void CollectLegalMoves(Position &pos, MoveCollector &mc) {
 
 	  // Vertical.
 	  m.dst_col = srcc;
+	  #if MOVEGEN_STOP_PIECE
+	  // Left.
+	  for (int dstr = srcr - 1; dstr >= 0; dstr--) {
+	    m.dst_row = dstr;
+	    TRY_MOVE(m);
+	    if (pos.PieceAt(dstr, srcc) != Position::EMPTY)
+	      break;
+	  }
+	  // Right.
+	  for (int dstr = srcr + 1; dstr < 8; dstr++) {
+	    m.dst_row = dstr;
+	    TRY_MOVE(m);
+	    if (pos.PieceAt(dstr, srcc) != Position::EMPTY)
+	      break;
+	  }
+
+	  #else
 	  for (int dstr = 0; dstr < 8; dstr++) {
 	    m.dst_row = dstr;
 	    TRY_MOVE(m);
 	  }
-
+	  #endif
+	  
 	  // Diagonals.
 	  for (const int udr : { -1, 1 }) {
 	    for (const int udc : { -1, 1 }) {

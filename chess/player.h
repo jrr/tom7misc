@@ -35,6 +35,8 @@ Player *CreatePacifist();
 Player *CreateMinOpponentMoves();
 Player *CreateSuicideKing();
 Player *CreateReverseStarting();
+Player *CreateHuddle();
+Player *CreateSwarm();
 Player *CreateGenerous();
 Player *CreateNoIInsist();
 Player *CreateSameColor();
