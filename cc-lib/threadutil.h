@@ -63,7 +63,7 @@ Res ParallelAccumulate(int64_t num,
   // synchronize access.
   std::vector<Res> accs(num_threads, zero);
   
-  auto th = [&zero, &accs,
+  auto th = [&accs,
 	     &index_m, &next_index, num, &f](int thread_num) {
     // PERF consider creating the accumulator in the thread as
     // a local, for numa etc.?
