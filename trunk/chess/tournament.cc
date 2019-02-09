@@ -13,7 +13,7 @@
 #include "chess.h"
 #include "player.h"
 // #include "stockfish.h"
-// #include "stockfish-player.h"
+#include "stockfish-player.h"
 
 #define TESTING true
 
@@ -23,8 +23,8 @@ using namespace std;
 // Number of round-robin rounds.
 // (Maybe should be based on the total number of games we want
 // to simulate?)
-static constexpr int TOTAL_ROUNDS = 40; // 250;
-static constexpr int THREADS = 1;
+static constexpr int TOTAL_ROUNDS = 108; // 250;
+static constexpr int THREADS = 54;
 static constexpr int ROUNDS_PER_THREAD = TOTAL_ROUNDS / THREADS;
 
 typedef Player *(*Entrant)();
@@ -34,7 +34,7 @@ const vector<Entrant> &GetEntrants() {
     new vector<Entrant>{
 			// CreateWorstfish,
 			// CreateRandom,
-			CreateFirstMove,
+			// CreateFirstMove,
 			// CreateAlphabetical,
 			// CreateCCCP,
 			// CreateNoIInsist,
@@ -45,11 +45,13 @@ const vector<Entrant> &GetEntrants() {
 			CreateSymmetry180,
 			// CreateOppositeColor,
 			// CreateMinOpponentMoves,
-			CreateSuicideKing,
+			// CreateSuicideKing,
 			// CreateReverseStarting,
-			CreateGenerous,
+			CreateHuddle,
+			CreateSwarm,
+			// CreateGenerous,
 			// CreateSinglePlayer,
-			// CreateStockfish0,
+			CreateStockfish0,
 			// CreateStockfish5,
 			// CreateStockfish10,
 			// CreateStockfish15,
@@ -202,12 +204,12 @@ static void TournamentThread(int thread_id,
 	  vector<Move> as_white;
 	  switch (PlayGame(entrants[row], entrants[col], &as_white)) {
 	  case Result::WHITE_WINS:
-	    if (cell->row_wins == 0)
+	    if (cell->example_white_win.empty())
 	      cell->example_white_win = as_white;
 	    cell->row_wins++;
 	    break;
 	  case Result::BLACK_WINS:
-	    if (cell->row_losses == 0)
+	    if (cell->example_white_loss.empty())
 	      cell->example_white_loss = as_white;
 	    cell->row_losses++;
 	    break;
@@ -215,7 +217,7 @@ static void TournamentThread(int thread_id,
 	  case Result::DRAW_STALEMATE:
 	  case Result::DRAW_75MOVES:
 	  case Result::DRAW_5REPETITIONS:
-	    if (cell->draws == 0)
+	    if (cell->example_white_draw.empty())
 	      cell->example_white_draw = as_white;
 	    cell->draws++;
 	    break;
@@ -226,12 +228,12 @@ static void TournamentThread(int thread_id,
 	  vector<Move> as_black;
 	  switch (PlayGame(entrants[col], entrants[row], &as_black)) {
 	  case Result::WHITE_WINS:
-	    if (cell->row_losses == 0)
+	    if (cell->example_black_loss.empty())
 	      cell->example_black_loss = as_black;
 	    cell->row_losses++;
 	    break;
 	  case Result::BLACK_WINS:
-	    if (cell->row_wins == 0)
+	    if (cell->example_black_win.empty())
 	      cell->example_black_win = as_black;
 	    cell->row_wins++;
 	    break;
@@ -239,7 +241,7 @@ static void TournamentThread(int thread_id,
 	  case Result::DRAW_STALEMATE:
 	  case Result::DRAW_75MOVES:
 	  case Result::DRAW_5REPETITIONS:
-	    if (cell->draws == 0)
+	    if (cell->example_black_draw.empty())
 	      cell->example_black_draw = as_black;
 	    cell->draws++;
 	    break;
@@ -259,6 +261,36 @@ static void TournamentThread(int thread_id,
   
   for (Player *p : entrants) delete p;
 }
+
+#if 0
+// With the win/loss/draw matrix, compute elo ratings for each player.
+static void ComputeElo(int num_entrants, const std::vector<Cell> &outcomes) {
+  CHECK(outcomes.size() = num_entrants * num_entrants);
+
+  // Like Cell, but ignoring whether the is white or black.
+  struct Matchup {
+    int player1_wins = 0, player2_wins = 0, draw = 0;
+  };
+  // num_entrants^2 size, player1-major. We could normalize such that
+  // player1 < player2, but this is easier.
+  vector<Matchup> matchups;
+  matchups.resize(num_entrants * num_entrants);
+  
+  ArcFour rc(StringPrintf("elo.%lld", (int64)time(nullptr)));
+  // Perform iterative updates in random order.
+  vector<pair<int, int>> nonempty_matchups;
+  // Initialize, ignoring self-play.
+  for (int white = 0; white < num_entrants; white++) {
+    for (int black = 0; black < num_entrants; black++) {
+      if (white != black) {
+	// Maintain invariant that the matchup is nonempty.
+	Matchup *matchup = matchups[white * num_entrants + black];
+	
+      }
+    }
+  }
+}
+#endif
 
 // TODO...
 static void RunTournament() {

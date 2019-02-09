@@ -11,6 +11,7 @@
 
 #include "chess.h"
 #include "player.h"
+#include "blind/timer.h"
 
 using Move = Position::Move;
 using namespace std;
@@ -126,7 +127,8 @@ static void RunBenchmark() {
   int white_wins = 0, black_wins = 0, draws = 0;
   int total_moves = 0;
 
-  const int64 start_time = time(nullptr);
+  // const int64 start_time = time(nullptr);
+  Timer bench_timer;
   for (int game = 0; game < NUM_GAMES; game++) {
     vector<Move> moves;
     switch (PlayGame(white.get(), black.get(), &moves)) {
@@ -143,7 +145,8 @@ static void RunBenchmark() {
     }
     total_moves += moves.size();
   }
-  const double seconds = time(nullptr) - start_time;
+  // const double seconds = time(nullptr) - start_time;
+  const double seconds = bench_timer.MS() / 1000.0;
   printf("Total time: %.2fs (%.2f moves/sec)\n",
 	 seconds, total_moves / seconds);
 }
