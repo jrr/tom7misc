@@ -13,48 +13,6 @@
 using Move = Position::Move;
 using namespace std;
 
-static bool ParseLongMove(const string &move_s, bool black, Move *m) {
-  if (move_s.size() != 4 && move_s.size() != 5)
-    return false;
-
-  if (move_s[0] < 'a' || move_s[0] > 'h')
-    return false;
-  if (move_s[1] < '1' || move_s[1] > '8')
-    return false;
-  if (move_s[2] < 'a' || move_s[2] > 'h')
-    return false;
-  if (move_s[3] < '1' || move_s[3] > '8')
-    return false;
-
-  m->src_col = move_s[0] - 'a';
-  m->src_row = 7 - (move_s[1] - '1');
-  m->dst_col = move_s[2] - 'a';
-  m->dst_row = 7 - (move_s[3] - '1');
-
-  if (move_s.size() == 5) {
-    uint8 my_mask = black ? Position::BLACK : Position::WHITE;
-    switch (move_s[4]) {
-    case 'q':
-      m->promote_to = Position::QUEEN | my_mask;
-      break;
-    case 'n':
-      m->promote_to = Position::KNIGHT | my_mask;
-      break;
-    case 'b':
-      m->promote_to = Position::BISHOP | my_mask;
-      break;
-    case 'r':
-      m->promote_to = Position::ROOK | my_mask;
-      break;
-    default:
-      return false;
-    }
-  }
-
-  return true;
-}
-
-
 namespace {
 struct StockfishPlayer : public Player {
 
@@ -71,7 +29,7 @@ struct StockfishPlayer : public Player {
     Stockfish::Score score;
     fish->GetMove(fen, &move_s, &score);
     Move m;
-    CHECK(ParseLongMove(move_s, orig_pos.BlackMove(), &m))
+    CHECK(PlayerUtil::ParseLongMove(move_s, orig_pos.BlackMove(), &m))
       << orig_pos.BoardString()
       << "\n" << fen
       << "\n[" << move_s << "]";
@@ -91,7 +49,7 @@ struct StockfishPlayer : public Player {
     return StringPrintf("Stockfish engine, no tables, level %d",
 			level);
   }
-
+  
   const int level;
   std::unique_ptr<Stockfish> fish;
 };

@@ -14,7 +14,7 @@ struct Subprocess {
   // while another (only) reads.
   virtual bool Write(const std::string &data) = 0;
   virtual bool ReadLine(std::string *line) = 0;
-  virtual ~Subprocess() {}
+  virtual ~Subprocess();
 };
 
 #endif

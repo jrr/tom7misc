@@ -6,13 +6,15 @@
 #include <memory>
 #include <mutex>
 
-#include "subprocess.h"
+struct Subprocess;
 
 struct Stockfish {
   // Stockfish wrapper. Thread safe, but spawns
   // a child process.
 
   // Level in [0, 20] with 20 being strongest.
+  // Note that engine loading is lazy; errors like missing stockfish.exe
+  // won't occur until the first call to GetMove.
   Stockfish(int level);
 
   struct Score {
@@ -29,6 +31,9 @@ struct Stockfish {
   void GetMove(const std::string &fen, std::string *move, Score *score);
   
 private:
+  // Must hold lock.
+  void InitEngine();
+  const int level;
   std::mutex subprocess_m;
   std::unique_ptr<Subprocess> subprocess;
 };

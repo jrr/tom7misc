@@ -24,7 +24,11 @@ using namespace std;
 // note that x86-64-modern just segfaults. Might be a performance
 // win here if I could figure out why.
 
-Stockfish::Stockfish(int level) {
+Stockfish::Stockfish(int level) : level(level) { }
+
+void Stockfish::InitEngine() {
+  if (subprocess.get() != nullptr)
+    return;
   subprocess.reset(
       Subprocess::Create(
 	  "..\\..\\stockfish\\src\\stockfish.exe"));
@@ -41,12 +45,13 @@ Stockfish::Stockfish(int level) {
 
   subprocess->Write(StringPrintf("setoption name Skill Level value %d\n", level));
 
-  // XXX: Set time limit?
+  // XXX: Set time limit (better to do this in go call I think?).
 }
 
 void Stockfish::GetMove(const string &fen, string *move, Score *score) {
   // XXX clear hash?
   MutexLock ml(&subprocess_m);
+  InitEngine();
   subprocess->Write(StringPrintf("position fen %s\ngo\n", fen.c_str()));
   
   string line;
@@ -85,5 +90,5 @@ void Stockfish::GetMove(const string &fen, string *move, Score *score) {
 	break;
       }
     }
-  } 
+  }
 }

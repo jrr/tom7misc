@@ -14,8 +14,8 @@
 
 #include "chess.h"
 #include "player.h"
-// #include "stockfish.h"
 #include "stockfish-player.h"
+#include "uci-player.h"
 
 #define TESTING true
 
@@ -25,8 +25,8 @@ using namespace std;
 // Number of round-robin rounds.
 // (Maybe should be based on the total number of games we want
 // to simulate?)
-static constexpr int TOTAL_ROUNDS = 54; // 250;
-static constexpr int THREADS = 54;
+static constexpr int TOTAL_ROUNDS = 40; // 250;
+static constexpr int THREADS = 40;
 static constexpr int ROUNDS_PER_THREAD = TOTAL_ROUNDS / THREADS;
 
 typedef Player *(*Entrant)();
@@ -34,6 +34,7 @@ typedef Player *(*Entrant)();
 const vector<Entrant> &GetEntrants() {
   static vector<Entrant> *entrants =
     new vector<Entrant>{
+			/*
 			CreateWorstfish,
 			CreateRandom,
 			CreateFirstMove,
@@ -49,14 +50,17 @@ const vector<Entrant> &GetEntrants() {
 			CreateMinOpponentMoves,
 			CreateSuicideKing,
 			CreateReverseStarting,
+			*/
+			CreateTopple1M,
+			CreateTopple10K,
 			CreateHuddle,
-			CreateSwarm,
-			CreateGenerous,
+			// CreateSwarm,
+			// CreateGenerous,
 			// CreateSinglePlayer,
-			CreateStockfish0,
-			CreateStockfish5,
-			CreateStockfish10,
-			CreateStockfish15,
+			// CreateStockfish0,
+			// CreateStockfish5,
+			// CreateStockfish10,
+			// CreateStockfish15,
 			CreateStockfish20,
   };
   return *entrants;
@@ -196,8 +200,8 @@ static void TournamentThread(int thread_id,
   for (int round = 0; round < ROUNDS_PER_THREAD; round++) {
     for (int row = 0; row < num_entrants; row++) {
       for (int col = 0; col < num_entrants; col++) {
-	// Maybe don't pit a player against itself? Unclear
-	// how this would work in ratings.
+	// Maybe don't pit a player against itself? We ignore
+	// them in elo calculations anyway.
 
 	Cell *cell = &(*outcomes)[row * num_entrants + col];
 

@@ -16,6 +16,9 @@
 struct PlayerUtil {
   static std::string GetSeed();
 
+  static bool ParseLongMove(const std::string &move_s,
+			    bool black, Position::Move *m);
+  
   template<class T, class F>
   static const T &GetBest(const std::vector<T> &v, F f) {
     CHECK(!v.empty());
