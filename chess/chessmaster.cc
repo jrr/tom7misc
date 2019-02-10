@@ -7,6 +7,7 @@
 #include "../cc-lib/threadutil.h"
 #include "../cc-lib/arcfour.h"
 #include "../cc-lib/randutil.h"
+#include "../cc-lib/base/stringprintf.h"
 
 #include "../fceulib/emulator.h"
 #include "../fceulib/simplefm2.h"
@@ -133,10 +134,13 @@ void Chessmaster::InitEngine() {
   // No need to tune this for speed because we only do it during
   // initialization.
   vector<uint8> movie =
+    level == 1 ?
     SimpleFM7::ParseString(
-	"!32_8t26_8t220_8t43_8t28_6c65_3d7_4d5_3d16_5d24_5d26_4a195_");
-
-	//	"!32_8t26_8t200_8t43_8t28_6c65_3d7_4d5_3d16_5d24_5d26_4a50_");
+	"!32_8t26_8t220_8t43_8t28_6c65_3d7_4d5_3d16_5d24_5d26_4a195_") :
+    // Switch to level 2 on the menu
+    SimpleFM7::ParseString(
+	"!24_5t24_5t242_6c53_8t88_6c91_3d7_5d7_3d5_5d5_4d5_4d7_5d3_"
+	"4d23_5a71_4u7_4u27_5u32_5a126_");
 
   for (uint8 c : movie) emu->Step(c, 0);
 
@@ -382,8 +386,10 @@ struct ChessmasterPlayer : public Player {
     rc.Discard(800);
   }
   // XXX level
-  string Name() const override { return "chessmaster.nes"; }
-  string Desc() const override { return "Emulated Chessmaster (NES; 1990)"; }
+  string Name() const override { return StringPrintf("chessmaster.nes_lv%d", level); }
+  string Desc() const override {
+    return StringPrintf("Emulated Chessmaster (NES; 1990). Level %d", level);
+  }
 
   Position::Move MakeMove(const Position &pos) override {
     Position::Move move = master.GetMove(pos);
@@ -407,4 +413,8 @@ struct ChessmasterPlayer : public Player {
 
 Player *CreateChessmaster1() {
   return new ChessmasterPlayer(1);
+}
+
+Player *CreateChessmaster2() {
+  return new ChessmasterPlayer(2);
 }

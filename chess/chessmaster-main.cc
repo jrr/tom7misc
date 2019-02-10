@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
   TestWhiteCheckmate();
   TestBlackCheckmate();
 
-  Chessmaster master(1);
+  Chessmaster master(2);
 
   // Failures here are normal if we have a mated position.
   Position pos;

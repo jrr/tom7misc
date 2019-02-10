@@ -47,5 +47,7 @@ private:
 
 // Level 1. Makes random move if chessmaster fails for some reason.
 Player *CreateChessmaster1();
+// Level 2.
+Player *CreateChessmaster2();
 
 #endif
