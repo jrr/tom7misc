@@ -14,10 +14,9 @@
 struct Emulator;
 
 struct Chessmaster {
-  // Stockfish wrapper. Thread safe, but spawns
-  // a child process.
-
   // Level in [0, 20] with 20 being strongest.
+  // TODO: (Levels not yet used.)
+  
   // Note that engine loading is lazy; errors like missing chessmaster.nes
   // won't occur until the first call to GetMove.
   Chessmaster(int level);
@@ -32,7 +31,7 @@ private:
   // Must hold lock.
   void InitEngine();
   // Must hold lock.
-  bool WaitInputReady();
+  bool WaitInputReady(uint8 button);
   const int level;
   std::mutex emulator_m;
   std::vector<uint8_t> edit_save;
