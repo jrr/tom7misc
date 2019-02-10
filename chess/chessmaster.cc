@@ -5,21 +5,28 @@
 #include <cstdint>
 
 #include "../cc-lib/threadutil.h"
+#include "../cc-lib/arcfour.h"
+#include "../cc-lib/randutil.h"
 
 #include "../fceulib/emulator.h"
 #include "../fceulib/simplefm2.h"
 #include "../fceulib/simplefm7.h"
 #include "../fceulib/x6502.h"
 
+#include "player.h"
+#include "chess.h"
+#include "player-util.h"
+#include "headless-graphics.h"
+
 using namespace std;
 using uint8 = uint8_t;
 using Move = Position::Move;
 
-static constexpr bool VERBOSE = true;
+static constexpr bool VERBOSE = false;
 
 Chessmaster::~Chessmaster() {}
 
-Chessmaster::Chessmaster(int level) : level(level) {}
+Chessmaster::Chessmaster(int level) : level(level), rc("chessmaster") {}
 
 // Board isn't contiguous:
 // 8 bytes of pieces (black's pieces), skip 8 bytes
@@ -43,7 +50,7 @@ static constexpr int WHOSE_MOVE_LOC = 0x665;
 // it's best to repeatedly press the A button.
 static constexpr int READY_FOR_INPUT = 0x642;
 
-static constexpr int MAX_WAIT_FRAMES = 60 * 12;
+static constexpr int MAX_WAIT_FRAMES = 60 * 30;
 
 // Convert Position::Piece to Chessmaster representation.
 static uint8 PieceMaster(uint8 p) {
@@ -100,10 +107,19 @@ bool Chessmaster::WaitInputReady(uint8 button) {
   for (int i = 0; i < MAX_WAIT_FRAMES; i++) {
     emu->Step(((i >> 3) & 1) ? button : 0, 0);
     const uint8 *ram = emu->GetFC()->fceu->RAM;
-    if (ram[READY_FOR_INPUT])
+    if (ram[READY_FOR_INPUT]) {
+      if (VERBOSE) printf("ready_for_input=%02x after %d\n",
+			  ram[READY_FOR_INPUT], i);
       return true;
+    }
   }
   return false;
+}
+
+void Chessmaster::Screenshot(const string &filename) {
+  emu->StepFull(0, 0);
+  SaveARGB(emu->GetImageARGB(), 256, 256, filename);
+  printf("Wrote screenshot %s\n", filename.c_str());
 }
 
 void Chessmaster::InitEngine() {
@@ -138,10 +154,17 @@ void Chessmaster::InitEngine() {
       "24_"); // wait
   change_sides = SimpleFM7::ParseString(
       "!" // player 1
-      "4c12_4u8_4u8_4a8_" // select, up, up, a  "change sides"
-      "24_");  // wait
+      "8c24_8u28_8u28_8a28_" // select, up, up, a  "change sides"
+      "48_");  // wait
 }
-  
+
+static uint8 NormalizeRook(uint8 p) {
+  if ((p & Position::TYPE_MASK) == Position::C_ROOK) {
+    return (p & Position::COLOR_MASK) | Position::ROOK;
+  }
+  return p;
+}
+
 Move Chessmaster::GetMove(const Position &pos) {
   // Get a move. The position must be legal and have moves!
   // If something goes wrong, returns a move from 0,0 to 0,0.
@@ -188,6 +211,7 @@ Move Chessmaster::GetMove(const Position &pos) {
       }
     }
 
+    #if 0
     emu->Step(0, 0);
 
     if (VERBOSE) {
@@ -201,7 +225,8 @@ Move Chessmaster::GetMove(const Position &pos) {
 	printf("\n");
       }
     }
-
+    #endif
+    
     for (uint8 c : return_to_game)
       emu->Step(c, 0);
 
@@ -219,15 +244,29 @@ Move Chessmaster::GetMove(const Position &pos) {
 
     
     // Wait for input to be ready.
-    if (!WaitInputReady(0))
+    if (!WaitInputReady(0)) {
+      if (VERBOSE) {
+	printf("Timeout after returning to game\n");
+	Screenshot("return-to-game.png");
+      }
       return move;
+    }
+
+    {
+      // Allow chessmaster to update its random state a little. I
+      // think it may also do some search during this time.
+      int delay = rc.Byte() & 0x7F;
+      while (delay--) emu->Step(0, 0);
+    }
     
     for (uint8 c : change_sides)
       emu->Step(c, 0);
 
     // Keep pressing A here to dismiss "checkmated" message etc.
-    if (!WaitInputReady(INPUT_A))
+    if (!WaitInputReady(INPUT_A)) {
+      if (VERBOSE) printf("Timeout waiting for move\n");
       return move;
+    }
 
     if (VERBOSE) {
       printf("after move made:\n");
@@ -259,9 +298,13 @@ Move Chessmaster::GetMove(const Position &pos) {
       
       for (int r = 0; r < 8; r++) {
 	for (int c = 0; c < 8; c++) {
-	  const uint8 op = pos.PieceAt(r, c);
+	  const uint8 op = NormalizeRook(pos.PieceAt(r, c));
 	  const uint8 np = MasterPieceAt(r, c);
 	  if (op != np) {
+	    if (VERBOSE)
+	      printf("[op %c np %c]\n",
+		     Position::HumanPieceChar(op),
+		     Position::HumanPieceChar(np));
 	    // Check that the old piece was my color to
 	    // skip en passant captures.
 	    if ((op & Position::COLOR_MASK) == my_mask &&
@@ -276,6 +319,7 @@ Move Chessmaster::GetMove(const Position &pos) {
 	    } else if ((np & Position::COLOR_MASK) == my_mask) {
 	      
 	      if ((dr == -1 && dc == -1) || !dest_king) {
+		if (VERBOSE) printf("Update dest %d,%d to %d,%d\n", dr, dc, r, c);
 		dr = r;
 		dc = c;
 		dest_king = (np & Position::TYPE_MASK) == Position::KING;
@@ -286,8 +330,12 @@ Move Chessmaster::GetMove(const Position &pos) {
 	}
       }
 
-      if (sr == -1 || sc == -1 || dr == -1 || dc == -1)
+      if (sr == -1 || sc == -1 || dr == -1 || dc == -1) {
+	if (VERBOSE) printf("no move %d %d %d %d\n",
+			    sr, sc, dr, dc);
+	Screenshot("no-move.png");
 	return move;
+      }
 
       move.src_row = sr;
       move.src_col = sc;
@@ -309,7 +357,7 @@ Move Chessmaster::GetMove(const Position &pos) {
       Position pc = pos;
       if (!pc.IsLegal(move)) {
 	if (VERBOSE) {
-	  printf("Chessmaster tried to make illegal move %d,%d->%d%d=%d\n",
+	  printf("Chessmaster tried to make illegal move %d,%d->%d,%d=%d\n",
 		 move.src_row,
 		 move.src_col,
 		 move.dst_row,
@@ -326,4 +374,37 @@ Move Chessmaster::GetMove(const Position &pos) {
     }
     return move;
   }
+}
+
+namespace {
+struct ChessmasterPlayer : public Player {
+  explicit ChessmasterPlayer(int level) : level(level), master(level), rc(PlayerUtil::GetSeed()) {
+    rc.Discard(800);
+  }
+  // XXX level
+  string Name() const override { return "chessmaster.nes"; }
+  string Desc() const override { return "Emulated Chessmaster (NES; 1990)"; }
+
+  Position::Move MakeMove(const Position &pos) override {
+    Position::Move move = master.GetMove(pos);
+    if (move.src_row == 0 &&
+	move.src_col == 0 &&
+	move.dst_row == 0 &&
+	move.dst_col == 0) {
+      Position pcopy = pos;
+      std::vector<Move> legal = pcopy.GetLegalMoves();
+      CHECK(!legal.empty());
+      return legal[RandTo32(&rc, legal.size())];
+    }
+    return move;
+  }
+
+  const int level;
+  Chessmaster master;
+  ArcFour rc;
+};
+}
+
+Player *CreateChessmaster1() {
+  return new ChessmasterPlayer(1);
 }

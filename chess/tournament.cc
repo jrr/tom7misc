@@ -16,6 +16,7 @@
 #include "player.h"
 #include "stockfish-player.h"
 #include "uci-player.h"
+#include "chessmaster.h"
 
 #define TESTING true
 
@@ -47,16 +48,17 @@ const vector<Entrant> &GetEntrants() {
 			CreateMirrorXSymmetry,
 			CreateSymmetry180,
 			CreateOppositeColor,
-			CreateMinOpponentMoves,
 			CreateSuicideKing,
 			CreateReverseStarting,
 			*/
-			CreateTopple1M,
+			CreateMinOpponentMoves,
+			// CreateTopple1M,
 			CreateTopple10K,
 			CreateHuddle,
 			// CreateSwarm,
 			// CreateGenerous,
 			// CreateSinglePlayer,
+			CreateChessmaster1,
 			// CreateStockfish0,
 			// CreateStockfish5,
 			// CreateStockfish10,
@@ -266,6 +268,7 @@ static void TournamentThread(int thread_id,
   }
   
   for (Player *p : entrants) delete p;
+  entrants.clear();
 }
 
 static constexpr double ELO_START = 1000.0;
@@ -520,6 +523,9 @@ static void RunTournament() {
 
   fprintf(f, "<div id=\"detail\"></div>\n");
   fclose(f);
+
+  for (Player *p : entrants) delete p;
+  entrants.clear();
 }
 
 
