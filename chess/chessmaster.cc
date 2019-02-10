@@ -15,6 +15,8 @@ using namespace std;
 using uint8 = uint8_t;
 using Move = Position::Move;
 
+static constexpr bool VERBOSE = true;
+
 Chessmaster::~Chessmaster() {}
 
 Chessmaster::Chessmaster(int level) : level(level) {}
@@ -36,8 +38,9 @@ static constexpr int WHOSE_MOVE_LOC = 0x665;
 
 // Appears to be 1 when ready for player input.
 // BUT when the opponent checkmates me, this flag doesn't
-// go true unless I press select to dismiss the message.
-// XXX need a solution here
+// go true unless I press A to dismiss the message.
+// So when waiting for the computer to make a move,
+// it's best to repeatedly press the A button.
 static constexpr int READY_FOR_INPUT = 0x642;
 
 static constexpr int MAX_WAIT_FRAMES = 60 * 12;
@@ -91,9 +94,11 @@ static uint8 MasterPiece(uint8 p) {
   }
 }
 
-bool Chessmaster::WaitInputReady() {
+// Wait until the "input ready" RAM location is set.
+// Strobes the given input (pass 0 for no effect).
+bool Chessmaster::WaitInputReady(uint8 button) {
   for (int i = 0; i < MAX_WAIT_FRAMES; i++) {
-    emu->Step(0, 0);
+    emu->Step(((i >> 3) & 1) ? button : 0, 0);
     const uint8 *ram = emu->GetFC()->fceu->RAM;
     if (ram[READY_FOR_INPUT])
       return true;
@@ -124,6 +129,8 @@ void Chessmaster::InitEngine() {
   // (naturally) for the main menu.
   edit_save = emu->SaveUncompressed();
 
+  // PERF: Wait times can perhaps be tuned to improve efficiency here.
+  // But it's easy to go too fast and get desynchronized!
   return_to_game = SimpleFM7::ParseString(
       "!" // player 1
       "1_" // one frame buffer after modifying board
@@ -147,16 +154,12 @@ Move Chessmaster::GetMove(const Position &pos) {
 
   const bool black = pos.BlackMove();
   const uint8 my_mask = black ? Position::BLACK : Position::WHITE;
-  const uint8 your_mask = black ? Position::WHITE : Position::BLACK;
   
   {
     MutexLock ml(&emulator_m);
     InitEngine();
     
     // Place in the board editor.
-    // I think it will make sense to have two of these; one for each
-    // side. Otherwise, consider the invariant that the emulator is
-    // just always positioned here.
     emu->LoadUncompressed(edit_save);
 
     // Blit the position into NES RAM.
@@ -168,14 +171,16 @@ Move Chessmaster::GetMove(const Position &pos) {
 	  ram[BOARD_START_LOC + (r * 16) + c] = PieceMaster(p);
 	}
       }
+
+      // 1 = black's move, 0 = white's move
+      ram[WHOSE_MOVE_LOC] = black ? 0x01 : 0x00;
     }
     
-    {
+    if (VERBOSE) {
       printf("after setting it:\n");
       const uint8 *ram = emu->GetFC()->fceu->RAM;
       for (int r = 0; r < 8; r++) {
 	for (int c = 0; c < 8; c++) {
-	  const uint8 op = pos.PieceAt(r, c);
 	  const uint8 np = MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
 	  printf("%c ", Position::HumanPieceChar(np));
 	}
@@ -184,12 +189,12 @@ Move Chessmaster::GetMove(const Position &pos) {
     }
 
     emu->Step(0, 0);
-    {
+
+    if (VERBOSE) {
       printf("after one step:\n");
       const uint8 *ram = emu->GetFC()->fceu->RAM;
       for (int r = 0; r < 8; r++) {
 	for (int c = 0; c < 8; c++) {
-	  const uint8 op = pos.PieceAt(r, c);
 	  const uint8 np = MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
 	  printf("%c ", Position::HumanPieceChar(np));
 	}
@@ -197,19 +202,14 @@ Move Chessmaster::GetMove(const Position &pos) {
       }
     }
 
-    
-    // XXX handle black/white's turn.
-    // This currently assumes white's turn.
-
     for (uint8 c : return_to_game)
       emu->Step(c, 0);
 
-    {
+    if (VERBOSE) {
       printf("after returning to game:\n");
       const uint8 *ram = emu->GetFC()->fceu->RAM;
       for (int r = 0; r < 8; r++) {
 	for (int c = 0; c < 8; c++) {
-	  const uint8 op = pos.PieceAt(r, c);
 	  const uint8 np = MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
 	  printf("%c ", Position::HumanPieceChar(np));
 	}
@@ -219,32 +219,111 @@ Move Chessmaster::GetMove(const Position &pos) {
 
     
     // Wait for input to be ready.
-    if (!WaitInputReady())
+    if (!WaitInputReady(0))
       return move;
     
     for (uint8 c : change_sides)
       emu->Step(c, 0);
 
-    if (!WaitInputReady())
+    // Keep pressing A here to dismiss "checkmated" message etc.
+    if (!WaitInputReady(INPUT_A))
       return move;
 
-    // Now deduce move from the change in board state.
-    {
-      printf("after makemove:\n");
+    if (VERBOSE) {
+      printf("after move made:\n");
       const uint8 *ram = emu->GetFC()->fceu->RAM;
       for (int r = 0; r < 8; r++) {
 	for (int c = 0; c < 8; c++) {
-	  const uint8 op = pos.PieceAt(r, c);
 	  const uint8 np = MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
 	  printf("%c ", Position::HumanPieceChar(np));
 	}
 	printf("\n");
       }
     }
-
-    fflush(stdout);
     
-    // XXX
+    if (VERBOSE) fflush(stdout);
+    
+    // Now deduce move from the change in board state.
+    {
+      const uint8 *ram = emu->GetFC()->fceu->RAM;
+
+      // Get up to one source and destination, preferring a king move.
+      // (The only ambiguity is when castling.)
+      int sr = -1, sc = -1, dr = -1, dc = -1;
+      bool source_king = false, dest_king = false;
+
+      auto MasterPieceAt =
+	[ram](int r, int c) {
+	  return MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
+	};
+      
+      for (int r = 0; r < 8; r++) {
+	for (int c = 0; c < 8; c++) {
+	  const uint8 op = pos.PieceAt(r, c);
+	  const uint8 np = MasterPieceAt(r, c);
+	  if (op != np) {
+	    // Check that the old piece was my color to
+	    // skip en passant captures.
+	    if ((op & Position::COLOR_MASK) == my_mask &&
+		np == Position::EMPTY) {
+
+	      if ((sr == -1 && sc == -1) || !source_king) {
+		sr = r;
+		sc = c;
+		source_king = (op & Position::TYPE_MASK) == Position::KING;
+	      }
+
+	    } else if ((np & Position::COLOR_MASK) == my_mask) {
+	      
+	      if ((dr == -1 && dc == -1) || !dest_king) {
+		dr = r;
+		dc = c;
+		dest_king = (np & Position::TYPE_MASK) == Position::KING;
+	      }
+
+	    }
+	  }
+	}
+      }
+
+      if (sr == -1 || sc == -1 || dr == -1 || dc == -1)
+	return move;
+
+      move.src_row = sr;
+      move.src_col = sc;
+      move.dst_row = dr;
+      move.dst_col = dc;
+
+      const uint8 sp = pos.PieceAt(sr, sc);
+      if (sp == (my_mask | Position::PAWN)) {
+	const uint8 dp = MasterPieceAt(dr, dc);
+	if (sp != dp) {
+	  move.promote_to = dp;
+	}
+      }
+    }
+
+    // Chessmaster might try to castle when it's not legal to do so, for
+    // example, because we don't properly communicate castling state.
+    {
+      Position pc = pos;
+      if (!pc.IsLegal(move)) {
+	if (VERBOSE) {
+	  printf("Chessmaster tried to make illegal move %d,%d->%d%d=%d\n",
+		 move.src_row,
+		 move.src_col,
+		 move.dst_row,
+		 move.dst_col,
+		 move.promote_to);
+	}
+	move.src_row = 0;
+	move.src_col = 0;
+	move.dst_row = 0;
+	move.dst_col = 0;
+	move.promote_to = 0;
+	return move;
+      }
+    }
     return move;
   }
 }
