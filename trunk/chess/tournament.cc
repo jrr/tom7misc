@@ -5,6 +5,11 @@
 #include <memory>
 #include <unordered_map>
 
+#ifdef __MINGW32__
+#include <windows.h>
+#undef ARRAYSIZE
+#endif
+
 #include "../cc-lib/base/logging.h"
 #include "../cc-lib/base/stringprintf.h"
 #include "../cc-lib/threadutil.h"
@@ -20,14 +25,29 @@
 
 #define TESTING true
 
+// Cursor to beginning of previous line
+#define ANSI_PREVLINE "\x1B[F"
+#define ANSI_CLEARLINE "\x1B[2K"
+#define ANSI_CLEARTOEOL "\x1B[0K"
+
+#define ANSI_RED "\x1B[1;31;40m"
+#define ANSI_GREY "\x1B[1;30;40m"
+#define ANSI_BLUE "\x1B[1;34;40m"
+#define ANSI_CYAN "\x1B[1;36;40m"
+#define ANSI_YELLOW "\x1B[1;33;40m"
+#define ANSI_GREEN "\x1B[1;32;40m"
+#define ANSI_WHITE "\x1B[1;37;40m"
+#define ANSI_PURPLE "\x1B[1;35;40m"
+#define ANSI_RESET "\x1B[m"
+
 using Move = Position::Move;
 using namespace std;
 
 // Number of round-robin rounds.
 // (Maybe should be based on the total number of games we want
 // to simulate?)
-static constexpr int TOTAL_ROUNDS = 40; // 250;
-static constexpr int THREADS = 40;
+static constexpr int TOTAL_ROUNDS = 50; // 250;
+static constexpr int THREADS = 50;
 static constexpr int ROUNDS_PER_THREAD = TOTAL_ROUNDS / THREADS;
 
 typedef Player *(*Entrant)();
@@ -35,8 +55,7 @@ typedef Player *(*Entrant)();
 const vector<Entrant> &GetEntrants() {
   static vector<Entrant> *entrants =
     new vector<Entrant>{
-			/*
-			CreateWorstfish,
+			// CreateWorstfish,
 			CreateRandom,
 			CreateFirstMove,
 			CreateAlphabetical,
@@ -50,20 +69,20 @@ const vector<Entrant> &GetEntrants() {
 			CreateOppositeColor,
 			CreateSuicideKing,
 			CreateReverseStarting,
-			*/
 			CreateMinOpponentMoves,
-			// CreateTopple1M,
-			CreateTopple10K,
 			CreateHuddle,
-			// CreateSwarm,
-			// CreateGenerous,
+			CreateSwarm,
+			CreateGenerous,
+			// CreateTopple1M,
+			// CreateTopple10K,
 			// CreateSinglePlayer,
 			CreateChessmaster1,
+			CreateChessmaster2,
 			// CreateStockfish0,
 			// CreateStockfish5,
 			// CreateStockfish10,
 			// CreateStockfish15,
-			CreateStockfish20,
+			// CreateStockfish20,
   };
   return *entrants;
 }
@@ -187,6 +206,39 @@ struct Cell {
   vector<Move> example_black_win, example_black_loss, example_black_draw;
 };
 
+// Protects status.
+std::mutex status_m;
+struct Status {
+  int total_games = 0;
+  int done_games = 0;
+  string row;
+  string msg;
+};
+
+vector<Status> status;
+static void ShowStatus() {
+  MutexLock ml(&status_m);
+  for (int i = 0; i < status.size() + 2; i++) {
+    printf("%s", ANSI_PREVLINE);
+  }
+  int64 total_all = 0, done_all = 0;
+  for (int i = 0; i < status.size(); i++) {
+    total_all += status[i].total_games;
+    done_all += status[i].done_games;
+  }
+  
+  printf("\n----------- %lld / %lld ------------------" ANSI_CLEARTOEOL "\n",
+	 done_all, total_all);
+  for (int i = 0; i < status.size(); i++) {
+    printf(ANSI_GREY "[" ANSI_BLUE "% 2d. " ANSI_YELLOW "%.1f%%" ANSI_GREY "] " ANSI_GREEN "%s: "
+	   ANSI_WHITE "%s" ANSI_CLEARTOEOL "\n",
+	   i,
+	   (status[i].done_games * 100.0) / status[i].total_games,
+	   status[i].row.c_str(),
+	   status[i].msg.c_str());
+  }
+}
+
 static void TournamentThread(int thread_id,
 			     vector<Cell> *outcomes) {
   // Create thread-local instances of each entrant.
@@ -198,13 +250,36 @@ static void TournamentThread(int thread_id,
 
   CHECK(outcomes->size() == num_entrants * num_entrants);
 
-  int64 last_message = time(nullptr);
+  {
+    MutexLock ml(&status_m);
+    status[thread_id].msg = "start";
+    status[thread_id].total_games = 2 * num_entrants * num_entrants * ROUNDS_PER_THREAD;
+  }
+
+  int games_done = 0;
+  int64 last_message = 0LL; // time(nullptr);
   for (int round = 0; round < ROUNDS_PER_THREAD; round++) {
-    for (int row = 0; row < num_entrants; row++) {
+    for (int row_offset = 0; row_offset < num_entrants; row_offset++) {
+      // Try to get different threads running different cells.
+      // Some have lower utilization than others.
+      const int row = (thread_id + row_offset) % num_entrants;
+
+      int64 now = time(nullptr);
+      if (now - last_message > 1) {
+	{
+	  MutexLock ml(&status_m);
+	  status[thread_id].msg = "running";
+	  status[thread_id].row = entrants[row]->Name();
+	  status[thread_id].done_games = games_done;
+	}
+	ShowStatus();
+	last_message = now;
+      }
+      
       for (int col = 0; col < num_entrants; col++) {
 	// Maybe don't pit a player against itself? We ignore
 	// them in elo calculations anyway.
-
+	
 	Cell *cell = &(*outcomes)[row * num_entrants + col];
 
 	// One game as white, one game as black.
@@ -230,6 +305,8 @@ static void TournamentThread(int thread_id,
 	    cell->draws++;
 	    break;
 	  }
+
+	  games_done++;
 	}
 	
 	{
@@ -254,17 +331,18 @@ static void TournamentThread(int thread_id,
 	    cell->draws++;
 	    break;
 	  }
+
+	  games_done++;
 	}
       }
     }
+  }
 
-    int64 now = time(nullptr);
-    if (now - last_message > 10) {
-      printf("[%d] %d/%d %d%%\n", thread_id, round, ROUNDS_PER_THREAD,
-	     (round * 100) / ROUNDS_PER_THREAD);
-      fflush(stdout);
-      last_message = now;
-    }
+  {
+    MutexLock ml(&status_m);
+    status[thread_id].msg = "done";
+    status[thread_id].row = "-";
+    status[thread_id].done_games = games_done;
   }
   
   for (Player *p : entrants) delete p;
@@ -431,6 +509,8 @@ static void RunTournament() {
       return res;
     };
 
+  status.resize(THREADS);
+  
   vector<Cell> outcomes =
     ParallelAccumulate(
 	THREADS,
@@ -508,10 +588,19 @@ static void RunTournament() {
   }
   fprintf(f, "</table>\n");
 
-
   // TODO: Sort elos!
+  vector<int> by_elo;
+  for (int i = 0; i < num_entrants; i++) by_elo.push_back(i);
+  // Note: Assumes no nans.
+  std::sort(by_elo.begin(), by_elo.end(),
+	    [&elos](int a, int b) {
+	      if (elos[a].elo != elos[b].elo)
+		return elos[a].elo < elos[b].elo;
+	      return a < b;
+	    });
+  
   fprintf(f, "<table><tr><td>player</td><td>elo</td><td>w/l/d</tr>\n");
-  for (int i = 0; i < num_entrants; i++) {
+  for (int i : by_elo) {
     fprintf(f, " <tr><td>%s</td><td>%.6f</td><td>%d/%d/%d</td></tr>\n",
 	    entrants[i]->Name().c_str(),
 	    elos[i].elo,
@@ -530,6 +619,25 @@ static void RunTournament() {
 
 
 int main(int argc, char **argv) {
+  #ifdef __MINGW32__
+  if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
+    LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
+  }
+
+  // Turn on ANSI support in Windows 10+. (Otherwise, use ANSICON etc.)
+  // https://docs.microsoft.com/en-us/windows/console/setconsolemode
+  //
+  // TODO: This works but seems to subsequently break control keys
+  // and stuff like that in cygwin bash?
+  HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+  // mingw headers may not know about this new flag
+  static constexpr int kVirtualTerminalProcessing = 0x0004;
+  DWORD old_mode = 0;
+  GetConsoleMode(hStdOut, &old_mode);
+  // printf("%lld\n", old_mode);
+  SetConsoleMode(hStdOut, old_mode | kVirtualTerminalProcessing);
+  #endif
+
   RunTournament();
   return 0;
 }
