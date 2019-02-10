@@ -9,6 +9,7 @@
 #include "stockfish.h"
 #include "chess.h"
 #include "player-util.h"
+#include "subprocess.h"
 
 using Move = Position::Move;
 using namespace std;

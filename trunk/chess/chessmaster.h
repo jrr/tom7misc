@@ -10,6 +10,8 @@
 #include <mutex>
 
 #include "chess.h"
+#include "player.h"
+#include "../cc-lib/arcfour.h"
 
 struct Emulator;
 
@@ -32,13 +34,18 @@ private:
   void InitEngine();
   // Must hold lock.
   bool WaitInputReady(uint8 button);
+  void Screenshot(const std::string &f);
   const int level;
   std::mutex emulator_m;
   std::vector<uint8_t> edit_save;
   std::unique_ptr<Emulator> emu;
 
   std::vector<uint8_t> return_to_game, change_sides;
+  ArcFour rc;
+  // std::vector<uint8_t> change_sides1, change_sides2;
 };
 
+// Level 1. Makes random move if chessmaster fails for some reason.
+Player *CreateChessmaster1();
 
 #endif
