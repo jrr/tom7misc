@@ -67,12 +67,23 @@ struct SubprocessImpl : Subprocess {
 
   virtual ~SubprocessImpl() {
     // CHECK?
-    if (g_hChildStd_IN_Wr) CloseHandle(g_hChildStd_IN_Wr);
+    if (g_hChildStd_IN_Wr) {
+      CloseHandle(g_hChildStd_IN_Wr);
+      g_hChildStd_IN_Wr = nullptr;
+    }
 
-    if (g_hChildStd_OUT_Rd) CloseHandle(g_hChildStd_OUT_Rd);
-
+    if (g_hChildStd_OUT_Rd) {
+      CloseHandle(g_hChildStd_OUT_Rd);
+      g_hChildStd_OUT_Rd = nullptr;
+    }
+    
     // XXX What about the others?
-    // XXX Kill the process?
+    
+    if (child_process_handle) {
+      TerminateProcess(child_process_handle, 0);
+      CloseHandle(child_process_handle);
+      child_process_handle = nullptr;
+    }
   }
 
   // A single read can produce more than one line; they get queued here.
@@ -87,8 +98,12 @@ struct SubprocessImpl : Subprocess {
   HANDLE g_hChildStd_IN_Wr = nullptr;
   HANDLE g_hChildStd_OUT_Rd = nullptr;
   HANDLE g_hChildStd_OUT_Wr = nullptr;
+
+  HANDLE child_process_handle = nullptr;
 };
 }  // namespace
+
+Subprocess::~Subprocess() {}
 
 Subprocess *Subprocess::Create(const string &filename) {
   SECURITY_ATTRIBUTES saAttr;
@@ -172,7 +187,8 @@ Subprocess *Subprocess::Create(const string &filename) {
   // Close handles to the child process and its primary thread.
   // Some applications might keep these handles to monitor the status
   // of the child process, for example.
-  CloseHandle(piProcInfo.hProcess);
+  // CloseHandle(piProcInfo.hProcess);
+  sub->child_process_handle = piProcInfo.hProcess;
   CloseHandle(piProcInfo.hThread);
 
   // printf("OK...\n");
