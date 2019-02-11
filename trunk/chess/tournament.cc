@@ -22,6 +22,7 @@
 #include "stockfish-player.h"
 #include "uci-player.h"
 #include "chessmaster.h"
+#include "tournament-db.h"
 
 #define TESTING true
 
@@ -46,8 +47,8 @@ using namespace std;
 // Number of round-robin rounds.
 // (Maybe should be based on the total number of games we want
 // to simulate?)
-static constexpr int TOTAL_ROUNDS = 50; // 250;
-static constexpr int THREADS = 50;
+static constexpr int TOTAL_ROUNDS = 108; // 250;
+static constexpr int THREADS = 54;
 static constexpr int ROUNDS_PER_THREAD = TOTAL_ROUNDS / THREADS;
 
 typedef Player *(*Entrant)();
@@ -55,29 +56,29 @@ typedef Player *(*Entrant)();
 const vector<Entrant> &GetEntrants() {
   static vector<Entrant> *entrants =
     new vector<Entrant>{
-			// CreateWorstfish,
+			CreateWorstfish,
 			CreateRandom,
-			CreateFirstMove,
-			CreateAlphabetical,
+			// CreateFirstMove,
+			// CreateAlphabetical,
 			CreateCCCP,
 			CreateNoIInsist,
 			CreatePacifist,
 			CreateSameColor,
-			CreateMirrorYSymmetry,
-			CreateMirrorXSymmetry,
+			// CreateMirrorYSymmetry,
+			// CreateMirrorXSymmetry,
 			CreateSymmetry180,
 			CreateOppositeColor,
 			CreateSuicideKing,
 			CreateReverseStarting,
-			CreateMinOpponentMoves,
-			CreateHuddle,
+			// CreateMinOpponentMoves,
+			// CreateHuddle,
 			CreateSwarm,
 			CreateGenerous,
 			// CreateTopple1M,
 			// CreateTopple10K,
 			// CreateSinglePlayer,
-			CreateChessmaster1,
-			CreateChessmaster2,
+			// CreateChessmaster1,
+			// CreateChessmaster2,
 			// CreateStockfish0,
 			// CreateStockfish5,
 			// CreateStockfish10,
@@ -200,12 +201,6 @@ Result PlayGame(Player *white, Player *black, vector<Move> *moves) {
   }
 }
 
-struct Cell {
-  int row_wins = 0, row_losses = 0, draws = 0;
-  vector<Move> example_white_win, example_white_loss, example_white_draw;
-  vector<Move> example_black_win, example_black_loss, example_black_draw;
-};
-
 // Protects status.
 std::mutex status_m;
 struct Status {
@@ -239,8 +234,24 @@ static void ShowStatus() {
   }
 }
 
+static string RenderMoves(const vector<Move> &moves) {
+  Position pos;
+  string pgn;
+  // must also work for the case that moves is empty (no example)
+  for (int n = 0; n < moves.size(); n++) {
+    if (!pgn.empty()) pgn.push_back(' ');
+    if (n % 2 == 0)
+      pgn += StringPrintf("%d.", (n >> 1) + 1);
+    pgn += StringPrintf(" %s", pos.ShortMoveString(moves[n]).c_str());
+    CHECK(pos.IsLegal(moves[n])) << pos.BoardString() << "\n"
+				 << pos.LongMoveString(moves[n]);
+    pos.ApplyMove(moves[n]);
+  }
+  return pgn;
+}
+
 static void TournamentThread(int thread_id,
-			     vector<Cell> *outcomes) {
+			     Outcomes *outcomes) {
   // Create thread-local instances of each entrant.
   vector<Player *> entrants;
   for (Entrant e : GetEntrants()) {
@@ -248,12 +259,12 @@ static void TournamentThread(int thread_id,
   }
   const int num_entrants = entrants.size();
 
-  CHECK(outcomes->size() == num_entrants * num_entrants);
+  // CHECK(outcomes->size() == num_entrants * num_entrants);
 
   {
     MutexLock ml(&status_m);
     status[thread_id].msg = "start";
-    status[thread_id].total_games = 2 * num_entrants * num_entrants * ROUNDS_PER_THREAD;
+    status[thread_id].total_games = num_entrants * num_entrants * ROUNDS_PER_THREAD;
   }
 
   int games_done = 0;
@@ -264,12 +275,14 @@ static void TournamentThread(int thread_id,
       // Some have lower utilization than others.
       const int row = (thread_id + row_offset) % num_entrants;
 
+      string white_name = entrants[row]->Name();
+
       int64 now = time(nullptr);
       if (now - last_message > 1) {
 	{
 	  MutexLock ml(&status_m);
 	  status[thread_id].msg = "running";
-	  status[thread_id].row = entrants[row]->Name();
+	  status[thread_id].row = white_name;
 	  status[thread_id].done_games = games_done;
 	}
 	ShowStatus();
@@ -279,61 +292,39 @@ static void TournamentThread(int thread_id,
       for (int col = 0; col < num_entrants; col++) {
 	// Maybe don't pit a player against itself? We ignore
 	// them in elo calculations anyway.
+
+	string black_name = entrants[col]->Name();
 	
-	Cell *cell = &(*outcomes)[row * num_entrants + col];
+	Cell *cell = &(*outcomes)[make_pair(white_name, black_name)];
 
-	// One game as white, one game as black.
-	{
-	  vector<Move> as_white;
-	  switch (PlayGame(entrants[row], entrants[col], &as_white)) {
-	  case Result::WHITE_WINS:
-	    if (cell->example_white_win.empty())
-	      cell->example_white_win = as_white;
-	    cell->row_wins++;
-	    break;
-	  case Result::BLACK_WINS:
-	    if (cell->example_white_loss.empty())
-	      cell->example_white_loss = as_white;
-	    cell->row_losses++;
-	    break;
+	// Row is always white and col is black; there is a symmetric
+	// cell for the reverse. (On the diagonal, we get half as
+	// many self-play games as other cells, but this is fine since
+	// we don't use these for elo.)
+
+	vector<Move> as_white;
+	switch (PlayGame(entrants[row], entrants[col], &as_white)) {
+	case Result::WHITE_WINS:
+	  if (cell->example_win.empty())
+	    cell->example_win = RenderMoves(as_white);
+	  cell->white_wins++;
+	  break;
+	case Result::BLACK_WINS:
+	  if (cell->example_loss.empty())
+	    cell->example_loss = RenderMoves(as_white);
+	  cell->white_losses++;
+	  break;
 	  
-	  case Result::DRAW_STALEMATE:
-	  case Result::DRAW_75MOVES:
-	  case Result::DRAW_5REPETITIONS:
-	    if (cell->example_white_draw.empty())
-	      cell->example_white_draw = as_white;
-	    cell->draws++;
-	    break;
-	  }
-
-	  games_done++;
+	case Result::DRAW_STALEMATE:
+	case Result::DRAW_75MOVES:
+	case Result::DRAW_5REPETITIONS:
+	  if (cell->example_draw.empty())
+	    cell->example_draw = RenderMoves(as_white);
+	  cell->draws++;
+	  break;
 	}
-	
-	{
-	  vector<Move> as_black;
-	  switch (PlayGame(entrants[col], entrants[row], &as_black)) {
-	  case Result::WHITE_WINS:
-	    if (cell->example_black_loss.empty())
-	      cell->example_black_loss = as_black;
-	    cell->row_losses++;
-	    break;
-	  case Result::BLACK_WINS:
-	    if (cell->example_black_win.empty())
-	      cell->example_black_win = as_black;
-	    cell->row_wins++;
-	    break;
-	  
-	  case Result::DRAW_STALEMATE:
-	  case Result::DRAW_75MOVES:
-	  case Result::DRAW_5REPETITIONS:
-	    if (cell->example_black_draw.empty())
-	      cell->example_black_draw = as_black;
-	    cell->draws++;
-	    break;
-	  }
 
-	  games_done++;
-	}
+	games_done++;
       }
     }
   }
@@ -349,127 +340,6 @@ static void TournamentThread(int thread_id,
   entrants.clear();
 }
 
-static constexpr double ELO_START = 1000.0;
-
-struct Elo {
-  double elo = ELO_START;
-  // Used to determine k-factor.
-  int games = 0;
-  // Totals.
-  int wins = 0, losses = 0, draws = 0;
-};
-
-// With the win/loss/draw matrix, compute elo ratings for each player.
-static vector<Elo> ComputeElo(int num_entrants, const std::vector<Cell> &orig_outcomes) {
-  CHECK(orig_outcomes.size() == num_entrants * num_entrants);
-  // We don't need the examples, but it's easiest to just copy
-  // everything. We will modify wins/losses/draws to replay the games.
-  std::vector<Cell> outcomes = orig_outcomes;
-  
-  vector<Elo> elos;
-  elos.resize(num_entrants);
-  
-  ArcFour rc(StringPrintf("elo.%lld", (int64)time(nullptr)));
-  // Perform iterative updates in random order.
-  vector<pair<int, int>> nonempty_matchups;
-  // Initialize, ignoring self-play.
-  for (int white = 0; white < num_entrants; white++) {
-    for (int black = 0; black < num_entrants; black++) {
-      if (white != black) {
-	Cell *cell = &outcomes[white * num_entrants + black];
-	if (cell->row_wins != 0 ||
-	    cell->row_losses != 0 ||
-	    cell->draws != 0) {
-	  nonempty_matchups.emplace_back(white, black);
-	}
-      }
-    }
-  }
-
-  auto ClaimResult =
-    [&rc](Cell *cell) {
-      // Pick uniformly in proportion to the number of games
-      // played, not the three (non-empty) categories.
-      int total_mass = cell->row_wins + cell->row_losses + cell->draws;
-      CHECK(total_mass > 0) << "Invariant";
-      int idx = RandTo32(&rc, total_mass);
-      if (idx < cell->row_wins) {
-	cell->row_wins--;
-	return 1;
-      }
-      idx -= cell->row_wins;
-      if (idx < cell->row_losses) {
-	cell->row_losses--;
-	return -1;
-      }
-      idx -= cell->row_losses;
-      CHECK(idx < cell->draws) << "Bug? " << idx << " " << cell->draws;
-      cell->draws--;
-      return 0;
-    };
-  
-  while (!nonempty_matchups.empty()) {
-    Shuffle(&rc, &nonempty_matchups);
-    vector<pair<int, int>> next_matchups;
-    for (pair<int, int> p : nonempty_matchups) {
-      const int white = p.first, black = p.second;
-      Cell *cell = &outcomes[white * num_entrants + black];
-      // Randomly pick one of the wins, losses or draws. 1 means
-      // 1 white wins.
-      const int result = ClaimResult(cell);
-      
-      const double q_white = pow(10.0, elos[white].elo / 400.0);
-      const double q_black = pow(10.0, elos[black].elo / 400.0);
-      // Expected score.
-      const double e_white = q_white / (q_white + q_black);
-      const double e_black = 1.0 - e_white;
-      // Actual score.
-      double s_white = 0.0, s_black = 0.0;
-      switch (result) {
-      case -1:
-	s_black = 1.0;
-	elos[white].losses++;
-	elos[black].wins++;
-	break;
-      case 1:
-	s_white = 1.0;
-	elos[white].wins++;
-	elos[black].losses++;
-	break;
-      default:
-      case 0:
-	s_white = 0.5;
-	s_black = 0.5;
-	elos[white].draws++;
-	elos[black].draws++;
-      }
-
-      // TODO: Perhaps should use diminishing k as games go on.
-      // Modulating this based on the rating does not make that much sense to me;
-      // I think this is intended to capture the fact that true human skill changes
-      // over time. Our computer players are not like that.
-      const double k_white = 10.0;
-      const double k_black = 10.0;
-
-      elos[white].elo += k_white * (s_white - e_white);
-      elos[black].elo += k_black * (s_black - e_black);
-      
-      elos[white].games++;
-      elos[black].games++;
-
-      // Only keep it around if there are more games to simulate.
-      if (cell->row_wins > 0 ||
-	  cell->row_losses > 0 ||
-	  cell->draws > 0) {
-	next_matchups.push_back(p);
-      }
-    }
-    nonempty_matchups = std::move(next_matchups);
-  }
-  return elos;
-}
-
-// TODO...
 static void RunTournament() {
   vector<Player *> entrants;
   for (Entrant e : GetEntrants()) {
@@ -478,141 +348,37 @@ static void RunTournament() {
   int num_entrants = entrants.size();
 
   int actual_rounds = THREADS * ROUNDS_PER_THREAD;
-  int games_per_round = 2 * num_entrants * num_entrants;
-  printf("Will run %d rounds, each %d^2 x 2 = %d games,\n"
+  int games_per_round = num_entrants * num_entrants;
+  printf("Will run %d rounds, each %d^2 = %d games,\n"
 	 "for a total of %d games.\n",
 	 actual_rounds, num_entrants, games_per_round,
 	 games_per_round * actual_rounds);
   fflush(stdout);
   
   auto AddOutcomes =
-    [](const vector<Cell> &a,
-       const vector<Cell> &b) {
-      vector<Cell> res = a;
-      CHECK(a.size() == b.size());
-      for (int i = 0; i < a.size(); i++) {
-	res[i].row_wins += b[i].row_wins;
-	res[i].row_losses += b[i].row_losses;
-	res[i].draws += b[i].draws;
-
-#       define MELD(field) \
-	do { if (res[i]. field .empty()) res[i]. field = b[i].field; }	\
-	while(0)
-	MELD(example_white_win);
-	MELD(example_white_loss);
-	MELD(example_white_draw);
-	MELD(example_black_win);
-	MELD(example_black_loss);
-	MELD(example_black_draw);
-#       undef MELD
-      }
+    [](const Outcomes &a,
+       const Outcomes &b) {
+      Outcomes res = b;
+      TournamentDB::MergeInto(a, &res);
       return res;
     };
 
   status.resize(THREADS);
+
+  Outcomes previous_outcomes = TournamentDB::LoadFromFile("tournament.db");
   
-  vector<Cell> outcomes =
+  Outcomes outcomes =
     ParallelAccumulate(
 	THREADS,
-	vector<Cell>(num_entrants * num_entrants),
+	Outcomes{},
 	AddOutcomes,
 	TournamentThread,
 	THREADS);
-  CHECK(outcomes.size() == num_entrants * num_entrants);
 
-  printf("Running elo:\n");
-  fflush(stdout);
-  const int64 start_elo = time(nullptr);
-  const vector<Elo> elos = ComputeElo(num_entrants, outcomes);
-  printf("Done in %lld sec.\n", time(nullptr) - start_elo);
-  fflush(stdout);
-    
-  // Print the matrix!
-  string prelude = Util::ReadFile("tournament-prelude.html");
-  FILE *f = fopen("tournament.html", "wb");
-  CHECK(f);
+  TournamentDB::MergeInto(previous_outcomes, &outcomes);
   
-  fprintf(f, "<!doctype html>\n"
-	  "<meta charset=\"utf-8\" />\n"
-	  "%s", prelude.c_str());
-
-  fprintf(f, "<script>\n"
-	  "const cells = [\n");
-  for (int i = 0; i < outcomes.size(); i++) {
-    fprintf(f, " {");
-
-    auto Field =
-      [f](const string &s,
-	  const std::vector<Move> &moves) {
-	Position pos;
-	string pgn;
-	// must also work for the case that moves is empty (no example)
-	for (int n = 0; n < moves.size(); n++) {
-	  if (n % 2 == 0)
-	    pgn += StringPrintf(" %d.", (n >> 1) + 1);
-	  pgn += StringPrintf(" %s", pos.ShortMoveString(moves[n]).c_str());
-	  CHECK(pos.IsLegal(moves[n])) << pos.BoardString() << "\n"
-				       << pos.LongMoveString(moves[n]);
-	  pos.ApplyMove(moves[n]);
-	}
-	fprintf(f, "%s: '%s', ", s.c_str(), pgn.c_str());
-      };
-    const Cell &cell = outcomes[i];
-    Field("ww", cell.example_white_win);
-    Field("wl", cell.example_white_loss);
-    Field("wd", cell.example_white_draw);
-    Field("bw", cell.example_black_win);
-    Field("bl", cell.example_black_loss);
-    Field("bd", cell.example_black_draw);
-    fprintf(f, "}");
-    if (i != outcomes.size() - 1) fprintf(f, ",\n");
-  }
-  fprintf(f, "];\n</script>\n\n");
-
-  // U+FF3C fullwidth reverse solidus
-  fprintf(f, "<table><tr><td>white \uFF3C black</td>\n");
-  for (Player *p : entrants)
-    fprintf(f, " <td>%s</td>\n", p->Name().c_str());
-  fprintf(f, "</tr>\n");
-  for (int row = 0; row < num_entrants; row++) {
-    fprintf(f, "<tr><td>%s</td>\n", entrants[row]->Name().c_str());
-    for (int col = 0; col < num_entrants; col++) {
-      int idx = row * num_entrants + col;
-      const Cell &cell = outcomes[idx];
-      fprintf(f, "  <td id=\"c%d\"><span class=\"c\" onclick=\"show(%d)\">"
-	      "%d w, %d l, %d d</span></td>\n",
-	      idx, idx,
-	      cell.row_wins, cell.row_losses, cell.draws);
-    }
-    fprintf(f, "</tr>\n");
-  }
-  fprintf(f, "</table>\n");
-
-  // TODO: Sort elos!
-  vector<int> by_elo;
-  for (int i = 0; i < num_entrants; i++) by_elo.push_back(i);
-  // Note: Assumes no nans.
-  std::sort(by_elo.begin(), by_elo.end(),
-	    [&elos](int a, int b) {
-	      if (elos[a].elo != elos[b].elo)
-		return elos[a].elo < elos[b].elo;
-	      return a < b;
-	    });
+  TournamentDB::SaveToFile(outcomes, "tournament.db");
   
-  fprintf(f, "<table><tr><td>player</td><td>elo</td><td>w/l/d</tr>\n");
-  for (int i : by_elo) {
-    fprintf(f, " <tr><td>%s</td><td>%.6f</td><td>%d/%d/%d</td></tr>\n",
-	    entrants[i]->Name().c_str(),
-	    elos[i].elo,
-	    elos[i].wins,
-	    elos[i].losses,
-	    elos[i].draws);
-  }
-  fprintf(f, "</table>\n");
-
-  fprintf(f, "<div id=\"detail\"></div>\n");
-  fclose(f);
-
   for (Player *p : entrants) delete p;
   entrants.clear();
 }
