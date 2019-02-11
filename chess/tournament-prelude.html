@@ -42,12 +42,9 @@
    let elt = document.getElementById('detail');
    elt.innerHTML = '';
    elt.appendChild(TEXT('examples for cell #' + idx));
-   for (o of [{f: 'ww', t: 'white win'},
-	      {f: 'wl', t: 'white loss'},
-	      {f: 'wd', t: 'white draw'},
-	      {f: 'bw', t: 'black win'},
-	      {f: 'bl', t: 'black loss'},
-	      {f: 'bd', t: 'black draw'}]) {
+   for (o of [{f: 'ew', t: 'example (white) win'},
+	      {f: 'el', t: 'example loss'},
+	      {f: 'ed', t: 'example draw'}]) {
      let d = DIV('ex', elt);
      TEXT(o.t, DIV('et', d));
      TEXT(cells[idx][o.f], DIV('pgn', d));
