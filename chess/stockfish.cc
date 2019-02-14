@@ -24,7 +24,7 @@ using namespace std;
 // note that x86-64-modern just segfaults. Might be a performance
 // win here if I could figure out why.
 
-Stockfish::Stockfish(int level) : level(level) { }
+Stockfish::Stockfish(int level, int64 nodes) : level(level), nodes(nodes) { }
 
 void Stockfish::InitEngine() {
   if (subprocess.get() != nullptr)
@@ -52,8 +52,12 @@ void Stockfish::GetMove(const string &fen, string *move, Score *score) {
   // XXX clear hash?
   MutexLock ml(&subprocess_m);
   InitEngine();
-  subprocess->Write(StringPrintf("position fen %s\ngo\n", fen.c_str()));
-  
+  if (nodes > 0) {
+    subprocess->Write(StringPrintf("position fen %s\ngo nodes %lld\n", fen.c_str(), nodes));
+  } else {
+    subprocess->Write(StringPrintf("position fen %s\ngo\n", fen.c_str()));
+  }
+    
   string line;
   string info;
   do {

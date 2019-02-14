@@ -69,6 +69,10 @@ unblind.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o unblind.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
+getlegal.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o getlegal.o ../pack.o
+	@$(CXX) $^ -o $@ $(LFLAGS)
+	@echo -n "!"
+
 vacuum.exe : $(OBJECTS) vacuum.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"

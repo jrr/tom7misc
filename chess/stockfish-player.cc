@@ -1,6 +1,7 @@
 
 #include <string>
 #include <memory>
+#include <cstdint>
 
 #include "../cc-lib/base/logging.h"
 #include "../cc-lib/base/stringprintf.h"
@@ -11,14 +12,17 @@
 #include "player-util.h"
 #include "subprocess.h"
 
+using int64 = int64_t;
+
 using Move = Position::Move;
 using namespace std;
 
 namespace {
 struct StockfishPlayer : public Player {
 
-  StockfishPlayer(int level) : level(level) {
-    fish.reset(new Stockfish(level));
+  StockfishPlayer(int level, int nodes, const string &name) :
+    level(level), nodes(nodes), name(name) {
+    fish.reset(new Stockfish(level, nodes));
     CHECK(fish.get());
   }
   
@@ -43,22 +47,24 @@ struct StockfishPlayer : public Player {
   }
   
   string Name() const override {
-    return StringPrintf("stockfish%d", level);
+    return name;
   }
   
   string Desc() const override {
-    return StringPrintf("Stockfish engine, no tables, level %d",
-			level);
+    return StringPrintf("Stockfish engine, no tables, level %d, nodes %lld",
+			level, nodes);
   }
   
   const int level;
+  const int64 nodes;
+  const string name;
   std::unique_ptr<Stockfish> fish;
 };
 
 struct WorstfishPlayer : public EvalResultPlayer {
 
   WorstfishPlayer(int level) : EvalResultPlayer(), level(level) {
-    fish.reset(new Stockfish(level));
+    fish.reset(new Stockfish(level, 0));
     CHECK(fish.get());
   }
 
@@ -127,23 +133,27 @@ struct WorstfishPlayer : public EvalResultPlayer {
 
 
 Player *CreateStockfish0() {
-  return new StockfishPlayer(0);
+  return new StockfishPlayer(0, 0, "stockfish0");
 }
 
 Player *CreateStockfish5() {
-  return new StockfishPlayer(5);
+  return new StockfishPlayer(5, 0, "stockfish5");
 }
 
 Player *CreateStockfish10() {
-  return new StockfishPlayer(10);
+  return new StockfishPlayer(10, 0, "stockfish10");
 }
 
 Player *CreateStockfish15() {
-  return new StockfishPlayer(15);
+  return new StockfishPlayer(15, 0, "stockfish15");
 }
 
 Player *CreateStockfish20() {
-  return new StockfishPlayer(20);
+  return new StockfishPlayer(20, 0, "stockfish20");
+}
+
+Player *CreateStockfish1M() {
+  return new StockfishPlayer(20, 1000000, "stockfish1m");
 }
 
 

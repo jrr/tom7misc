@@ -335,9 +335,11 @@ Move Chessmaster::GetMove(const Position &pos) {
       }
 
       if (sr == -1 || sc == -1 || dr == -1 || dc == -1) {
-	if (VERBOSE) printf("no move %d %d %d %d\n",
-			    sr, sc, dr, dc);
-	Screenshot("no-move.png");
+	if (VERBOSE) {
+	  printf("no move %d %d %d %d\n",
+		 sr, sc, dr, dc);
+	  Screenshot("no-move.png");
+	}
 	return move;
       }
 
