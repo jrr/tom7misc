@@ -4,6 +4,8 @@
 #include <mutex>
 #include <memory>
 #include <unordered_map>
+#include <cstdlib>
+#include <unordered_set>
 
 #ifdef __MINGW32__
 #include <windows.h>
@@ -47,46 +49,52 @@ using namespace std;
 // Number of round-robin rounds.
 // (Maybe should be based on the total number of games we want
 // to simulate?)
-static constexpr int TOTAL_ROUNDS = 108; // 250;
 static constexpr int THREADS = 54;
-static constexpr int ROUNDS_PER_THREAD = TOTAL_ROUNDS / THREADS;
+static constexpr int ROUNDS_PER_THREAD = 1;
+static constexpr int TOTAL_ROUNDS = THREADS * ROUNDS_PER_THREAD;
 
 typedef Player *(*Entrant)();
-// using Entrant = Player *(*)();
+
+// 			CreateSinglePlayer,
 const vector<Entrant> &GetEntrants() {
   static vector<Entrant> *entrants =
     new vector<Entrant>{
 			CreateWorstfish,
 			CreateRandom,
-			// CreateFirstMove,
-			// CreateAlphabetical,
-			CreateCCCP,
-			CreateNoIInsist,
+			CreateFirstMove,
+			CreateAlphabetical,
 			CreatePacifist,
-			CreateSameColor,
-			// CreateMirrorYSymmetry,
-			// CreateMirrorXSymmetry,
+			CreateGenerous,
+			CreateNoIInsist,
+			CreateMirrorYSymmetry,
+			CreateMirrorXSymmetry,
 			CreateSymmetry180,
+			CreateSameColor,
 			CreateOppositeColor,
+			CreateHuddle,
+			CreateSwarm,
 			CreateSuicideKing,
 			CreateReverseStarting,
-			// CreateMinOpponentMoves,
-			// CreateHuddle,
-			CreateSwarm,
-			CreateGenerous,
-			// CreateTopple1M,
-			// CreateTopple10K,
-			// CreateSinglePlayer,
-			// CreateChessmaster1,
-			// CreateChessmaster2,
-			// CreateStockfish0,
-			// CreateStockfish5,
-			// CreateStockfish10,
-			// CreateStockfish15,
-			// CreateStockfish20,
+			CreateMinOpponentMoves,
+			CreateCCCP,
+			CreateTopple10K,
+			CreateTopple1M,
+			CreateChessmaster1,
+			CreateChessmaster2,
+			CreateStockfish0,
+			CreateStockfish5,
+			CreateStockfish10,
+			CreateStockfish15,
+			CreateStockfish20,
+			CreateStockfish1M,
   };
   return *entrants;
 }
+
+// For backfill when adding a new entrant.
+// If non-null, only run cells that involve this player,
+// (and also avoid self-play).
+static const char *run_only = "stockfish1m";
 
 // Under FIDE rules, after 50 moves without a pawn move or capture, a
 // player may CLAIM a draw. We don't allow these computer players to
@@ -203,6 +211,8 @@ Result PlayGame(Player *white, Player *black, vector<Move> *moves) {
 
 // Protects status.
 std::mutex status_m;
+int64 status_start_time = 0LL;
+int64 status_last_time = 0LL;
 struct Status {
   int total_games = 0;
   int done_games = 0;
@@ -211,8 +221,18 @@ struct Status {
 };
 
 vector<Status> status;
-static void ShowStatus() {
+static void ShowStatus(int64 now) {
   MutexLock ml(&status_m);
+  // Update at most once per second.
+  if (now - status_last_time < 1)
+    return;
+  status_last_time = now;
+  
+  int64 total_seconds = now - status_start_time;
+
+  int64 minutes = total_seconds / 60;
+  int seconds = total_seconds % 60;
+  
   for (int i = 0; i < status.size() + 2; i++) {
     printf("%s", ANSI_PREVLINE);
   }
@@ -222,8 +242,10 @@ static void ShowStatus() {
     done_all += status[i].done_games;
   }
   
-  printf("\n----------- %lld / %lld ------------------" ANSI_CLEARTOEOL "\n",
-	 done_all, total_all);
+  printf("\n----------- %lld / %lld ----- "
+	 ANSI_CYAN "%lld" ANSI_RESET "m" ANSI_CYAN "%d" ANSI_RESET "s" ANSI_WHITE
+	 " -----------" ANSI_CLEARTOEOL "\n",
+	 done_all, total_all, minutes, seconds);
   for (int i = 0; i < status.size(); i++) {
     printf(ANSI_GREY "[" ANSI_BLUE "% 2d. " ANSI_YELLOW "%.1f%%" ANSI_GREY "] " ANSI_GREEN "%s: "
 	   ANSI_WHITE "%s" ANSI_CLEARTOEOL "\n",
@@ -264,7 +286,10 @@ static void TournamentThread(int thread_id,
   {
     MutexLock ml(&status_m);
     status[thread_id].msg = "start";
-    status[thread_id].total_games = num_entrants * num_entrants * ROUNDS_PER_THREAD;
+    if (run_only == nullptr)
+      status[thread_id].total_games = num_entrants * num_entrants * ROUNDS_PER_THREAD;
+    else
+      status[thread_id].total_games = (num_entrants * 2 - 1) * ROUNDS_PER_THREAD;
   }
 
   int games_done = 0;
@@ -276,24 +301,32 @@ static void TournamentThread(int thread_id,
       const int row = (thread_id + row_offset) % num_entrants;
 
       string white_name = entrants[row]->Name();
-
-      int64 now = time(nullptr);
-      if (now - last_message > 1) {
-	{
-	  MutexLock ml(&status_m);
-	  status[thread_id].msg = "running";
-	  status[thread_id].row = white_name;
-	  status[thread_id].done_games = games_done;
-	}
-	ShowStatus();
-	last_message = now;
-      }
-      
+            
       for (int col = 0; col < num_entrants; col++) {
 	// Maybe don't pit a player against itself? We ignore
 	// them in elo calculations anyway.
-
+	if (row == col &&
+	    run_only != nullptr)
+	  continue;
+	
 	string black_name = entrants[col]->Name();
+
+	if (run_only != nullptr &&
+	    white_name != run_only &&
+	    black_name != run_only)
+	  continue;
+
+	int64 now = time(nullptr);
+	if (now - last_message > 1) {
+	  {
+	    MutexLock ml(&status_m);
+	    status[thread_id].msg = "running";
+	    status[thread_id].row = white_name;
+	    status[thread_id].done_games = games_done;
+	  }
+	  ShowStatus(now);
+	  last_message = now;
+	}
 	
 	Cell *cell = &(*outcomes)[make_pair(white_name, black_name)];
 
@@ -342,8 +375,14 @@ static void TournamentThread(int thread_id,
 
 static void RunTournament() {
   vector<Player *> entrants;
+  std::unordered_set<string> entrant_names;
   for (Entrant e : GetEntrants()) {
-    entrants.push_back(e());
+    Player *p = e();
+    entrants.push_back(p);
+    string name = p->Name();
+    CHECK(entrant_names.find(name) == entrant_names.end())
+      << "Duplicate names: " << name;
+    entrant_names.insert(name);
   }
   int num_entrants = entrants.size();
 
@@ -363,6 +402,7 @@ static void RunTournament() {
       return res;
     };
 
+  status_start_time = time(nullptr);
   status.resize(THREADS);
 
   Outcomes previous_outcomes = TournamentDB::LoadFromFile("tournament.db");
@@ -405,6 +445,9 @@ int main(int argc, char **argv) {
   #endif
 
   RunTournament();
+
+  // XXX
+  system("taskkill /F /IM topple_v0.3.5_znver1.exe /T");
   return 0;
 }
 

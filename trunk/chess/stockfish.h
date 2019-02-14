@@ -5,6 +5,7 @@
 #include <string>
 #include <memory>
 #include <mutex>
+#include <cstdint>
 
 struct Subprocess;
 
@@ -13,9 +14,11 @@ struct Stockfish {
   // a child process.
 
   // Level in [0, 20] with 20 being strongest.
+  // Nodes is the number of nodes to search (if nonzero). 1 million takes about
+  // one second per move.
   // Note that engine loading is lazy; errors like missing stockfish.exe
   // won't occur until the first call to GetMove.
-  Stockfish(int level);
+  Stockfish(int level, int64_t nodes);
 
   struct Score {
     bool is_mate = false;
@@ -34,6 +37,7 @@ private:
   // Must hold lock.
   void InitEngine();
   const int level;
+  const int64_t nodes;
   std::mutex subprocess_m;
   std::unique_ptr<Subprocess> subprocess;
 };

@@ -9,6 +9,7 @@ Player *CreateStockfish5();
 Player *CreateStockfish10();
 Player *CreateStockfish15();
 Player *CreateStockfish20();
+Player *CreateStockfish1M();
 
 Player *CreateWorstfish();
 
