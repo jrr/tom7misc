@@ -3,6 +3,7 @@
 #include <vector>
 #include <shared_mutex>
 #include <cstdint>
+#include <set>
 
 #include "../../cc-lib/threadutil.h"
 #include "../../cc-lib/randutil.h"
@@ -26,9 +27,11 @@ using int64 = int64_t;
 // see how much it could be contributing. Or just
 // throw away a constant fraction of each layer?
 
-// NOTE: This is VERY aggressive!
+// NOTE: 0.1 is VERY aggressive!
 // 0.01f worked fine for my network, btw
-static constexpr float THRESHOLD = 0.1f;
+static constexpr float THRESHOLD = 0.05f;
+
+static const std::set<int> VACUUM_LAYERS{3};
 
 static void VacuumLayer(Network *net, int layer_idx) {
   CHECK(layer_idx >= 0);
@@ -146,10 +149,30 @@ static void VacuumNetwork(Network *net) {
   // very small (below the threshold).
 
   Network::CheckInvertedIndices(*net);
+
+  for (int i = 0; i < net->layers.size(); i++) {
+    const int num_nodes = net->num_nodes[i + 1];
+    Network::Layer *layer = &net->layers[i];
+    const int ipn = layer->indices_per_node;
+
+    int64 bytes =
+      // Biases
+      num_nodes * 4 +
+      // Weights
+      (num_nodes * ipn) * 4;
+    
+    printf("Layer %d has %d nodes, %d indices per node = %d, %.1fMB\n",
+	   i, num_nodes, ipn, num_nodes * ipn,
+	   bytes / (1024.0 * 1024.0));
+    fflush(stdout);
+  }
   
   UnParallelComp(net->layers.size(),
-	       [net](int i) { VacuumLayer(net, i); },
-	       24);
+		 [net](int i) {
+		   if (VACUUM_LAYERS.find(i) != VACUUM_LAYERS.end())
+		     VacuumLayer(net, i);
+		 },
+		 24);
 
   // We changed the number of indices per node, so we need to resize
   // the inverted indices (and recompute them).
@@ -177,8 +200,10 @@ static void VacuumNetwork(Network *net) {
 
 int main(int argc, char **argv) {
 
+  CHECK(argc == 2) << "\n\nUsage:\nvacuum.exe net.val";
+  
   Timer model_timer;
-  std::unique_ptr<Network> net{Network::ReadNetworkBinary("net.val")};
+  std::unique_ptr<Network> net{Network::ReadNetworkBinary(argv[1])};
   fprintf(stderr, "Loaded model in %.2fs\n",
 	  model_timer.MS() / 1000.0);
   fflush(stderr);
@@ -188,9 +213,8 @@ int main(int argc, char **argv) {
   fprintf(stderr, "Vacuumed model in %.2fs\n",
 	  vacuum_timer.MS() / 1000.0);
   fflush(stderr);
-  
+
   Network::SaveNetworkBinary(*net, "net-vacuumed.val");  
-  
   
   return 0;
 }

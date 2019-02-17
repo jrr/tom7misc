@@ -49,7 +49,7 @@ using namespace std;
 // Number of round-robin rounds.
 // (Maybe should be based on the total number of games we want
 // to simulate?)
-static constexpr int THREADS = 54;
+static constexpr int THREADS = 32;
 static constexpr int ROUNDS_PER_THREAD = 1;
 static constexpr int TOTAL_ROUNDS = THREADS * ROUNDS_PER_THREAD;
 
@@ -77,15 +77,15 @@ const vector<Entrant> &GetEntrants() {
 			CreateReverseStarting,
 			CreateMinOpponentMoves,
 			CreateCCCP,
-			CreateTopple10K,
-			CreateTopple1M,
+			// CreateTopple10K,
+			// CreateTopple1M,
 			CreateChessmaster1,
 			CreateChessmaster2,
-			CreateStockfish0,
-			CreateStockfish5,
-			CreateStockfish10,
-			CreateStockfish15,
-			CreateStockfish20,
+			// CreateStockfish0,
+			// CreateStockfish5,
+			// CreateStockfish10,
+			// CreateStockfish15,
+			// CreateStockfish20,
 			CreateStockfish1M,
   };
   return *entrants;
@@ -94,7 +94,7 @@ const vector<Entrant> &GetEntrants() {
 // For backfill when adding a new entrant.
 // If non-null, only run cells that involve this player,
 // (and also avoid self-play).
-static const char *run_only = "stockfish1m";
+static const char *run_only = nullptr; // "stockfish1m";
 
 // Under FIDE rules, after 50 moves without a pawn move or capture, a
 // player may CLAIM a draw. We don't allow these computer players to

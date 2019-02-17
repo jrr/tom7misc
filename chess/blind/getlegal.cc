@@ -1152,6 +1152,7 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 // These must be initialized before starting the UI thread!
 static constexpr int NUM_VIDEO_STIMULATIONS = 6;
 static constexpr int EXPORT_EVERY = 16;
+static constexpr int LOG_EXPORT_EVERY = 25;
 // static constexpr int EXPORT_EVERY = 1;
 static std::shared_mutex video_export_m;
 static int current_round = 0;
@@ -1628,11 +1629,13 @@ LoadPositions load_positions(
 static void TrainThread() {
   Timer setup_timer; 
 
+  int exports_until_log = 1; // LOG_EXPORT_EVERY;
+  
   // Number of training examples per round of training.
   // XXX This is probably still way too low. These are very small for chess (a
   // stimulation just needs the node activation values, so it's much smaller than
   // the network itself, which has to store weights for each incoming edge).
-  static constexpr int EXAMPLES_PER_ROUND = 64; // 4096;
+  static constexpr int EXAMPLES_PER_ROUND = 4096; // 4096;
   static constexpr int EXAMPLE_QUEUE_TARGET = std::max(EXAMPLES_PER_ROUND * 2, 1024);
   // On a verbose round, we write a network checkpoint and maybe some
   // other stuff to disk. XXX: Do this based on time, since rounds speed can vary
@@ -2052,7 +2055,24 @@ static void TrainThread() {
 	  total_error += fabs(d);
 	}
       }
-      ExportTotalErrorToVideo(total_error / (double)examples.size());
+      double avg_error = total_error / (double)examples.size();
+      ExportTotalErrorToVideo(avg_error);
+
+      exports_until_log--;
+      if (exports_until_log <= 0) {
+
+	FILE *log = fopen("move-train-log.tsv", "ab");
+	if (log) {
+	  fprintf(log, "%lld\t%d\t%lld\t%.6f\t%.6f\n",
+		  net->rounds,
+		  EXAMPLES_PER_ROUND,
+		  net->examples,
+		  round_learning_rate, avg_error);
+	  fclose(log);
+	}
+
+	exports_until_log = LOG_EXPORT_EVERY;
+      }
     }
     
     const int num_examples = examples.size();
