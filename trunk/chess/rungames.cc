@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include "base/logging.h"
+#include "base/stringprintf.h"
 #include "util.h"
 #include "city.h"
 
@@ -29,14 +30,28 @@ static constexpr int64 MAX_GAMES = 0LL;
 // #define SELF_CHECK true
 #undef SELF_CHECK
 
-enum class Criteria {
-  ALL_GAMES,
+enum Criteria {
+  ALL_GAMES = 0,
   TITLED_ONLY,
   BULLET_ONLY,
   BLITZ_ONLY,
   RAPID_ONLY,
   CLASSICAL_ONLY,
+
+  NUM_CRITERIA,
 };
+
+string CriteriaName(Criteria crit) {
+  switch (crit) {
+  case ALL_GAMES: return "all";
+  case TITLED_ONLY: return "titled";
+  case BULLET_ONLY: return "bullet";
+  case BLITZ_ONLY: return "blitz";
+  case RAPID_ONLY: return "rapid";
+  case CLASSICAL_ONLY: return "classical";
+  default: return "BAD_CRITERIA";
+  }
+}
 
 static constexpr const char *const PIECE_NAME[32] = {
   "a8 rook",
@@ -62,29 +77,77 @@ static constexpr const char *const PIECE_NAME[32] = {
   "h1 rook", };
 
 struct Processor {
-  Processor(Criteria crit) : crit(crit) {}
-  const Criteria crit;
-  
-  bool Accept(const PGN &pgn) const {
-    switch (crit) {
-    case Criteria::ALL_GAMES:
-      return true;
-    case Criteria::TITLED_ONLY:
-      return 
-	ContainsKey(pgn.meta, "WhiteTitle") ||
-	ContainsKey(pgn.meta, "BlackTitle");
-      break;
-    case Criteria::BULLET_ONLY:
-    case Criteria::BLITZ_ONLY:
-    case Criteria::RAPID_ONLY:
-    case Criteria::CLASSICAL_ONLY:
-      LOG(FATAL) << "Unimplemented :(";
-      return false;
+  Processor(uint32 want_crit_set) : want_crit_set(want_crit_set) {  }
 
-    default:
-      LOG(FATAL) << "Bad criteria";
-      return false;
+  // Get the subset of want_crit_set that the game actually
+  // possesses. This is used to filter the game, and to decide
+  // which stat buckets to accumulate results into.
+  uint32 GetCriteria(const PGN &pgn) const {
+    uint32 result = 0;
+
+    // PERF not expensive, but we could avoid computing this if we
+    // have no time control criteria.
+    const PGN::TimeClass tc = pgn.GetTimeClass();
+    
+    for (int crit = 0; crit < NUM_CRITERIA; crit++) {
+      // Are we even looking for this criteria?
+      if (0 != ((1 << crit) & want_crit_set)) {
+	// If so, perform the test and if it's satisfied,
+	// OR it into the result set.
+	switch (crit) {
+	case Criteria::ALL_GAMES:
+	  result |= (1 << crit);
+	  break;
+	case Criteria::TITLED_ONLY: {
+	  auto wit = pgn.meta.find("WhiteTitle");
+	  if (wit != pgn.meta.end() &&
+	      // "Lichess Master" not counted as a "real" title.
+	      wit->second != "LM") {
+	    result |= (1 << crit);
+	    break;
+	  }
+	  
+	  auto bit = pgn.meta.find("BlackTitle");
+	  if (bit != pgn.meta.end() &&
+	      bit->second != "LM") {
+	    result |= (1 << crit);
+	    break;
+	  }
+	  break;
+	}
+
+	case Criteria::BULLET_ONLY:
+	  if (tc == PGN::TimeClass::BULLET) {
+	    result |= (1 << crit);
+	  }
+	  break;
+
+	case Criteria::BLITZ_ONLY:
+	  if (tc == PGN::TimeClass::BLITZ) {
+	    result |= (1 << crit);
+	  }
+	  break;
+
+	case Criteria::RAPID_ONLY:
+	  if (tc == PGN::TimeClass::RAPID) {
+	    result |= (1 << crit);
+	  }
+	  break;
+
+	case Criteria::CLASSICAL_ONLY:
+	  if (tc == PGN::TimeClass::CLASSICAL ||
+	      tc == PGN::TimeClass::CORRESPONDENCE) {
+	    result |= (1 << crit);
+	  }
+	  break;
+
+	default:
+	  LOG(FATAL) << "Impossible! Bad criteria";
+	  break;
+	}
+      }
     }
+    return result;
   }
 
   void DoWork(const string &pgn_text) {
@@ -96,7 +159,9 @@ struct Processor {
       return;
 
     // Does it fit the criteria?
-    if (!Accept(pgn))
+    const uint32 has_crit_set = GetCriteria(pgn);
+    // Can just skip because it matches no criteria.
+    if (0 == has_crit_set)
       return;
     
     auto wit = pgn.meta.find("White");
@@ -180,22 +245,42 @@ struct Processor {
 		'1' + (7 - ((gs.fates[i] & GameStats::POS_MASK) >> 3)));
       }
     }
-    stat_buckets[bucket].AddGame(gs);
+    
+    for (int crit = 0; crit < NUM_CRITERIA; crit++) {
+      if (0 != ((1 << crit) & has_crit_set)) {
+	stat_buckets[crit * NUM_BUCKETS + bucket].AddGame(gs);
+      }
+    }
   }
-
+  
   std::shared_mutex bad_games_m;
   int64 bad_games = 0LL;
-  Stats stat_buckets[NUM_BUCKETS];
+  // Bitmask with (1 << crit).
+  const uint32 want_crit_set = 0LL;
+  // Always space for each criteria, even if we're not tallying them all.
+
+  std::vector<Stats> stat_buckets{NUM_CRITERIA * NUM_BUCKETS};
+  //   Stats stat_buckets[NUM_CRITERIA * NUM_BUCKETS] = {};
   PGNParser parser;
 };
 
-static void ReadLargePGN(Criteria crit, const char *filename) {
-  Processor processor{crit};
+static void ReadLargePGN(uint32 want_crit_set,
+			 string input_filename,
+			 string outputbase) {
+  fprintf(stderr, "OK %s %s\n", input_filename.c_str(), outputbase.c_str());
+  fflush(stderr);
+
+  fprintf(stderr, "Create processor..\n");
+  fflush(stderr);
+  Processor processor{want_crit_set};
 
   auto DoWork = [&processor](const string &s) { processor.DoWork(s); };
 
-  // Titled games are rare, so this becomes IO bound; use fewer workers.
-  const int num_workers = (crit == Criteria::TITLED_ONLY) ? 16 : 30;
+  // Note: Can be smarter about choosing number of workers if
+  // selecting a small set of games. e.g. titled games are rare, so
+  // this becomes IO bound; use fewer workers.
+  const int num_workers = 30;
+  // (want_crit_set == Criteria::TITLED_ONLY) ? 16 : 30;
   
   // TODO: How to get this to deduce second argument at least?
   auto work_queue =
@@ -203,9 +288,11 @@ static void ReadLargePGN(Criteria crit, const char *filename) {
 							     num_workers);
 
   const int64 start = time(nullptr);
-
+  fprintf(stderr, "Start at %lld\n", start);
+  fflush(stderr);
+  
   {
-    PGNTextStream stream{filename};
+    PGNTextStream stream{input_filename.c_str()};
     string game;
     while (stream.NextPGN(&game)) {
       work_queue->Add(std::move(game));
@@ -243,17 +330,30 @@ static void ReadLargePGN(Criteria crit, const char *filename) {
   fprintf(stderr, "Done! Join threads...\n");
   work_queue.reset(nullptr);
 
-  for (int bucket = 0; bucket < NUM_BUCKETS; bucket++) {
-    const Stats &s = processor.stat_buckets[bucket];
-    printf("%lld\n", s.num_games);
-    for (int i = 0; i < 32; i++) {
-      const PieceStats &p = s.pieces[i];
-      for (int d = 0; d < 64; d++)
-	printf(" %lld", p.died_on[d]);
-      printf("\n ");
-      for (int d = 0; d < 64; d++)
-	printf(" %lld", p.survived_on[d]);
-      printf("\n");
+  for (int crit = 0; crit < NUM_CRITERIA; crit++) {
+    if (0 != ((1 << crit) & want_crit_set)) {
+      // We computed stats for this criteria, so output a file.
+      string filename = StringPrintf("%s-%s.txt",
+				     outputbase.c_str(),
+				     CriteriaName((Criteria)crit).c_str());
+      FILE *f = fopen(filename.c_str(), "wb");
+      CHECK(f != nullptr) << filename;
+      for (int bucket = 0; bucket < NUM_BUCKETS; bucket++) {
+	const Stats &s = processor.stat_buckets[crit * NUM_BUCKETS + bucket];
+	fprintf(f, "%lld\n", s.num_games);
+	for (int i = 0; i < 32; i++) {
+	  const PieceStats &p = s.pieces[i];
+	  for (int d = 0; d < 64; d++)
+	    fprintf(f, " %lld", p.died_on[d]);
+	  fprintf(f, "\n ");
+	  for (int d = 0; d < 64; d++)
+	    fprintf(f, " %lld", p.survived_on[d]);
+	  fprintf(f, "\n");
+	}
+      }
+      fclose(f);
+      fprintf(stderr, "Wrote %s.\n", filename.c_str());
+      fflush(stderr);
     }
   }
   if (processor.bad_games) {
@@ -261,7 +361,7 @@ static void ReadLargePGN(Criteria crit, const char *filename) {
   }
 }
 
-Criteria ParseCriteria(string s) {
+Criteria ParseCriteria(const string &s) {
   if (s == "all") return Criteria::ALL_GAMES;
   else if (s == "titled") return Criteria::TITLED_ONLY;
   else if (s == "bullet") return Criteria::BULLET_ONLY;
@@ -272,18 +372,28 @@ Criteria ParseCriteria(string s) {
   return Criteria::ALL_GAMES;
 }
 
+uint32 ParseCriteriaSet(string s) {
+  uint32 res = 0;
+  for (;;) {
+    string tok = Util::chopto(',', s);
+    if (tok.empty()) return res;
+    res |= (1 << ParseCriteria(tok));
+  }
+}
+
 int main(int argc, char **argv) {
-  if (argc < 3) {
-    fprintf(stderr, "rungames.exe criteria input.pgn ...\n");
+  if (argc < 4) {
+    fprintf(stderr, "rungames.exe criteria1,crit2,crit3 input.pgn outputbase\n");
     return -1;
   }
 
-  Criteria crit = ParseCriteria(argv[1]);
- 
-  
-  for (int i = 2; i < argc; i++) {
-    fprintf(stderr, "Reading %s...\n", argv[i]);
-    ReadLargePGN(crit, argv[i]);
-  }
+  uint32 want_crit = ParseCriteriaSet(argv[1]);
+  fprintf(stderr, "Criteria: 0%o\n", want_crit);
+  const string inputfile = argv[2];
+  const string outputbase = argv[3];
+  fprintf(stderr, "Reading %s and writing to %s*.txt\n",
+	  inputfile.c_str(), outputbase.c_str());
+  fflush(stderr);
+  ReadLargePGN(want_crit, inputfile, outputbase);
   return 0;
 }
