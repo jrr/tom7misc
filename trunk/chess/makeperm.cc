@@ -20,6 +20,7 @@
 
 #include "base/stringprintf.h"
 #include "base/logging.h"
+#include "../cc-lib/randutil.h"
 #include "chess.h"
 #include "pgn.h"
 #include "util.h"
@@ -285,6 +286,13 @@ static string PieceCol(int p) {
   return StringPrintf("%c", 'a' + (p % 8));
 }
 
+static vector<int> Strip(const vector<pair<int, float>> &probs) {
+  vector<int> ret;
+  ret.reserve(probs.size());
+  for (const auto &p : probs) ret.push_back(p.first);
+  return ret;
+}
+
 static vector<pair<int, float>> Degenerate(const vector<int> &ranks) {
   vector<pair<int, float>> ret;
   for (int p : ranks) ret.emplace_back(p, 0.0f);
@@ -349,17 +357,68 @@ vector<pair<int, float>> prob_actual = {
   {WHITE_KNIGHT_G, 0.233440086},
 };
 
+// Sum of absolute difference in rank across all elements.
+int RankError(const vector<int> &a,
+	      const vector<int> &b) {
+  int delta = 0;
+  for (int i = 0; i < a.size(); i++) {
+    int target = a[i];
+    for (int j = 0; j < b.size(); j++) {
+      if (b[j] == target) {
+	delta += abs(i - j);
+	goto next;
+      }
+    }
+    LOG(FATAL) << "Did not find " << target << " in b?";
+  next:;
+  }
+  return delta;
+}
+	      
+
 void GenPerm() {
   vector<pair<string, vector<pair<int, float>>>> tableau = {
-    {"Jim", Degenerate(rank_jim)},
-    {"wjl", Degenerate(rank_william)},
-    {"Ben", Degenerate(rank_ben)},
-    {"Tom", Degenerate(rank_tom)},
-    {"David", prob_david},
     {"Actual", prob_actual},
+    {"William", Degenerate(rank_william)},
+    {"Jim", Degenerate(rank_jim)},
+    {"Actual", prob_actual},
+    {"David", prob_david},
     {"Tom", Degenerate(rank_tom)},
+    {"Actual", prob_actual},    
+    {"Ben", Degenerate(rank_ben)},
   };
 
+  for (int i = 0; i < tableau.size(); i++) {
+    for (int j = i + 1; j < tableau.size(); j++) {
+      int e = RankError(Strip(tableau[i].second),
+			Strip(tableau[j].second));
+      printf("%s vs. %s: %d err\n",
+	     tableau[i].first.c_str(),
+	     tableau[j].first.c_str(), e);
+    }
+  }
+
+  {
+    ArcFour rc(StringPrintf("%lld!", time(nullptr)));
+    int64 total_error = 0LL;
+    static constexpr int TRIALS = 10000;
+    for (int t = 0; t < TRIALS; t++) {
+      vector<int> p1, p2;
+      p1.reserve(32);
+      p2.reserve(32);
+      for (int i = 0; i < 32; i++) {
+	p1.push_back(i);
+	p2.push_back(i);
+      }
+      Shuffle(&rc, &p1);
+      Shuffle(&rc, &p2);
+      total_error += RankError(p1, p2);
+    }
+    double avg_error = (double)total_error / (double)TRIALS;
+    // Looks like slightly less than 341.
+    printf("Average for random perms: %.6f\n", avg_error);
+  }
+  
   const float WIDTH = 800.0;
   const float HEIGHT = 600.0;
   FILE *f = fopen("perms.svg", "wb");
