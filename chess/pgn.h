@@ -23,6 +23,17 @@ struct PGN {
     ABANDONED,
     OTHER,
   };
+
+  enum class TimeClass {
+    ULTRA_BULLET,
+    BULLET,
+    BLITZ,
+    RAPID,
+    CLASSICAL,
+    // TimeControl "-"
+    CORRESPONDENCE,
+    UNKNOWN,
+  };
   
   // If you are parsing a large number of PGNs, it is slightly
   // faster to make a PGNParser instance and reuse it.
@@ -32,9 +43,11 @@ struct PGN {
   int MetaInt(const std::string &key, int default_value = 0) const;
   Termination GetTermination() const;
 
+  // Gives {number of starting seconds per side, increment per side}.
   // Returns {0, 0} if not specified; also used for correspondence
   // games ([TimeControl "-"]).
   std::pair<int, int> GetTimeControl() const;
+  TimeClass GetTimeClass() const;
   
   struct Move {
     Move(std::string m) : move(std::move(m)) {}

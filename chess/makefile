@@ -17,19 +17,20 @@ ALL2018= stats-all/stats-2018-01.txt stats-all/stats-2018-02.txt stats-all/stats
 allstats : $(ALL2013) $(ALL2014) $(ALL2015) $(ALL2016) $(ALL2017) $(ALL2018)
 
 # Over games where at least one player has a formal title.
-TITLED2013= stats-titled/stats-2013-01.txt stats-titled/stats-2013-02.txt stats-titled/stats-2013-03.txt stats-titled/stats-2013-04.txt stats-titled/stats-2013-05.txt stats-titled/stats-2013-06.txt stats-titled/stats-2013-07.txt stats-titled/stats-2013-08.txt stats-titled/stats-2013-09.txt stats-titled/stats-2013-10.txt stats-titled/stats-2013-11.txt stats-titled/stats-2013-12.txt
+# These rules also generate blitz, rapid, etc.
+TITLED2013= stats/2013-01-titled.txt stats/2013-02-titled.txt stats/2013-03-titled.txt stats/2013-04-titled.txt stats/2013-05-titled.txt stats/2013-06-titled.txt stats/2013-07-titled.txt stats/2013-08-titled.txt stats/2013-09-titled.txt stats/2013-10-titled.txt stats/2013-11-titled.txt stats/2013-12-titled.txt
 
-TITLED2014= stats-titled/stats-2014-01.txt stats-titled/stats-2014-02.txt stats-titled/stats-2014-03.txt stats-titled/stats-2014-04.txt stats-titled/stats-2014-05.txt stats-titled/stats-2014-06.txt stats-titled/stats-2014-07.txt stats-titled/stats-2014-08.txt stats-titled/stats-2014-09.txt stats-titled/stats-2014-10.txt stats-titled/stats-2014-11.txt stats-titled/stats-2014-12.txt
+TITLED2014= stats/2014-01-titled.txt stats/2014-02-titled.txt stats/2014-03-titled.txt stats/2014-04-titled.txt stats/2014-05-titled.txt stats/2014-06-titled.txt stats/2014-07-titled.txt stats/2014-08-titled.txt stats/2014-09-titled.txt stats/2014-10-titled.txt stats/2014-11-titled.txt stats/2014-12-titled.txt
 
-TITLED2015= stats-titled/stats-2015-01.txt stats-titled/stats-2015-02.txt stats-titled/stats-2015-03.txt stats-titled/stats-2015-04.txt stats-titled/stats-2015-05.txt stats-titled/stats-2015-06.txt stats-titled/stats-2015-07.txt stats-titled/stats-2015-08.txt stats-titled/stats-2015-09.txt stats-titled/stats-2015-10.txt stats-titled/stats-2015-11.txt stats-titled/stats-2015-12.txt
+TITLED2015= stats/2015-01-titled.txt stats/2015-02-titled.txt stats/2015-03-titled.txt stats/2015-04-titled.txt stats/2015-05-titled.txt stats/2015-06-titled.txt stats/2015-07-titled.txt stats/2015-08-titled.txt stats/2015-09-titled.txt stats/2015-10-titled.txt stats/2015-11-titled.txt stats/2015-12-titled.txt
 
-TITLED2016= stats-titled/stats-2016-01.txt stats-titled/stats-2016-02.txt stats-titled/stats-2016-03.txt stats-titled/stats-2016-04.txt stats-titled/stats-2016-05.txt stats-titled/stats-2016-06.txt stats-titled/stats-2016-07.txt stats-titled/stats-2016-08.txt stats-titled/stats-2016-09.txt stats-titled/stats-2016-10.txt stats-titled/stats-2016-11.txt stats-titled/stats-2016-12.txt
+TITLED2016= stats/2016-01-titled.txt stats/2016-02-titled.txt stats/2016-03-titled.txt stats/2016-04-titled.txt stats/2016-05-titled.txt stats/2016-06-titled.txt stats/2016-07-titled.txt stats/2016-08-titled.txt stats/2016-09-titled.txt stats/2016-10-titled.txt stats/2016-11-titled.txt stats/2016-12-titled.txt
 
-TITLED2017= stats-titled/stats-2017-01.txt stats-titled/stats-2017-02.txt stats-titled/stats-2017-03.txt stats-titled/stats-2017-04.txt stats-titled/stats-2017-05.txt stats-titled/stats-2017-06.txt stats-titled/stats-2017-07.txt stats-titled/stats-2017-08.txt stats-titled/stats-2017-09.txt stats-titled/stats-2017-10.txt stats-titled/stats-2017-11.txt stats-titled/stats-2017-12.txt
+TITLED2017= stats/2017-01-titled.txt stats/2017-02-titled.txt stats/2017-03-titled.txt stats/2017-04-titled.txt stats/2017-05-titled.txt stats/2017-06-titled.txt stats/2017-07-titled.txt stats/2017-08-titled.txt stats/2017-09-titled.txt stats/2017-10-titled.txt stats/2017-11-titled.txt stats/2017-12-titled.txt
 
-TITLED2018= stats-titled/stats-2018-01.txt stats-titled/stats-2018-02.txt stats-titled/stats-2018-03.txt stats-titled/stats-2018-04.txt stats-titled/stats-2018-05.txt stats-titled/stats-2018-06.txt stats-titled/stats-2018-07.txt stats-titled/stats-2018-08.txt stats-titled/stats-2018-09.txt stats-titled/stats-2018-10.txt stats-titled/stats-2018-11.txt
+TITLED2018= stats/2018-01-titled.txt stats/2018-02-titled.txt stats/2018-03-titled.txt stats/2018-04-titled.txt stats/2018-05-titled.txt stats/2018-06-titled.txt stats/2018-07-titled.txt stats/2018-08-titled.txt stats/2018-09-titled.txt stats/2018-10-titled.txt stats/2018-11-titled.txt
 
-titled2017 : $(TITLED2017) $(TITLED2016)
+titled2017 : $(TITLED2017)
 titledstats : $(TITLED2013) $(TITLED2014) $(TITLED2015) $(TITLED2016) $(TITLED2017) $(TITLED2018)
 
 
@@ -120,7 +121,7 @@ PLATFORMLINK=libz.a -Wl,--subsystem,console -L.
 
 
 INCLUDES=-I "../cc-lib" -I "../cc-lib/city" -I "../cc-lib/re2" -I ../fceulib
-CPPFLAGS=-m64 -D__MINGW32__ -DHAVE_ALLOCA -D_WIN32_WINNT=0x0602 -D_GLIBCXX_HAS_GTHREADS -mthreads $(INCLUDES) $(PLATFORMCFLAGS)
+CPPFLAGS=-m64 -D__MINGW32__ -DHAVE_ALLOCA -D_WIN32_WINNT=0x0602 -D_GLIBCXX_HAS_GTHREADS -mthreads $(INCLUDES) $(PLATFORMCFLAGS) $(SYMBOLS)
 
 # without static, can't find lz or lstdcxx maybe?
 LFLAGS=-m64 -mthreads -lwinpthread -lpsapi -L. -static $(PLATFORMLINK)
@@ -184,8 +185,12 @@ numa.exe : numa.o
 stats-all/stats-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
 	nice -n 19 ./rungames.exe all $< > $@
 
-stats-titled/stats-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
-	nice -n 19 ./rungames.exe titled $< > $@
+# stats-titled/stats-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+# 	nice -n 19 ./rungames.exe titled $< > $@
+
+# This $* is basically how you get the thing that matched %.
+stats/%-titled.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+	nice -n 19 ./rungames.exe titled,bullet,blitz,rapid,classical $< stats\\$* 
 
 pawns-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
 	nice -n 19 ./chessreduce.exe $< > $@

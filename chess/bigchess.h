@@ -184,7 +184,7 @@ private:
 struct PGNTextStream {
   PGNTextStream(const char *filename) {
     f = fopen(filename, "r");
-    CHECK(f != nullptr) << filename;
+    CHECK(f != nullptr) << "[" << filename << "]";
   }
 
   bool NextPGN(std::string *pgn_text) {
