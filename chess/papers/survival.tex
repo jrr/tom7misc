@@ -240,7 +240,7 @@ lives may depend on it!
   that the position is now {\it about to appear} for the third time.
   This seems unambiguously legal. }
 
-\section{Hypotheses}
+\section{Hypotheses} \label{sec:hypotheses}
 
 Like all good scientific research, I clearly laid out my hypothesis
 and wrote down the motivation before performing the study. This helps
@@ -251,16 +251,14 @@ you write the motivation after witnessing the results, backflow is
 inevitable). It is also much more exciting. I literally don't know the
 answer as I'm writing this, nor whether it is interesting in any way!
 
-% XXX: Move this stuff to the appendix.
-
 Here are my guesses.
 
 \begin{itemize}
 \item Black and white are probably not significantly different. That
   is, the a1 and a8 rooks probably have about the same survival
-  chances (it's known that white has a slight statistical advantage
-  but it is probably only around 1\%). So these guesses will be
-  written about white's pieces.
+  chances (it's known that white has a slight statistical
+  advantage~\cite{chesstego} but it is probably only around 1\%). So
+  these guesses will be written about white's pieces.
 \item The d2 and e2 pawns are very active in common openings, and
   are frequently captured as part of those openings. I think they
   are the least likely to survive overall.
@@ -290,212 +288,16 @@ Here are my guesses.
   lost to this fate.
 \end{itemize}
 
-This leaves my final ranking, from most surviving to most dead:
-
-\begin{enumerate}
-\item  f2
-\item  c2
-\item  g2
-\item  a2
-\item  h2
-\item  b2,
-\item  h1 rook,
-\item  a1 rook,
-\item  king,
-\item  queen,
-\item  f1 bishop,
-\item  c1 bishop,
-\item  g1 knight,
-\item  b1 knight,
-\item  e2,
-\item  d2,
-\end{enumerate}
+The final ranking that I committed to, from most surviving to most dead:
+\pawn f, \pawn c, \pawn g, \pawn a, \pawn h, \pawn b, \rook h, \rook a,
+\king, \queen, \bishop f, \knight g, \pawn e, \pawn d.
 
 As already copped to, while the author is an aficionado and also knows
 how to spell the difficult word aficionado without spell-check, he is
-not good at chess. A few drinking buddies with varying chessperience were
-also consulted for their wagers.
+not good at chess. A few drinking buddies with varying chessperience
+were also consulted for their wagers; these are compared in
+Section~\ref{sec:buddies}.
 
-\subsection{Ben}\footnote{Ben does not prefer to use the shift key.}
-
-edge pawns almost never played til endgame let alone traded off
-
-ph
-pa
-
-not quite sure where these should go (pb more likely to see play in
-queenside minority attacks in k-side castle games?)
-
-pf
-pg
-pb
-
-rook play more likely to be active on q side than on k side (also the
-classic Nxc7 fork in low rank play), but overall more likely to stay
-tucked away compared to q
-
-Rh
-Ra
-
-i think IQP positions are more likely than not saccing e in e4 openings
-but on the other hand d is often traded off in e4 openings while vice
-versa is not as true
-
-pe
-pd
-
-q probably involved in many checkmates (low ranked play) or resignations
-before traded off (high ranked play)
-
-Q
-
-just randomly guessing k dies in about 1/3 of games, times 1/2 for 2
-sides
-
-K
-
-this pawn is a super goner (sicilian, QGA, ...)
-
-pc
-
-most doomed seem to be the minor pieces as i'd guess at least half of
-them get traded off on c/f/3/6 or e/d/4/5 in near every game so
-
-Bc
-Bf
-Nb
-Ng
-
-\subsection{Jim}
-
-Most-to-least-survival hero tier list for chess (patch 1.0):
-
-1.: King
- -- If I estimate that about 2/3rds of all regular pieces are captured in an average game, and the probability of any non-king piece being captured is uniform, then the king is clearly the most likely to survive. (I'm going to break symmetry here and rank black king less likely to survive than white king.)
-
-2. Both Rooks
- -- Kept in reserve for castling purposes.
-
-3. The A, B, G, and H pawns
- -- maybe people will forget to move them because they are far from the center.
-
-4. Both Knights
- -- They are slippery, but they often get deep into enemy territory quickly.
-
-5. The C,D,E,F pawns
- -- Moved forward to release various more important pieces $\Rightarrow$ more likely to die.
-
-6. Both Bishops
- -- https://youtu.be/gDnE-5lD7w8
-
-7. The Queen
- -- A high-value target, seems unlikely to survive.
-
-This list was assembled for chess.report by ix, who only barely
-understands the rules of chess and rarely plays. This is probably why
-the justifications get increasingly nonsensical.
-
-\subsection{David}
-
-Here's my ranking, along with the probabilities of survival that I guess for each piece:
-
-white g-pawn: 0.72
-black g-pawn: 0.72
-white b-pawn: 0.69
-black a-pawn: 0.66
-black b-pawn: 0.65
-white king: 0.65
-white a-pawn: 0.64
-black king: 0.55
-black f-pawn: 0.54
-white f-pawn: 0.54
-black h-pawn: 0.53
-white h-pawn: 0.53
-white kingside rook: 0.52
-black kingside rook: 0.52
-white queenside rook: 0.51
-black queenside rook: 0.51
-white c-pawn: 0.49
-black c-pawn: 0.44
-white light-squared bishop: 0.33
-black light-squared bishop: 0.33
-white dark-squared bishop: 0.32
-black dark-squared bishop: 0.32
-white queen: 0.31
-black queen: 0.30
-white kingside knight: 0.29
-black kingside knight: 0.29
-white queenside knight: 0.28
-black queenside knight: 0.28
-white e-pawn: 0.19
-black d-pawn: 0.18
-white d-pawn: 0.17
-black e-pawn: 0.16
-
-\subsection{William}
-
-Okay, this is pretty much off the cuff, but let's say, just for white,
-from most to least likely to survive:
-
-Queenside Rook
-B Pawn
-A Pawn
-Kingside Bishop
-C Pawn
-Queen
-King
-H Pawn
-Queenside Bishop
-F Pawn
-G Pawn
-Queenside Knight
-Kingside Rook
-Kingside Knight
-D Pawn
-E Pawn
-
-Some motivated reasoning:
-
-I figure the king has got to be somewhere near the middle of the pack
-since he dies in half of games featuring a winner---but with slightly
-higher-than-even odds of surviving, since some games end in a draw.
-I’m probably mixing up means and medians here somehow..
-
-...
-King
-...
-
-I’m gonna assume castling happens more often on the King’s side, so
-let’s give Kingside Rook and F, G, and H Pawns a better shot than
-their fellows on the left. But maybe it should actually be worse,
-since if they die, it's because they failed to protect the king. Plus,
-having heard the tip about C Pawn loud and clear, I’m gonna assume
-that bad boy most often becomes a new Queen, which means he gets more
-survival points than the real Queen herself.
-
-...
-C Pawn
-Queen
-A Pawn
-B Pawn
-Queenside Rook
-King
-F Pawn
-G Pawn
-H Pawn
-Kingside Rook
-...
-
-D and E Pawn are nothing but pawns, and they mostly sacrifice
-themselves to the cause.
-
-...
-D Pawn
-E Pawn
-
-Randomizing within these constraints gives us our starting point. Then
-the wildcard Bishops and Knights get randomly distributed through what
-remains to come up with this final answer shown above.
 
 \section{Methodology}
 
@@ -572,7 +374,7 @@ Magnus Carlsen, the world champion and highest rated player of all
 time\footnote{Although to be fair, his username ``DrDrunkenstein''
   suggests he may not play at full strength.}), blitz ($\sim 5$ minutes
 per side) and bullet ($\sim 1$ minute) games are predominant. In
-Section~\ref{sec:comparative} I show some slices of the data for
+Section~\ref{sec:slices} I show some slices of the data for
 comparison. % XXX could summarize whether this is a real effect or
 % not, once I have the slices!
 
@@ -662,14 +464,158 @@ are underlined for your convenience.
 
 \section{Guesses and slices}
 
+\begin{figure}
+  \includegraphics[width=\linewidth]{hypotheses}
+  \caption{
+    Piece rankings (from most surviving to most dead); either a
+    human or hypothesis or the actual results across all games. 
+    The {\bf actual} column appears multiple times so that each human
+    gets a chance to be adjacent to it; this makes for the easiest
+    visual comparison. Lines connect the same piece in adjacent columns,
+    and are darker if the pairs have more different ranks.
+  } \label{fig:buddies}
+\end{figure}
+
+It is a good and humbling act to compare the actual results to the
+hypotheses gathered before the experiment. Figure~\ref{fig:buddies}
+compares the ranking across all games (slice {\bf Actual}) to the
+author author (slice {\bf Tom}) and his drinking buddies (slices {\bf
+  Ben}, {\bf Jim}, {\bf David}, {\bf William}). There are a number of
+different reasonable ways to measure the accuracy of this type of
+position; a very simple one is the sum of the absolute differences in
+rank for each piece (e.g. if in one ranking \king is \#3, and in the
+other \#5, then this contributes 2 to the total error). By this
+metric, Ben has the best prediction (98 error), followed by David
+(138) and Tom (148). Tom and David had the most similar predictions
+(116) and Jim and William the most different (312). The expected error
+between two completely random permutations is about 341, so all of
+these guesses are significantly better than chance. Note in the actual
+ranking, many pieces have very similar survival probabilities, and
+many guesses are ambivalent about groups of pieces. Weighting each
+rank difference equally is therefore an oversimplification. It would
+have been better to ask each participant to give probabilities, as
+David did; this would give us more sensitive error metrics and more
+opportunities to spend the afternoon making visualizations.
+
+Several drinking buddies gave rationales for their hypotheses (mine
+appear in Section~\ref{sec:hypotheses}).
+
+\medskip
+{\bf Ben} does not prefer to use the shift key, a typographic quirk I
+replicated faithfully here even though it burns my eyes:
+
+\begin{quote}
+edge pawns almost never played til endgame let alone traded off (\pawn
+h, \pawn a)
+
+not quite sure where these should go (pb more likely to see play in
+queenside minority attacks in k-side castle games?) (\pawn f, \pawn g, \pawn b)
+
+rook play more likely to be active on q side than on k side (also the
+classic Nxc7 fork in low rank play), but overall more likely to stay
+tucked away compared to q (\rook h, \rook a)
+
+i think IQP positions are more likely than not saccing e in e4 openings
+but on the other hand d is often traded off in e4 openings while vice
+versa is not as true (\pawn e, \pawn d)
+
+q probably involved in many checkmates (low ranked play) or resignations
+before traded off (high ranked play) (\queen)
+
+just randomly guessing k dies in about 1/3 of games, times 1/2 for 2
+sides (\king)
+
+this pawn is a super goner (sicilian, QGA, ...) (\pawn c)
+
+most doomed seem to be the minor pieces as i'd guess at least half of
+them get traded off on c/f/3/6 or e/d/4/5 in near every game so (\bishop c, \bishop f, \knight b, \knight g)
+\end{quote}
+
+{\bf Jim} ``barely understands the rules of chess'' and ``rarely plays.'' His justifications get ``increasingly nonsensical:''
+
+\begin{quote}
+Most-to-least-survival hero tier list for chess (patch 1.0):
+
+1.: King --- If I estimate that about 2/3rds of all regular pieces are
+captured in an average game, and the probability of any non-king piece
+being captured is uniform, then the king is clearly the most likely to
+survive. (I'm going to break symmetry here and rank black king less
+likely to survive than white king.)
+
+2. Both Rooks --- Kept in reserve for castling purposes.
+
+3. The A, B, G, and H pawns --- maybe people will forget to move them because they are far from the center.
+
+4. Both Knights --- They are slippery, but they often get deep into enemy territory quickly.
+
+5. The C,D,E,F pawns --- Moved forward to release various more important pieces $\Rightarrow$ more likely to die.
+
+6. Both Bishops --- https://youtu.be/gDnE-5lD7w8
+
+7. The Queen --- A high-value target, seems unlikely to survive.
+\end{quote}
+
+{\bf David} simply provided a ranking, along with survival
+probabilities, in typical understated style.
+
+\medskip
+{\bf William} notes that his guesses are
+``pretty much off the cuff,'' but provides some motivated reasoning:
+
+\begin{quote}
+I figure the king has got to be somewhere near the middle of the pack
+since he dies in half of games featuring a winner---but with slightly
+higher-than-even odds of surviving, since some games end in a draw.
+I'm probably mixing up means and medians here somehow..
+
+I'm gonna assume castling happens more often on the King's side, so
+let's give Kingside Rook and F, G, and H Pawns a better shot than
+their fellows on the left. But maybe it should actually be worse,
+since if they die, it's because they failed to protect the king. Plus,
+having heard the tip about C Pawn\footnote{I believe the ``tip'' here
+  was that I described the rest of us (William was the last
+  respondant) as disagreeing most on \pawn c. I think William
+  misinterpreted this ``tip.''} loud and clear, I'm gonna assume that
+bad boy most often becomes a new Queen, which means he gets more
+survival points than the real Queen herself.
+
+D and E Pawn are nothing but pawns, and they mostly sacrifice
+themselves to the cause.
+
+Randomizing within these constraints gives us our starting point. Then
+the wildcard Bishops and Knights get randomly distributed through what
+remains to come up with this final answer shown above.
+\end{quote}
+
+
+\subsection{Slices} \label{sec:slices}
+The survival probabilities differ depending on the conditions of the
+game; Figure~\ref{fig:slices} compares some of those slices. Here the
+{\bf All} slice is the same as the {\bf Actual} slice in
+Figure~\ref{fig:buddies}, and consists of all acceptable games in the
+database.
+
 The {\bf titled} slice includes only games where at least one of the
 players has an official title (Grandmaster, International Master, FIDE
-Master, etc.)
+Master, etc.\footnote{Lichess used to award the LM ``Lichess Master'' title
+  to notable players on the site; this title is excluded.}). These
+games have high-quality play, although there are not many of them
+(only XXX), so the variance is somewhat higher. % XXX give error bounds?
+
+The other slices, {\bf bullet}, {\bf blitz}, {\bf rapid} and {\bf
+  classical} are different time control formats. Games on Lichess are
+played with a starting clock (per side) and an increment added to the
+clock after each player's move. The total time is taken to be the
+starting time plus 40 times the increment (with the idea that an
+average game has 40 moves per side); this is the same formula that
+Lichess uses. A bullet game is when the total time per side is
+between 30~seconds and 3~minutes; blitz is between 3 and 8~minutes;
+rapid is between 8 and 25~minutes; classical is any more than this
+(including untimed games).
+
 
 % Battle chess
 % Feminist game 
-
-\nocite{chesstego}
 
 \bibliography{chess}{}
 \bibliographystyle{plain}

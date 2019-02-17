@@ -30,7 +30,7 @@ TITLED2017= stats/2017-01-titled.txt stats/2017-02-titled.txt stats/2017-03-titl
 
 TITLED2018= stats/2018-01-titled.txt stats/2018-02-titled.txt stats/2018-03-titled.txt stats/2018-04-titled.txt stats/2018-05-titled.txt stats/2018-06-titled.txt stats/2018-07-titled.txt stats/2018-08-titled.txt stats/2018-09-titled.txt stats/2018-10-titled.txt stats/2018-11-titled.txt
 
-titled2017 : $(TITLED2017)
+titled2017 : $(TITLED2017) $(TITLED2016) $(TITLED2015) $(TITLED2014) $(TITLED2013)
 titledstats : $(TITLED2013) $(TITLED2014) $(TITLED2015) $(TITLED2016) $(TITLED2017) $(TITLED2018)
 
 
