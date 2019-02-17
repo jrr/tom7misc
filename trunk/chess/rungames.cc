@@ -29,6 +29,14 @@ static constexpr int64 MAX_GAMES = 0LL;
 // #define SELF_CHECK true
 #undef SELF_CHECK
 
+enum class Criteria {
+  ALL_GAMES,
+  TITLED_ONLY,
+  BULLET_ONLY,
+  BLITZ_ONLY,
+  RAPID_ONLY,
+  CLASSICAL_ONLY,
+};
 
 static constexpr const char *const PIECE_NAME[32] = {
   "a8 rook",
@@ -54,6 +62,30 @@ static constexpr const char *const PIECE_NAME[32] = {
   "h1 rook", };
 
 struct Processor {
+  Processor(Criteria crit) : crit(crit) {}
+  const Criteria crit;
+  
+  bool Accept(const PGN &pgn) const {
+    switch (crit) {
+    case Criteria::ALL_GAMES:
+      return true;
+    case Criteria::TITLED_ONLY:
+      return 
+	ContainsKey(pgn.meta, "WhiteTitle") ||
+	ContainsKey(pgn.meta, "BlackTitle");
+      break;
+    case Criteria::BULLET_ONLY:
+    case Criteria::BLITZ_ONLY:
+    case Criteria::RAPID_ONLY:
+    case Criteria::CLASSICAL_ONLY:
+      LOG(FATAL) << "Unimplemented :(";
+      return false;
+
+    default:
+      LOG(FATAL) << "Bad criteria";
+      return false;
+    }
+  }
 
   void DoWork(const string &pgn_text) {
     PGN pgn;
@@ -62,7 +94,11 @@ struct Processor {
     // Ignore games that don't finish.
     if (pgn.result == PGN::Result::OTHER)
       return;
-      
+
+    // Does it fit the criteria?
+    if (!Accept(pgn))
+      return;
+    
     auto wit = pgn.meta.find("White");
     uint64 bucket_hash = 0ULL;
     if (wit != pgn.meta.end()) {
@@ -134,7 +170,7 @@ struct Processor {
     }
 
     const int bucket = bucket_hash & NUM_BUCKETS_MASK;
-    if (true) {
+    if (false) {
       fprintf(stderr, "Fates:\n");
       for (int i = 0; i < 32; i++) {
 	fprintf(stderr, "%d (%s). %s on %c%c.\n",
@@ -153,14 +189,18 @@ struct Processor {
   PGNParser parser;
 };
 
-static void ReadLargePGN(const char *filename) {
-  Processor processor;
+static void ReadLargePGN(Criteria crit, const char *filename) {
+  Processor processor{crit};
 
   auto DoWork = [&processor](const string &s) { processor.DoWork(s); };
 
+  // Titled games are rare, so this becomes IO bound; use fewer workers.
+  const int num_workers = (crit == Criteria::TITLED_ONLY) ? 16 : 30;
+  
   // TODO: How to get this to deduce second argument at least?
   auto work_queue =
-    std::make_unique<WorkQueue<string, decltype(DoWork), 1>>(DoWork, 30);
+    std::make_unique<WorkQueue<string, decltype(DoWork), 1>>(DoWork,
+							     num_workers);
 
   const int64 start = time(nullptr);
 
@@ -221,14 +261,29 @@ static void ReadLargePGN(const char *filename) {
   }
 }
 
+Criteria ParseCriteria(string s) {
+  if (s == "all") return Criteria::ALL_GAMES;
+  else if (s == "titled") return Criteria::TITLED_ONLY;
+  else if (s == "bullet") return Criteria::BULLET_ONLY;
+  else if (s == "blitz") return Criteria::BLITZ_ONLY;
+  else if (s == "rapid") return Criteria::RAPID_ONLY;
+  else if (s == "classical") return Criteria::CLASSICAL_ONLY;
+  LOG(FATAL) << "Unknown critera: " << s;
+  return Criteria::ALL_GAMES;
+}
+
 int main(int argc, char **argv) {
-  if (argc < 2) {
-    fprintf(stderr, "rungames.exe input.pgn ...\n");
+  if (argc < 3) {
+    fprintf(stderr, "rungames.exe criteria input.pgn ...\n");
     return -1;
   }
-  for (int i = 1; i < argc; i++) {
+
+  Criteria crit = ParseCriteria(argv[1]);
+ 
+  
+  for (int i = 2; i < argc; i++) {
     fprintf(stderr, "Reading %s...\n", argv[i]);
-    ReadLargePGN(argv[i]);
+    ReadLargePGN(crit, argv[i]);
   }
   return 0;
 }

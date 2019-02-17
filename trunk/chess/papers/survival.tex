@@ -98,9 +98,10 @@ and yet want to live.\footnote{It is easy for two players to
   chess-to-the-death do not allow the players to communicate at all
   beforehand, nor during the game. If this is the case, then it may be
   difficult to agree on the approach to drawing, let alone establish
-  that this is both player's desire. Since the rules of
-  chess-to-the-death can't forbid us from colluding at this moment, I
-  hereby declare that the following is the correct approach:
+  that this is both players' desire. Since the rules of
+  chess-to-the-death can't forbid us from colluding right now as you
+  read this paper, I hereby declare that the following is the correct
+  approach:
 \begin{enumerate}[label=\arabic*.]
   \item[1.] Nf3. This is a reasonable opening move for white (begins the R\'eti)
     which can transpose into several common systems (e.g. King's
@@ -110,14 +111,15 @@ and yet want to live.\footnote{It is easy for two players to
     desired. The player should make this move after pondering carefully
     for some time, and then looking meaningfully into the other player's
     eyes. 
-  \item[1.] ... Nf6. This is both a strong response for black in a real game,
+  \item[1.] \ldots Nf6. This is both a strong response for black in a real game,
     and simultaneously a signal that a draw is desired. The other
     advantage is that very weak players may simply copy what white does.
+    % XXX potential citation to 'elo world' if players are stateful..
     In doing so, they will also play this move. 
   \item[2.] Ng1?!. White moves the knight back to its starting square.
     This is a terrible move for white, but clearly signals the intention to
     draw.
-  \item[2.] ... Ng8!. ``Fool's Draw Accepted.'' The starting position is reached
+  \item[2.] \ldots Ng8!. ``Fool's Draw Accepted.'' The starting position is reached
     for a second time.
   \item[3.] Nf3 Nf6. At this point the game should clearly continue repeating
     the sequence, although since we are in the start position, white has
@@ -130,16 +132,16 @@ and yet want to live.\footnote{It is easy for two players to
   Since this is one of the shortest possible routes to a draw, I hereby
   dub this line the ``Fool's Draw,'' by analogy with the Fool's Mate.
 
-  If 1. ... Nc6 or another Knight's move, white can also consider
-  continuing in the obvious way. However after 1. ... d5, black has
+  If 1. \ldots Nc6 or another Knight's move, white can also consider
+  continuing in the obvious way. However after 1. \ldots d5, black has
   refused or not noticed the draw. Fortunately, white is still in a
   good position to play the game normally (this is the main line of
   the R\'eti opening, followed by 2. c4). White can try to be more
   obvious with 2. Ng1, but if black is choosing to just play normally,
   white takes a distinct handicap by doing so.
 
-  The biggest risk for white is that black does not play 2. ... Ng8
-  but rather a normal move like 2. ... g6 (``Fool's Draw Betrayed'').
+  The biggest risk for white is that black does not play 2. \ldots Ng8
+  but rather a normal move like 2. \ldots g6 (``Fool's Draw Betrayed'').
   This can happen if black is not metagaming at all (for Nf6 is a
   normal response to the normal Nf3), or if black is an exceptionally
   shrewd metagamer (tricking white into wasting two tempos with Ng1
@@ -167,24 +169,33 @@ but it is seen as more poetic to end the game prior to this point.
 For the sake of this question, we'll consider the the white king to
 ``die'' if white loses (i.e., is checkmated), and likewise for black.
 Otherwise, of course, the best chances of survival would trivially be
-with the two kings, since they always survive. Loss includes
-resignation, since most high-level games actually end once the
-defeated player agrees that loss is inevitable. We can think of this
-common case like king seppuku. Many games also end in time forfeit,
-which is like the king's poor diet and lifestyle choices leading to
-a death by natural causes.
+with the two kings, since they are never formally captured. Loss
+includes resignation, since most high-level games actually end once
+the defeated player agrees that loss is inevitable. We can think of
+this common case like king seppuku. Many games also end in time
+forfeit, which is like the king's poor diet and lifestyle choices
+leading to a death by natural causes.
 
-Neither side has a decisive advantage, and many games end in a draw,
-with both kings surviving. So the survival chances of a king are
-clearly greater than 50\%---pretty decent odds. Is it possible that
-any other piece has even better chances?
+Neither side is believed to have a decisive advantage, and many games
+end in a draw, with both kings surviving. So the survival chances of a
+king are likely greater than 50\%; pretty decent odds. Is it possible
+that any other piece has even better chances? Let's find out---our
+lives may depend on it!
 
 
 \footnotetext{
-  But is it? The lichess implementation (although known
-  to be buggy\cite{kingme}) does not permit a threefold repetition
-  claim in this situation, which got me thinking that maybe there is
-  some subtlety here. Is the starting position special somehow, not
+  But is it?
+  
+  First of all, although either player is allowed to {\it claim} a
+  draw after three repetitions of the same position, it is not
+  automatic. However, FIDE rules do declare that the game simply ends
+  in a draw upon {\it five} repetitions. Of course it is easy to
+  extend the Fool's Draw to accommodate this.
+  
+  Second: The lichess implementation (although known to be
+  buggy\cite{kingme}) does not permit a threefold repetition claim in
+  this situation, which got me thinking that maybe there is some
+  subtlety here. Is the starting position special somehow, not
   counting as having occurred? The relevant statute, from the FIDE
   Laws of Chess\cite{fiderules}:
   \begin{quote}
@@ -423,7 +434,7 @@ black e-pawn: 0.16
 
 \subsection{William}
 
-Okay, this is pretty much off the cuff, but let’s say, just for white,
+Okay, this is pretty much off the cuff, but let's say, just for white,
 from most to least likely to survive:
 
 Queenside Rook
@@ -446,7 +457,7 @@ E Pawn
 Some motivated reasoning:
 
 I figure the king has got to be somewhere near the middle of the pack
-since he dies in half of games featuring a winner — but with slightly
+since he dies in half of games featuring a winner---but with slightly
 higher-than-even odds of surviving, since some games end in a draw.
 I’m probably mixing up means and medians here somehow..
 
@@ -457,7 +468,7 @@ King
 I’m gonna assume castling happens more often on the King’s side, so
 let’s give Kingside Rook and F, G, and H Pawns a better shot than
 their fellows on the left. But maybe it should actually be worse,
-since if they die, it’s because they failed to protect the king. Plus,
+since if they die, it's because they failed to protect the king. Plus,
 having heard the tip about C Pawn loud and clear, I’m gonna assume
 that bad boy most often becomes a new Queen, which means he gets more
 survival points than the real Queen herself.
@@ -543,17 +554,27 @@ Schwarzdoppelgangers. The \pawn e is vastly more dead than \Pawn e.
 Note somewhat satisfyingly that the \pawn c has the highest variance;
 this was the most controversial among the drinking buddies
 (Section~\ref{sec:XXXbuddies}). Note that \pawn c is the sacrificed
-pawn in the popular Queen's Gambit (1. d4 d5 2. c4); this may be a
-good example of a piece that has very different survival rates in
-different opening preferences. Since the variance is otherwise
-extremely low, I only report means for the remainder of the paper.
+pawn in the popular Queen's Gambit (1. d4 d5 2. c4), where accepting
+and declining the pawn are both popular and sound responses. This may
+be a good example of a piece that has substantially different survival
+rates in different opening preferences. Since the variance is
+otherwise extremely low, I only report means for the remainder of the
+paper.
 
 Despite my impression that many games end in a draw, ties are actually
 rare in the lichess database. In January 2018, only 3.8\% of games
 were drawn;
 % (8922275 white, 8329221 black, 682042 draw)
 as a result, the survival chances for the kings are both close to
-50\%.
+50\%. Although the database contains games in many time formats and
+with all varieties of human skill (including over a thousand games by
+Magnus Carlsen, the world champion and highest rated player of all
+time\footnote{Although to be fair, his username ``DrDrunkenstein''
+  suggests he may not play at full strength.}), blitz ($\sim 5$ minutes
+per side) and bullet ($\sim 1$ minute) games are predominant. In
+Section~\ref{sec:comparative} I show some slices of the data for
+comparison. % XXX could summarize whether this is a real effect or
+% not, once I have the slices!
 
 \section{Safest spaces}
 
@@ -636,6 +657,32 @@ are underlined for your convenience.
 \chessmap{piece29}{\bishop f1}
 \chessmap{piece30}{\knight g1}
 \chessmap{piece31}{\rook h1}
+
+\section{Guesses and slices}
+%  
+%  \begin{tabular}{|l|l|}
+%  \hline
+%    tom & actual \\
+%   \hline
+%   \Pawn f    &  \\
+%   \Pawn c    &  \\
+%   \Pawn g    &  \\
+%   \Pawn a    &  \\
+%   \Pawn h    &  \\
+%   \Pawn b    &  \\
+%   \Rook h    &  \\
+%   \Rook a    &  \\
+%   \King      &  \\
+%   \Queen     &  \\
+%   \Bishop f  &  \\
+%   \Bishop c  &  \\
+%   \Knight g  &  \\
+%   \Knight b  &  \\
+%   \Pawn e    &  \\
+%   \Pawn d    &  \\
+%  \hline
+%  \end{tabular}
+%  
 
 % Battle chess
 % Feminist game 

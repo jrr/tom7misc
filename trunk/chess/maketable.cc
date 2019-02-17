@@ -52,6 +52,41 @@ static constexpr const char *const PIECE_NAME[32] = {
   "g1 knight",
   "h1 rook", };
 
+// For makeperms.cc
+static constexpr const char *const CONSTANT_NAME[32] = {
+  "BLACK_ROOK_A",
+  "BLACK_KNIGHT_B",
+  "BLACK_BISHOP_C",
+  "BLACK_QUEEN",
+  "BLACK_KING",
+  "BLACK_BISHOP_F",
+  "BLACK_KNIGHT_G",
+  "BLACK_ROOK_H",
+  "BLACK_PAWN_A",
+  "BLACK_PAWN_B",
+  "BLACK_PAWN_C",
+  "BLACK_PAWN_D",
+  "BLACK_PAWN_E",
+  "BLACK_PAWN_F",
+  "BLACK_PAWN_G",
+  "BLACK_PAWN_H",
+  "WHITE_PAWN_A",
+  "WHITE_PAWN_B",
+  "WHITE_PAWN_C",
+  "WHITE_PAWN_D",
+  "WHITE_PAWN_E",
+  "WHITE_PAWN_F",
+  "WHITE_PAWN_G",
+  "WHITE_PAWN_H",
+  "WHITE_ROOK_A",
+  "WHITE_KNIGHT_B",
+  "WHITE_BISHOP_C",
+  "WHITE_QUEEN",
+  "WHITE_KING",
+  "WHITE_BISHOP_F",
+  "WHITE_KNIGHT_G",
+  "WHITE_ROOK_H", };
+
 // Take a piece number 0-31 and return its Position-style piece.
 static uint8 PiecePiece(int p) {
   static const Position startpos;
@@ -72,7 +107,7 @@ void ReadStats(const string &filename, Stats *stat_buckets) {
   for (int b = 0; b < NUM_BUCKETS; b++) {
     Stats *stats = &stat_buckets[b];
     int64 num_games;
-    CHECK(s >> num_games);
+    CHECK(s >> num_games) << filename;
     stats->num_games += num_games;
     for (int p = 0; p < 32; p++) {
       int64 on;
@@ -540,6 +575,30 @@ void GenReport(Stats *stat_buckets) {
   // <span style="position:absolute; color:#333" class="white piece">&#9812;</span>
 
 
+  {
+    FILE *f = fopen("report-probs.cc", "wb");
+    
+    vector<pair<int, float>> ranks;
+    for (int p : pieces) {
+      ranks.emplace_back(p, survived[p].Mean());
+    }
+    std::sort(ranks.begin(), ranks.end(),
+	      [](const pair<int, float> &a,
+		 const pair<int, float> &b) {
+		return a.second > b.second;
+	      });
+
+    fprintf(f, "vector<pair<int, float>> probs = {\n");
+    for (const auto &row : ranks) {
+      fprintf(f, "  {%s, %.9g},\n",
+	      CONSTANT_NAME[row.first],
+	      row.second);
+    }
+    fprintf(f, "};\n");
+    
+    fclose(f);
+  }
+  
   {
     FILE *f = fopen("report.html", "wb");
 

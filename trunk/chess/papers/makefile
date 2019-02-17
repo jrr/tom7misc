@@ -10,5 +10,5 @@ survival.pdf : survival.tex chess.bib piece-survival-export.pdf ${PIECE_PDFS}
 	pdflatex survival
 	pdflatex survival
 
-%.pdf : ../%.svg
+%.pdf : pieces_good/%.svg
 	${MAKEPDF} $< -o $@

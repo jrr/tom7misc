@@ -1,19 +1,37 @@
 
 default: chess_test.exe rungames.exe
 
-STATS2013= stats-2013-01.txt stats-2013-02.txt stats-2013-03.txt stats-2013-04.txt stats-2013-05.txt stats-2013-06.txt stats-2013-07.txt stats-2013-08.txt stats-2013-09.txt stats-2013-10.txt stats-2013-11.txt stats-2013-12.txt
+# Over all games.
+ALL2013= stats-all/stats-2013-01.txt stats-all/stats-2013-02.txt stats-all/stats-2013-03.txt stats-all/stats-2013-04.txt stats-all/stats-2013-05.txt stats-all/stats-2013-06.txt stats-all/stats-2013-07.txt stats-all/stats-2013-08.txt stats-all/stats-2013-09.txt stats-all/stats-2013-10.txt stats-all/stats-2013-11.txt stats-all/stats-2013-12.txt
 
-STATS2014= stats-2014-01.txt stats-2014-02.txt stats-2014-03.txt stats-2014-04.txt stats-2014-05.txt stats-2014-06.txt stats-2014-07.txt stats-2014-08.txt stats-2014-09.txt stats-2014-10.txt stats-2014-11.txt stats-2014-12.txt
+ALL2014= stats-all/stats-2014-01.txt stats-all/stats-2014-02.txt stats-all/stats-2014-03.txt stats-all/stats-2014-04.txt stats-all/stats-2014-05.txt stats-all/stats-2014-06.txt stats-all/stats-2014-07.txt stats-all/stats-2014-08.txt stats-all/stats-2014-09.txt stats-all/stats-2014-10.txt stats-all/stats-2014-11.txt stats-all/stats-2014-12.txt
 
-STATS2015= stats-2015-01.txt stats-2015-02.txt stats-2015-03.txt stats-2015-04.txt stats-2015-05.txt stats-2015-06.txt stats-2015-07.txt stats-2015-08.txt stats-2015-09.txt stats-2015-10.txt stats-2015-11.txt stats-2015-12.txt
+ALL2015= stats-all/stats-2015-01.txt stats-all/stats-2015-02.txt stats-all/stats-2015-03.txt stats-all/stats-2015-04.txt stats-all/stats-2015-05.txt stats-all/stats-2015-06.txt stats-all/stats-2015-07.txt stats-all/stats-2015-08.txt stats-all/stats-2015-09.txt stats-all/stats-2015-10.txt stats-all/stats-2015-11.txt stats-all/stats-2015-12.txt
 
-STATS2016= stats-2016-01.txt stats-2016-02.txt stats-2016-03.txt stats-2016-04.txt stats-2016-05.txt stats-2016-06.txt stats-2016-07.txt stats-2016-08.txt stats-2016-09.txt stats-2016-10.txt stats-2016-11.txt stats-2016-12.txt
+ALL2016= stats-all/stats-2016-01.txt stats-all/stats-2016-02.txt stats-all/stats-2016-03.txt stats-all/stats-2016-04.txt stats-all/stats-2016-05.txt stats-all/stats-2016-06.txt stats-all/stats-2016-07.txt stats-all/stats-2016-08.txt stats-all/stats-2016-09.txt stats-all/stats-2016-10.txt stats-all/stats-2016-11.txt stats-all/stats-2016-12.txt
 
-STATS2017= stats-2017-01.txt stats-2017-02.txt stats-2017-03.txt stats-2017-04.txt stats-2017-05.txt stats-2017-06.txt stats-2017-07.txt stats-2017-08.txt stats-2017-09.txt stats-2017-10.txt stats-2017-11.txt stats-2017-12.txt
+ALL2017= stats-all/stats-2017-01.txt stats-all/stats-2017-02.txt stats-all/stats-2017-03.txt stats-all/stats-2017-04.txt stats-all/stats-2017-05.txt stats-all/stats-2017-06.txt stats-all/stats-2017-07.txt stats-all/stats-2017-08.txt stats-all/stats-2017-09.txt stats-all/stats-2017-10.txt stats-all/stats-2017-11.txt stats-all/stats-2017-12.txt
 
-STATS2018= stats-2018-01.txt stats-2018-02.txt stats-2018-03.txt stats-2018-04.txt stats-2018-05.txt stats-2018-06.txt stats-2018-07.txt stats-2018-08.txt stats-2018-09.txt stats-2018-10.txt stats-2018-11.txt
+ALL2018= stats-all/stats-2018-01.txt stats-all/stats-2018-02.txt stats-all/stats-2018-03.txt stats-all/stats-2018-04.txt stats-all/stats-2018-05.txt stats-all/stats-2018-06.txt stats-all/stats-2018-07.txt stats-all/stats-2018-08.txt stats-all/stats-2018-09.txt stats-all/stats-2018-10.txt stats-all/stats-2018-11.txt
 
-allstats : $(STATS2013) $(STATS2014) $(STATS2015) $(STATS2016) $(STATS2017) $(STATS2018)
+allstats : $(ALL2013) $(ALL2014) $(ALL2015) $(ALL2016) $(ALL2017) $(ALL2018)
+
+# Over games where at least one player has a formal title.
+TITLED2013= stats-titled/stats-2013-01.txt stats-titled/stats-2013-02.txt stats-titled/stats-2013-03.txt stats-titled/stats-2013-04.txt stats-titled/stats-2013-05.txt stats-titled/stats-2013-06.txt stats-titled/stats-2013-07.txt stats-titled/stats-2013-08.txt stats-titled/stats-2013-09.txt stats-titled/stats-2013-10.txt stats-titled/stats-2013-11.txt stats-titled/stats-2013-12.txt
+
+TITLED2014= stats-titled/stats-2014-01.txt stats-titled/stats-2014-02.txt stats-titled/stats-2014-03.txt stats-titled/stats-2014-04.txt stats-titled/stats-2014-05.txt stats-titled/stats-2014-06.txt stats-titled/stats-2014-07.txt stats-titled/stats-2014-08.txt stats-titled/stats-2014-09.txt stats-titled/stats-2014-10.txt stats-titled/stats-2014-11.txt stats-titled/stats-2014-12.txt
+
+TITLED2015= stats-titled/stats-2015-01.txt stats-titled/stats-2015-02.txt stats-titled/stats-2015-03.txt stats-titled/stats-2015-04.txt stats-titled/stats-2015-05.txt stats-titled/stats-2015-06.txt stats-titled/stats-2015-07.txt stats-titled/stats-2015-08.txt stats-titled/stats-2015-09.txt stats-titled/stats-2015-10.txt stats-titled/stats-2015-11.txt stats-titled/stats-2015-12.txt
+
+TITLED2016= stats-titled/stats-2016-01.txt stats-titled/stats-2016-02.txt stats-titled/stats-2016-03.txt stats-titled/stats-2016-04.txt stats-titled/stats-2016-05.txt stats-titled/stats-2016-06.txt stats-titled/stats-2016-07.txt stats-titled/stats-2016-08.txt stats-titled/stats-2016-09.txt stats-titled/stats-2016-10.txt stats-titled/stats-2016-11.txt stats-titled/stats-2016-12.txt
+
+TITLED2017= stats-titled/stats-2017-01.txt stats-titled/stats-2017-02.txt stats-titled/stats-2017-03.txt stats-titled/stats-2017-04.txt stats-titled/stats-2017-05.txt stats-titled/stats-2017-06.txt stats-titled/stats-2017-07.txt stats-titled/stats-2017-08.txt stats-titled/stats-2017-09.txt stats-titled/stats-2017-10.txt stats-titled/stats-2017-11.txt stats-titled/stats-2017-12.txt
+
+TITLED2018= stats-titled/stats-2018-01.txt stats-titled/stats-2018-02.txt stats-titled/stats-2018-03.txt stats-titled/stats-2018-04.txt stats-titled/stats-2018-05.txt stats-titled/stats-2018-06.txt stats-titled/stats-2018-07.txt stats-titled/stats-2018-08.txt stats-titled/stats-2018-09.txt stats-titled/stats-2018-10.txt stats-titled/stats-2018-11.txt
+
+titled2017 : $(TITLED2017) $(TITLED2016)
+titledstats : $(TITLED2013) $(TITLED2014) $(TITLED2015) $(TITLED2016) $(TITLED2017) $(TITLED2018)
+
 
 PAWNS2013= pawns-2013-01.txt pawns-2013-02.txt pawns-2013-03.txt pawns-2013-04.txt pawns-2013-05.txt pawns-2013-06.txt pawns-2013-07.txt pawns-2013-08.txt pawns-2013-09.txt pawns-2013-10.txt pawns-2013-11.txt pawns-2013-12.txt
 
@@ -137,6 +155,9 @@ chessreduce.exe : chessreduce.o chess.o pgn.o fate-data.o $(CCLIB_OBJECTS)
 maketable.exe : maketable.o chess.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+makeperm.exe : makeperm.o chess.o $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 tournament.exe : tournament-db.o tournament.o chess.o player.o stockfish-player.o player-util.o uci-player.o stockfish.o subprocess.o chessmaster.o headless-graphics.o $(CCLIB_OBJECTS) $(FCEULIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
@@ -160,8 +181,11 @@ numa.exe : numa.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 # This depends on rungames.exe, but not including it because I don't want to recompute stats every single time.
-stats-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
-	nice -n 19 ./rungames.exe $< > $@
+stats-all/stats-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+	nice -n 19 ./rungames.exe all $< > $@
+
+stats-titled/stats-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+	nice -n 19 ./rungames.exe titled $< > $@
 
 pawns-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
 	nice -n 19 ./chessreduce.exe $< > $@
