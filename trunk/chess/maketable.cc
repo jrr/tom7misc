@@ -194,6 +194,22 @@ struct Ratio {
     return r;
   }
 
+  int64 MinDenom() const {
+    int64 ret = denom[0];
+    for (int i = 1; i < NUM_BUCKETS; i++) {
+      ret = std::min(numer[i], ret);
+    }
+    return ret;
+  }
+
+  int64 MaxDenom() const {
+    int64 ret = denom[0];
+    for (int i = 1; i < NUM_BUCKETS; i++) {
+      ret = std::max(numer[i], ret);
+    }
+    return ret;
+  }
+
 };
 
 // Collection of rectangles.
@@ -609,17 +625,23 @@ void GenReport(Stats *stat_buckets) {
     fprintf(f, "<h1>Overall chances survival (%lld games)</h1>\n"
 	    "<table>"
 	    "<tr><td>rank</td><td>piece</td> <td>survived</td> "
-	    "<td>p(survived)</td> <td>lb</td><td>ub</td></tr>\n",
+	    "<td>p(survived)</td> <td>lb</td><td>ub</td>"
+	    "<td>min bucket</td><td>max bucket</td>"
+	    "</tr>\n",
 	    games.Total());
     for (int p : pieces) {
       fprintf(f,
-	      "<td>%d</td> <td>%s</td> <td>%lld</td> "
-	      "<td>%.4f</td> <td>%.4f</td> <td>%.4f</td></tr>\n",
+	      "<tr><td>%d</td> <td>%s</td> <td>%lld</td> "
+	      "<td>%.4f</td> <td>%.4f</td> <td>%.4f</td> "
+	      "<td>%lld</td> <td>%lld</td>"
+	      "</tr>\n",
 	      p, PIECE_NAME[p],
 	      survived[p].Numer(),
 	      survived[p].Mean(),
 	      survived[p].Min(),
-	      survived[p].Max());
+	      survived[p].Max(),
+	      survived[p].MinDenom(),
+	      survived[p].MaxDenom());
     }
     fprintf(f, "</table>\n");
 
@@ -775,7 +797,7 @@ void GenReport(Stats *stat_buckets) {
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    fprintf(stderr, "rungames.exe stats1.txt stats2.txt ...\n");
+    fprintf(stderr, "maketable.exe stats1.txt stats2.txt ...\n");
     return -1;
   }
 

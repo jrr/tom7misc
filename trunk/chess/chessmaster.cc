@@ -383,7 +383,7 @@ Move Chessmaster::GetMove(const Position &pos) {
 }
 
 namespace {
-struct ChessmasterPlayer : public Player {
+struct ChessmasterPlayer : public StatelessPlayer {
   explicit ChessmasterPlayer(int level) : level(level), master(level), rc(PlayerUtil::GetSeed()) {
     rc.Discard(800);
   }
@@ -413,10 +413,10 @@ struct ChessmasterPlayer : public Player {
 };
 }
 
-Player *CreateChessmaster1() {
+StatelessPlayer *CreateChessmaster1() {
   return new ChessmasterPlayer(1);
 }
 
-Player *CreateChessmaster2() {
+StatelessPlayer *CreateChessmaster2() {
   return new ChessmasterPlayer(2);
 }

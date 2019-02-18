@@ -6,8 +6,9 @@
 
 #include "chess.h"
 
-// Interface for a chess-playing algorithm.
-struct Player {
+// Interface for a stateless chess-playing algorithm. Can be
+// wrapped into a Player.
+struct StatelessPlayer {
   // Make a move in an arbitrary position. The position will
   // have at least one legal move (i.e., it is not currently
   // mate). The move returned must be legal!
@@ -22,28 +23,28 @@ struct Player {
   // Brief description of how the player works.
   virtual std::string Desc() const = 0;
 
-  virtual ~Player() {}
+  virtual ~StatelessPlayer() {}
 };
 
 // And some factory functions for players.
 // Each returns a new-ly created object, owned by the caller.
-Player *CreateFirstMove();
-Player *CreateRandom();
-Player *CreateAlphabetical();
-Player *CreateCCCP();
-Player *CreatePacifist();
-Player *CreateMinOpponentMoves();
-Player *CreateSuicideKing();
-Player *CreateReverseStarting();
-Player *CreateHuddle();
-Player *CreateSwarm();
-Player *CreateGenerous();
-Player *CreateNoIInsist();
-Player *CreateSameColor();
-Player *CreateOppositeColor();
-Player *CreateMirrorYSymmetry();
-Player *CreateMirrorXSymmetry();
-Player *CreateSymmetry180();
-Player *CreateSinglePlayer();
+StatelessPlayer *CreateFirstMove();
+StatelessPlayer *CreateRandom();
+StatelessPlayer *CreateAlphabetical();
+StatelessPlayer *CreateCCCP();
+StatelessPlayer *CreatePacifist();
+StatelessPlayer *CreateMinOpponentMoves();
+StatelessPlayer *CreateSuicideKing();
+StatelessPlayer *CreateReverseStarting();
+StatelessPlayer *CreateHuddle();
+StatelessPlayer *CreateSwarm();
+StatelessPlayer *CreateGenerous();
+StatelessPlayer *CreateNoIInsist();
+StatelessPlayer *CreateSameColor();
+StatelessPlayer *CreateOppositeColor();
+StatelessPlayer *CreateMirrorYSymmetry();
+StatelessPlayer *CreateMirrorXSymmetry();
+StatelessPlayer *CreateSymmetry180();
+StatelessPlayer *CreateSinglePlayer();
 
 #endif

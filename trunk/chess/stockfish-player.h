@@ -2,15 +2,15 @@
 #ifndef __STOCKFISH_PLAYER_H
 #define __STOCKFISH_PLAYER_H
 
-struct Player;
+struct StatelessPlayer;
 
-Player *CreateStockfish0();
-Player *CreateStockfish5();
-Player *CreateStockfish10();
-Player *CreateStockfish15();
-Player *CreateStockfish20();
-Player *CreateStockfish1M();
+StatelessPlayer *CreateStockfish0();
+StatelessPlayer *CreateStockfish5();
+StatelessPlayer *CreateStockfish10();
+StatelessPlayer *CreateStockfish15();
+StatelessPlayer *CreateStockfish20();
+StatelessPlayer *CreateStockfish1M();
 
-Player *CreateWorstfish();
+StatelessPlayer *CreateWorstfish();
 
 #endif

@@ -53,7 +53,7 @@ static constexpr int THREADS = 32;
 static constexpr int ROUNDS_PER_THREAD = 1;
 static constexpr int TOTAL_ROUNDS = THREADS * ROUNDS_PER_THREAD;
 
-typedef Player *(*Entrant)();
+typedef StatelessPlayer *(*Entrant)();
 
 // 			CreateSinglePlayer,
 const vector<Entrant> &GetEntrants() {
@@ -113,7 +113,8 @@ enum class Result {
   // DRAW_INSUFFICIENT,
 };
 
-Result PlayGame(Player *white, Player *black, vector<Move> *moves) {
+Result PlayGame(StatelessPlayer *white, StatelessPlayer *black,
+		vector<Move> *moves) {
   Position pos;
 
   // For implementing 75-move rule.
@@ -275,7 +276,7 @@ static string RenderMoves(const vector<Move> &moves) {
 static void TournamentThread(int thread_id,
 			     Outcomes *outcomes) {
   // Create thread-local instances of each entrant.
-  vector<Player *> entrants;
+  vector<StatelessPlayer *> entrants;
   for (Entrant e : GetEntrants()) {
     entrants.push_back(e());
   }
@@ -369,15 +370,15 @@ static void TournamentThread(int thread_id,
     status[thread_id].done_games = games_done;
   }
   
-  for (Player *p : entrants) delete p;
+  for (StatelessPlayer *p : entrants) delete p;
   entrants.clear();
 }
 
 static void RunTournament() {
-  vector<Player *> entrants;
+  vector<StatelessPlayer *> entrants;
   std::unordered_set<string> entrant_names;
   for (Entrant e : GetEntrants()) {
-    Player *p = e();
+    StatelessPlayer *p = e();
     entrants.push_back(p);
     string name = p->Name();
     CHECK(entrant_names.find(name) == entrant_names.end())
@@ -419,7 +420,7 @@ static void RunTournament() {
   
   TournamentDB::SaveToFile(outcomes, "tournament.db");
   
-  for (Player *p : entrants) delete p;
+  for (StatelessPlayer *p : entrants) delete p;
   entrants.clear();
 }
 
