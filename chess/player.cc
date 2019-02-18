@@ -4,6 +4,7 @@
 #include <string>
 #include <mutex>
 #include <cstdint>
+#include <memory>
 
 #include "../cc-lib/arcfour.h"
 #include "../cc-lib/randutil.h"
@@ -795,7 +796,12 @@ struct SinglePlayerPlayer : public StatelessPlayer {
 //
 //  - select eligible squares with langton's ant, game of life
 
+
 }  // namespace
+
+Player *XXXTest() {
+  return new MakeStateless<SinglePlayerPlayer, int>(1);
+}
 
 StatelessPlayer *CreateFirstMove() {
   return new FirstMovePlayer;
@@ -867,4 +873,13 @@ StatelessPlayer *CreateSymmetry180() {
 
 StatelessPlayer *CreateSinglePlayer() {
   return new SinglePlayerPlayer(1);
+}
+
+
+Player *Random() {
+  return new MakeStateless<RandomPlayer>();
+}
+
+Player *Huddle() {
+  return new MakeStateless<HuddlePlayer>();
 }

@@ -5,6 +5,7 @@
 #include <vector>
 #include <cstdint>
 #include <string>
+#include <memory>
 
 #include "../cc-lib/arcfour.h"
 #include "../cc-lib/randutil.h"
@@ -52,5 +53,31 @@ struct EvalResultPlayer : public StatelessPlayer {
   ArcFour rc;
 };
 
+template<class P, class ...Args>
+struct MakeStateless : public Player {
+  // Same constructor.
+  MakeStateless(Args... args) : player(new P(args...)) {}
+  
+  struct MSGame : public PlayerGame {
+    explicit MSGame(P *player) : player(player) {}
+
+    void ForceMove(Position::Move move) override { }
+    // Get a move for the current player in the current position.
+    Position::Move GetMove(const Position &pos) override {
+      return player->MakeMove(pos);
+    }
+
+    // Owned by parent object.
+    P *player;
+  };
+
+  MSGame *CreateGame() override {
+    return new MSGame(player.get());
+  }
+  
+  std::string Name() const override { return player->Name(); }
+  std::string Desc() const override { return player->Desc(); }
+  std::unique_ptr<P> player;
+};
 
 #endif
