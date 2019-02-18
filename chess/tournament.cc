@@ -24,6 +24,7 @@
 #include "stockfish-player.h"
 #include "uci-player.h"
 #include "chessmaster.h"
+#include "fate-player.h"
 #include "tournament-db.h"
 
 #define TESTING true
@@ -49,8 +50,8 @@ using namespace std;
 // Number of round-robin rounds.
 // (Maybe should be based on the total number of games we want
 // to simulate?)
-static constexpr int THREADS = 48;
-static constexpr int ROUNDS_PER_THREAD = 1000;
+static constexpr int THREADS = 28;
+static constexpr int ROUNDS_PER_THREAD = 1;
 static constexpr int TOTAL_ROUNDS = THREADS * ROUNDS_PER_THREAD;
 
 typedef Player *(*Entrant)();
@@ -59,38 +60,43 @@ typedef Player *(*Entrant)();
 const vector<Entrant> &GetEntrants() {
   static vector<Entrant> *entrants =
     new vector<Entrant>{
+			Safe,
+			Dangerous,
+			
+			// Worstfish,
 			Random,
+			/*
+			FirstMove,
+			Alphabetical,
+			Pacifist,
+			Generous,
+			NoIInsist,
+			*/
+			MirrorYSymmetry,
+			/*
+			MirrorXSymmetry,
+			Symmetry180,
+			SameColor,
+			OppositeColor,
 			Huddle,
-#if 0 // XXX make stateful			
-			CreateWorstfish,
-			CreateRandom,
-			CreateFirstMove,
-			CreateAlphabetical,
-			CreatePacifist,
-			CreateGenerous,
-			CreateNoIInsist,
-			CreateMirrorYSymmetry,
-			CreateMirrorXSymmetry,
-			CreateSymmetry180,
-			CreateSameColor,
-			CreateOppositeColor,
-			CreateHuddle,
-			CreateSwarm,
-			CreateSuicideKing,
-			CreateReverseStarting,
-			CreateMinOpponentMoves,
-			CreateCCCP,
-			// CreateTopple10K,
-			// CreateTopple1M,
-			CreateChessmaster1,
-			CreateChessmaster2,
-			// CreateStockfish0,
-			// CreateStockfish5,
-			// CreateStockfish10,
-			// CreateStockfish15,
-			// CreateStockfish20,
-			CreateStockfish1M,
-#endif
+			Swarm,
+			SuicideKing,
+			ReverseStarting,
+			MinOpponentMoves,
+			*/
+			// CCCP,
+			/*
+			Topple10K,
+			Topple1M,
+			Chessmaster1,
+			Chessmaster2,
+			Stockfish0,
+			Stockfish5,
+			Stockfish10,
+			Stockfish15,
+			Stockfish20,
+			Stockfish1M,
+			*/
   };
   return *entrants;
 }

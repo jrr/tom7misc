@@ -157,6 +157,9 @@ struct Processor {
       /*
       // If either queen is dead, consider this the endgame, and
       // stop counting forced moves.
+      // Note: There used to be a bug where BLACK_QUEEN was way
+      // out of bounds (chessboard index, not piece index), so
+      // when I ran this code it was wrong!
       if (!!(gs.fates[GameStats::BLACK_QUEEN] & GameStats::DIED) ||
 	  !!(gs.fates[GameStats::WHITE_QUEEN] & GameStats::DIED))
 	break;

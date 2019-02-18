@@ -159,7 +159,7 @@ maketable.exe : maketable.o chess.o $(CCLIB_OBJECTS)
 makeperm.exe : makeperm.o chess.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-tournament.exe : tournament-db.o tournament.o chess.o player.o stockfish-player.o player-util.o uci-player.o stockfish.o subprocess.o chessmaster.o headless-graphics.o $(CCLIB_OBJECTS) $(FCEULIB_OBJECTS)
+tournament.exe : tournament-db.o tournament.o chess.o player.o stockfish-player.o player-util.o uci-player.o stockfish.o subprocess.o chessmaster.o headless-graphics.o all-fate-data.o fate-player.o $(CCLIB_OBJECTS) $(FCEULIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 elo.exe : elo.o tournament-db.o chess.o headless-graphics.o $(CCLIB_OBJECTS)

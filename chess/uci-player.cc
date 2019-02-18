@@ -115,18 +115,22 @@ Move UciPlayer::MakeMove(const Position &orig_pos) {
 
 }  // namespace
 
-StatelessPlayer *CreateTopple1M() {
-  return new UciPlayer("engines\\topple_v0.3.5_znver1.exe",
-		       "",
-		       "nodes 1000000",
-		       "topple1m",
-		       "Topple 0.3.5, 1M nodes.");
+Player *Topple1M() {
+  return new MakeStateless<
+    UciPlayer, string, string, string,
+    string, string>("engines\\topple_v0.3.5_znver1.exe",
+		    "",
+		    "nodes 1000000",
+		    "topple1m",
+		    "Topple 0.3.5, 1M nodes.");
 }
 
-StatelessPlayer *CreateTopple10K() {
-  return new UciPlayer("engines\\topple_v0.3.5_znver1.exe",
-		       "",
-		       "nodes 10000",
-		       "topple10k",
-		       "Topple 0.3.5, 10k nodes.");
+Player *Topple10K() {
+  return new MakeStateless<
+    UciPlayer, string, string, string,
+    string, string>("engines\\topple_v0.3.5_znver1.exe",
+		    "",
+		    "nodes 10000",
+		    "topple10k",
+		    "Topple 0.3.5, 10k nodes.");
 }

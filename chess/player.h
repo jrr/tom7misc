@@ -54,28 +54,25 @@ struct Player {
   virtual ~Player() {}
 };
 
-Player *Random();
-Player *Huddle();
-
 // And some factory functions for players.
 // Each returns a new-ly created object, owned by the caller.
-StatelessPlayer *CreateFirstMove();
-StatelessPlayer *CreateRandom();
-StatelessPlayer *CreateAlphabetical();
-StatelessPlayer *CreateCCCP();
-StatelessPlayer *CreatePacifist();
-StatelessPlayer *CreateMinOpponentMoves();
-StatelessPlayer *CreateSuicideKing();
-StatelessPlayer *CreateReverseStarting();
-StatelessPlayer *CreateHuddle();
-StatelessPlayer *CreateSwarm();
-StatelessPlayer *CreateGenerous();
-StatelessPlayer *CreateNoIInsist();
-StatelessPlayer *CreateSameColor();
-StatelessPlayer *CreateOppositeColor();
-StatelessPlayer *CreateMirrorYSymmetry();
-StatelessPlayer *CreateMirrorXSymmetry();
-StatelessPlayer *CreateSymmetry180();
-StatelessPlayer *CreateSinglePlayer();
+Player *FirstMove();
+Player *Random();
+Player *Alphabetical();
+Player *CCCP();
+Player *Pacifist();
+Player *MinOpponentMoves();
+Player *SuicideKing();
+Player *ReverseStarting();
+Player *Huddle();
+Player *Swarm();
+Player *Generous();
+Player *NoIInsist();
+Player *SameColor();
+Player *OppositeColor();
+Player *MirrorYSymmetry();
+Player *MirrorXSymmetry();
+Player *Symmetry180();
+Player *SinglePlayer();
 
 #endif
