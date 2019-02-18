@@ -26,6 +26,37 @@ struct StatelessPlayer {
   virtual ~StatelessPlayer() {}
 };
 
+// This shouldn't be thought of like a typical chess player interface,
+// since it must be able to switch sides at a whim.
+struct PlayerGame {
+  // Force a specific move, which changes the current side.
+  virtual void ForceMove(Position::Move move) = 0;
+  // Get a move for the current player in the current position.
+  // pos is guaranteed to match the series of moves already
+  // applied, in case the object does not want to track this.
+  // The move should not be applied; ForceMove will typically be
+  // called on it.
+  virtual Position::Move GetMove(const Position &pos) = 0;
+
+  virtual ~PlayerGame() {}
+};
+
+// Algorithm that may keep state.
+struct Player {
+  // Creates a new game instance, in the starting position.
+  // new-ly allocated object, owned by caller.
+  virtual PlayerGame *CreateGame() = 0;
+
+  // As above.
+  virtual std::string Name() const = 0;
+  virtual std::string Desc() const = 0;
+
+  virtual ~Player() {}
+};
+
+Player *Random();
+Player *Huddle();
+
 // And some factory functions for players.
 // Each returns a new-ly created object, owned by the caller.
 StatelessPlayer *CreateFirstMove();

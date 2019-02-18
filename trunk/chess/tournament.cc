@@ -49,16 +49,19 @@ using namespace std;
 // Number of round-robin rounds.
 // (Maybe should be based on the total number of games we want
 // to simulate?)
-static constexpr int THREADS = 32;
-static constexpr int ROUNDS_PER_THREAD = 1;
+static constexpr int THREADS = 48;
+static constexpr int ROUNDS_PER_THREAD = 1000;
 static constexpr int TOTAL_ROUNDS = THREADS * ROUNDS_PER_THREAD;
 
-typedef StatelessPlayer *(*Entrant)();
+typedef Player *(*Entrant)();
 
 // 			CreateSinglePlayer,
 const vector<Entrant> &GetEntrants() {
   static vector<Entrant> *entrants =
     new vector<Entrant>{
+			Random,
+			Huddle,
+#if 0 // XXX make stateful			
 			CreateWorstfish,
 			CreateRandom,
 			CreateFirstMove,
@@ -87,6 +90,7 @@ const vector<Entrant> &GetEntrants() {
 			// CreateStockfish15,
 			// CreateStockfish20,
 			CreateStockfish1M,
+#endif
   };
   return *entrants;
 }
@@ -113,8 +117,11 @@ enum class Result {
   // DRAW_INSUFFICIENT,
 };
 
-Result PlayGame(StatelessPlayer *white, StatelessPlayer *black,
+Result PlayGame(Player *white_player, Player *black_player,
 		vector<Move> *moves) {
+  std::unique_ptr<PlayerGame> white{white_player->CreateGame()};
+  std::unique_ptr<PlayerGame> black{black_player->CreateGame()};
+
   Position pos;
 
   // For implementing 75-move rule.
@@ -145,7 +152,7 @@ Result PlayGame(StatelessPlayer *white, StatelessPlayer *black,
     if (TESTING) { CHECK(!pos.BlackMove()); }
 
     {
-      Move m = white->MakeMove(pos);
+      Move m = white->GetMove(pos);
       if (TESTING) { CHECK(pos.IsLegal(m)); }
       if (pos.IsCapturing(m) ||
 	  pos.IsPawnMove(m)) {
@@ -155,6 +162,8 @@ Result PlayGame(StatelessPlayer *white, StatelessPlayer *black,
       }
 
       pos.ApplyMove(m);
+      white->ForceMove(m);
+      black->ForceMove(m);
       moves->push_back(m);
       
       // Checkmate takes precedence over draw by
@@ -180,7 +189,7 @@ Result PlayGame(StatelessPlayer *white, StatelessPlayer *black,
     if (TESTING) { CHECK(pos.BlackMove()); }
     
     {
-      Move m = black->MakeMove(pos);
+      Move m = black->GetMove(pos);
       if (TESTING) { CHECK(pos.IsLegal(m)); }
       if (pos.IsCapturing(m) ||
 	  pos.IsPawnMove(m)) {
@@ -190,6 +199,8 @@ Result PlayGame(StatelessPlayer *white, StatelessPlayer *black,
       }
 
       pos.ApplyMove(m);
+      white->ForceMove(m);
+      black->ForceMove(m);
       moves->push_back(m);
       
       if (!pos.HasLegalMoves()) {
@@ -276,7 +287,7 @@ static string RenderMoves(const vector<Move> &moves) {
 static void TournamentThread(int thread_id,
 			     Outcomes *outcomes) {
   // Create thread-local instances of each entrant.
-  vector<StatelessPlayer *> entrants;
+  vector<Player *> entrants;
   for (Entrant e : GetEntrants()) {
     entrants.push_back(e());
   }
@@ -287,10 +298,13 @@ static void TournamentThread(int thread_id,
   {
     MutexLock ml(&status_m);
     status[thread_id].msg = "start";
-    if (run_only == nullptr)
-      status[thread_id].total_games = num_entrants * num_entrants * ROUNDS_PER_THREAD;
-    else
-      status[thread_id].total_games = (num_entrants * 2 - 1) * ROUNDS_PER_THREAD;
+    if (run_only == nullptr) {
+      status[thread_id].total_games =
+	num_entrants * num_entrants * ROUNDS_PER_THREAD;
+    } else {
+      status[thread_id].total_games =
+	(num_entrants * 2 - 1) * ROUNDS_PER_THREAD;
+    }
   }
 
   int games_done = 0;
@@ -370,15 +384,15 @@ static void TournamentThread(int thread_id,
     status[thread_id].done_games = games_done;
   }
   
-  for (StatelessPlayer *p : entrants) delete p;
+  for (Player *p : entrants) delete p;
   entrants.clear();
 }
 
 static void RunTournament() {
-  vector<StatelessPlayer *> entrants;
+  vector<Player *> entrants;
   std::unordered_set<string> entrant_names;
   for (Entrant e : GetEntrants()) {
-    StatelessPlayer *p = e();
+    Player *p = e();
     entrants.push_back(p);
     string name = p->Name();
     CHECK(entrant_names.find(name) == entrant_names.end())
@@ -420,7 +434,7 @@ static void RunTournament() {
   
   TournamentDB::SaveToFile(outcomes, "tournament.db");
   
-  for (StatelessPlayer *p : entrants) delete p;
+  for (Player *p : entrants) delete p;
   entrants.clear();
 }
 
