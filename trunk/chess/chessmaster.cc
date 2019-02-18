@@ -413,10 +413,10 @@ struct ChessmasterPlayer : public StatelessPlayer {
 };
 }
 
-StatelessPlayer *CreateChessmaster1() {
-  return new ChessmasterPlayer(1);
+Player *Chessmaster1() {
+  return new MakeStateless<ChessmasterPlayer, int>(1);
 }
 
-StatelessPlayer *CreateChessmaster2() {
-  return new ChessmasterPlayer(2);
+Player *Chessmaster2() {
+  return new MakeStateless<ChessmasterPlayer, int>(2);
 }

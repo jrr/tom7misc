@@ -799,87 +799,75 @@ struct SinglePlayerPlayer : public StatelessPlayer {
 
 }  // namespace
 
-Player *XXXTest() {
-  return new MakeStateless<SinglePlayerPlayer, int>(1);
-}
 
-StatelessPlayer *CreateFirstMove() {
-  return new FirstMovePlayer;
+Player *FirstMove() {
+  return new MakeStateless<FirstMovePlayer>;
 }
-
-StatelessPlayer *CreateRandom() {
-  return new RandomPlayer;
-}
-
-StatelessPlayer *CreateAlphabetical() {
-  return new AlphabeticalPlayer;
-}
-
-StatelessPlayer *CreateCCCP() {
-  return new CCCPPlayer;
-}
-
-StatelessPlayer *CreatePacifist() {
-  return new PacifistPlayer;
-}
-
-StatelessPlayer *CreateMinOpponentMoves() {
-  return new MinOpponentMovesPlayer;
-}
-
-StatelessPlayer *CreateSuicideKing() {
-  return new SuicideKingPlayer;
-}
-
-StatelessPlayer *CreateReverseStarting() {
-  return new ReverseStartingPlayer;
-}
-
-StatelessPlayer *CreateHuddle() {
-  return new HuddlePlayer;
-}
-
-StatelessPlayer *CreateSwarm() {
-  return new SwarmPlayer;
-}
-
-StatelessPlayer *CreateGenerous() {
-  return new GenerousPlayer;
-}
-
-StatelessPlayer *CreateNoIInsist() {
-  return new NoIInsistPlayer;
-}
-
-StatelessPlayer *CreateSameColor() {
-  return new SameColorPlayer;
-}
-
-StatelessPlayer *CreateOppositeColor() {
-  return new OppositeColorPlayer;
-}
-
-StatelessPlayer *CreateMirrorYSymmetry() {
-  return new MirrorYSymmetryPlayer;
-}
-
-StatelessPlayer *CreateMirrorXSymmetry() {
-  return new MirrorXSymmetryPlayer;
-}
-
-StatelessPlayer *CreateSymmetry180() {
-  return new Symmetry180Player;
-}
-
-StatelessPlayer *CreateSinglePlayer() {
-  return new SinglePlayerPlayer(1);
-}
-
 
 Player *Random() {
-  return new MakeStateless<RandomPlayer>();
+  return new MakeStateless<RandomPlayer>;
+}
+
+Player *Alphabetical() {
+  return new MakeStateless<AlphabeticalPlayer>;
+}
+
+Player *CCCP() {
+  return new MakeStateless<CCCPPlayer>;
+}
+
+Player *Pacifist() {
+  return new MakeStateless<PacifistPlayer>;
+}
+
+Player *MinOpponentMoves() {
+  return new MakeStateless<MinOpponentMovesPlayer>;
+}
+
+Player *SuicideKing() {
+  return new MakeStateless<SuicideKingPlayer>;
+}
+
+Player *ReverseStarting() {
+  return new MakeStateless<ReverseStartingPlayer>;
 }
 
 Player *Huddle() {
-  return new MakeStateless<HuddlePlayer>();
+  return new MakeStateless<HuddlePlayer>;
+}
+
+Player *Swarm() {
+  return new MakeStateless<SwarmPlayer>;
+}
+
+Player *Generous() {
+  return new MakeStateless<GenerousPlayer>;
+}
+
+Player *NoIInsist() {
+  return new MakeStateless<NoIInsistPlayer>;
+}
+
+Player *SameColor() {
+  return new MakeStateless<SameColorPlayer>;
+}
+
+Player *OppositeColor() {
+  return new MakeStateless<OppositeColorPlayer>;
+}
+
+Player *MirrorYSymmetry() {
+  return new MakeStateless<MirrorYSymmetryPlayer>;
+}
+
+Player *MirrorXSymmetry() {
+  return new MakeStateless<MirrorXSymmetryPlayer>;
+}
+
+Player *Symmetry180() {
+  return new MakeStateless<Symmetry180Player>;
+}
+
+Player *SinglePlayer() {
+  return new MakeStateless<SinglePlayerPlayer, int>(1);
 }

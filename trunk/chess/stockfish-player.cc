@@ -132,31 +132,37 @@ struct WorstfishPlayer : public EvalResultPlayer {
 }  // namespace
 
 
-StatelessPlayer *CreateStockfish0() {
-  return new StockfishPlayer(0, 0, "stockfish0");
+Player *Stockfish0() {
+  return new MakeStateless<StockfishPlayer, int, int, string>(
+      0, 0, "stockfish0");
 }
 
-StatelessPlayer *CreateStockfish5() {
-  return new StockfishPlayer(5, 0, "stockfish5");
+Player *Stockfish5() {
+  return new MakeStateless<StockfishPlayer, int, int, string>(
+      5, 0, "stockfish5");
 }
 
-StatelessPlayer *CreateStockfish10() {
-  return new StockfishPlayer(10, 0, "stockfish10");
+Player *Stockfish10() {
+  return new MakeStateless<StockfishPlayer, int, int, string>(
+      10, 0, "stockfish10");
 }
 
-StatelessPlayer *CreateStockfish15() {
-  return new StockfishPlayer(15, 0, "stockfish15");
+Player *Stockfish15() {
+  return new MakeStateless<StockfishPlayer, int, int, string>(
+      15, 0, "stockfish15");
 }
 
-StatelessPlayer *CreateStockfish20() {
-  return new StockfishPlayer(20, 0, "stockfish20");
+Player *Stockfish20() {
+  return new MakeStateless<StockfishPlayer, int, int, string>(
+      20, 0, "stockfish20");
 }
 
-StatelessPlayer *CreateStockfish1M() {
-  return new StockfishPlayer(20, 1000000, "stockfish1m");
+Player *Stockfish1M() {
+  return new MakeStateless<StockfishPlayer, int, int, string>(
+      20, 1000000, "stockfish1m");
 }
 
 
-StatelessPlayer *CreateWorstfish() {
-  return new WorstfishPlayer(20);
+Player *Worstfish() {
+  return new MakeStateless<WorstfishPlayer, int>(20);
 }

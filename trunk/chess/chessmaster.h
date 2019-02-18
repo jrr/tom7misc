@@ -46,8 +46,8 @@ private:
 };
 
 // Level 1. Makes random move if chessmaster fails for some reason.
-StatelessPlayer *CreateChessmaster1();
+Player *Chessmaster1();
 // Level 2.
-StatelessPlayer *CreateChessmaster2();
+Player *Chessmaster2();
 
 #endif

@@ -29,7 +29,7 @@ struct GameStats {
 		       56, 57, 58, 59, 60, 61, 62, 63, };
 
   static constexpr uint8_t BLACK_QUEEN = 3;
-  static constexpr uint8_t WHITE_QUEEN = 59;
+  static constexpr uint8_t WHITE_QUEEN = 27;
   
   void Update(const Position &pos, const Position::Move &move) {
     const uint8 src_pos = move.src_row * 8 + move.src_col;
