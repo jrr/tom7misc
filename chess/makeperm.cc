@@ -322,7 +322,7 @@ static string PieceName(int x) {
 }
 
 // Actual results over all games (500m)
-vector<pair<int, float>> prob_actual = {
+vector<pair<int, float>> actual_probs = {
   {WHITE_PAWN_H, 0.715432286},
   {BLACK_PAWN_A, 0.705200613},
   {WHITE_PAWN_A, 0.704906046},
@@ -374,20 +374,207 @@ int RankError(const vector<int> &a,
   }
   return delta;
 }
-	      
+
+
+vector<pair<int, float>> titled_probs = {
+  {WHITE_PAWN_H, 0.669196844},
+  {BLACK_PAWN_A, 0.667333484},
+  {WHITE_PAWN_A, 0.662262022},
+  {BLACK_PAWN_H, 0.656060696},
+  {WHITE_PAWN_G, 0.624552369},
+  {BLACK_PAWN_G, 0.605713427},
+  {WHITE_PAWN_B, 0.568870246},
+  {BLACK_PAWN_B, 0.564766288},
+  {WHITE_KING, 0.538510501},
+  {WHITE_PAWN_F, 0.536402941},
+  {BLACK_PAWN_F, 0.528088152},
+  {BLACK_KING, 0.510553479},
+  {BLACK_ROOK_A, 0.49197644},
+  {WHITE_ROOK_A, 0.489860713},
+  {WHITE_ROOK_H, 0.476608098},
+  {BLACK_ROOK_H, 0.474159986},
+  {WHITE_PAWN_C, 0.423101097},
+  {WHITE_QUEEN, 0.395854831},
+  {BLACK_QUEEN, 0.388097733},
+  {BLACK_PAWN_C, 0.373647988},
+  {BLACK_PAWN_E, 0.369938105},
+  {BLACK_BISHOP_F, 0.312111437},
+  {WHITE_BISHOP_F, 0.308377415},
+  {WHITE_PAWN_E, 0.303896815},
+  {BLACK_BISHOP_C, 0.287457943},
+  {BLACK_PAWN_D, 0.287427694},
+  {WHITE_BISHOP_C, 0.277486771},
+  {WHITE_PAWN_D, 0.257768214},
+  {WHITE_KNIGHT_B, 0.231363401},
+  {BLACK_KNIGHT_B, 0.230935827},
+  {BLACK_KNIGHT_G, 0.200624391},
+  {WHITE_KNIGHT_G, 0.200406671},
+};
+
+vector<pair<int, float>> bullet_probs = {
+  {BLACK_PAWN_A, 0.726668358},
+  {WHITE_PAWN_H, 0.722974241},
+  {WHITE_PAWN_A, 0.721098602},
+  {BLACK_PAWN_H, 0.708957493},
+  {WHITE_PAWN_G, 0.668866754},
+  {BLACK_PAWN_G, 0.653226197},
+  {WHITE_PAWN_B, 0.61848557},
+  {BLACK_PAWN_B, 0.617226899},
+  {WHITE_PAWN_F, 0.566843629},
+  {BLACK_PAWN_F, 0.554071546},
+  {WHITE_ROOK_A, 0.543329},
+  {BLACK_ROOK_A, 0.540029883},
+  {WHITE_KING, 0.528453827},
+  {BLACK_ROOK_H, 0.524942517},
+  {WHITE_ROOK_H, 0.523875415},
+  {BLACK_KING, 0.501409173},
+  {WHITE_PAWN_C, 0.470931053},
+  {BLACK_PAWN_C, 0.443932712},
+  {WHITE_QUEEN, 0.426350027},
+  {BLACK_QUEEN, 0.417651385},
+  {BLACK_PAWN_E, 0.38113597},
+  {WHITE_PAWN_E, 0.308711886},
+  {BLACK_BISHOP_F, 0.307721794},
+  {BLACK_BISHOP_C, 0.30463022},
+  {WHITE_BISHOP_F, 0.302136093},
+  {BLACK_PAWN_D, 0.30203107},
+  {WHITE_PAWN_D, 0.298784137},
+  {WHITE_BISHOP_C, 0.288737357},
+  {WHITE_KNIGHT_B, 0.261240125},
+  {BLACK_KNIGHT_B, 0.248214781},
+  {BLACK_KNIGHT_G, 0.217949584},
+  {WHITE_KNIGHT_G, 0.21258761},
+};
+
+vector<pair<int, float>> blitz_probs = {
+  {WHITE_PAWN_H, 0.705185533},
+  {BLACK_PAWN_H, 0.694000185},
+  {WHITE_PAWN_A, 0.6876176},
+  {BLACK_PAWN_A, 0.686811268},
+  {WHITE_PAWN_G, 0.659280062},
+  {BLACK_PAWN_G, 0.644540489},
+  {WHITE_PAWN_B, 0.590121329},
+  {BLACK_PAWN_B, 0.58341682},
+  {WHITE_PAWN_F, 0.566926539},
+  {WHITE_ROOK_A, 0.560023189},
+  {BLACK_ROOK_A, 0.554639757},
+  {BLACK_PAWN_F, 0.550531864},
+  {WHITE_ROOK_H, 0.541934133},
+  {BLACK_ROOK_H, 0.541487694},
+  {WHITE_KING, 0.537497282},
+  {BLACK_KING, 0.504129291},
+  {WHITE_PAWN_C, 0.469914317},
+  {WHITE_QUEEN, 0.463243574},
+  {BLACK_QUEEN, 0.454853535},
+  {BLACK_PAWN_C, 0.439012706},
+  {BLACK_PAWN_E, 0.370540828},
+  {BLACK_PAWN_D, 0.323645025},
+  {BLACK_BISHOP_C, 0.319640994},
+  {BLACK_BISHOP_F, 0.317568094},
+  {WHITE_PAWN_E, 0.31203258},
+  {WHITE_BISHOP_C, 0.308808476},
+  {WHITE_BISHOP_F, 0.304748744},
+  {WHITE_PAWN_D, 0.301345259},
+  {WHITE_KNIGHT_B, 0.286712468},
+  {BLACK_KNIGHT_B, 0.260796309},
+  {BLACK_KNIGHT_G, 0.241091579},
+  {WHITE_KNIGHT_G, 0.229988366},
+};
+
+vector<pair<int, float>> rapid_probs = {
+  {WHITE_PAWN_H, 0.717799306},
+  {BLACK_PAWN_H, 0.707557678},
+  {WHITE_PAWN_A, 0.704338729},
+  {BLACK_PAWN_A, 0.699469626},
+  {WHITE_PAWN_G, 0.667853653},
+  {BLACK_PAWN_G, 0.655147254},
+  {WHITE_PAWN_B, 0.602427602},
+  {BLACK_PAWN_B, 0.59267354},
+  {WHITE_ROOK_A, 0.592169166},
+  {WHITE_PAWN_F, 0.587919891},
+  {BLACK_ROOK_A, 0.582526207},
+  {WHITE_ROOK_H, 0.571105301},
+  {BLACK_ROOK_H, 0.568388283},
+  {BLACK_PAWN_F, 0.554620206},
+  {WHITE_KING, 0.540421069},
+  {BLACK_KING, 0.501556337},
+  {WHITE_PAWN_C, 0.499544144},
+  {WHITE_QUEEN, 0.4821527},
+  {BLACK_PAWN_C, 0.477736592},
+  {BLACK_QUEEN, 0.473388523},
+  {BLACK_PAWN_E, 0.359915793},
+  {BLACK_BISHOP_C, 0.348341286},
+  {BLACK_PAWN_D, 0.347047299},
+  {WHITE_BISHOP_C, 0.342712104},
+  {BLACK_BISHOP_F, 0.339081913},
+  {WHITE_KNIGHT_B, 0.328480661},
+  {WHITE_PAWN_D, 0.327255487},
+  {WHITE_BISHOP_F, 0.3167575},
+  {WHITE_PAWN_E, 0.315772921},
+  {BLACK_KNIGHT_B, 0.291517437},
+  {BLACK_KNIGHT_G, 0.274224102},
+  {WHITE_KNIGHT_G, 0.260634691},
+};
+
+vector<pair<int, float>> classical_probs = {
+  {WHITE_PAWN_H, 0.75596571},
+  {BLACK_PAWN_H, 0.74674046},
+  {WHITE_PAWN_A, 0.745404184},
+  {BLACK_PAWN_A, 0.739825904},
+  {WHITE_PAWN_G, 0.700627923},
+  {BLACK_PAWN_G, 0.690689087},
+  {WHITE_PAWN_B, 0.643349826},
+  {WHITE_ROOK_A, 0.636144102},
+  {WHITE_PAWN_F, 0.634782553},
+  {BLACK_PAWN_B, 0.632014394},
+  {BLACK_ROOK_A, 0.62692374},
+  {WHITE_ROOK_H, 0.619760692},
+  {BLACK_ROOK_H, 0.614498079},
+  {BLACK_PAWN_F, 0.59248966},
+  {WHITE_KING, 0.542440295},
+  {WHITE_PAWN_C, 0.542292297},
+  {BLACK_PAWN_C, 0.52329278},
+  {WHITE_QUEEN, 0.520475864},
+  {BLACK_QUEEN, 0.511975706},
+  {BLACK_KING, 0.502516985},
+  {BLACK_BISHOP_C, 0.411349565},
+  {WHITE_BISHOP_C, 0.407337934},
+  {BLACK_BISHOP_F, 0.397870809},
+  {BLACK_PAWN_E, 0.392559052},
+  {WHITE_KNIGHT_B, 0.390915632},
+  {BLACK_PAWN_D, 0.388223618},
+  {WHITE_BISHOP_F, 0.37211135},
+  {WHITE_PAWN_D, 0.371815294},
+  {BLACK_KNIGHT_B, 0.354173809},
+  {WHITE_PAWN_E, 0.352591604},
+  {BLACK_KNIGHT_G, 0.336583346},
+  {WHITE_KNIGHT_G, 0.325550437},
+};
 
 void GenPerm() {
+  (void)Degenerate;
+  /*
   vector<pair<string, vector<pair<int, float>>>> tableau = {
-    {"Actual", prob_actual},
+    {"Actual", actual_probs},
     {"William", Degenerate(rank_william)},
     {"Jim", Degenerate(rank_jim)},
-    {"Actual", prob_actual},
+    {"Actual", actual_probs},
     {"David", prob_david},
     {"Tom", Degenerate(rank_tom)},
-    {"Actual", prob_actual},    
+    {"Actual", actual_probs},    
     {"Ben", Degenerate(rank_ben)},
   };
-
+  */
+  
+  vector<pair<string, vector<pair<int, float>>>> tableau = {
+    {"All", actual_probs},
+    {"Bullet", bullet_probs},
+    {"Blitz", blitz_probs},
+    {"Rapid", rapid_probs},
+    {"Classical", classical_probs},
+    {"Titled", titled_probs},
+  };
+  
   for (int i = 0; i < tableau.size(); i++) {
     for (int j = i + 1; j < tableau.size(); j++) {
       int e = RankError(Strip(tableau[i].second),
@@ -398,10 +585,11 @@ void GenPerm() {
     }
   }
 
-  {
+  // Looks like slightly less than 341.
+  if (false) {
     ArcFour rc(StringPrintf("%lld!", time(nullptr)));
     int64 total_error = 0LL;
-    static constexpr int TRIALS = 10000;
+    static constexpr int TRIALS = 1000000;
     for (int t = 0; t < TRIALS; t++) {
       vector<int> p1, p2;
       p1.reserve(32);
@@ -415,7 +603,6 @@ void GenPerm() {
       total_error += RankError(p1, p2);
     }
     double avg_error = (double)total_error / (double)TRIALS;
-    // Looks like slightly less than 341.
     printf("Average for random perms: %.6f\n", avg_error);
   }
   
@@ -470,14 +657,17 @@ void GenPerm() {
 	for (int nrow = 0; nrow < ncol.size(); nrow++) {
 	  if (ncol[nrow].first == p) {
 	    // Maximum distance would be 31.
-	    float dist = abs(nrow - row) / 31.0f;
+	    const int idist = abs(nrow - row);
+	    const float actual_dist = idist / 31.0f;
+	    float dist = 0.25 + (0.75 * actual_dist);
 	    
 	    float sx = xcol + colwidth;
 	    float sy = yy - ROWHEIGHT / 2.0;
 	    float dx = xcol + colwidth + COL_MARGIN;
 	    float dy = (MARGIN_TOP + HEADER_HEIGHT) +
 	      (ROWHEIGHT * nrow) - (ROWHEIGHT / 2.0);
-			
+
+	    if (idist > 0)
 	    fprintf(f, "<path fill=\"none\" "
 		    "stroke=\"#000\" stroke-opacity=\"%.2f\" "
 		    "stroke-width=\"1px\" "

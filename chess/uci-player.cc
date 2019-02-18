@@ -21,7 +21,7 @@ static constexpr bool VALIDATE = true;
 namespace {
 // This is kept file-local to avoid requiring the windows-only
 // Subprocess in the header.
-struct UciPlayer : public Player {
+struct UciPlayer : public StatelessPlayer {
   UciPlayer(const string &exe,
 	    // Series of setoption commands (or whatever); each
 	    // terminated with \n.
@@ -115,7 +115,7 @@ Move UciPlayer::MakeMove(const Position &orig_pos) {
 
 }  // namespace
 
-Player *CreateTopple1M() {
+StatelessPlayer *CreateTopple1M() {
   return new UciPlayer("engines\\topple_v0.3.5_znver1.exe",
 		       "",
 		       "nodes 1000000",
@@ -123,7 +123,7 @@ Player *CreateTopple1M() {
 		       "Topple 0.3.5, 1M nodes.");
 }
 
-Player *CreateTopple10K() {
+StatelessPlayer *CreateTopple10K() {
   return new UciPlayer("engines\\topple_v0.3.5_znver1.exe",
 		       "",
 		       "nodes 10000",

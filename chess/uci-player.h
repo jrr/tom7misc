@@ -4,7 +4,7 @@
 
 #include "player.h"
 
-Player *CreateTopple10K();
-Player *CreateTopple1M();
+StatelessPlayer *CreateTopple10K();
+StatelessPlayer *CreateTopple1M();
 
 #endif

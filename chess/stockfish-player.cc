@@ -18,7 +18,7 @@ using Move = Position::Move;
 using namespace std;
 
 namespace {
-struct StockfishPlayer : public Player {
+struct StockfishPlayer : public StatelessPlayer {
 
   StockfishPlayer(int level, int nodes, const string &name) :
     level(level), nodes(nodes), name(name) {
@@ -132,31 +132,31 @@ struct WorstfishPlayer : public EvalResultPlayer {
 }  // namespace
 
 
-Player *CreateStockfish0() {
+StatelessPlayer *CreateStockfish0() {
   return new StockfishPlayer(0, 0, "stockfish0");
 }
 
-Player *CreateStockfish5() {
+StatelessPlayer *CreateStockfish5() {
   return new StockfishPlayer(5, 0, "stockfish5");
 }
 
-Player *CreateStockfish10() {
+StatelessPlayer *CreateStockfish10() {
   return new StockfishPlayer(10, 0, "stockfish10");
 }
 
-Player *CreateStockfish15() {
+StatelessPlayer *CreateStockfish15() {
   return new StockfishPlayer(15, 0, "stockfish15");
 }
 
-Player *CreateStockfish20() {
+StatelessPlayer *CreateStockfish20() {
   return new StockfishPlayer(20, 0, "stockfish20");
 }
 
-Player *CreateStockfish1M() {
+StatelessPlayer *CreateStockfish1M() {
   return new StockfishPlayer(20, 1000000, "stockfish1m");
 }
 
 
-Player *CreateWorstfish() {
+StatelessPlayer *CreateWorstfish() {
   return new WorstfishPlayer(20);
 }

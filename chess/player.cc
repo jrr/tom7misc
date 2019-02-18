@@ -40,7 +40,7 @@ static int TypeValue(uint8 t) {
   }
 }
 
-struct FirstMovePlayer : public Player {
+struct FirstMovePlayer : public StatelessPlayer {
 
   static int WhiteCode(const Move &m) {
     int src = (int)m.src_row * 8 + (int)m.src_col;
@@ -79,7 +79,7 @@ struct FirstMovePlayer : public Player {
   }
 };
 
-struct RandomPlayer : public Player {
+struct RandomPlayer : public StatelessPlayer {
   RandomPlayer() : rc(PlayerUtil::GetSeed()) {
     rc.Discard(800);
   }
@@ -100,7 +100,7 @@ struct RandomPlayer : public Player {
   ArcFour rc;
 };
 
-struct CCCPPlayer : public Player {
+struct CCCPPlayer : public StatelessPlayer {
 
   struct LabeledMove {
     Move m;
@@ -204,7 +204,7 @@ struct CCCPPlayer : public Player {
   }
 };
 
-struct AlphabeticalPlayer : public Player {
+struct AlphabeticalPlayer : public StatelessPlayer {
 
   struct LabeledMove {
     Move m;
@@ -694,7 +694,7 @@ struct Symmetry180Player : public SymmetryPlayer {
   }
 };
 
-struct SinglePlayerPlayer : public Player {
+struct SinglePlayerPlayer : public StatelessPlayer {
   explicit SinglePlayerPlayer(int max_depth) : 
     max_depth(max_depth), 
     rc(PlayerUtil::GetSeed()) {
@@ -797,74 +797,74 @@ struct SinglePlayerPlayer : public Player {
 
 }  // namespace
 
-Player *CreateFirstMove() {
+StatelessPlayer *CreateFirstMove() {
   return new FirstMovePlayer;
 }
 
-Player *CreateRandom() {
+StatelessPlayer *CreateRandom() {
   return new RandomPlayer;
 }
 
-Player *CreateAlphabetical() {
+StatelessPlayer *CreateAlphabetical() {
   return new AlphabeticalPlayer;
 }
 
-Player *CreateCCCP() {
+StatelessPlayer *CreateCCCP() {
   return new CCCPPlayer;
 }
 
-Player *CreatePacifist() {
+StatelessPlayer *CreatePacifist() {
   return new PacifistPlayer;
 }
 
-Player *CreateMinOpponentMoves() {
+StatelessPlayer *CreateMinOpponentMoves() {
   return new MinOpponentMovesPlayer;
 }
 
-Player *CreateSuicideKing() {
+StatelessPlayer *CreateSuicideKing() {
   return new SuicideKingPlayer;
 }
 
-Player *CreateReverseStarting() {
+StatelessPlayer *CreateReverseStarting() {
   return new ReverseStartingPlayer;
 }
 
-Player *CreateHuddle() {
+StatelessPlayer *CreateHuddle() {
   return new HuddlePlayer;
 }
 
-Player *CreateSwarm() {
+StatelessPlayer *CreateSwarm() {
   return new SwarmPlayer;
 }
 
-Player *CreateGenerous() {
+StatelessPlayer *CreateGenerous() {
   return new GenerousPlayer;
 }
 
-Player *CreateNoIInsist() {
+StatelessPlayer *CreateNoIInsist() {
   return new NoIInsistPlayer;
 }
 
-Player *CreateSameColor() {
+StatelessPlayer *CreateSameColor() {
   return new SameColorPlayer;
 }
 
-Player *CreateOppositeColor() {
+StatelessPlayer *CreateOppositeColor() {
   return new OppositeColorPlayer;
 }
 
-Player *CreateMirrorYSymmetry() {
+StatelessPlayer *CreateMirrorYSymmetry() {
   return new MirrorYSymmetryPlayer;
 }
 
-Player *CreateMirrorXSymmetry() {
+StatelessPlayer *CreateMirrorXSymmetry() {
   return new MirrorXSymmetryPlayer;
 }
 
-Player *CreateSymmetry180() {
+StatelessPlayer *CreateSymmetry180() {
   return new Symmetry180Player;
 }
 
-Player *CreateSinglePlayer() {
+StatelessPlayer *CreateSinglePlayer() {
   return new SinglePlayerPlayer(1);
 }

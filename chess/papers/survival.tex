@@ -113,8 +113,7 @@ and yet want to live.\footnote{It is easy for two players to
     eyes. 
   \item[1.] \ldots Nf6. This is both a strong response for black in a real game,
     and simultaneously a signal that a draw is desired. The other
-    advantage is that very weak players may simply copy what white does.
-    % XXX potential citation to 'elo world' if players are stateful..
+    advantage is that very weak players\cite{eloworld} may simply copy what white does.
     In doing so, they will also play this move. 
   \item[2.] Ng1?!. White moves the knight back to its starting square.
     This is a terrible move for white, but clearly signals the intention to
@@ -129,8 +128,11 @@ and yet want to live.\footnote{It is easy for two players to
     time, which by rule\footnotemark\ is a draw.
 \end{enumerate}
 
-  Since this is one of the shortest possible routes to a draw, I hereby
-  dub this line the ``Fool's Draw,'' by analogy with the Fool's Mate.
+  Since this is one of the shortest possible routes to a draw, I
+  hereby dub this line the ``Fool's Draw,'' by analogy with the Fool's
+  Mate. In this line all pieces survive, which is anyway humane and
+  also advantageous in the case that you are someone is simultaneously
+  being one of the chesspieces to the death!
 
   If 1. \ldots Nc6 or another Knight's move, white can also consider
   continuing in the obvious way. However after 1. \ldots d5, black has
@@ -295,8 +297,8 @@ The final ranking that I committed to, from most surviving to most dead:
 As already copped to, while the author is an aficionado and also knows
 how to spell the difficult word aficionado without spell-check, he is
 not good at chess. A few drinking buddies with varying chessperience
-were also consulted for their wagers; these are compared in
-Section~\ref{sec:buddies}.
+were also consulted for their wagers; these are compared to each other
+and to the actual results in Section~\ref{sec:guesses}.
 
 
 \section{Methodology}
@@ -307,8 +309,14 @@ rated games from Jan 2013 to November 2018, in any time format. Only
 games that are completed and valid are included (about 200,000 games
 did not meet this criteria). The total data size is 875 gigabytes, so
 processing these took some care for efficiency and parallelism.
+Fortunately, I have a computer with just an obscene number of cores
+and truly excessive RAM, so you gotta use that for
+something.\footnote{ To torture your own desktop computer, source code
+  is available at
+  \url{sourceforge.net/p/tom7misc/svn/HEAD/tree/trunk/chess/}.}
 
-Other than that, I simply parsed and simulated each game. For each
+Other than that, I simply implemented the rules of chess, wrote a PGN
+parser, then parsed and simulated each game. For each
 of the 32 pieces in the starting position, I tracked its current
 location, and whether it is alive; multiple dead pieces could
 occupy the same square. At the end of the game, one of the kings is
@@ -328,7 +336,7 @@ represented in the variance estimate. This also helps account for
 different opening preferences; the chosen opening certainly affects
 the survival chances.
 
-\begin{figure}[htb]
+\begin{figure}[t]
   \begin{center}
     % To generate this pdf, I ran maketable to make
     % piece-survival.svg, then printed to PDF using Chrome, then
@@ -355,7 +363,7 @@ piece), and both white bishops, which die more than their
 Schwarzdoppelgangers. The \pawn e is vastly more dead than \Pawn e.
 Note somewhat satisfyingly that the \pawn c has the highest variance;
 this was the most controversial among the drinking buddies
-(Section~\ref{sec:XXXbuddies}). Note that \pawn c is the sacrificed
+(Section~\ref{sec:guesses}). Note that \pawn c is the sacrificed
 pawn in the popular Queen's Gambit (1. d4 d5 2. c4), where accepting
 and declining the pawn are both popular and sound responses. This may
 be a good example of a piece that has substantially different survival
@@ -372,11 +380,12 @@ as a result, the survival chances for the kings are both close to
 with all varieties of human skill (including over a thousand games by
 Magnus Carlsen, the world champion and highest rated player of all
 time\footnote{Although to be fair, his username ``DrDrunkenstein''
-  suggests he may not play at full strength.}), blitz ($\sim 5$ minutes
-per side) and bullet ($\sim 1$ minute) games are predominant. In
-Section~\ref{sec:slices} I show some slices of the data for
-comparison. % XXX could summarize whether this is a real effect or
-% not, once I have the slices!
+  suggests he may not play at full strength.}), blitz ($\sim\! 5$
+minutes per side) and bullet ($\sim\! 1$ minute) games are
+predominant. Nonetheless, the results are fairly robust across
+different time formats and skill levels. In Section~\ref{sec:slices} I
+show some slices of the data for comparison.
+
 
 \section{Safest spaces}
 
@@ -386,6 +395,8 @@ I also kept statistics on the fates of each piece. If being a chess
 piece to the death, and possessing some influence over where your piece
 moves, it may be helpful to know where to go. Even without influence,
 such knowledge could help calibrate your anxiety.
+
+% XXX using this a way to play the game
 
 Other than the bishops---which have no legal way to reach half of the
 squares---every piece ends on every square in at least a thousand
@@ -399,8 +410,8 @@ this square 31,438 times). This square is actually reachable without
 promoting, but it would need to capture 5 times in order to get
 there, which seems quite unlikely! There may even be a hidden
 achievement for reaching this square this way!
-% 12 times for titled players, although there are a few things that
-% are even rarer, like dying on a8.
+% 12 times for titled players (in new dataset too), although there are
+% a few things that are even rarer, like dying on a8.
 % TODO: Perhaps could find a game where this happened?!
 Aside from pawns, the weirdest fate is for \knight g to die on h1,
 which happened 47,307 times. Corners are of course fairly garbage for
@@ -462,7 +473,7 @@ are underlined for your convenience.
 \chessmap{piece30}{\knight g1}
 \chessmap{piece31}{\rook h1}
 
-\section{Guesses and slices}
+\section{Guesses and slices} \label{sec:guesses}
 
 \begin{figure}
   \includegraphics[width=\linewidth]{hypotheses}
@@ -476,26 +487,27 @@ are underlined for your convenience.
   } \label{fig:buddies}
 \end{figure}
 
-It is a good and humbling act to compare the actual results to the
-hypotheses gathered before the experiment. Figure~\ref{fig:buddies}
-compares the ranking across all games (slice {\bf Actual}) to the
-author author (slice {\bf Tom}) and his drinking buddies (slices {\bf
-  Ben}, {\bf Jim}, {\bf David}, {\bf William}). There are a number of
-different reasonable ways to measure the accuracy of this type of
-position; a very simple one is the sum of the absolute differences in
-rank for each piece (e.g. if in one ranking \king is \#3, and in the
-other \#5, then this contributes 2 to the total error). By this
-metric, Ben has the best prediction (98 error), followed by David
-(138) and Tom (148). Tom and David had the most similar predictions
-(116) and Jim and William the most different (312). The expected error
-between two completely random permutations is about 341, so all of
-these guesses are significantly better than chance. Note in the actual
-ranking, many pieces have very similar survival probabilities, and
-many guesses are ambivalent about groups of pieces. Weighting each
-rank difference equally is therefore an oversimplification. It would
-have been better to ask each participant to give probabilities, as
-David did; this would give us more sensitive error metrics and more
-opportunities to spend the afternoon making visualizations.
+Like all good scientific research, I explicitly compare the actual
+results to the hypotheses gathered before the experiment; this is a
+hygenic and humbling exercise. Figure~\ref{fig:buddies} compares the
+ranking across all games (slice {\bf Actual}) to the author author
+(slice {\bf Tom}) and his drinking buddies (slices {\bf Ben}, {\bf
+  Jim}, {\bf David}, {\bf William}). There are a number of different
+reasonable ways to measure the accuracy of this type of position; a
+very simple one is the sum of the absolute differences in rank for
+each piece (e.g. if in one ranking \king is \#3, and in the other \#5,
+then this contributes 2 to the total error). By this metric, Ben has
+the best prediction (98 error), followed by David (138) and Tom (148).
+Tom and David had the most similar predictions (116) and Jim and
+William the most different (312). The expected error between two
+completely random permutations is about 341, so all of these guesses
+are significantly better than chance. Note in the actual ranking, many
+pieces have very similar survival probabilities, and many guesses are
+ambivalent about groups of pieces. Weighting each rank difference
+equally is therefore an oversimplification. It would have been better
+to ask each participant to give probabilities, as David did; this
+would give us more sensitive error metrics and more opportunities to
+spend the afternoon making visualizations.
 
 Several drinking buddies gave rationales for their hypotheses (mine
 appear in Section~\ref{sec:hypotheses}).
@@ -589,6 +601,20 @@ remains to come up with this final answer shown above.
 
 
 \subsection{Slices} \label{sec:slices}
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{slices}
+  \caption{
+    Ranks and survival probabilities for different subsets of games.
+    The same piece in adjacent rows is connected to highlight
+    differences in the ranking, as before. The time formats all
+    exhibit similar ranking with only small perturbations. Games
+    including a titled player (rightmost column) are the most
+    different, although we have far fewer samples in this set,
+    so variance becomes significant.
+  } \label{fig:slices}
+\end{figure}
+
 The survival probabilities differ depending on the conditions of the
 game; Figure~\ref{fig:slices} compares some of those slices. Here the
 {\bf All} slice is the same as the {\bf Actual} slice in
@@ -597,21 +623,42 @@ database.
 
 The {\bf titled} slice includes only games where at least one of the
 players has an official title (Grandmaster, International Master, FIDE
-Master, etc.\footnote{Lichess used to award the LM ``Lichess Master'' title
-  to notable players on the site; this title is excluded.}). These
-games have high-quality play, although there are not many of them
-(only XXX), so the variance is somewhat higher. % XXX give error bounds?
+Master, etc.\footnote{Lichess used to award the LM ``Lichess Master''
+  title to notable players on the site; this title is excluded from
+  the sample.}). These games have high-quality play, but far fewer
+samples (``only'' 3.4 million). This set exhibits significant
+variance; for example, the survival rate of \pawn c ranges from
+$38$--$46\%$. This is both because of the small sample size and the
+bucketization by player name; there are few enough titled players that
+an individual's preference in openings and style of play moves the
+values of their entire bucket. I caution against reading too much into
+this column. It seems we can at least conclude that these games tend
+to be much bloodier (Kings aside, survival rates are lower across the
+board); top players are less likely to fall for traps early in the
+game, perhaps more willing to sacrifice material, and more likely to
+play into endgames where almost every piece is exchanged. If being a
+chesspiece to the death, you do {\em not} want to have a Grandmaster
+playing the game!
 
-The other slices, {\bf bullet}, {\bf blitz}, {\bf rapid} and {\bf
-  classical} are different time control formats. Games on Lichess are
-played with a starting clock (per side) and an increment added to the
-clock after each player's move. The total time is taken to be the
-starting time plus 40 times the increment (with the idea that an
-average game has 40 moves per side); this is the same formula that
-Lichess uses. A bullet game is when the total time per side is
-between 30~seconds and 3~minutes; blitz is between 3 and 8~minutes;
-rapid is between 8 and 25~minutes; classical is any more than this
-(including untimed games).
+% XXX give % error % bounds?
+
+On the other hand, the other slices all have enough samples that the
+variance is minimal. These slices, {\bf bullet} (151,261,707 games),
+{\bf blitz} (236,050,938 games), {\bf rapid} (98,606,558) and {\bf
+  classical} (13,886,352) are different time control formats. Games on
+Lichess are played with a starting clock (per side) and an increment
+added to the clock after each player's move. The game is classified
+according to the estimated total time: The starting time plus $40 \times$
+the increment (with the idea that an average game has 40 moves per
+side); this is the same formula that Lichess uses. A bullet game is
+when the total time per side is between 30~seconds and 3~minutes;
+blitz is between 3 and 8~minutes; rapid is between 8 and 25~minutes;
+classical is any more than this (including untimed games). Each of
+these slices has enough samples that the variance is very low.
+Here we see that the ranking is rather stable across the range of
+time formats, which was not what I expected. This should increase
+our confidence that the results are really inherent to chess, not
+just the particulars of this data set.
 
 
 % Battle chess

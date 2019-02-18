@@ -35,7 +35,7 @@ struct PlayerUtil {
 
 // Base class for a player orders by some metric on the board
 // state after the move, and breaks ties at random.
-struct EvalResultPlayer : public Player {
+struct EvalResultPlayer : public StatelessPlayer {
   EvalResultPlayer();
   
   // With smaller scores being better.
