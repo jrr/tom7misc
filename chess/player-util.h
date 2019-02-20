@@ -61,7 +61,7 @@ struct MakeStateless : public Player {
   struct MSGame : public PlayerGame {
     explicit MSGame(P *player) : player(player) {}
 
-    void ForceMove(Position::Move move) override { }
+    void ForceMove(const Position &pos, Position::Move move) override { }
     // Get a move for the current player in the current position.
     Position::Move GetMove(const Position &pos) override {
       return player->MakeMove(pos);

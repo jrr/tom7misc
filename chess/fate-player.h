@@ -9,4 +9,9 @@ Player *Dangerous();
 Player *Popular();
 Player *Rare();
 
+Player *Survivalist();
+Player *Fatalist();
+
+Player *Equalizer();
+
 #endif

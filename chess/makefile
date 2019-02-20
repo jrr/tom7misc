@@ -171,6 +171,9 @@ bench.exe : chess.o player.o bench.o player-util.o $(CCLIB_OBJECTS)
 chessmaster.exe : chess.o player.o player-util.o chessmaster.o chessmaster-main.o headless-graphics.o $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+testplayer.exe : chess.o player.o player-util.o fate-player.o all-fate-data.o chessmaster.o testplayer.o headless-graphics.o $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 pairs.exe : chess.o pairs.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 

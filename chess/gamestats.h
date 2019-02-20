@@ -30,6 +30,16 @@ struct GameStats {
 
   static constexpr uint8_t BLACK_QUEEN = 3;
   static constexpr uint8_t WHITE_QUEEN = 27;
+
+  // Return the piece index [0, 32) of the living piece at the given
+  // square, or -1 if none.
+  int PieceIndexAt(int r, int c) const {
+    uint8_t target = r * 8 + c;
+    for (int i = 0; i < 32; i++) {
+      if (fates[i] == target) return i;
+    }
+    return -1;
+  }
   
   void Update(const Position &pos, const Position::Move &move) {
     const uint8 src_pos = move.src_row * 8 + move.src_col;

@@ -50,7 +50,7 @@ using namespace std;
 // Number of round-robin rounds.
 // (Maybe should be based on the total number of games we want
 // to simulate?)
-static constexpr int THREADS = 28;
+static constexpr int THREADS = 52;
 static constexpr int ROUNDS_PER_THREAD = 1;
 static constexpr int TOTAL_ROUNDS = THREADS * ROUNDS_PER_THREAD;
 
@@ -62,29 +62,30 @@ const vector<Entrant> &GetEntrants() {
     new vector<Entrant>{
 			Safe,
 			Dangerous,
-			
+			Popular,
+			Rare,
+			Survivalist,
+			Fatalist,
 			// Worstfish,
-			Random,
 			/*
+			MinOpponentMoves,
+			MirrorYSymmetry,
+			MirrorXSymmetry,
+			Random,
+			Symmetry180,
 			FirstMove,
 			Alphabetical,
 			Pacifist,
 			Generous,
 			NoIInsist,
-			*/
-			MirrorYSymmetry,
-			/*
-			MirrorXSymmetry,
-			Symmetry180,
 			SameColor,
 			OppositeColor,
 			Huddle,
 			Swarm,
 			SuicideKing,
 			ReverseStarting,
-			MinOpponentMoves,
+			CCCP,
 			*/
-			// CCCP,
 			/*
 			Topple10K,
 			Topple1M,
@@ -95,8 +96,8 @@ const vector<Entrant> &GetEntrants() {
 			Stockfish10,
 			Stockfish15,
 			Stockfish20,
-			Stockfish1M,
 			*/
+			Stockfish1M,
   };
   return *entrants;
 }
@@ -104,7 +105,18 @@ const vector<Entrant> &GetEntrants() {
 // For backfill when adding a new entrant.
 // If non-null, only run cells that involve this player,
 // (and also avoid self-play).
-static const char *run_only = nullptr; // "stockfish1m";
+// static const char *run_only = "popular"; // "stockfish1m";
+
+// play players against themselves. This does not affect elo.
+static constexpr bool self_runs = true;
+static bool DoRun(const string &name) {
+  return name == "safe" ||
+    name == "dangerous" ||
+    name == "popular" ||
+    name == "rare" ||
+    name == "survivalist" ||
+    name == "fatalist";
+}
 
 // Under FIDE rules, after 50 moves without a pawn move or capture, a
 // player may CLAIM a draw. We don't allow these computer players to
@@ -167,9 +179,9 @@ Result PlayGame(Player *white_player, Player *black_player,
 	white_stale_moves++;
       }
 
+      white->ForceMove(pos, m);
+      black->ForceMove(pos, m);
       pos.ApplyMove(m);
-      white->ForceMove(m);
-      black->ForceMove(m);
       moves->push_back(m);
       
       // Checkmate takes precedence over draw by
@@ -204,9 +216,9 @@ Result PlayGame(Player *white_player, Player *black_player,
 	black_stale_moves++;
       }
 
+      white->ForceMove(pos, m);
+      black->ForceMove(pos, m);
       pos.ApplyMove(m);
-      white->ForceMove(m);
-      black->ForceMove(m);
       moves->push_back(m);
       
       if (!pos.HasLegalMoves()) {
@@ -235,6 +247,7 @@ struct Status {
   int total_games = 0;
   int done_games = 0;
   string row;
+  string col;
   string msg;
 };
 
@@ -265,11 +278,12 @@ static void ShowStatus(int64 now) {
 	 " -----------" ANSI_CLEARTOEOL "\n",
 	 done_all, total_all, minutes, seconds);
   for (int i = 0; i < status.size(); i++) {
-    printf(ANSI_GREY "[" ANSI_BLUE "% 2d. " ANSI_YELLOW "%.1f%%" ANSI_GREY "] " ANSI_GREEN "%s: "
+    printf(ANSI_GREY "[" ANSI_BLUE "% 2d. " ANSI_YELLOW "%.1f%%" ANSI_GREY "] " ANSI_GREEN "%s" ANSI_WHITE " vs " ANSI_GREEN "%s: "
 	   ANSI_WHITE "%s" ANSI_CLEARTOEOL "\n",
 	   i,
 	   (status[i].done_games * 100.0) / status[i].total_games,
 	   status[i].row.c_str(),
+	   status[i].col.c_str(),
 	   status[i].msg.c_str());
   }
 }
@@ -299,17 +313,27 @@ static void TournamentThread(int thread_id,
   }
   const int num_entrants = entrants.size();
 
-  // CHECK(outcomes->size() == num_entrants * num_entrants);
-
   {
-    MutexLock ml(&status_m);
-    status[thread_id].msg = "start";
-    if (run_only == nullptr) {
-      status[thread_id].total_games =
-	num_entrants * num_entrants * ROUNDS_PER_THREAD;
-    } else {
-      status[thread_id].total_games =
-	(num_entrants * 2 - 1) * ROUNDS_PER_THREAD;
+    int total_games = 0;
+    for (int w = 0; w < num_entrants; w++) {
+      const string white_name = entrants[w]->Name();
+      if (DoRun(white_name)) {
+	total_games += (num_entrants - (self_runs ? 0 : 1));
+      } else {
+	for (int b = 0; b < num_entrants; b++) {
+	  if ((self_runs || w != b) &&
+	      DoRun(entrants[b]->Name())) {
+	    total_games++;
+	  }
+	}
+      }
+    }
+    total_games *= ROUNDS_PER_THREAD;
+
+    {
+      MutexLock ml(&status_m);
+      status[thread_id].msg = "start";
+      status[thread_id].total_games = total_games;
     }
   }
 
@@ -321,20 +345,19 @@ static void TournamentThread(int thread_id,
       // Some have lower utilization than others.
       const int row = (thread_id + row_offset) % num_entrants;
 
-      string white_name = entrants[row]->Name();
-            
+      const string white_name = entrants[row]->Name();
+      const bool run_white = DoRun(white_name);
+      
       for (int col = 0; col < num_entrants; col++) {
 	// Maybe don't pit a player against itself? We ignore
 	// them in elo calculations anyway.
-	if (row == col &&
-	    run_only != nullptr)
+	if (row == col && !self_runs)
 	  continue;
 	
 	string black_name = entrants[col]->Name();
+	const bool run_black = DoRun(black_name);
 
-	if (run_only != nullptr &&
-	    white_name != run_only &&
-	    black_name != run_only)
+	if (!run_white && !run_black)
 	  continue;
 
 	int64 now = time(nullptr);
@@ -343,6 +366,7 @@ static void TournamentThread(int thread_id,
 	    MutexLock ml(&status_m);
 	    status[thread_id].msg = "running";
 	    status[thread_id].row = white_name;
+	    status[thread_id].col = black_name;
 	    status[thread_id].done_games = games_done;
 	  }
 	  ShowStatus(now);

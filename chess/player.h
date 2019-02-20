@@ -30,7 +30,8 @@ struct StatelessPlayer {
 // since it must be able to switch sides at a whim.
 struct PlayerGame {
   // Force a specific move, which changes the current side.
-  virtual void ForceMove(Position::Move move) = 0;
+  virtual void ForceMove(const Position &pos,
+			 Position::Move move) = 0;
   // Get a move for the current player in the current position.
   // pos is guaranteed to match the series of moves already
   // applied, in case the object does not want to track this.

@@ -9,6 +9,7 @@
 % blunderbuss
 % 
 
+Interpolation, like Scoville scale.
 
 % Dramatic failure of the "suicide king" strategy against
 % CCCP.
@@ -47,6 +48,34 @@
 29. Qd4 Ke6 30. Rc1 Bg7 31. Be1 Ra8 32. Rc2 Nc3
 33. Ra2 Ne7 34. Qxe4 Bf8 35. Kd8 Nxb5 36. Qxf5+ Kd6
 37. Qxd7+ Bxd7#
+
+
+% Fate-based algorithms.
+% The deterministic version is fairly boring, since the
+% highest probability states are similar to the starting
+% position (this might not be true for "survivalist"
+% or "fatalist"? check?)
+
+% weighted random is almost the same as random, because
+% the weights tend to be very similar when treated
+% additively. They perform slightly different from
+% random, as so (101.5 million games):
+
+%  player	elo	w/l/d
+%  dangerous	986.29	1374577/1501526/15683897
+%  popular	997.34	1360053/1502995/15696952
+%  random_move	1000.79	1540798/1337668/15681534
+%  rare	1005.85	1554600/1326707/15678693
+%  safe	1009.72	1341030/1502162/15716808
+
+% then with normalization:
+%  player	elo	w/l/d
+%  popular	990.93	25756/43561/346683
+%  safe	993.49	28082/40769/347149
+%  dangerous	996.60	30063/37451/348486
+%  rare	1005.82	50656/27390/337954
+%  random_move	1013.15	41747/27133/347120
+
 
 // Good site for some computer chess programs with ELO:
 // http://www.computerchess.org.uk/ccrl/404/
