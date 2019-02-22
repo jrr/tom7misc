@@ -15,4 +15,4 @@ group is
  ../sml-lib/util/stringutil-sig.sml
  ../sml-lib/util/stringutil.sml
 
- find.sml
+ findlogic.sml

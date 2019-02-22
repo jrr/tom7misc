@@ -95,24 +95,27 @@ I conclude with some wild speculation.
 
 \section{Real numbers}
 The real numbers are described by IEEE 754, most recently revised in
-2008\cite{ieee754}. Every real number has a sign, a mantissa, and an
+AD 2008\cite{ieee754}. Every real number has a sign, a mantissa, and an
 exponent. Actually, this understates the elegance of real numbers,
 since there are a number of numbers, such as \nan\ (``not a number'')
 which are not of this form; \nan\ nas no sign nor mantissa nor
 exponent. We also have \inf\ and $-\inf$, which do have a sign, but no
 mantissa nor exponent. These are the infinite numbers that you get if
 you count very high or very low. Excitingly, we also have both
-positive and negative versions of 0.
+positive and negative versions of 0. Some numbers have multiple
+representations, and most numbers cannot be represented at all.
 
 The real numbers have an equality operation {\tt ==}. This operation
 has some very exciting properties: It is not reflexive (\nan\ {\tt ==}
 \nan\ is false), and does not obey substitution (for $+0$ {\tt ==} $-0$
 is true, but $\sfrac{1}{+0}$ {\tt ==} $\sfrac{1}{-0}$ is false).
 
-Real numbers are an absolute joy to work with. 
+Real numbers are an absolute joy to work with.
 
 
 \subsection{Choosing some distinguished values} \label{sec:distinguished}
+
+
 
 use nan and inf because other real numbers can be ``easily confused''
 with one another. And do we really want ordering relationships on
@@ -121,7 +124,6 @@ our fundamental particles, like $0 < 1$?
 
 % really lean into the joke that we choose the "number" NAN
 
-\nocite{fluint8}
 
 ha okay now there is just notes
 
@@ -343,7 +345,7 @@ specification is parameterized to allow other bit widths; for example,
 half-precision 16-bit floats are common in GPU code for machine
 learning applications (XXX cite). Smaller floats sacrifice precision,
 but require less space and allow faster calculations. For our purposes
-in this paper, since we only need to represent the two values \nan\ and
+in this paper, since we only need to represent the two numbers \nan\ and
 \inf, we are interested in the smallest possible representation. 
 
 % TODO: what if each bit in the float is itself represented as
@@ -387,7 +389,7 @@ so $t = 1$ is the minimal size.
 We have one sign bit, two exponent bits, and one mantissa bit, for a
 total of four. Since ``single precision'' is 32 bits, ``half
 precision'' is 16, 4 bits is ``eighth precision.'' Given how nicely
-all this works out, shouldn't there be a {\tt eighth} base type in
+all this works out, shouldn't there be an {\tt eighth} base type in
 most modern programming languages and GPUs? Since there are so few
 values representable, it would be practical for all the standard
 operations to be done in constant time via table lookups. All 16
@@ -506,6 +508,97 @@ representable values are all reasonable-looking
 % When E=0 and T=0, we can only encode +/- zero. This definitely
 % involves some leaps (and is not closed as above), but could
 % we find expressions that work for just +/- 0?
+
+% hardware notes:
+% http://openocd.org/ looks like a good way to do in-device
+% programming like over SWD, because it runs on the pi. A board
+% could have jumpers or even software route to different
+% gpio pins. (You would need to run at 3v3 for this of course.)
+% I guess make sure the chip is compatible, but there are lots
+% explicitly listed.
+
+% Some supported devices:
+% AT91SAM7 - no fp in the M7
+% at91sam3u - no fp here either :/
+
+% LPC1700, LPC1800,
+% LPC2000, LPC4300, , STR7x, STR9x, LM3, STM32x and
+% EFM32
+
+% ok the STM32f3 is supported, has FPU, 51 IO pins,
+% here is an example breakout:
+% http://ebrombaugh.studionebula.com/embedded/stm32f303breakout/index.html
+% requires a crystal, voltage regulator, and some filter capacitors,
+% but looks manageable. (And the chip has some 5V tolerant TTL I/O
+% pins too, which could be nice for other projects)
+% also maybe a ferrite bead (for input to analog VDDA, so probably
+% not needed for this project)
+
+Idea: Make a FPU. How small could it be?
+I guess the simplest thing that could be described as faithful
+would compute the NAND function of two binary3 numbers, but on
+the entire domain. There are six input pins, three output pins,
+and a table size of 8^2 = 64.
+
+A nice simple nand function is
+f(x, y) = inf - max(x + y, -inf)
+
+What is a simple implementation of this function?
+It can only output inf or nan, so that's good. Of the three
+output pins, the first is always 0, the second always 1, so
+at worst we would just need a table of 64 bits for this last
+value.
+
+Further simplification:
+
+if isfinite(x) && isfinite(y)
+then
+  // inf - (x + y) = inf
+  0
+else
+// x + y is nan when x is nan, y is nan, or x and y are
+// infinites with different signs. If they are both -inf,
+// then we have max(-inf, -inf) anyway, which is the same
+// as max(nan, -inf). So we have
+  if x == inf && y == inf
+    // both positive infinities
+    // inf - inf = nan
+    1
+  else
+    // inf - -inf = inf
+    0
+
+So ultimately this function only returns 1 in the case
+that both inputs are exactly +inf, the pattern 0 1 0.
+
+If the inputs are a0 a1 a2, b0, b1, b2, and outputs
+are c0, c1, c2, then:
+c0 = 0
+c1 = 1
+c2 = !a0 && !a2 && !b0 && !b2 && a1 && b1
+
+// Could adapt find.sml to find solutions for this,
+// using only NAND. Only 2^6 = 64 possible values
+// for these variables
+
+let x = nand(a0, a2)   // !a0 || !a2
+let y = nand(b0, b2)   // !b0 || !b2
+
+let out = 
+
+#  0 & 0 & 0 &   $+0$ \\
+#  0 & 0 & 1 &   +1
+#  0 & 1 & 0 &   $+\infty$ \\
+#  0 & 1 & 1 &    \nan \\
+#  1 & 0 & 0 &   $-0$ \\
+#  1 & 0 & 1 &   $-1$ \\
+#  1 & 1 & 0 &   $-\infty$ \\
+#  1 & 1 & 1 &    \nan \\
+
+
+% would be cool if the meta NAND gate were addressable
+% from the rasberry pi (well duh of course it is?) because
+% then we could also use it to simulate itself in software
 
 \nocite{ieee754}
 \bibliography{nand}{}
