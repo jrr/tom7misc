@@ -118,16 +118,14 @@ struct
 
   val bingates =
     [(Plus, Real.+),
-     (Minus, Real.-),
+     (* (Minus, Real.-), *)
      (Times, Real.* ),
      (Div, Real./),
      (Hypot, hypot),
      (Rem, Real.rem),
-(*
      (Min, Real.min),
-     (Max, Real.max)
-*)
-     (* (CopySign, Real.copySign), *)
+     (Max, Real.max),
+     (CopySign, Real.copySign),
      (Pow, Math.pow),
      (Atan2, Math.atan2)
 
@@ -135,8 +133,9 @@ struct
 
   val ungates =
     [(Neg, Real.~),
-     (Abs, Real.abs),
+     (Abs, Real.abs)
 
+     (*
      (Sqrt, Math.sqrt),
      (Atan, Math.atan),
      (Tan, Math.tan),
@@ -148,6 +147,7 @@ struct
 
      (Exp, Math.exp),
      (Mod, Real.realMod)
+*)
      ]
 
 end
@@ -354,8 +354,57 @@ struct
       Real.toString d ^ "]"
   end
 
+    (* Once it gets long enough, just treat as n-ary *)
+  functor ValueList(val n : int) : ROW =
+  struct
+
+    exception ValueList of string
+    exception WrongLength
+
+    (* Of length exactly n. *)
+    type row = real list
+
+    fun compare (a :: ar, b :: br) =
+      (case rcomp (a, b) of
+        EQUAL => compare (ar, br)
+      | ord => ord)
+      | compare (nil, nil) = EQUAL
+      | compare _ = raise WrongLength
+
+         (*
+    val compare = fn (al, bl) =>
+      if length al <> 8 orelse length bl <> 8
+      then raise (ValueList (Int.toString (length al) ^ " v " ^
+                             Int.toString (length bl)))
+      else compare (al, bl)
+*)
+
+    fun make_nullary r = List.tabulate(n, fn _ => r)
+    fun apply_unary f l = List.map f l
+    fun apply_binary f (a :: al, b :: bl) =
+      f (a, b) :: apply_binary f (al, bl)
+      | apply_binary _ (nil, nil) = nil
+      | apply_binary _ _ = raise WrongLength
+
+    fun rtos l =
+      "[" ^
+      StringUtil.delimit ", " (map Real.toString l) ^
+      "]"
+  end
+
+  structure Truth3Table = ValueList(val n = 8)
+
   val nan = 0.0 / 0.0
   val inf = Real.posInf
+
+  fun is_special r =
+    Real.isNan r orelse
+    not (Real.isFinite r) orelse
+    Real.==(r, 0.0) orelse
+    Real.==(r, 1.0) orelse
+    Real.==(r, ~1.0) orelse
+    Real.==(r, 2.0) orelse
+    Real.==(r, ~2.0)
 
     (*
   structure DB = Database(structure R = PairRow)
@@ -363,6 +412,7 @@ struct
   val want = (inf, nan) : PairRow.row
   *)
 
+    (*
   structure DB = Database(structure R = TruthTable)
   val start = [(#"x", (nan, inf, nan, inf)),
                (#"y", (nan, nan, inf, inf))]
@@ -374,15 +424,6 @@ struct
 
   val want = table_nand
 
-  fun is_special r =
-    Real.isNan r orelse
-    not (Real.isFinite r) orelse
-    Real.==(r, 0.0) orelse
-    Real.==(r, 1.0) orelse
-    Real.==(r, ~1.0) orelse
-    Real.==(r, 2.0) orelse
-    Real.==(r, ~2.0)
-
   (* To cut down on search space, don't consider values outside
      this small set of distinguished ones. We assume that e.g.
      1.12346 is not going to give us any new behavior that we
@@ -390,6 +431,21 @@ struct
   fun only_special (a, b, c, d) =
     is_special a andalso is_special b andalso is_special c
     andalso is_special d
+  *)
+
+  structure Row = Truth3Table
+  structure DB = Database(structure R = Row)
+  (* Full adder is three inputs, two outputs *)
+  val start = [(#"x", [nan, nan, nan, nan, inf, inf, inf, inf]),
+               (#"y", [nan, nan, inf, inf, nan, nan, inf, inf]),
+               (#"z", [nan, inf, nan, inf, nan, inf, nan, inf])]
+
+  val want_sum =   [nan, inf, inf, nan, inf, nan, nan, inf]
+  val want_carry = [nan, nan, nan, inf, nan, inf, inf, inf]
+
+  val want = want_sum
+
+  fun only_special l = List.all is_special l
 
   val db = DB.init only_special start
   fun expand () =
@@ -405,7 +461,7 @@ struct
   fun printdb () =
     let in
       DB.app (fn (row, exp) =>
-              print (TruthTable.rtos row ^ " = " ^ Exp.etos exp ^ "\n")) db
+              print (Row.rtos row ^ " = " ^ Exp.etos exp ^ "\n")) db
     end
 
 end
