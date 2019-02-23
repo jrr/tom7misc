@@ -20,36 +20,38 @@ struct
     case u of
       Not => "Not"
 
+  datatype wire =
+      Zero
+    | One
+
+  fun wtos w =
+    case w of
+      Zero => "0"
+    | One => "1"
+
+  val bingates = [Nand]
+  val ungates = [Not]
+  val wires = [Zero, One]
+
   datatype exp =
     Bingate of bingate * exp * exp
   | Ungate of ungate * exp
-  | Zero
-  | One
+  | Wire of wire
   | Atom of char
 
   fun etos e =
     case e of
       Bingate (b, aa, bb) => btos b ^ "(" ^ etos aa ^ ", " ^ etos bb ^ ")"
     | Ungate (u, a) => utos u ^ "(" ^ etos a ^ ")"
-    | Zero => "0"
-    | One => "1"
+    | Wire w => wtos w
     | Atom c => implode [c]
 
   fun esize e =
     case e of
       Bingate (_, a, b) => 1 + esize a + esize b
     | Ungate (_, a) => 1 + esize a
-    | _ => 1
-
-  val nullgates =
-    [(Zero, false),
-     (One, true)]
-
-  val bingates =
-    [(Nand, (fn (a, b) => not (a andalso b)))]
-
-  val ungates =
-    [(Not, not)]
+    | Wire _ => 1
+    | Atom _ => 1
 
 end
 
@@ -61,13 +63,12 @@ sig
      and build splay set *)
   val compare : row * row -> order
 
-  val make_nullary : bool -> row
+  val make_wire : Exp.wire -> row
   (* Pointwise *)
-  val apply_unary : (bool -> bool) -> row -> row
-  val apply_binary : (bool * bool -> bool) -> (row * row) -> row
+  val apply_unary : Exp.ungate -> row -> row
+  val apply_binary : Exp.bingate -> (row * row) -> row
 
   val rtos : row -> string
-
 end
 
 signature DATABASE =
@@ -78,7 +79,8 @@ sig
      unspecified source row. *)
   type db
 
-  (* Create a database initialized with the atoms (and other nullary
+  (* init filter rows
+     Create a database initialized with the atoms (and other wire
      rows). Only rows that pass the filter function are ever inserted. *)
   val init : (row -> bool) -> (char * row) list -> db
 
@@ -106,7 +108,7 @@ struct
   fun size (_, ref m) = RM.numItems m
 
   (* TODO: Mark inserted stuff as 'new'? *)
-  fun maybe_update_db ((filter, m), row, exp) =
+  fun maybe_update_db ((filter, m), row : R.row, exp : Exp.exp) =
     if filter row
     then
       (case RM.find (!m, row) of
@@ -134,16 +136,16 @@ struct
            end)
     else ()
 
-  fun init filter l =
+  fun init filter (l : (char * R.row) list) =
     let
       val db = (filter, ref RM.empty)
       fun add_atom (c, row) =
         maybe_update_db (db, row, Atom c)
-      fun add_null (n, r) =
-        maybe_update_db (db, R.make_nullary r, n)
+      fun add_wire (n : Exp.wire) =
+        maybe_update_db (db, R.make_wire n, Exp.Wire n)
     in
       app add_atom l;
-      app add_null Exp.nullgates;
+      app add_wire Exp.wires;
       db
     end
 
@@ -152,10 +154,10 @@ struct
      and update it. *)
   fun expand_unary (db as (_, ref start_map)) =
     let
-      fun one (u : Exp.ungate, f : bool -> bool) =
+      fun one (u : Exp.ungate) =
         RM.appi (fn (row_src, exp) =>
                  let
-                   val row_dst = R.apply_unary f row_src
+                   val row_dst = R.apply_unary u row_src
                    val exp_dst = Exp.Ungate (u, exp)
                  in
                    maybe_update_db (db, row_dst, exp_dst)
@@ -168,13 +170,13 @@ struct
     let
       (* Only consider stuff currently in the db, not things
          that are added in this pass. *)
-      fun one (b : Exp.bingate, f : bool * bool -> bool) =
+      fun one (b : Exp.bingate) =
         RM.appi
         (fn (row_srca, expa) =>
          RM.appi
          (fn (row_srcb, expb) =>
           let
-            val row_dst = R.apply_binary f (row_srca, row_srcb)
+            val row_dst = R.apply_binary b (row_srca, row_srcb)
             val exp_dst = Exp.Bingate (b, expa, expb)
           in
             maybe_update_db (db, row_dst, exp_dst)
@@ -194,66 +196,59 @@ structure Find =
 struct
   exception Find of string
 
-  fun rcomp (false, true) = LESS
-    | rcomp (true, false) = GREATER
-    | rcomp _ = EQUAL
-
-  (* Once it gets long enough, just treat as n-ary.
-
-     Here for example we can have a 64-element list
-     corresponding to each of 2^8 inputs. *)
-  functor ValueList(val n : int) : ROW =
+  structure WordRow =
   struct
-
-    exception ValueList of string
+    type row = Word64.word
+    val compare = Word64.compare
     exception WrongLength
 
-    (* Of length exactly n. *)
-    type row = bool list
+    fun fromlist l =
+      let
+        fun fl (w, nil, 0) = w
+          | fl (w, h :: t, n) =
+          fl (Word64.orb(Word64.<<(w, 0w1),
+                         if h then 0w1 else 0w0), t, n - 1)
+          | fl _ = raise WrongLength
+      in
+        fl (0w0, l, 64)
+      end
 
-    fun compare (a :: ar, b :: br) =
-      (case rcomp (a, b) of
-        EQUAL => compare (ar, br)
-      | ord => ord)
-      | compare (nil, nil) = EQUAL
-      | compare _ = raise WrongLength
+    fun make_wire Exp.Zero = fromlist (List.tabulate (64, fn _ => false))
+      | make_wire Exp.One = fromlist (List.tabulate (64, fn _ => true))
 
-    fun make_nullary r = List.tabulate(n, fn _ => r)
-    fun apply_unary f l = List.map f l
-    fun apply_binary f (a :: al, b :: bl) =
-      f (a, b) :: apply_binary f (al, bl)
-      | apply_binary _ (nil, nil) = nil
-      | apply_binary _ _ = raise WrongLength
+    fun apply_unary Exp.Not w = Word64.notb w
+    fun apply_binary Exp.Nand (a, b) =
+      Word64.notb(Word64.andb(a, b))
 
-    fun rtos l =
-      "[" ^
-      StringUtil.delimit ", " (map (fn true => "1" | false => "0") l) ^
-      "]"
+    fun rtos w = Word64.toString w
   end
 
-  (* structure Truth3Table = ValueList(val n = 8) *)
-  structure Truth8Table = ValueList(val n = 64)
-
-
-  structure Row = Truth8Table
+  structure Row = WordRow
   structure DB = Database(structure R = Row)
   (* Full adder is three inputs, two outputs *)
 
-  val a0 = List.tabulate(64, fn x => (x div 32) mod 2 = 0)
-  val a1 = List.tabulate(64, fn x => (x div 16) mod 2 = 0)
-  val a2 = List.tabulate(64, fn x => (x div 8) mod 2 = 0)
-  val b0 = List.tabulate(64, fn x => (x div 4) mod 2 = 0)
-  val b1 = List.tabulate(64, fn x => (x div 2) mod 2 = 0)
-  val b2 = List.tabulate(64, fn x => x mod 2 = 0)
+  val a0 = WordRow.fromlist (List.tabulate(64, fn x => (x div 32) mod 2 = 0))
+  val a1 = WordRow.fromlist (List.tabulate(64, fn x => (x div 16) mod 2 = 0))
+  val a2 = WordRow.fromlist (List.tabulate(64, fn x => (x div 8) mod 2 = 0))
+  val b0 = WordRow.fromlist (List.tabulate(64, fn x => (x div 4) mod 2 = 0))
+  val b1 = WordRow.fromlist (List.tabulate(64, fn x => (x div 2) mod 2 = 0))
+  val b2 = WordRow.fromlist (List.tabulate(64, fn x => x mod 2 = 0))
 
-  val f = List.tabulate(64, fn x => x = 45)
+  val a02 = WordRow.apply_binary Exp.Nand (a0, a2)
+  val b02 = WordRow.apply_binary Exp.Nand (b0, b2)
 
-  val start = [(#"a", a0),
+  val f = WordRow.fromlist (List.tabulate(64, fn x => x = 45))
+
+  val start = [(* (#"a", a0), *)
                (#"b", a1),
-               (#"c", a2),
-               (#"d", b0),
+               (* (#"c", a2), *)
+               (* (#"d", b0), *)
                (#"e", b1),
-               (#"f", b2)]
+               (* (#"f", b2) *)
+
+               (#"x", a02),
+               (#"y", b02)
+               ]
 
   val want = f
 
