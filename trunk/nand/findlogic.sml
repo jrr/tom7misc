@@ -7,11 +7,15 @@ Control.Print.printLength := 1000;
 structure Exp =
 struct
   (* Logic gates *)
-  datatype bingate = Nand
+  datatype bingate =
+    Nand | Or | Xor | And
 
   fun btos b =
     case b of
       Nand => "Nand"
+    | Or => "Or"
+    | Xor => "Xor"
+    | And => "And"
 
   datatype ungate =
     Not
@@ -29,7 +33,7 @@ struct
       Zero => "0"
     | One => "1"
 
-  val bingates = [Nand]
+  val bingates = [Nand, Or, Xor, And]
   val ungates = [Not]
   val wires = [Zero, One]
 
@@ -219,6 +223,9 @@ struct
     fun apply_unary Exp.Not w = Word64.notb w
     fun apply_binary Exp.Nand (a, b) =
       Word64.notb(Word64.andb(a, b))
+      | apply_binary Exp.Or (a, b) = Word64.orb(a, b)
+      | apply_binary Exp.Xor (a, b) = Word64.xorb(a, b)
+      | apply_binary Exp.And (a, b) = Word64.andb(a, b)
 
     fun rtos w = Word64.toString w
   end
@@ -234,21 +241,33 @@ struct
   val b1 = WordRow.fromlist (List.tabulate(64, fn x => (x div 2) mod 2 = 0))
   val b2 = WordRow.fromlist (List.tabulate(64, fn x => x mod 2 = 0))
 
-  val a02 = WordRow.apply_binary Exp.Nand (a0, a2)
-  val b02 = WordRow.apply_binary Exp.Nand (b0, b2)
+  val a02 = WordRow.apply_binary Exp.Nand (WordRow.apply_unary Exp.Not a0,
+                                           WordRow.apply_unary Exp.Not a2)
+  val b02 = WordRow.apply_binary Exp.Nand (WordRow.apply_unary Exp.Not b0,
+                                           WordRow.apply_unary Exp.Not b2)
+  val z = WordRow.apply_binary Exp.Nand (a1, b1)
 
   val f = WordRow.fromlist (List.tabulate(64, fn x => x = 45))
 
   val start = [(* (#"a", a0), *)
-               (#"b", a1),
+               (* (#"b", a1), *)
                (* (#"c", a2), *)
                (* (#"d", b0), *)
-               (#"e", b1),
+               (* (#"e", b1), *)
                (* (#"f", b2) *)
 
                (#"x", a02),
-               (#"y", b02)
+               (#"y", b02),
+               (#"z", z)
                ]
+
+  (* We know that the last step has to take the form Nand(g, h)
+     where g and h are 1 in every position except for the 45th
+     bit. So first find 11111111...0...111111.
+     If we have that, then we are done, because NAND(g, g) will
+     work. If g were actually all ones, then h would have to
+     be of that form (because nand of both would yield zero). *)
+  val g = WordRow.fromlist (List.tabulate(64, fn x => x = 45))
 
   val want = f
 
