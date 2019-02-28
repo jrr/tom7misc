@@ -290,7 +290,7 @@ Here are my guesses.
   lost to this fate.
 \end{itemize}
 
-The final ranking that I committed to, from most surviving to most dead:
+The final ranking that I predict, from most surviving to most dead:
 \pawn f, \pawn c, \pawn g, \pawn a, \pawn h, \pawn b, \rook h, \rook a,
 \king, \queen, \bishop f, \knight g, \pawn e, \pawn d.
 
@@ -365,7 +365,7 @@ Note somewhat satisfyingly that the \pawn c has the highest variance;
 this was the most controversial among the drinking buddies
 (Section~\ref{sec:guesses}). Note that \pawn c is the sacrificed
 pawn in the popular Queen's Gambit (1. d4 d5 2. c4), where accepting
-and declining the pawn are both popular and sound responses. This may
+and declining the pawn are both common and sound responses. This may
 be a good example of a piece that has substantially different survival
 rates in different opening preferences. Since the variance is
 otherwise extremely low, I only report means for the remainder of the
@@ -396,8 +396,6 @@ piece to the death, and possessing some influence over where your piece
 moves, it may be helpful to know where to go. Even without influence,
 such knowledge could help calibrate your anxiety.
 
-% XXX using this a way to play the game
-
 Other than the bishops---which have no legal way to reach half of the
 squares---every piece ends on every square in at least a thousand
 games. So we have enough samples to have reasonable confidence in our
@@ -414,26 +412,26 @@ achievement for reaching this square this way!
 % a few things that are even rarer, like dying on a8.
 % TODO: Perhaps could find a game where this happened?!
 Aside from pawns, the weirdest fate is for \knight g to die on h1,
-which happened 47,307 times. Corners are of course fairly garbage for
-the knight, although it is twice as likely to survive on this square.
+which happened 47,307 times. Corners are of course garbage for the
+knight, although it is twice as likely to survive on this square.
 
-% There may even be hidden achievements for reaching these squares!
+There are characteristic patterns for each of the pieces, which make
+sense given their starting positions movement rules. You could
+probably guess the piece just by looking at one of the heat maps
+below, although---spoiler alert---the piece is just listed right there
+and they are in order. Two independent things are communicated in
+these graphics: The chance that the piece ends the game on some square
+(alive or dead), and its survival chances there. In each map, a darker
+background color indicates that the piece ends on that square more
+often. The shade is based on the rank (64/64 black is most common,
+63/64 black is next most common, etc.) rather than the absolute
+probability, since otherwise the graphic looks boring. The number on
+the square is the percentage survival of the piece when it is last
+seen (either being captured or surviving to the end of the game) on
+that square. The four squares with the highest survival rates are
+underlined for your convenience.
 
-That said, there are characteristic patterns for each of the pieces,
-which make sense given their starting positions and patterns of
-movement. You could probably guess the piece just by looking at one of
-the heat maps below, although---spoiler alert---the piece is just
-listed right there and they are in order. Two independent things are
-communicated in these graphics: The chance that the piece ends the
-game on some square (alive or dead), and its survival chances there.
-In each map, a darker background color indicates that the piece ends
-on that square more often. The shade is based on the rank (64/64 black
-is most common, 63/64 black is next most common, etc.) rather than the
-absolute probability, since otherwise the graphic looks boring. The
-number on the square is the percentage survival of the piece when it
-is last seen (either being captured or surviving to the end of the
-game) on that square. The four squares with the highest survival rates
-are underlined for your convenience.
+\clearpage
 
 \newcommand{\chessmap}[2]{\begin{center} \includegraphics[width=0.65 \linewidth]{#1} {#2} \end{center}\vspace{-0.1in}}
 
@@ -473,19 +471,21 @@ are underlined for your convenience.
 \chessmap{piece30}{\knight g1}
 \chessmap{piece31}{\rook h1}
 
-\section{Guesses and slices} \label{sec:guesses}
+\clearpage
 
-\begin{figure}
-  \includegraphics[width=\linewidth]{hypotheses}
-  \caption{
-    Piece rankings (from most surviving to most dead); either a
-    human or hypothesis or the actual results across all games. 
-    The {\bf actual} column appears multiple times so that each human
-    gets a chance to be adjacent to it; this makes for the easiest
-    visual comparison. Lines connect the same piece in adjacent columns,
-    and are darker if the pairs have more different ranks.
-  } \label{fig:buddies}
-\end{figure}
+Aside from admiring the groovy pictures, the data can also be used as
+the basis of an algorithm for playing chess. There are several things
+to try; we could move pieces towards squares where they are more
+likely to survive than die (keeping pieces alive is good), or just
+towards squares where they are more likely to be positioned at the end
+of the game (our moves are more likely to resemble real chess moves
+because they put pieces in their proper places). Alas, it turns out
+that these are bad approaches to chess, both because they are boring
+(most pieces are actually most comfortable in their starting
+positions) and because they perform badly against even weak
+opponents~\cite{eloworld}.
+
+\section{Guesses and slices} \label{sec:guesses}
 
 Like all good scientific research, I explicitly compare the actual
 results to the hypotheses gathered before the experiment; this is a
@@ -542,6 +542,18 @@ this pawn is a super goner (sicilian, QGA, ...) (\pawn c)
 most doomed seem to be the minor pieces as i'd guess at least half of
 them get traded off on c/f/3/6 or e/d/4/5 in near every game so (\bishop c, \bishop f, \knight b, \knight g)
 \end{quote}
+
+\begin{figure}[t]
+  \includegraphics[width=\linewidth]{hypotheses}
+  \caption{
+    Piece rankings (from most surviving to most dead); either a
+    human or hypothesis or the actual results across all games. 
+    The {\bf actual} column appears multiple times so that each human
+    gets a chance to be adjacent to it; this makes for the easiest
+    visual comparison. Lines connect the same piece in adjacent columns,
+    and are darker if the pairs have more different ranks.
+  } \label{fig:buddies}
+\end{figure}
 
 {\bf Jim} ``barely understands the rules of chess'' and ``rarely plays.'' His justifications get ``increasingly nonsensical:''
 
@@ -617,11 +629,11 @@ remains to come up with this final answer shown above.
 
 The survival probabilities differ depending on the conditions of the
 game; Figure~\ref{fig:slices} compares some of those slices. Here the
-{\bf All} slice is the same as the {\bf Actual} slice in
+{\bf All} slice is the same as the {\bf Actual} column in
 Figure~\ref{fig:buddies}, and consists of all acceptable games in the
 database.
 
-The {\bf titled} slice includes only games where at least one of the
+The {\bf Titled} slice includes only games where at least one of the
 players has an official title (Grandmaster, International Master, FIDE
 Master, etc.\footnote{Lichess used to award the LM ``Lichess Master''
   title to notable players on the site; this title is excluded from
@@ -630,7 +642,7 @@ samples (``only'' 3.4 million). This set exhibits significant
 variance; for example, the survival rate of \pawn c ranges from
 $38$--$46\%$. This is both because of the small sample size and the
 bucketization by player name; there are few enough titled players that
-an individual's preference in openings and style of play moves the
+an individual's preference in openings and style of play changes the
 values of their entire bucket. I caution against reading too much into
 this column. It seems we can at least conclude that these games tend
 to be much bloodier (Kings aside, survival rates are lower across the
@@ -643,9 +655,9 @@ playing the game!
 % XXX give % error % bounds?
 
 On the other hand, the other slices all have enough samples that the
-variance is minimal. These slices, {\bf bullet} (151,261,707 games),
-{\bf blitz} (236,050,938 games), {\bf rapid} (98,606,558) and {\bf
-  classical} (13,886,352) are different time control formats. Games on
+variance is minimal. These slices, {\bf Bullet} (151,261,707 games),
+{\bf Blitz} (236,050,938 games), {\bf Rapid} (98,606,558) and {\bf
+  Classical} (13,886,352) are different time control formats. Games on
 Lichess are played with a starting clock (per side) and an increment
 added to the clock after each player's move. The game is classified
 according to the estimated total time: The starting time plus $40 \times$
