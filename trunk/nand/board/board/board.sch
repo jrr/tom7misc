@@ -1,4 +1,5 @@
 EESchema Schematic File Version 4
+LIBS:board-cache
 EELAYER 26 0
 EELAYER END
 $Descr A4 8268 11693 portrait
@@ -1493,12 +1494,6 @@ Wire Wire Line
 Connection ~ 4150 2250
 Wire Wire Line
 	4150 2250 4300 2250
-Connection ~ 4450 2900
-Wire Wire Line
-	4450 2900 4500 2900
-Connection ~ 4450 3000
-Wire Wire Line
-	4450 3000 4500 3000
 $Comp
 L boardparts:PTS645SJH73LFS SW1
 U 1 1 5E8B971D

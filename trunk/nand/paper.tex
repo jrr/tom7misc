@@ -112,6 +112,10 @@ is true, but $\sfrac{1}{+0}$ {\tt ==} $\sfrac{1}{-0}$ is false).
 
 Real numbers are an absolute joy to work with.
 
+Beautiful identities such as
+
+$0^{\nan * \inf} = 1$
+
 
 \subsection{Choosing some distinguished values} \label{sec:distinguished}
 
@@ -542,6 +546,9 @@ I guess the simplest thing that could be described as faithful
 would compute the NAND function of two binary3 numbers, but on
 the entire domain. There are six input pins, three output pins,
 and a table size of 8^2 = 64.
+
+inf is logic true, 010 binary3
+nan is logic false, 011 binary3
 
 A nice simple nand function is
 f(x, y) = inf - max(x + y, -inf)
