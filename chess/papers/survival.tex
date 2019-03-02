@@ -128,10 +128,12 @@ and yet want to live.\footnote{It is easy for two players to
     time, which by rule\footnotemark\ is a draw.
 \end{enumerate}
 
+\clearpage
+
   Since this is one of the shortest possible routes to a draw, I
   hereby dub this line the ``Fool's Draw,'' by analogy with the Fool's
   Mate. In this line all pieces survive, which is anyway humane and
-  also advantageous in the case that you are someone is simultaneously
+  also advantageous in the case that you or someone is simultaneously
   being one of the chesspieces to the death!
 
   If 1. \ldots Nc6 or another Knight's move, white can also consider
@@ -256,7 +258,7 @@ answer as I'm writing this, nor whether it is interesting in any way!
 Here are my guesses.
 
 \begin{itemize}
-\item Black and white are probably not significantly different. That
+\item Black and white are probably not substantially different. That
   is, the a1 and a8 rooks probably have about the same survival
   chances (it's known that white has a slight statistical
   advantage~\cite{chesstego} but it is probably only around 1\%). So
@@ -431,8 +433,6 @@ seen (either being captured or surviving to the end of the game) on
 that square. The four squares with the highest survival rates are
 underlined for your convenience.
 
-\clearpage
-
 \newcommand{\chessmap}[2]{\begin{center} \includegraphics[width=0.65 \linewidth]{#1} {#2} \end{center}\vspace{-0.1in}}
 
 \chessmap{piece0}{\Rook a8}
@@ -471,8 +471,6 @@ underlined for your convenience.
 \chessmap{piece30}{\knight g1}
 \chessmap{piece31}{\rook h1}
 
-\clearpage
-
 Aside from admiring the groovy pictures, the data can also be used as
 the basis of an algorithm for playing chess. There are several things
 to try; we could move pieces towards squares where they are more
@@ -488,7 +486,7 @@ opponents~\cite{eloworld}.
 \section{Guesses and slices} \label{sec:guesses}
 
 Like all good scientific research, I explicitly compare the actual
-results to the hypotheses gathered before the experiment; this is a
+results to the hypotheses gathered before the experiment; this is an
 hygenic and humbling exercise. Figure~\ref{fig:buddies} compares the
 ranking across all games (slice {\bf Actual}) to the author author
 (slice {\bf Tom}) and his drinking buddies (slices {\bf Ben}, {\bf
@@ -614,7 +612,7 @@ remains to come up with this final answer shown above.
 
 \subsection{Slices} \label{sec:slices}
 
-\begin{figure}
+\begin{figure}[t]
   \includegraphics[width=\linewidth]{slices}
   \caption{
     Ranks and survival probabilities for different subsets of games.
