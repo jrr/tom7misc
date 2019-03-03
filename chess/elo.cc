@@ -29,7 +29,7 @@ static constexpr double ELO_START = 1000.0;
 // in the elo calculation, sample this many games from each cell
 // instead of using them all. There must be at least this many
 // games in each cell. If 0, don't sample.
-static constexpr int SAMPLE_N = 64;
+static constexpr int SAMPLE_N = 71;
 
 struct Elo {
   double elo = ELO_START;

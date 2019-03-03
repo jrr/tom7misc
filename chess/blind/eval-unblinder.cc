@@ -96,6 +96,13 @@ bool PieceMatch(uint8 p1, uint8 p2) {
 
 int main(int argc, char **argv) {
 
+  string model = "net.val";
+  if (argc > 1) {
+    model = argv[1];
+  }
+
+  fprintf(stderr, "Evaluating model %s...\n", model.c_str());
+  fflush(stderr);
   Timer positions_timer;
   vector<Position> positions = 
     LoadPositions(
@@ -108,7 +115,8 @@ int main(int argc, char **argv) {
   fflush(stderr);
   
   Timer model_timer;
-  std::unique_ptr<Unblinder> unblinder{UnblinderMk0::LoadFromFile("net.val")};
+  std::unique_ptr<Unblinder> unblinder{UnblinderMk0::LoadFromFile(model)};
+  CHECK(unblinder.get()) << model;
   fprintf(stderr, "Loaded model in %.2fs\n",
 	  model_timer.MS() / 1000.0);
   fflush(stderr);
