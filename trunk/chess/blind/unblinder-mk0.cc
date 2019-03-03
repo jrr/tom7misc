@@ -43,6 +43,8 @@ using uint64 = uint64_t;
 
 using Move = Position::Move;
 
+static constexpr bool VERBOSE = false;
+
 namespace {
 
 #define NUM_CONTENTS 13
@@ -435,11 +437,11 @@ static void ComputeInvertedIndices(Network *net) {
 
 // Caller owns new-ly allocated Network object.
 static Network *ReadNetworkBinary(const string &filename) {
-  printf("Reading [%s]\n", filename.c_str());
+  if (VERBOSE) printf("Reading [%s]\n", filename.c_str());
   FILE *file = fopen(filename.c_str(), "rb");
   if (file == nullptr) {
-    printf("  ... failed. If it's present, there may be a "
-	   "permissions problem?\n");
+    if (VERBOSE) printf("  ... failed. If it's present, there may be a "
+			"permissions problem?\n");
     return nullptr;
   }
 
@@ -474,12 +476,12 @@ static Network *ReadNetworkBinary(const string &filename) {
   // These values determine the size of the network vectors.
   int file_num_layers = Read32();
   CHECK_GE(file_num_layers, 0);
-  printf("%s: %d layers.\n", filename.c_str(), file_num_layers);
+  if (VERBOSE) printf("%s: %d layers.\n", filename.c_str(), file_num_layers);
   vector<int> num_nodes(file_num_layers + 1, 0);
-  printf("%s: num nodes: ", filename.c_str());
+  if (VERBOSE) printf("%s: num nodes: ", filename.c_str());
   for (int i = 0; i < file_num_layers + 1; i++) {
     num_nodes[i] = Read32();
-    printf("%d ", num_nodes[i]);
+    if (VERBOSE) printf("%d ", num_nodes[i]);
   }
 
   vector<int> width, height, channels;
@@ -493,7 +495,7 @@ static Network *ReadNetworkBinary(const string &filename) {
   CHECK(num_nodes.size() == height.size());
   CHECK(num_nodes.size() == channels.size());
 
-  printf("\n%s: indices per node/fns: ", filename.c_str());
+  // printf("\n%s: indices per node/fns: ", filename.c_str());
   vector<int> indices_per_node(file_num_layers, 0);
   vector<TransferFunction> transfer_functions(file_num_layers, SIGMOID);
   for (int i = 0; i < file_num_layers; i++) {
@@ -501,11 +503,11 @@ static Network *ReadNetworkBinary(const string &filename) {
     TransferFunction tf = (TransferFunction)Read32();
     CHECK(tf >= 0 && tf < NUM_TRANSFER_FUNCTIONS) << tf;
     transfer_functions[i] = tf;
-    printf("%d %s ",
-	   indices_per_node[i],
-	   TransferFunctionName(tf));
+    if (VERBOSE) printf("%d %s ",
+			indices_per_node[i],
+			TransferFunctionName(tf));
   }
-  printf("\n");
+  if (VERBOSE) printf("\n");
 
   std::unique_ptr<Network> net{new Network{num_nodes, indices_per_node, transfer_functions}};
   net->width = width;
@@ -525,13 +527,13 @@ static Network *ReadNetworkBinary(const string &filename) {
   }
 
   fclose(file);
-  printf("Read from %s.\n", filename.c_str());
+  if (VERBOSE) printf("Read from %s.\n", filename.c_str());
 
   // Now, fill in the inverted indices. These are not stored in the file.
 
-  printf("Invert index:\n");
+  if (VERBOSE) printf("Invert index:\n");
   ComputeInvertedIndices(net.get());
-  printf("Check it:\n");
+  if (VERBOSE) printf("Check it:\n");
   CheckInvertedIndices(*net);
 
   return net.release();
@@ -645,10 +647,9 @@ struct UnblinderMk0Impl : public Unblinder {
 			net->examples);
   }
 
-  Position Unblind(uint64 bits) const override {
-    Stimulation stim{*net};
+  void Stimulate(uint64 bits, Stimulation *stim) const {
     // Initialize input layer.
-    Unblinder::Layer64(bits, &stim.values[0]);
+    Unblinder::Layer64(bits, &stim->values[0]);
 
     // PERF: For this size of network we probably benefit from parallelizing a little...
     for (int src = 0; src < net->num_layers; src++) {
@@ -660,8 +661,8 @@ struct UnblinderMk0Impl : public Unblinder {
 	  return (potential < 0.0f) ? potential * 0.01f : potential;
 	};
 
-      const vector<float> &src_values = stim.values[src];
-      vector<float> *dst_values = &stim.values[src + 1];
+      const vector<float> &src_values = stim->values[src];
+      vector<float> *dst_values = &stim->values[src + 1];
       const vector<float> &biases = net->layers[src].biases;
       const vector<float> &weights = net->layers[src].weights;
       const vector<uint32> &indices = net->layers[src].indices;
@@ -683,7 +684,11 @@ struct UnblinderMk0Impl : public Unblinder {
 	(*dst_values)[node_idx] = out;
       }
     }
-
+  }
+  
+  Position Unblind(uint64 bits) const override {
+    Stimulation stim{*net};
+    Stimulate(bits, &stim);
     // Now the final layer in the stimulation reflects our prediction.
     return PositionFromLayer(stim.values.back());   
   }

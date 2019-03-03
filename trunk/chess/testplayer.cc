@@ -7,12 +7,13 @@
 #include "../cc-lib/base/logging.h"
 
 #include "chess.h"
-#include "fate-player.h"
+#include "player.h"
+#include "blind-player.h"
 
 using namespace std;
 
 int main(int argc, char **argv) {
-  std::unique_ptr<Player> white_player{Equalizer()};
+  std::unique_ptr<Player> white_player{BlindYolo()};
   std::unique_ptr<Player> black_player{Chessmaster1()};
 
   std::unique_ptr<PlayerGame> white{white_player->CreateGame()};

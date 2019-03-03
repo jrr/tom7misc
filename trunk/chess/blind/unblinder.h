@@ -7,6 +7,8 @@
 
 #include "../chess.h"
 
+struct ArcFour;
+
 // Interface. Should be thread-safe.
 struct Unblinder {
   // Utilities.
@@ -17,6 +19,16 @@ struct Unblinder {
   // black kings).
   virtual Position Unblind(uint64_t pos) const = 0;
 
+  // Sample n predicted positions that are valid. Valid means:
+  //  - It is black's move iff blackmove is true
+  //  - There is exactly one king per side
+  //  - The current opponent is not in check
+  //  - Castling flags are only set if castling could be possible.
+  /*
+  virtual std::vector<Position> SampleValid(
+      ArcFour *rc, uint64_t pos, bool blackmove, int n) const = 0;
+  */
+  
   virtual std::string ModelInfo() const = 0;
   
   // TODO: Nice to have:
