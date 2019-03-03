@@ -25,6 +25,12 @@ using int64 = int64_t;
 
 static constexpr double ELO_START = 1000.0;
 
+// To protect against the effects of imbalanced number of games
+// in the elo calculation, sample this many games from each cell
+// instead of using them all. There must be at least this many
+// games in each cell. If 0, don't sample.
+static constexpr int SAMPLE_N = 64;
+
 struct Elo {
   double elo = ELO_START;
   // Used to determine k-factor.
@@ -294,11 +300,51 @@ int main(int argc, char **argv) {
   const vector<double> stationary =
     ComputeStationary(num_entrants, names, outcomes);
 
+  vector<Cell> sampled_outcomes = outcomes;
+  ArcFour rc(StringPrintf("sample.%lld", (int64)time(nullptr)));
+  if (SAMPLE_N > 0) {
+    printf("Sample %d from each cell...\n", SAMPLE_N);
+    for (int white = 0; white < num_entrants; white++) {
+      for (int black = 0; black < num_entrants; black++) {
+	if (white != black) {
+	  Cell *cell = &sampled_outcomes[white * num_entrants + black];
+	  // Sampled.
+	  int wins = 0, losses = 0, draws = 0;
+	  int64 total = cell->white_wins + cell->white_losses + cell->draws;
+	  CHECK(total >= SAMPLE_N) << names[white] << " vs " << names[black]
+				   << " total: " << total;
+	  for (int i = 0; i < SAMPLE_N; i++) {
+	    int64 idx = RandTo(&rc, total);
+	    idx -= cell->white_wins;
+	    if (idx < 0) {
+	      cell->white_wins--;
+	      wins++;
+	    } else {
+	      idx -= cell->white_losses;
+	      if (idx < 0) {
+		cell->white_losses--;
+		losses++;
+	      } else {
+		cell->draws--;
+		draws++;
+	      }
+	    }
+	    total--;
+	  }
+
+	  // And replace it in place.
+	  cell->white_wins = wins;
+	  cell->white_losses = losses;
+	  cell->draws = draws;
+	}
+      }
+    }
+  }
   
   printf("Running elo:\n");
   fflush(stdout);
   const int64 start_elo = time(nullptr);
-  const vector<Elo> elos = ComputeElo(num_entrants, outcomes);
+  const vector<Elo> elos = ComputeElo(num_entrants, sampled_outcomes);
   printf("Done in %lld sec.\n", time(nullptr) - start_elo);
   fflush(stdout);
 
@@ -343,13 +389,18 @@ int main(int argc, char **argv) {
       fprintf(f, "<tr><td>white \uFF3C black</td>\n");
       for (int ecol = 0; ecol < num_entrants; ecol++) {
 	const int col = by_elo[ecol];
-	fprintf(f, " <td>%s</td>\n", names[col].c_str());
+	fprintf(f, " <td>");
+	// fprintf(f, "%s", names[col].c_str());
+	string s = names[col];
+	for (int i = 0; i < s.size(); i++) {
+	  fprintf(f, "<br>%c", s[i]);
+	}
+	fprintf(f, "</td>\n");
       }
       fprintf(f, "</tr>\n");
     };
 
   PrintColumns();
-
   for (int erow = 0; erow < num_entrants; erow++) {
     const int row = by_elo[erow];
     fprintf(f, "<tr>");
@@ -372,11 +423,13 @@ int main(int argc, char **argv) {
 	int ib = round((0.5 + (fb * 0.5)) * 255.0);
 	color = StringPrintf("rgb(%d,%d,%d)", ir, ig, ib);
       }
+      const bool insufficient = (row != col) && total < 100;
       fprintf(f, "  <td style=\"background-color:%s\" id=\"c%d\">"
-	      "<span class=\"c\" onclick=\"show(%d)\">"
-	      "%lld w, %lld l, %lld d</span></td>\n",
+	      "<span class=\"c\" onclick=\"show(%d)\"%s>"
+	      "%lld w<br>%lld l<br>%lld d</span></td>\n",
 	      color.c_str(),
 	      idx, idx,
+	      (insufficient ? " style=\"font-weight: bold\" " : ""),
 	      cell.white_wins, cell.white_losses, cell.draws);
     }
     fprintf(f, "<td>%s</td>\n", names[row].c_str());
