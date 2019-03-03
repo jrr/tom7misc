@@ -18,6 +18,7 @@
 #include "../cc-lib/util.h"
 #include "../cc-lib/arcfour.h"
 #include "../cc-lib/randutil.h"
+#include "../cc-lib/gtl/top_n.h"
 
 #include "chess.h"
 #include "player.h"
@@ -48,12 +49,14 @@
 using Move = Position::Move;
 using namespace std;
 
-// Number of round-robin rounds.
-// (Maybe should be based on the total number of games we want
-// to simulate?)
+// This used to be round-robin style, but since the work grows
+// quadratically, it got to the point that running even a single
+// round would take hours. New version picks cells that are 
 static constexpr int THREADS = 54;
-static constexpr int ROUNDS_PER_THREAD = 1;
-static constexpr int TOTAL_ROUNDS = THREADS * ROUNDS_PER_THREAD;
+static constexpr int RUN_FOR_SECONDS = 60 * 10;
+
+// How many games must be played for a cell before we are satisfied?
+static constexpr int GAMES_TARGET = 100;
 
 typedef Player *(*Entrant)();
 
@@ -125,16 +128,14 @@ const vector<Entrant> &GetEntrants() {
 			Chessmaster1,
 			Chessmaster2,
 
-			/*
 			Stockfish0,
 			Stockfish5,
 			Stockfish10,
 			Stockfish15,
 			Stockfish20,
-			*/
 			
 			Stockfish1M,
-			/*
+
 			Stockfish1M_32768,
 			Stockfish1M_16384,
 			Stockfish1M_8192,
@@ -145,7 +146,6 @@ const vector<Entrant> &GetEntrants() {
 			Stockfish1M_256,
 			Stockfish1M_128,
 			Stockfish1M_64,
-			*/
   };
   return *entrants;
 }
@@ -163,15 +163,6 @@ static bool DoRun(const string &name) {
      name == "stockfish1m_r64"; 
 */
     // name.find("stockfish1m_r") == 0;
-  /*
-  return name == "safe" ||
-    name == "dangerous" ||
-    name == "popular" ||
-    name == "rare" ||
-    name == "survivalist" ||
-    name == "fatalist" ||
-    name == "equalizer";
-  */
 }
 
 // Under FIDE rules, after 50 moves without a pawn move or capture, a
@@ -180,7 +171,6 @@ static bool DoRun(const string &name) {
 // is automatically a draw after *75* such moves.
 // Similarly, threefold repetition allows a claim, and fivefold
 // repetition forces the draw.
-
 enum class Result {
   WHITE_WINS,
   BLACK_WINS,
@@ -300,7 +290,6 @@ std::mutex status_m;
 int64 status_start_time = 0LL;
 int64 status_last_time = 0LL;
 struct Status {
-  int total_games = 0;
   int done_games = 0;
   string row;
   string col;
@@ -323,21 +312,21 @@ static void ShowStatus(int64 now) {
   for (int i = 0; i < status.size() + 2; i++) {
     printf("%s", ANSI_PREVLINE);
   }
-  int64 total_all = 0, done_all = 0;
+  int64 done_all = 0;
   for (int i = 0; i < status.size(); i++) {
-    total_all += status[i].total_games;
     done_all += status[i].done_games;
   }
   
-  printf("\n----------- %lld / %lld ----- "
-	 ANSI_CYAN "%lld" ANSI_RESET "m" ANSI_CYAN "%d" ANSI_RESET "s" ANSI_WHITE
-	 " -----------" ANSI_CLEARTOEOL "\n",
-	 done_all, total_all, minutes, seconds);
+  printf("\n----------- %lld done ----- "
+	 ANSI_CYAN "%lld" ANSI_RESET "m" ANSI_CYAN "%d" ANSI_RESET "s"
+	 ANSI_WHITE " -----------" ANSI_CLEARTOEOL "\n",
+	 done_all, minutes, seconds);
   for (int i = 0; i < status.size(); i++) {
-    printf(ANSI_GREY "[" ANSI_BLUE "% 2d. " ANSI_YELLOW "%.1f%%" ANSI_GREY "] " ANSI_GREEN "%s" ANSI_WHITE " vs " ANSI_GREEN "%s: "
+    printf(ANSI_GREY "[" ANSI_BLUE "% 2d. " ANSI_YELLOW "%d"
+	   ANSI_GREY "] " ANSI_GREEN "%s" ANSI_WHITE " vs " ANSI_GREEN "%s: "
 	   ANSI_WHITE "%s" ANSI_CLEARTOEOL "\n",
 	   i,
-	   (status[i].done_games * 100.0) / status[i].total_games,
+	   status[i].done_games,
 	   status[i].row.c_str(),
 	   status[i].col.c_str(),
 	   status[i].msg.c_str());
@@ -360,115 +349,162 @@ static string RenderMoves(const vector<Move> &moves) {
   return pgn;
 }
 
+struct Totals {
+  // Coarse locking.
+  std::mutex m;
+  const int num;
+  const vector<string> names;
+  vector<int64> totals;
+  vector<std::pair<int, int>> todo;
+  Totals(const vector<string> &n,
+	 const Outcomes &outcomes) : num(n.size()),
+				     names(n),
+				     totals(n.size() * n.size(), 0) {
+    todo.reserve(THREADS);
+    for (int white = 0; white < num; white++) {
+      for (int black = 0; black < num; black++) {
+	auto it = outcomes.find(make_pair(names[white], names[black]));
+	if (it != outcomes.end()) {
+	  const Cell &cell = it->second;
+	  totals[white * num + black] =
+	    cell.white_wins + cell.white_losses + cell.draws;
+	}
+      }
+    }
+  }
+
+  void Increment(int white, int black) {
+    MutexLock ml(&m);
+    totals[white * num + black]++;
+  }
+
+  std::pair<int, int> GetAssignment() {
+    MutexLock ml(&m);
+    // If we have anything enqueued, return it.
+    if (!todo.empty()) {
+      auto ret = todo.back();
+      todo.pop_back();
+      return ret;
+    }
+
+    struct TCell {
+      TCell(int w, int b, int64 t) : c(w, b), total(t) {}
+      std::pair<int, int> c;
+      int64 total;
+    };
+    struct TCellCmp {
+      bool operator()(const TCell &a, const TCell &b) {
+	return a.total < b.total;
+      };
+    };
+      
+    gtl::TopN<TCell, TCellCmp> topn(THREADS);
+    
+    // Otherwise, loop over the table and get the N neediest
+    // cells.
+    for (int white = 0; white < num; white++) {
+      for (int black = 0; black < num; black++) {
+	// Could use DoRun filterting here.
+	if (white != black) {
+	  topn.push(TCell(white, black, totals[white * num + black]));
+	}
+      }
+    }
+
+    std::unique_ptr<std::vector<TCell>> tops{topn.Extract()};
+    for (const TCell &tc : *tops) {
+      todo.push_back(tc.c);
+    }
+
+    CHECK(!todo.empty());
+    auto ret = todo.back();
+    todo.pop_back();
+    return ret;
+  }
+};
+
 static void TournamentThread(int thread_id,
+			     Totals *totals,
 			     Outcomes *outcomes) {
   // Create thread-local instances of each entrant.
+  // TODO: Lazily construct these.
   vector<Player *> entrants;
   for (Entrant e : GetEntrants()) {
     entrants.push_back(e());
   }
   const int num_entrants = entrants.size();
-
+  (void)num_entrants;
+  
   {
-    int total_games = 0;
-    for (int w = 0; w < num_entrants; w++) {
-      const string white_name = entrants[w]->Name();
-      if (DoRun(white_name)) {
-	total_games += (num_entrants - (self_runs ? 0 : 1));
-      } else {
-	for (int b = 0; b < num_entrants; b++) {
-	  if ((self_runs || w != b) &&
-	      DoRun(entrants[b]->Name())) {
-	    total_games++;
-	  }
-	}
-      }
-    }
-    total_games *= ROUNDS_PER_THREAD;
-
-    {
-      MutexLock ml(&status_m);
-      status[thread_id].msg = "start";
-      status[thread_id].total_games = total_games;
-    }
+    MutexLock ml(&status_m);
+    status[thread_id].msg = "start";
   }
 
+  const int64 start_time = time(nullptr);
+  
   int games_done = 0;
   int64 last_message = 0LL; // time(nullptr);
-  for (int round = 0; round < ROUNDS_PER_THREAD; round++) {
-    for (int row_offset = 0; row_offset < num_entrants; row_offset++) {
-      // Try to get different threads running different cells.
-      // Some have lower utilization than others.
-      const int row = (thread_id + row_offset) % num_entrants;
 
-      const string white_name = entrants[row]->Name();
-      const bool run_white = DoRun(white_name);
-      
-      for (int col = 0; col < num_entrants; col++) {
-	// Maybe don't pit a player against itself? We ignore
-	// them in elo calculations anyway.
-	if (row == col && !self_runs)
-	  continue;
-	
-	string black_name = entrants[col]->Name();
-	const bool run_black = DoRun(black_name);
-
-	if (!run_white && !run_black)
-	  continue;
-
-	int64 now = time(nullptr);
-	if (now - last_message > 1) {
-	  {
-	    MutexLock ml(&status_m);
-	    status[thread_id].msg = "running";
-	    status[thread_id].row = white_name;
-	    status[thread_id].col = black_name;
-	    status[thread_id].done_games = games_done;
-	  }
-	  ShowStatus(now);
-	  last_message = now;
-	}
-	
-	Cell *cell = &(*outcomes)[make_pair(white_name, black_name)];
-
-	// Row is always white and col is black; there is a symmetric
-	// cell for the reverse. (On the diagonal, we get half as
-	// many self-play games as other cells, but this is fine since
-	// we don't use these for elo.)
-
-	vector<Move> as_white;
-	switch (PlayGame(entrants[row], entrants[col], &as_white)) {
-	case Result::WHITE_WINS:
-	  if (cell->example_win.empty())
-	    cell->example_win = RenderMoves(as_white);
-	  cell->white_wins++;
-	  break;
-	case Result::BLACK_WINS:
-	  if (cell->example_loss.empty())
-	    cell->example_loss = RenderMoves(as_white);
-	  cell->white_losses++;
-	  break;
-	  
-	case Result::DRAW_STALEMATE:
-	case Result::DRAW_75MOVES:
-	case Result::DRAW_5REPETITIONS:
-	  if (cell->example_draw.empty())
-	    cell->example_draw = RenderMoves(as_white);
-	  cell->draws++;
-	  break;
-	}
-
-	games_done++;
-      }
+  for (;;) {
+    const int64 now = time(nullptr);
+    if (now - start_time > RUN_FOR_SECONDS) {
+      break;
     }
+
+    int white, black;
+    std::tie(white, black) = totals->GetAssignment();
+    const string white_name = entrants[white]->Name();
+    const string black_name = entrants[black]->Name();
+    
+    if (now - last_message > 1) {
+      {
+	MutexLock ml(&status_m);
+	status[thread_id].msg = "running";
+	status[thread_id].row = white_name;
+	status[thread_id].col = black_name;
+	status[thread_id].done_games = games_done;
+      }
+      ShowStatus(now);
+      last_message = now;
+    }
+
+    // outcomes are accumulated locally.
+    Cell *cell = &(*outcomes)[make_pair(white_name, black_name)];
+
+    vector<Move> as_white;
+    switch (PlayGame(entrants[white], entrants[black], &as_white)) {
+    case Result::WHITE_WINS:
+      if (cell->example_win.empty())
+	cell->example_win = RenderMoves(as_white);
+      cell->white_wins++;
+      break;
+    case Result::BLACK_WINS:
+      if (cell->example_loss.empty())
+	cell->example_loss = RenderMoves(as_white);
+      cell->white_losses++;
+      break;
+      
+    case Result::DRAW_STALEMATE:
+    case Result::DRAW_75MOVES:
+    case Result::DRAW_5REPETITIONS:
+      if (cell->example_draw.empty())
+	cell->example_draw = RenderMoves(as_white);
+      cell->draws++;
+      break;
+    }
+
+    games_done++;
+    totals->Increment(white, black);
   }
 
   {
     MutexLock ml(&status_m);
     status[thread_id].msg = "done";
     status[thread_id].row = "-";
+    status[thread_id].col = "-";
     status[thread_id].done_games = games_done;
   }
+  ShowStatus(time(nullptr));
   
   for (Player *p : entrants) delete p;
   entrants.clear();
@@ -477,6 +513,7 @@ static void TournamentThread(int thread_id,
 static void RunTournament() {
   vector<Player *> entrants;
   std::unordered_set<string> entrant_names;
+  vector<string> names;
   for (Entrant e : GetEntrants()) {
     Player *p = e();
     entrants.push_back(p);
@@ -484,15 +521,11 @@ static void RunTournament() {
     CHECK(entrant_names.find(name) == entrant_names.end())
       << "Duplicate names: " << name;
     entrant_names.insert(name);
+    names.push_back(name);
   }
-  int num_entrants = entrants.size();
-
-  int actual_rounds = THREADS * ROUNDS_PER_THREAD;
-  int games_per_round = num_entrants * num_entrants;
-  printf("Will run %d rounds, each %d^2 = %d games,\n"
-	 "for a total of %d games.\n",
-	 actual_rounds, num_entrants, games_per_round,
-	 games_per_round * actual_rounds);
+  const int num_entrants = entrants.size();
+  (void)num_entrants;
+  
   fflush(stdout);
   
   auto AddOutcomes =
@@ -507,13 +540,18 @@ static void RunTournament() {
   status.resize(THREADS);
 
   Outcomes previous_outcomes = TournamentDB::LoadFromFile("tournament.db");
+
+  std::unique_ptr<Totals> totals =
+    std::make_unique<Totals>(names, previous_outcomes);
   
   Outcomes outcomes =
     ParallelAccumulate(
 	THREADS,
 	Outcomes{},
 	AddOutcomes,
-	TournamentThread,
+	[&totals](int thread_id, Outcomes *outcomes) {
+	  return TournamentThread(thread_id, totals.get(), outcomes);
+	},
 	THREADS);
 
   TournamentDB::MergeInto(previous_outcomes, &outcomes);
@@ -547,7 +585,9 @@ int main(int argc, char **argv) {
 
   RunTournament();
 
-  // XXX
+  // XXX: Topple sometimes hangs around even after we close its pipes
+  // and try to kill the child process (probably I'm just doing it
+  // wrong); kill them all (globally!)
   system("taskkill /F /IM topple_v0.3.5_znver1.exe /T");
   return 0;
 }
