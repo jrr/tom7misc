@@ -10,6 +10,7 @@
 #include "../cc-lib/arcfour.h"
 #include "../cc-lib/randutil.h"
 #include "../cc-lib/base/logging.h"
+#include "../cc-lib/base/stringprintf.h"
 
 #include "chess.h"
 #include "player.h"
@@ -79,5 +80,55 @@ struct MakeStateless : public Player {
   std::string Desc() const override { return player->Desc(); }
   std::unique_ptr<P> player;
 };
+
+// Blend a player with random play. The move is random if
+// a random 16-bit number is less than the threshold.
+template<uint16_t THRESH>
+struct BlendRandom : public Player {
+  static_assert(THRESH > 0 && THRESH < 65535, "0 < THRESH < 65535");
+  BlendRandom(Player *player) : player(player),
+				rc(PlayerUtil::GetSeed()) {}
+  struct BGame : public PlayerGame {
+    BGame(ArcFour *rc, PlayerGame *pgame) : rc(rc), pgame(pgame) {}
+    void ForceMove(const Position &pos, Position::Move move) override {
+      pgame->ForceMove(pos, move);
+    }
+
+    Position::Move GetMove(const Position &orig_pos) override {
+      const uint16 r = Rand16(rc);
+      if (r < THRESH) {
+	// Random move.
+	Position pos = orig_pos;
+	std::vector<Position::Move> legal = pos.GetLegalMoves();
+	CHECK(!legal.empty());
+	return legal[RandTo32(rc, legal.size())];
+      } else {
+	return pgame->GetMove(orig_pos);
+      }
+    }
+    
+    ArcFour *rc = nullptr;
+    PlayerGame *pgame = nullptr;
+  };
+  
+  PlayerGame *CreateGame() override {
+    return new BGame(&rc, player->CreateGame());
+  }
+
+  // As above.
+  std::string Name() const override {
+    return StringPrintf("%s_r%d", player->Name().c_str(), (int)THRESH);
+  }
+  std::string Desc() const override {
+    return StringPrintf("Blend: %d random + %d (%s)",
+			(int)THRESH, (int)(65535 - THRESH),
+			player->Desc().c_str());
+  }
+
+  virtual ~BlendRandom() {}
+  std::unique_ptr<Player> player;
+  ArcFour rc;
+};
+
 
 #endif
