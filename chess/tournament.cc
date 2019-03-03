@@ -26,6 +26,7 @@
 #include "chessmaster.h"
 #include "fate-player.h"
 #include "tournament-db.h"
+#include "player-util.h"
 
 #define TESTING true
 
@@ -50,11 +51,42 @@ using namespace std;
 // Number of round-robin rounds.
 // (Maybe should be based on the total number of games we want
 // to simulate?)
-static constexpr int THREADS = 52;
+static constexpr int THREADS = 54;
 static constexpr int ROUNDS_PER_THREAD = 1;
 static constexpr int TOTAL_ROUNDS = THREADS * ROUNDS_PER_THREAD;
 
 typedef Player *(*Entrant)();
+
+static Player *Stockfish1M_32768() {
+  return new BlendRandom<32768>(Stockfish1M());
+}
+static Player *Stockfish1M_16384() {
+  return new BlendRandom<16384>(Stockfish1M());
+}
+static Player *Stockfish1M_8192() {
+  return new BlendRandom<8192>(Stockfish1M());
+}
+static Player *Stockfish1M_4096() {
+  return new BlendRandom<4096>(Stockfish1M());
+}
+static Player *Stockfish1M_2048() {
+  return new BlendRandom<2048>(Stockfish1M());
+}
+static Player *Stockfish1M_1024() {
+  return new BlendRandom<1024>(Stockfish1M());
+}
+static Player *Stockfish1M_512() {
+  return new BlendRandom<512>(Stockfish1M());
+}
+static Player *Stockfish1M_256() {
+  return new BlendRandom<256>(Stockfish1M());
+}
+static Player *Stockfish1M_128() {
+  return new BlendRandom<128>(Stockfish1M());
+}
+static Player *Stockfish1M_64() {
+  return new BlendRandom<64>(Stockfish1M());
+}
 
 // 			CreateSinglePlayer,
 const vector<Entrant> &GetEntrants() {
@@ -66,8 +98,10 @@ const vector<Entrant> &GetEntrants() {
 			Rare,
 			Survivalist,
 			Fatalist,
-			// Worstfish,
-			/*
+			Equalizer,
+
+			Worstfish,
+
 			MinOpponentMoves,
 			MirrorYSymmetry,
 			MirrorXSymmetry,
@@ -85,19 +119,33 @@ const vector<Entrant> &GetEntrants() {
 			SuicideKing,
 			ReverseStarting,
 			CCCP,
-			*/
-			/*
+
 			Topple10K,
 			Topple1M,
 			Chessmaster1,
 			Chessmaster2,
+
+			/*
 			Stockfish0,
 			Stockfish5,
 			Stockfish10,
 			Stockfish15,
 			Stockfish20,
 			*/
+			
 			Stockfish1M,
+			/*
+			Stockfish1M_32768,
+			Stockfish1M_16384,
+			Stockfish1M_8192,
+			Stockfish1M_4096,
+			Stockfish1M_2048,
+			Stockfish1M_1024,
+			Stockfish1M_512,
+			Stockfish1M_256,
+			Stockfish1M_128,
+			Stockfish1M_64,
+			*/
   };
   return *entrants;
 }
@@ -108,14 +156,22 @@ const vector<Entrant> &GetEntrants() {
 // static const char *run_only = "popular"; // "stockfish1m";
 
 // play players against themselves. This does not affect elo.
-static constexpr bool self_runs = true;
+static constexpr bool self_runs = false;
 static bool DoRun(const string &name) {
+  return true;
+  /* name == "stockfish1m_r128" || 
+     name == "stockfish1m_r64"; 
+*/
+    // name.find("stockfish1m_r") == 0;
+  /*
   return name == "safe" ||
     name == "dangerous" ||
     name == "popular" ||
     name == "rare" ||
     name == "survivalist" ||
-    name == "fatalist";
+    name == "fatalist" ||
+    name == "equalizer";
+  */
 }
 
 // Under FIDE rules, after 50 moves without a pawn move or capture, a

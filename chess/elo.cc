@@ -33,8 +33,121 @@ struct Elo {
   int wins = 0, losses = 0, draws = 0;
 };
 
+static void ReportGaps(int num_entrants,
+		       const std::vector<string> &names,
+		       const std::vector<Cell> &outcomes) {
+  for (int white = 0; white < num_entrants; white++) {
+    for (int black = 0; black < num_entrants; black++) {
+      if (white != black) {
+	const Cell &cell = outcomes[white * num_entrants + black];
+	int64 total = cell.white_wins + cell.white_losses + cell.draws;
+	if (total == 0) {
+	  fprintf(stderr, "No games for white = %s, black = %s\n",
+		  names[white].c_str(), names[black].c_str());
+	}
+      }
+    }
+  }
+  fflush(stderr);
+}
+
+static vector<double> ComputeStationary(int num_entrants,
+					const std::vector<string> &names,
+					const std::vector<Cell> &outcomes) {
+  // Size num_entrants * num_entants.
+
+  // Return (win probability, loss probability) for white (playing as white)
+  // vs. black. The remaining probability accounts for draws.
+  auto GetProbs =
+    [&outcomes, &names, num_entrants](int white, int black) {
+      const Cell &cell = outcomes[white * num_entrants + black];
+      int64 total = cell.white_wins + cell.white_losses + cell.draws;
+      CHECK(total > 0) << "No games in cell! white = " << names[white]
+		       << " black = " << names[black];
+      return make_pair(cell.white_wins / (double)total,
+		       cell.white_losses / (double)total);
+    };
+  
+  // A Markov chain. The entry at mc[num_entrants * row + col] is the
+  // probability of a transition from state 'row' to state 'col'. Imagine
+  // a champion trophy held by the 'row' player. This player plays in
+  // a tournament against all other players. Who would get the trophy?
+  //   - Pick a random opponent (not including myself) and assignment
+  //     of colors. If the opponent wins, they get the trophy.
+  //   - If I win, I keep the trophy.
+  //   - If a draw, then we split the trophy 50/50 (= same as randomly
+  //     assigning it).
+  // We can do this by assigning (P(loss) + 0.5 * P(draw)) / (num_entrants - 1)
+  // to each cell but the diagonal, and the remainder to that cell (which
+  // corresponding to a win or half a draw).
+  vector<double> mc(num_entrants * num_entrants, 0.0);
+  double entrants_not_me = num_entrants - 1.0;
+  for (int row = 0; row < num_entrants; row++) {
+    // This is the leftover probability mass from wins and half draws.
+    double sum = 0.0;
+    for (int col = 0; col < num_entrants; col++) {
+      if (col != row) {
+	// We have separate statistics for games played as white and
+	// as black. Because of the way the tournament is run, we should
+	// generally have a symmetric count, but just in case, we
+	// average the separately-computed probabilities.
+	double white_win, white_loss, black_win, black_loss;
+	std::tie(white_win, white_loss) = GetProbs(row, col);
+	std::tie(black_win, black_loss) = GetProbs(col, row);
+	double white_draw = 1.0 - (white_win + white_loss);
+	double black_draw = 1.0 - (black_win + black_loss);
+      
+	// Play randomly as black or white, so just mix the two
+	// expectations evenly.
+	double expected_losses = (white_loss + black_win) * 0.5;
+	double expected_draws = (white_draw + black_draw) * 0.5;
+
+	double e = (expected_losses + 0.5 * expected_draws) / entrants_not_me;
+	mc[row * num_entrants + col] = e;
+	sum += e;
+      }
+    }
+    mc[row * num_entrants + row] = 1.0 - sum;
+  }
+
+  // OK, so now we have a Markov transition matrix. Compute its stationary
+  // distribution. Begin with uniform distribution:
+  vector<double> dist(num_entrants, 1.0 / num_entrants);
+
+  // We want dist such that dist * mc = dist.
+  // There are definitely faster ways to compute this, but the
+  // easiest is to just iteratively perform the multiplication
+  // until it has converged to our satisfaction. (Also note that
+  // there exist matrices where this will not converge because
+  // no such distribution exists. I think this won't happen
+  // for our data set... (?))
+  for (int iters = 0; true; iters++) {
+    vector<double> next(num_entrants, 0.0);
+    for (int row = 0; row < dist.size(); row++) {
+      for (int col = 0; col < dist.size(); col++) {
+	next[col] += dist[row] * mc[row * num_entrants + col];
+      }
+    }
+    
+    double diff = 0.0;
+    for (int i = 0; i < num_entrants; i++)
+      diff += std::fabs(next[i] - dist[i]);
+
+    dist.swap(next);
+    if (iters % 10000 == 0) {
+      fprintf(stderr, "%d iters, err %.8f\n", iters, diff);
+    }
+    if (iters > 100000 && diff < 0.000001) {
+      fprintf(stderr, "Satisfactory error in %d iters\n", iters);
+      break;
+    }
+  }
+  return dist;
+}
+
 // With the win/loss/draw matrix, compute elo ratings for each player.
-static vector<Elo> ComputeElo(int num_entrants, const std::vector<Cell> &orig_outcomes) {
+static vector<Elo> ComputeElo(int num_entrants,
+			      const std::vector<Cell> &orig_outcomes) {
   CHECK(orig_outcomes.size() == num_entrants * num_entrants);
   // We don't need the examples, but it's easiest to just copy
   // everything. We will modify wins/losses/draws to replay the games.
@@ -174,7 +287,13 @@ int main(int argc, char **argv) {
     int col = GetId(p.first.second);
     outcomes[row * num_entrants + col] = p.second;
   }
+
+  ReportGaps(num_entrants, names, outcomes);
   
+  // PERF could be in parallel...
+  const vector<double> stationary =
+    ComputeStationary(num_entrants, names, outcomes);
+
   
   printf("Running elo:\n");
   fflush(stdout);
@@ -206,24 +325,6 @@ int main(int argc, char **argv) {
   }
   fprintf(f, "];\n</script>\n\n");
 
-  // U+FF3C fullwidth reverse solidus
-  fprintf(f, "<table><tr><td>white \uFF3C black</td>\n");
-  for (const string &name : names)
-    fprintf(f, " <td>%s</td>\n", name.c_str());
-  fprintf(f, "</tr>\n");
-  for (int row = 0; row < num_entrants; row++) {
-    fprintf(f, "<tr><td>%s</td>\n", names[row].c_str());
-    for (int col = 0; col < num_entrants; col++) {
-      int idx = row * num_entrants + col;
-      const Cell &cell = outcomes[idx];
-      fprintf(f, "  <td id=\"c%d\"><span class=\"c\" onclick=\"show(%d)\">"
-	      "%lld w, %lld l, %lld d</span></td>\n",
-	      idx, idx,
-	      cell.white_wins, cell.white_losses, cell.draws);
-    }
-    fprintf(f, "</tr>\n");
-  }
-  fprintf(f, "</table>\n");
 
   vector<int> by_elo;
   for (int i = 0; i < num_entrants; i++) by_elo.push_back(i);
@@ -235,14 +336,69 @@ int main(int argc, char **argv) {
 	      return a < b;
 	    });
   
-  fprintf(f, "<table><tr><td>player</td><td>elo</td><td>w/l/d</tr>\n");
+  // U+FF3C fullwidth reverse solidus
+  fprintf(f, "<table>");
+
+  auto PrintColumns = [&names, &by_elo, num_entrants, f]() {
+      fprintf(f, "<tr><td>white \uFF3C black</td>\n");
+      for (int ecol = 0; ecol < num_entrants; ecol++) {
+	const int col = by_elo[ecol];
+	fprintf(f, " <td>%s</td>\n", names[col].c_str());
+      }
+      fprintf(f, "</tr>\n");
+    };
+
+  PrintColumns();
+
+  for (int erow = 0; erow < num_entrants; erow++) {
+    const int row = by_elo[erow];
+    fprintf(f, "<tr>");
+    fprintf(f, "<td>%s</td>\n", names[row].c_str());
+    for (int ecol = 0; ecol < num_entrants; ecol++) {
+      const int col = by_elo[ecol];
+      const int idx = row * num_entrants + col;
+      const Cell &cell = outcomes[idx];
+
+      const int64 total = cell.white_wins + cell.white_losses + cell.draws;
+      string color = "#fff";
+      if (total > 0) {
+	double fr = cell.white_losses / (double)total;
+	double fg = cell.white_wins / (double)total;
+	double fb = cell.draws / (double)total;
+	// We want black text to be visible on the color, so use
+	// the space from 0.5 - 1.
+	int ir = round((0.5 + (fr * 0.5)) * 255.0);
+	int ig = round((0.5 + (fg * 0.5)) * 255.0);
+	int ib = round((0.5 + (fb * 0.5)) * 255.0);
+	color = StringPrintf("rgb(%d,%d,%d)", ir, ig, ib);
+      }
+      fprintf(f, "  <td style=\"background-color:%s\" id=\"c%d\">"
+	      "<span class=\"c\" onclick=\"show(%d)\">"
+	      "%lld w, %lld l, %lld d</span></td>\n",
+	      color.c_str(),
+	      idx, idx,
+	      cell.white_wins, cell.white_losses, cell.draws);
+    }
+    fprintf(f, "<td>%s</td>\n", names[row].c_str());
+    fprintf(f, "</tr>\n");
+  }
+  PrintColumns();
+
+  fprintf(f, "</table>\n");
+  
+  fprintf(f, "<table><tr><td>player</td><td>elo</td><td>w/l/d</td>"
+	  "<td>p | norm(p)</td></tr>\n");
   for (int i : by_elo) {
-    fprintf(f, " <tr><td>%s</td><td>%.2f</td><td>%d/%d/%d</td></tr>\n",
+    fprintf(f,
+	    " <tr><td>%s</td><td>%.2f</td><td>%d/%d/%d</td>"
+	    "<td>%.8f | %.8f</td></tr>\n",
 	    names[i].c_str(),
 	    elos[i].elo,
 	    elos[i].wins,
 	    elos[i].losses,
-	    elos[i].draws);
+	    elos[i].draws,
+	    stationary[i],
+	    stationary[i] * num_entrants);
   }
   fprintf(f, "</table>\n");
 
