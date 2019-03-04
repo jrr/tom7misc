@@ -124,7 +124,7 @@ void UI::Loop() {
       }
     }
     if (output_dirty) {
-      current_prediction = unblinder->Unblind(current_bitmap);
+      current_prediction = unblinder->Unblind(true, current_bitmap);
       // Could avoid this if the prediction didn't actually
       // change, but why?
       ui_dirty = true;
@@ -132,7 +132,7 @@ void UI::Loop() {
     }
 
     if (ui_dirty) {
-      sdlutil::clearsurface(screen, 0x0);
+      sdlutil::clearsurface(screen, 0xFFFFFFFF);
       Draw();
       SDL_Flip(screen);
       ui_dirty = false;

@@ -16,8 +16,10 @@ struct Unblinder {
   static void Layer64(uint64_t pos, std::vector<float> *v);
   
   // Note that the resulting position may be invalid (e.g. multiple
-  // black kings).
-  virtual Position Unblind(uint64_t pos) const = 0;
+  // black kings). If single_king is true, then constructs positions
+  // such that there is exactly on king per side (but could still
+  // be invalid because of e.g. mutual check).
+  virtual Position Unblind(bool single_king, uint64_t pos) const = 0;
 
   // Sample n predicted positions that are valid. Valid means:
   //  - It is black's move iff blackmove is true

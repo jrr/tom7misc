@@ -5,5 +5,6 @@
 struct Player;
 
 Player *BlindYolo();
+Player *BlindSingleKings();
 
 #endif

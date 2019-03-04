@@ -21,6 +21,8 @@ using namespace std;
 
 using int64 = int64_t;
 
+static constexpr bool USE_SINGLE_KING = true;
+
 // If false, we don't even look at the game.
 static bool Eligible(const PGN &pgn) {
   // Ignore games that don't finish.
@@ -139,7 +141,7 @@ int main(int argc, char **argv) {
       // XXX something is wrong! Error rate is almost as high (27.24 vs 27.61)
       // as just guessing a totally empty board, which we definitely do better
       // than. I guess maybe it's not being simulated correctly?
-      Position guess = unblinder->Unblind(bits);
+      Position guess = unblinder->Unblind(USE_SINGLE_KING, bits);
 
       int piecem = 0;
       for (int r = 0; r < 8; r++) {
