@@ -19,8 +19,6 @@ using int64 = int64_t;
 using Move = Position::Move;
 using namespace std;
 
-// TODO: 
-
 static constexpr bool VERBOSE = false;
 
 namespace {
@@ -31,8 +29,11 @@ static Unblinder *GetUnblinder() {
   return the_unblinder;
 }
 
-struct BlindYoloPlayer : public StatelessPlayer {
-  BlindYoloPlayer() : rc(PlayerUtil::GetSeed()) {
+struct BlindPlayer : public StatelessPlayer {
+  BlindPlayer(const string &name,
+	      bool single_king) : name(name),
+				  single_king(single_king),
+				  rc(PlayerUtil::GetSeed()) {
     fish.reset(new Stockfish(20, 1'000'000));
     CHECK(fish.get());
     unblinder = GetUnblinder();
@@ -100,8 +101,8 @@ struct BlindYoloPlayer : public StatelessPlayer {
   }
   
   Move MakeMove(const Position &orig_pos) override {
-    uint64 blinded = Unblinder::Blind(orig_pos);
-    Position predicted = unblinder->Unblind(blinded);
+    const uint64 blinded = Unblinder::Blind(orig_pos);
+    Position predicted = unblinder->Unblind(single_king, blinded);
 
     // Force the current player.
     predicted.SetBlackMove(orig_pos.BlackMove());
@@ -123,13 +124,13 @@ struct BlindYoloPlayer : public StatelessPlayer {
 	return m;
 
       if (VERBOSE)
-	printf("Move %s not legal. Predicted:\n%sActual:\n%s",
+	printf("\nMove %s not legal. Predicted:\n%sActual:\n%s",
 	       predicted.ShortMoveString(m).c_str(),
 	       predicted.BoardString().c_str(),
 	       orig_pos.BoardString().c_str());
     } else {
       if (VERBOSE)
-	printf("Predicted board not OK:\n%sActual:\n%s",
+	printf("\nPredicted board not OK:\n%sActual:\n%s",
 	       predicted.BoardString().c_str(),
 	       orig_pos.BoardString().c_str());
     }
@@ -141,15 +142,18 @@ struct BlindYoloPlayer : public StatelessPlayer {
   }
 
   string Name() const override {
-    return "blind_yolo";
+    return name;
   }
 
   string Desc() const override {
-    return StringPrintf("Predict a board state. If valid (or can be made "
+    return StringPrintf("Predict a board state%s. If valid (or can be made "
 			"valid trivially), use stockfish1m to make a move. "
-			"If move is invalid or other problem, random.");
+			"If move is invalid or other problem, random.",
+			(single_king ? "" : " with exactly one king per side"));
   }
 
+  const string name;
+  const bool single_king = false;
   ArcFour rc;
   std::unique_ptr<Stockfish> fish;
   // Not owned.
@@ -160,5 +164,9 @@ struct BlindYoloPlayer : public StatelessPlayer {
 
 
 Player *BlindYolo() {
-  return new MakeStateless<BlindYoloPlayer>();
+  return new MakeStateless<BlindPlayer, string, bool>("blind_yolo", false);
+}
+
+Player *BlindSingleKings() {
+  return new MakeStateless<BlindPlayer, string, bool>("blind_kings", true);
 }

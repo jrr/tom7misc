@@ -27,6 +27,7 @@
 #include "../cc-lib/vector-util.h"
 #include "../cc-lib/base/macros.h"
 #include "../cc-lib/threadutil.h"
+#include "../cc-lib/gtl/top_n.h"
 #include "../chess.h"
 
 #include "unblinder.h"
@@ -686,25 +687,91 @@ struct UnblinderMk0Impl : public Unblinder {
     }
   }
   
-  Position Unblind(uint64 bits) const override {
+  Position Unblind(bool single_king, uint64 bits) const override {
     Stimulation stim{*net};
     Stimulate(bits, &stim);
     // Now the final layer in the stimulation reflects our prediction.
-    return PositionFromLayer(stim.values.back());   
+    return PositionFromLayer(single_king, stim.values.back());   
   }
 
-  static Position PositionFromLayer(const vector<float> &layer) {
+  static Position PositionFromLayer(bool single_king,
+				    const vector<float> &layer) {
     CHECK(layer.size() == OUTPUT_LAYER_SIZE);
     Position ret;
 
+    static constexpr int WKING = 6;
+    static constexpr int BKING = 12;
+    
+    // If single_king mode is set, populate these with the most likely
+    // overall row/col for the white/black kings.
+    int wkr = -1, wkc = -1;
+    int bkr = -1, bkc = -1;
+    if (single_king) {
+      struct King {
+	King(int r, int c, float p) : r(r), c(c), p(p) {}
+	int r = 0;
+	int c = 0;
+	float p = 0.0;
+      };
+
+      struct KingCmp {
+	bool operator()(const King &a, const King &b) {
+	  return a.p > b.p;
+	};
+      };
+
+      // Best scores for each. Note the subtlety that the highest
+      // score might occur for both kings on the same square, but we
+      // can't assign both of them to it. So we keep the top two.
+      gtl::TopN<King, KingCmp> top_white(2);
+      gtl::TopN<King, KingCmp> top_black(2);
+      
+      for (int r = 0; r < 8; r++) {
+	for (int c = 0; c < 8; c++) {
+	  // Find the contents with the highest score.
+	  const int cidx = (r * 8 + c) * NUM_CONTENTS;
+	  top_white.push(King(r, c, layer[cidx + WKING]));
+	  top_black.push(King(r, c, layer[cidx + BKING]));
+	}
+      }
+
+      std::unique_ptr<vector<King>> whites{top_white.Extract()};
+      std::unique_ptr<vector<King>> blacks{top_black.Extract()};
+      CHECK(whites->size() == 2);
+      CHECK(blacks->size() == 2);
+
+      int wi = 0, bi = 0;
+      if ((*whites)[wi].r == (*blacks)[bi].r &&
+	  (*whites)[wi].c == (*blacks)[bi].c) {
+	// Tricky case where they are both predicted to be in the
+	// same spot.
+	if ((*whites)[wi].p > (*blacks)[bi].p) {
+	  // White wins; move black to its second prediction.
+	  bi++;
+	} else {
+	  wi++;
+	}
+      }
+      
+      wkr = (*whites)[wi].r;
+      wkc = (*whites)[wi].c;
+      bkr = (*blacks)[bi].r;
+      bkc = (*blacks)[bi].c;
+    }
+    
     for (int r = 0; r < 8; r++) {
       for (int c = 0; c < 8; c++) {
 
 	auto MostLikelyPiece =
-	  [](const vector<float> &vals, int start_idx) {
+	  [single_king](const vector<float> &vals, int start_idx) {
 	    int maxi = 0;
 	    float maxp = vals[start_idx];
+	    static_assert(BKING != 0 && WKING != 0);
 	    for (int i = 1; i < NUM_CONTENTS; i++) {
+	      // Don't ever choose kings in single_king mode.
+	      if (single_king && (i == BKING || i == WKING))
+		continue;
+	      
 	      if (vals[start_idx + i] > maxp) {
 		maxi = i;
 		maxp = vals[start_idx + i];
@@ -712,36 +779,42 @@ struct UnblinderMk0Impl : public Unblinder {
 	    }
 	    return maxi;
 	  };
-		  
-	// Find the contents with the highest score.
-	int cidx = (r * 8 + c) * NUM_CONTENTS;
-	const int maxi = MostLikelyPiece(layer, cidx);
-	uint8 piece = kContentsToPiece[maxi];
-	ret.SetPiece(r, c, piece);
+
+	if (r == wkr && c == wkc) {
+	  ret.SetPiece(r, c, Position::WHITE | Position::KING);
+	} else if (r == bkr && c == bkc) {
+	  ret.SetPiece(r, c, Position::BLACK | Position::KING);
+	} else {
+	  // Find the contents with the highest score.
+	  int cidx = (r * 8 + c) * NUM_CONTENTS;
+	  const int maxi = MostLikelyPiece(layer, cidx);
+	  uint8 piece = kContentsToPiece[maxi];
+	  ret.SetPiece(r, c, piece);
+	}
       }
     }
 
     // Castling flags.
-    bool bqc = layer[64 * NUM_CONTENTS + 0] > 0.5f;
-    bool bkc = layer[64 * NUM_CONTENTS + 1] > 0.5f;
-    bool wqc = layer[64 * NUM_CONTENTS + 2] > 0.5f;
-    bool wkc = layer[64 * NUM_CONTENTS + 3] > 0.5f;
+    bool bqf = layer[64 * NUM_CONTENTS + 0] > 0.5f;
+    bool bkf = layer[64 * NUM_CONTENTS + 1] > 0.5f;
+    bool wqf = layer[64 * NUM_CONTENTS + 2] > 0.5f;
+    bool wkf = layer[64 * NUM_CONTENTS + 3] > 0.5f;
 
     // Only set castling if it would keep the board legal.
     if (ret.PieceAt(0, 4) == (Position::BLACK | Position::KING)) {
-      if (bqc && ret.PieceAt(0, 0) == (Position::BLACK | Position::ROOK)) {
+      if (bqf && ret.PieceAt(0, 0) == (Position::BLACK | Position::ROOK)) {
 	ret.SetPiece(0, 0, Position::BLACK | Position::C_ROOK);
       }
-      if (bkc && ret.PieceAt(0, 7) == (Position::BLACK | Position::ROOK)) {
+      if (bkf && ret.PieceAt(0, 7) == (Position::BLACK | Position::ROOK)) {
 	ret.SetPiece(0, 7, Position::BLACK | Position::C_ROOK);
       }
     }
 
     if (ret.PieceAt(7, 4) == (Position::WHITE | Position::KING)) {
-      if (wqc && ret.PieceAt(7, 0) == (Position::WHITE | Position::ROOK)) {
+      if (wqf && ret.PieceAt(7, 0) == (Position::WHITE | Position::ROOK)) {
 	ret.SetPiece(7, 0, Position::WHITE | Position::C_ROOK);
       }
-      if (wkc && ret.PieceAt(7, 7) == (Position::WHITE | Position::ROOK)) {
+      if (wkf && ret.PieceAt(7, 7) == (Position::WHITE | Position::ROOK)) {
 	ret.SetPiece(7, 7, Position::WHITE | Position::C_ROOK);
       }
     }
@@ -752,8 +825,7 @@ struct UnblinderMk0Impl : public Unblinder {
 
     return ret;
   }
-  
-  // XXX load it...
+
   std::unique_ptr<Network> net;
 };
 

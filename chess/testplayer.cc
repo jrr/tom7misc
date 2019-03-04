@@ -13,7 +13,7 @@
 using namespace std;
 
 int main(int argc, char **argv) {
-  std::unique_ptr<Player> white_player{BlindYolo()};
+  std::unique_ptr<Player> white_player{BlindSingleKings()};
   std::unique_ptr<Player> black_player{Chessmaster1()};
 
   std::unique_ptr<PlayerGame> white{white_player->CreateGame()};

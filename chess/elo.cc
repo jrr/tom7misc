@@ -29,7 +29,8 @@ static constexpr double ELO_START = 1000.0;
 // in the elo calculation, sample this many games from each cell
 // instead of using them all. There must be at least this many
 // games in each cell. If 0, don't sample.
-static constexpr int SAMPLE_N = 71;
+// static constexpr int SAMPLE_N = 10; // 71;
+static constexpr bool SAMPLE = true;
 
 struct Elo {
   double elo = ELO_START;
@@ -262,6 +263,21 @@ static vector<Elo> ComputeElo(int num_entrants,
   return elos;
 }
 
+static int64 GetMinMatchups(int num_entrants,
+			    const vector<Cell> &outcomes) {
+  int64 min_total = -1;
+  for (int white = 0; white < num_entrants; white++) {
+    for (int black = 0; black < num_entrants; black++) {
+      if (white != black) {
+	const Cell &cell = outcomes[white * num_entrants + black];
+	int64 total = cell.white_wins + cell.white_losses + cell.draws;
+	if (min_total < 0 || total < min_total) min_total = total;
+      }
+    }
+  }
+  return min_total;
+}
+
 int main(int argc, char **argv) {
   printf("Reading outcomes db:\n");
   Outcomes sparse_outcomes = TournamentDB::LoadFromFile("tournament.db");
@@ -271,15 +287,15 @@ int main(int argc, char **argv) {
   std::map<string, int> ids;
   vector<string> names;
   auto GetId = [&next_id, &ids, &names](const string &s) {
-		 if (ids.find(s) == ids.end()) {
-		   int id = next_id++;
-		   ids[s] = id;
-		   names.push_back(s);
-		   return id;
-		 } else {
-		   return ids[s];
-		 }
-	       };
+      if (ids.find(s) == ids.end()) {
+	int id = next_id++;
+	ids[s] = id;
+	names.push_back(s);
+	return id;
+      } else {
+	return ids[s];
+      }
+    };
   for (const auto &p : sparse_outcomes) {
     (void)GetId(p.first.first);
     (void)GetId(p.first.second);
@@ -301,9 +317,11 @@ int main(int argc, char **argv) {
     ComputeStationary(num_entrants, names, outcomes);
 
   vector<Cell> sampled_outcomes = outcomes;
-  ArcFour rc(StringPrintf("sample.%lld", (int64)time(nullptr)));
-  if (SAMPLE_N > 0) {
-    printf("Sample %d from each cell...\n", SAMPLE_N);
+  if (SAMPLE) {
+    const int sample_n = GetMinMatchups(num_entrants, outcomes);
+    ArcFour rc(StringPrintf("sample.%lld", (int64)time(nullptr)));
+
+    printf("Sample %d from each cell...\n", sample_n);
     for (int white = 0; white < num_entrants; white++) {
       for (int black = 0; black < num_entrants; black++) {
 	if (white != black) {
@@ -311,9 +329,9 @@ int main(int argc, char **argv) {
 	  // Sampled.
 	  int wins = 0, losses = 0, draws = 0;
 	  int64 total = cell->white_wins + cell->white_losses + cell->draws;
-	  CHECK(total >= SAMPLE_N) << names[white] << " vs " << names[black]
+	  CHECK(total >= sample_n) << names[white] << " vs " << names[black]
 				   << " total: " << total;
-	  for (int i = 0; i < SAMPLE_N; i++) {
+	  for (int i = 0; i < sample_n; i++) {
 	    int64 idx = RandTo(&rc, total);
 	    idx -= cell->white_wins;
 	    if (idx < 0) {

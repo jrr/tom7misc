@@ -28,6 +28,7 @@
 #include "fate-player.h"
 #include "tournament-db.h"
 #include "player-util.h"
+#include "blind-player.h"
 
 #define TESTING true
 
@@ -53,10 +54,11 @@ using namespace std;
 // quadratically, it got to the point that running even a single
 // round would take hours. New version picks cells that are 
 static constexpr int THREADS = 54;
-static constexpr int RUN_FOR_SECONDS = 60 * 10;
+static constexpr int RUN_FOR_SECONDS = 60 * 20;
 
-// How many games must be played for a cell before we are satisfied?
-static constexpr int GAMES_TARGET = 100;
+// Fill in the diagonal just a little. After reaching this number of games,
+// we don't bother prioritizing self-play at all.
+static constexpr int SELFPLAY_TARGET = 5;
 
 typedef Player *(*Entrant)();
 
@@ -103,6 +105,9 @@ const vector<Entrant> &GetEntrants() {
 			Fatalist,
 			Equalizer,
 
+			BlindYolo,
+			BlindSingleKings,
+			
 			Worstfish,
 
 			MinOpponentMoves,
@@ -148,21 +153,6 @@ const vector<Entrant> &GetEntrants() {
 			Stockfish1M_64,
   };
   return *entrants;
-}
-
-// For backfill when adding a new entrant.
-// If non-null, only run cells that involve this player,
-// (and also avoid self-play).
-// static const char *run_only = "popular"; // "stockfish1m";
-
-// play players against themselves. This does not affect elo.
-static constexpr bool self_runs = false;
-static bool DoRun(const string &name) {
-  return true;
-  /* name == "stockfish1m_r128" || 
-     name == "stockfish1m_r64"; 
-*/
-    // name.find("stockfish1m_r") == 0;
 }
 
 // Under FIDE rules, after 50 moves without a pawn move or capture, a
@@ -405,8 +395,9 @@ struct Totals {
     for (int white = 0; white < num; white++) {
       for (int black = 0; black < num; black++) {
 	// Could use DoRun filterting here.
-	if (white != black) {
-	  topn.push(TCell(white, black, totals[white * num + black]));
+	int64 t = totals[white * num + black];
+	if (white != black || t < SELFPLAY_TARGET) {
+	  topn.push(TCell(white, black, t));
 	}
       }
     }
