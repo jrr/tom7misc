@@ -11,7 +11,6 @@ function makeElement(what, cssclass, elt) {
 }
 function IMG(cssclass, elt) { return makeElement('IMG', cssclass, elt); }
 function DIV(cssclass, elt) { return makeElement('DIV', cssclass, elt); }
-function DIV(cssclass, elt) { return makeElement('DIV', cssclass, elt); }
 function SPAN(cssclass, elt) { return makeElement('SPAN', cssclass, elt); }
 function BR(cssclass, elt) { return makeElement('BR', cssclass, elt); }
 function TEXT(contents, elt) {

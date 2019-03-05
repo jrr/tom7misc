@@ -23,6 +23,10 @@ struct SimpleFM7 {
   // Same, but discards the second player.
   static vector<uint8> ReadInputs(const string &filename);
 
+  // Same, but from a string.
+  static vector<pair<uint8, uint8>> ParseString2P(const string &contents);
+  static vector<uint8> ParseString(const string &contents);
+  
   static void WriteInputs2P(const string &outputfile,
                             const vector<pair<uint8, uint8>> &inputs);
   // Second player always 0.

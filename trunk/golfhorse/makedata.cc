@@ -1290,31 +1290,34 @@ static int HuffmanStats(const string &start_data) {
   return total_bits / 6.9542;
 }
 
-struct FreqEncoder : public ArithEncoder {
-  char ToChar(int s) {
-    if (s >= 0x0a) s++;
-    if (s >= 0x0d) s++;
-    if (s >= '\\') s++;
-    if (s >= '\'') s++;
-    return s;
-  }
-  int ToSymbol(char c) {
-    CHECK(c >= 0 && c < 128) << c;
-    CHECK(c != 0x0a && c != 0x0d && c != '\\' && c != '\'') << c;
-    int shift = 0;
-    if (c > 0x0a) shift++;
-    if (c > 0x0d) shift++;
-    if (c > '\\') shift++;
-    if (c > '\'') shift++;
-    return (int)c - shift;
-  }
 
-  vector<int> MakeSymbols(const string &s) {
-    vector<int> ret;
-    ret.reserve(s.size());
-    for (char c : s) ret.push_back(ToSymbol(c));
-    return ret;
-  }
+char ToChar(int s) {
+  if (s >= 0x0a) s++;
+  if (s >= 0x0d) s++;
+  if (s >= '\\') s++;
+  if (s >= '\'') s++;
+  return s;
+}
+int ToSymbol(char c) {
+  CHECK(c >= 0 && c < 128) << c;
+  CHECK(c != 0x0a && c != 0x0d && c != '\\' && c != '\'') << c;
+  int shift = 0;
+  if (c > 0x0a) shift++;
+  if (c > 0x0d) shift++;
+  if (c > '\\') shift++;
+  if (c > '\'') shift++;
+  return (int)c - shift;
+}
+
+vector<int> MakeSymbols(const string &s) {
+  vector<int> ret;
+  ret.reserve(s.size());
+  for (char c : s) ret.push_back(ToSymbol(c));
+  return ret;
+}
+
+
+struct FreqEncoder : public ArithEncoder {
   
   // No history; just use frequency table.
   FreqEncoder(const string &word) : ArithEncoder(0, 124, 124, 2) {
@@ -1354,6 +1357,77 @@ struct FreqEncoder : public ArithEncoder {
   }
 
   vector<pair<int, int>> freqs;
+};
+
+struct Freq2Encoder : public ArithEncoder {
+
+  // Use history of 1 (1-markov).
+  // Careful: 4 is even too high for 32-bit integers.
+  Freq2Encoder(const string &word) : ArithEncoder(1, 124, 124, 1) {
+    vector<int> counts(nsymbols * nsymbols, 0);
+    int prev = ToSymbol(word[0]);
+    for (int i = 1; i < word.size(); i++) {
+      char c = word[i];
+      int sym = ToSymbol(c);
+      counts[nsymbols * prev + sym]++;
+      prev = sym;
+    }
+
+    freqs.resize(nsymbols);
+    for (int p = 0; p < nsymbols; p++) {
+      int sum = 0;
+      for (int n = 0; n < nsymbols; n++) {
+	sum += counts[nsymbols * p + n];
+      }
+      vector<double> fracs;
+      fracs.reserve(nsymbols);
+      
+      // If the history character was never seen, we will never
+      // encounter it (except perhaps on a trial decoding!). So
+      // just return something valid.
+      if (sum == 0) {
+	printf("Never seen in history: %d='%c'\n", p, ToChar(p));
+	sum = nsymbols;
+	for (int i = 0; i < nsymbols; i++) {
+	  fracs.push_back(1.0 / (double)sum);
+	  printf("%.2f ", fracs.back());
+	}
+	
+      } else {
+	for (int n = 0; n < nsymbols; n++) {
+	  fracs.push_back(counts[nsymbols * p + n] /
+			  (double)sum);
+	}
+      }
+      CHECK_EQ(fracs.size(), nsymbols);
+      
+      // Prepare predictions vector.
+      freqs[p] = Discretize(fracs, true);
+      // But sort by symbol to simplify decoding.
+      std::sort(freqs[p].begin(), freqs[p].end(),
+		[](const pair<int, int> &a,
+		   const pair<int, int> &b) {
+		  return a.first < b.first;
+		});
+
+      for (int i = 0; i < freqs[p].size(); i++) {
+	CHECK(freqs[p][i].first == i);
+	printf("[%c] %c is %d = %.3f\n", ToChar(p), ToChar(i),
+	       freqs[p][i].second,
+	       freqs[p][i].second / (double)(ipow(B, W)));
+      }
+    }
+  }
+  
+  vector<pair<int, int>> Predict(const deque<int> &hist) override {
+    CHECK(hist.size() == 1) << hist.size();
+    // This would mean that we never saw the character (except possibly
+    // as the last one), so should not happen.
+    CHECK(!freqs[hist[0]].empty()) << ToChar(hist[0]);
+    return freqs[hist[0]];
+  }
+
+  vector<vector<pair<int, int>>> freqs;
 };
 
 
@@ -1462,10 +1536,10 @@ int main (int argc, char **argv) {
   int huffman_reps = HuffmanStats(encoded_reps);
 
   // Use the same frequency table for both. XXX test separate!
-  FreqEncoder encoder(best_data + encoded_reps);
+  Freq2Encoder encoder(best_data + encoded_reps);
 
-  vector<int> syms_data = encoder.MakeSymbols(best_data);
-  vector<int> syms_reps = encoder.MakeSymbols(encoded_reps);
+  vector<int> syms_data = MakeSymbols(best_data);
+  vector<int> syms_reps = MakeSymbols(encoded_reps);
 
   static constexpr int MAX_CHUNK = 1000;
 

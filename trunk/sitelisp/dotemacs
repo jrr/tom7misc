@@ -35,25 +35,26 @@
     ;; set the font depending on the platform
     (cond
      ((eq window-system 'w32)
-      (set-default-font 
-       ;; windows vista?
-       ; "-*-FixedSys-*-r-*-*-13-*-*-*-c-*-fontset-standard"
-       ;; windows 7
-       ;; works great but retired because it's too small and no unicode
-       ;; "-raster-Fixedsys-normal-normal-normal-mono-15-*-*-*-c-*-iso8859-1"
-       (concat "-outline-DejaVu Sans Mono-bold-normal-normal-mono-"
-               "17"
-               "-*-*-*-c-*-iso8859-1")
-       )
-       ; (set-face-attribute 'default nil :font "DejaVu Sans Mono Bold")
-       ; (set-face-attribute 'default nil :font "DejaVu Sans Mono")
-       ;; trying this on windows 7 to get unicode support.
-       ; (set-face-attribute 'default nil :font "Fixedsys Excelsior 3.01")
-       (modify-frame-parameters nil 
-	 (list '(top . 50) '(width . 80) '(height . 99)))
-       ;; to see frame parameters:
-       ;; (insert (concat "\n;; " (prin1-to-string (frame-parameters))))
-       )
+      (progn
+	(set-default-font 
+	 ;; windows vista?
+	 ;; -*-FixedSys-*-r-*-*-13-*-*-*-c-*-fontset-standard"
+	 ;; windows 7
+	 ;; works great but retired because it's too small and no unicode
+	 "-raster-Fixedsys-normal-normal-normal-mono-15-*-*-*-c-*-iso8859-1"
+	 ;; (concat "-outline-DejaVu Sans Mono-bold-normal-normal-mono-"
+	 ;;        "17"
+	 ;;        "-*-*-*-c-*-iso8859-1")
+	 )
+	 ; (set-face-attribute 'default nil :font "DejaVu Sans Mono Bold")
+	 ; (set-face-attribute 'default nil :font "DejaVu Sans Mono")
+	 ;; trying this on windows 7 to get unicode support.
+	 ; (set-face-attribute 'default nil :font "Fixedsys Excelsior 3.01")
+	 (modify-frame-parameters nil 
+	   (list '(top . 50) '(width . 80) '(height . 50))) ;; XX to 99
+	 ;; to see frame parameters:
+	 ;; (insert (concat "\n;; " (prin1-to-string (frame-parameters))))
+	 ))
      ((eq window-system 'x)
       (set-default-font 
        "-misc-fixed-bold-r-normal--13-100-100-100-c-70-iso8859-1"))
@@ -369,10 +370,19 @@
 ;;    (c-offsets-alist . ((innamespace . [0])))))
 ;; (c-add-style "tom7-cc-mode" tom7-cc-style)
 
+;; Protip: Use C-c C-o to see what context you're in, and experiment
+;; with changes to this!
 (defun tom7-c-setup ()
   ;; allow first argument to functions to wrap to next line and
   ;; indent twice the basic offset.
   (c-set-offset 'arglist-intro '++)
+  ;; indent lists (enums, etc.) with just a normal fixed
+  ;; indentation; something changed ~2018 here?
+  (c-set-offset 'brace-list-intro 'c-basic-offset)
+  ;; also fix indentation of lambda to allow for longer nested
+  ;; functions. After the brace we are in defun-block-intro, but
+  ;; also inside an inlambda.
+  (c-set-offset 'inlambda 'c-basic-offset)
   ;; set namespace blocks to be indented 0
   (c-set-offset 'innamespace [0]))
 (add-hook 'c++-mode-hook 'tom7-c-setup)

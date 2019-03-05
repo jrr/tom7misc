@@ -2033,6 +2033,10 @@ static void TrainThread() {
 
 
 int SDL_main(int argc, char **argv) {
+  // XXX This is specific to my machine. You probably want to remove it.
+  // Assumes that processors 0-16 are available.
+  CHECK(SetProcessAffinityMask(GetCurrentProcess(), 0xF));
+
   if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
     LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
   }

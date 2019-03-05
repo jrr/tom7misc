@@ -431,7 +431,7 @@ reference a given  location. We simply solve for some  seg:off such that
 In  any  compiler,  one  must  decide on  various  conventions  for  how
 variables  are laid  out in  memory, how  registers and  temporaries are
 used, how arguments  are passed to functions, and so  on. There are lots
-of  such  decision in  ABC;  some  are  basically  normal and  some  are
+of  such decisions  in  ABC;  some are  basically  normal  and some  are
 particular to the weird problems we have to solve. Let's talk about some
 of  the limitations  of  the instruction  set that  we  have access  to,
 because those inform the low-level design.

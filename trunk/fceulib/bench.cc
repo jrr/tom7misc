@@ -61,9 +61,12 @@ std::tuple<uint64, uint64, double> RunBenchmark(Emulator *emu,
 						const vector<uint8> &movie) {
   emu->LoadUncompressed(start);
   Timer exec_timer;
-  for (const uint8 input : movie) {
-    emu->StepFull(input, 0);
-  }
+
+  // Only the last step needs to be full, so that we render the image.
+  for (int i = 0; i < movie.size() - 1; i++)
+    emu->Step(movie[i], 0);
+  emu->StepFull(movie[movie.size() - 1], 0);
+
   const double exec_seconds = exec_timer.GetSeconds();
   return make_tuple(emu->RamChecksum(), emu->ImageChecksum(), exec_seconds);
 }

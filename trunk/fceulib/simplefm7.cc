@@ -204,10 +204,16 @@ vector<uint8> SimpleFM7::ReadInputs(const string &filename) {
   return ret;
 }
 
-vector<pair<uint8, uint8>> SimpleFM7::ReadInputs2P(const string &filename) {
-  string contents = Util::ReadFile(filename);
-  CHECK(!contents.empty()) << filename;
+vector<uint8> SimpleFM7::ParseString(const string &contents) {
+  vector<pair<uint8, uint8>> p2 = ParseString2P(contents);
+  vector<uint8> ret;
+  ret.reserve(p2.size());
+  for (const auto &p : p2) ret.push_back(p.first);
+  return ret;
+}
 
+static vector<pair<uint8, uint8>> InternalParseString2P(const string &error_context,
+							const string &contents) {
   vector<uint8> p1, p2;
   vector<uint8> *cur = nullptr;
 
@@ -218,7 +224,7 @@ vector<pair<uint8, uint8>> SimpleFM7::ReadInputs2P(const string &filename) {
     T_STREAM,
   };
   auto ReadToken =
-    [&filename, &contents, &pos](uint8 prev, uint8 *inputs, int *n) {
+    [&error_context, &contents, &pos](uint8 prev, uint8 *inputs, int *n) {
       // 0 byte should not be in files, or anyway is treated as EOF.
       while (pos < contents.size()) {
 
@@ -305,7 +311,7 @@ vector<pair<uint8, uint8>> SimpleFM7::ReadInputs2P(const string &filename) {
 	  continue;
 	default:
 	  CHECK(false) << "Bad character " << c << " in "
-		       << filename << " @ " << pos;
+		       << error_context << " @ " << pos;
 	}
       }
 
@@ -330,7 +336,7 @@ vector<pair<uint8, uint8>> SimpleFM7::ReadInputs2P(const string &filename) {
       prev = 0;
       break;
     case T_INPUTS:
-      CHECK(cur != nullptr) << filename << " invalid; must select stream "
+      CHECK(cur != nullptr) << error_context << " invalid; must select stream "
 	"with ! or @ before supplying inputs.";
       cur->reserve(cur->size() + n);
       while (n--) cur->push_back(inputs);
@@ -348,4 +354,14 @@ vector<pair<uint8, uint8>> SimpleFM7::ReadInputs2P(const string &filename) {
 			  (i < p2.size()) ? p2[i] : 0);
   }
   return together;
+}
+
+vector<pair<uint8, uint8>> SimpleFM7::ParseString2P(const string &contents) {
+  return InternalParseString2P("(argument)", contents);
+}
+
+vector<pair<uint8, uint8>> SimpleFM7::ReadInputs2P(const string &filename) {
+  string contents = Util::ReadFile(filename);
+  CHECK(!contents.empty()) << filename;
+  return InternalParseString2P(filename, contents);
 }

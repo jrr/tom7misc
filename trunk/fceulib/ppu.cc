@@ -587,7 +587,7 @@ inline std::pair<uint32, uint8 *> PPU::PPUTile(const int X1, uint8 *P,
                                                const uint32 vofs,
                                                uint32 refreshaddr_local) {
   const uint8 *C;
-  register uint8 cc;
+  uint8 cc;
   uint32 vadr;
   uint8 zz;
 
