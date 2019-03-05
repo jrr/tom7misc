@@ -2,6 +2,14 @@
 threadripper machine plus misc changes in the
 last year or whatever  (27 Oct 2018)
 --------------------------------------------------
+
+only do StepFull on the last frame:
+RAM checksum: b9ea3297351afa03
+Img checksum: 9c8975828c9578a7
+Startup time: 0.0020s
+Exec time:    12.4618s
+
+
 mario-long, no AOT here.
 Interesting?ly, the utilized CPU moves between
 NUMA nodes maybe every 45 seconds. The nodes

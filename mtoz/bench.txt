@@ -71,3 +71,13 @@ We spent 17.2ms in setup (0.3%),
 
 windows performance monitor shows both CPU and GPU with very low
 utilization :/
+
+ok just kidding:
+ - cpu utilization is modest (as expected)
+ - You can switch the windows performance monitor from "3D" (shows max ~10% util)
+   to "Compute_0", which is then 95%+. So this is "good", but I guess not that
+   much headroom. Compute_1 is blank, but gpuz shows 100% util, so I think I'm
+   getting the juice out of it.
+
+
+All SIGMOID: 14.24 rps after 1k rounds

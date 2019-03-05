@@ -5,6 +5,10 @@
 default : map map.svg
 # default : llt.svg
 
+# XXXXXXXXXXXXXXXXXXXXX
+# NOTE! I commented out the dependencies on binaries because
+# I cannot build mlton on Windows 10 in 2019 :(
+
 all : programs outputs thumbnails pdfs obsolete release
 
 PACTOMLIB=pactom.sml pactom-sig.sml ../sml-lib/files/xml/xml*.sml ../sml-lib/misc/color*.sml ../sml-lib/geom/latlon*.sml ../sml-lib/geom/snappoint*.sml ../sml-lib/geom/latlontree*.sml ../sml-lib/geom/quadtree*.sml ../sml-lib/geom/pointlocation*.sml ../sml-lib/data/undirected-graph*.sml ../sml-lib/util/growarray*.sml ../sml-lib/algo/heap*.sml
@@ -48,23 +52,23 @@ lltsvg : lltsvg.sml lltsvg.cm ${PACTOMLIB}
 
 outputs : radial.svg points.kml llt.svg map.svg
 
-map.svg : map pac.kml pacannotations.kml pac2.kml neighborhoods.kml interstate-logo.svg
+map.svg : pac.kml pacannotations.kml pac2.kml neighborhoods.kml interstate-logo.svg # map
 	${TIME} ./map > $@
 
-radial.svg : radial pac.kml pac2.kml
+radial.svg : pac.kml pac2.kml # radial
 	${TIME} ./radial > $@
 
-points.kml : makepoints neighborhoods.kml
+points.kml : neighborhoods.kml # makepoints 
 	${TIME} ./makepoints > $@
 
 # This is getting near the maximum memory for 32 bit machines! Probably can do some
 # kind of pre-thinning of the points, or maybe a more efficient kd-tree representation,
 # or merge at load time?
 # @MLton max-heap 600m --
-shortest.kml shortest.svg : shortestpaths pac.kml pac2.kml
+shortest.kml shortest.svg :  pac.kml pac2.kml # shortestpaths
 	${TIME} ./shortestpaths -kmlout shortest.kml -svgout shortest.svg
 
-llt.svg : lltsvg pac.kml pac2.kml
+llt.svg :  pac.kml pac2.kml # lltsvg
 	${TIME} ./lltsvg > $@
 
 
@@ -106,7 +110,7 @@ RELEASEFILES=release/pactom.kmz release/shortest.svg release/map.svg release/map
 release : ${RELEASEFILES} $(addsuffix .size, ${RELEASEFILES})
 	date +"%d %b %Y at %H:%M" | tr -d '\012' > release/updated
 upload : release
-	pscp -r release root@spacebar.org:/var/www/pac/
+	scp -P 77 -r release root@spacebar.org:/var/www/pac/
 
 release/%.png : %.png
 	cp $< $@
@@ -118,7 +122,7 @@ release/%.pdf : %.pdf
 	cp $< $@
 
 # XXX also annotations, neighborhood, etc.
-release/pactom.kmz : pac.kml pac2.kml kmlcat
+release/pactom.kmz : pac.kml pac2.kml # kmlcat
 	rm -f _pactom.kml
 	./kmlcat pac.kml pac2.kml > _pactom.kml
 	rm -f release/pactom.kmz
