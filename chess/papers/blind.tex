@@ -77,7 +77,7 @@ press, Verlag-Verlag volume no.~0x40-2A. 1 tempo}
 % CHESSMATE.
 % \end{abstract}
 
-\section*{Impressing humans}
+\section{Impressing humans}
 
 What better way for humans to impress each other with their brains,
 especially in movies, than to play chess---and to shout dramatically
@@ -98,9 +98,10 @@ next section) per pair of games, and guarantees an even score for the
 exhibition. So that's not very impressive.
 
 Another disadvantage that humans sometimes use to impress each other
-is a blindfold; they only hear the opponent announce the moves and
-must keep the position on the board in their mind's eye, both for
-the sake of remembering it and while exploring potential moves.
+is a blindfold (worn over the eyes). In this predicament they only
+hear the opponent announce moves and must keep the position on the
+board in their mind's eye, both for the sake of remembering it and
+while exploring potential moves.
 % This is effective, since although the .
 Disadvantages can be combined, such as in the final scene of the 1988
 documentary {\it Bloodsport} where Jean Claude van Damme is blinded by
@@ -113,15 +114,112 @@ battle.\footnote{JCVD does not play chess on camera, but it is implied
 \section{Impressing computers}
 
 In contrast, it is much more difficult to impress computers or impress
-people with computers. For example, it is well known that computers
-function {\em better} when struck, so chess boxing becomes trivial.
+people with computers. When it comes to computers playing chess,
+largely, the jig is up; it is now easy for chess programs, running on
+consumer hardware, to defeat the strongest human players. It is well
+known that striking a computer actually {\em fixes} it, so chess
+boxing becomes trivial. Blindfold chess is the natural interface for a
+chess computer; it is actually {\em much more difficult} to have the
+computer interpret the opponent's move by visually studying a physical
+board!
+
 Playing multiple games simutaneously is an easy extension of playing a
-single game, and when it comes to computers playing chess, largely,
-the jig is up; it is now easy for chess programs, running on consumer
-hardware, to defeat the strongest human players. Blindfold chess is
-the natural interface for a chess computer; it is actually {\em much
-  more difficult} to have the computer interpret the opponent's move
-by visually studying a physical board!
+single game, although in principle the scale of such a thing could
+still be impressive. With a modern chess engine, it is easy to scale
+to an arbitrary number of games, since the exhibitor can make progress
+by observing one of the boards, computing a strong move, and playing
+it; this requires $O(0)$ space because all of the state is stored
+externally in the exhibition itself. 
+% If playing blindfold, then the
+% main cost is storing the state of each game. 
+However, we run the risk of losing the tournament (other players may
+be yet stronger computers). The man-in-the-middle attack remains an
+efficient way way to minimize loss (ensuring an exactly even score).
+Suppose that there are $n$ games $G$ being played. We generate a
+bipartite matching that pairs games $\langle G_w, G_b \rangle$ (where
+we play as white against Bob and black against Walice, respectively).
+This is $n/2$ pairs, and we record which pair each game belongs to, in
+$n \log_2(n/2)$ bits. Now, to make progress, we look at a game $G_i$
+where it is our move, and consult our state for this pair. If the
+pair has the has-move bit (actually just store it as the move itself), 
+
+ok, so probably the most efficient thing is to store instead the
+move played in each row. Moves are like 64*64*4 (promotion) = 6+6+2 bits.
+The only way to really motivate the board approach would be if it
+allows us to avoid the log(n/2) factor from storing the matching?
+
+so you have a set of black and white games, same number of each.
+goal is to get an even score, while using O(n) space.
+So we have an invariant that each of the games-as-white is paired
+with at least one compatible game-as-black (and vice versa). Of
+course at the beginning all pairs are compatible, and then white
+makes a move; the games are still compatible because any of these
+moves can be played on the black side. We just need to make sure
+that we don't play e.g. e4 in all the games, because we need enough
+black opponents to be playing against d4s and Nf3s and so on.
+So, after all the white players have made their moves, we have
+those boards, and need to make moves for black. For each, just pick
+a compatible board (i.e., something that represents a legal move)
+and play it. When we do so, we update the board to a state like
+``I made this move as white.'' (So at the very beginning, all boards
+are in the starting position with like ``I made this move as black,''
+of course not really, more like ``white opponent to move'').
+This is easy on the first move because all choices (that are in
+the state ``copied this move from white'').
+
+Now we wait for black players to make their moves. (Note waiting
+can be done in constant space. You just compare each board that
+has ``black opponent to move'' with the actual board state; if
+the move is compatible then you update it. But might you confuse
+the identities of two games? It would need to be the case that
+there exists board states $B_1$, $B_2$, $B$ where $B$ can
+legally follow $B_1$ and $B_2$ but $B_1$ and $B_2$ are different.
+Of course this is possible! $B$ could be like 
+
+\chessboard[tinyboard, setfen=k7/8/8/8/8/8/8/K7 w - -, showmover]
+
+and then we have $B_1$ and $B_2$ as
+
+\chessboard[tinyboard, setfen=1k6/8/8/8/8/8/8/K7 b - -, showmover]
+\chessboard[tinyboard, setfen=Rk6/8/8/8/8/8/8/K7 b - -, showmover]
+
+And so if we misassign $B$ to $B_1$, and then later see $B'$:
+
+\chessboard[tinyboard, setfen=R7/1k6/8/8/8/8/8/K7 w - -, showmover]
+
+We are stuck because $B'$ cannot follow $B_2$.
+
+So if we're actually going to do it with this method, we would
+need to be able to compute the bipartite matching looking at all
+the constraints. There certainly exists one, and any one will do. 
+(Actually what we want is called a ``perfect matching.'')
+So the question is, can we compute a perfect matching in constant
+space? I mean, it seems like not. How could we even {\em store}
+the matching? Well, we don't actually need to store the matching
+because it's not *literally* what we need; we just want to have
+assigned the games according to a perfect match. So one approach
+is like, pick a random assignment. If we get stuck, just start
+over (so we would have to keep two board states, in order to
+be able to ``undo'', but that is still constant) and commit
+the whole thing if we succeed. We're actually quite likely to
+succeed since ambiguities are pretty rare. So this may work
+fine in practice. The main thing we achieve here is that we
+don't need to store the matching itself between rounds; the
+matching is ``expensive'' because it contains an index, which
+is logarithmic size in the number of games. So, with this
+method, we get $O(n)$ space, which is actually around $200 n$.
+
+
+For each pair, we store the state of the board $B$
+as last we saw it in $G_w$ or $G_b$.
+
+both Walice and Bob have made their moves (that is, it is white's turn
+in $G_w$ and 
+
+$G_i$, we look up which pair $p$ it is, and look at $B_p$. This board
+
+
+Note that 
 
 Computers can still impress us and each other with computational chess
 feats other than playing. For example, computers are largely concerned
@@ -134,15 +232,19 @@ pieces), followed by 32 records giving the piece values (there are 6:
 pawn, knight, bishop, rook, queen, king) and colors. To pick between
 the 12 possibilities we need 4 bits, and there is some slack here of
 course. anyway, that's 64 + 32*4 = 192 bits, plus 15 bits for other
-state. Note we could use the c_rook trick to save 4 bits for castling
-rights (14 possibilities), not to mention a en_passantable pawn (15)
+state. Note we could use the c\_rook trick to save 4 bits for castling
+rights (14 possibilities), not to mention a en\_passantable pawn (15)
 and a king whose turn it is (even 16). Clear slack here, but that
 would leave only the 50-move rule at 7 bits, for a total of 199.
 Wikipedia says the huffman approach is ``maximum of 204 bits, and
 often much less.'' but the article also contains many bugs, like
 the misconception that there can only be four rooks. 
 
-
+So now comes the main idea of the paper, which is also spoilered in the
+very clear paper title. What if we represented boards {\em only} as the
+64-bit mask telling us what squares are occupied? The encoding is very
+lossy, of course, but it often contains enough information to deduce
+the state of the board, or ...
 
 % 
 % % make -j eval-unblinder.exe && ./eval-unblinder.exe net.val
@@ -210,7 +312,7 @@ the misconception that there can only be four rooks.
 % all bits set to 1 (with single_kings)
 % (without single_kings, only difference is that the bottom right becomes a
 % rook; no white queen)
-\includegraphics{blind-allon}
+\includegraphics[width=0.9 \linewidth]{blind-allon}
 
 \bibliography{chess}{}
 \bibliographystyle{plain}
