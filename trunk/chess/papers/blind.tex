@@ -123,6 +123,10 @@ chess computer; it is actually {\em much more difficult} to have the
 computer interpret the opponent's move by visually studying a physical
 board!
 
+% Computers can still impress us and each other with computational chess
+% feats other than playing. For example, computers are largely concerned
+% with filling up their memories with efficiently encoded data.
+
 Playing multiple games simutaneously is an easy extension of playing a
 single game, although in principle the scale of such a thing could
 still be impressive. With a modern chess engine, it is easy to scale
@@ -208,7 +212,9 @@ boards, forgetting $B$.\footnote{In fact, we do not even need to
   exhibition itself is represented.} Then we transition to
 State~\label{state:cmim2}. In this state, we figure out what moves to
 play in the pending boards. By invariant, each one $B$ will be
-compatible with at least one of our source boards $B'$. Compatible
+compatible with at least one of our source boards $B'$; we can iterate
+over source boards until we find one in constant space (and mark it
+as ``taken'' with . Compatible
 means that there exists a move $m$ where playing $m$ in board $B$
 results in $B'$. If $m$ exists, it is unique (and easy to compute), so
 this is the move that we will play. The only tricky thing is figuring
@@ -237,113 +243,132 @@ $B'_2$:
 \ldots and have no possible matching board, since it cannot follow
 $B_a$.
 
-Fortunately, we know the
- - there exists a perfect matching (players playing legally)
- - we can tell if we found one
+Fortunately, we know that there exists a perfect matching (assuming
+all players are playing legal moves) and we can tell if we found
+one (i.e., we didn't get stuck). So, one strategy that works is
+to choose randomly when there is some ambiguity, and start over
+from the beginning if we ever get stuck. In practice this will
+be pretty efficient, since convergent board states are unusual.
+We only need a single pseudorandom pool for the entire process,
+so it can be O(n) bits; this seems easily enough to generate all
+possible permutations of $n/2$ items. Even $n^{2n}$ grows much
+faster than $n!$. If we don't like the random approach, I believe
+it is also possible to compute \verb+next_permutation+ in
+constant space; so we can just explicitly try all orderings for $B'$
+(this takes exponential time).
 
-so you have a set of black and white games, same number of each.
-goal is to get an even score, while using O(n) space.
-So we have an invariant that each of the games-as-white is paired
-with at least one compatible game-as-black (and vice versa). Of
-course at the beginning all pairs are compatible, and then white
-makes a move; the games are still compatible because any of these
-moves can be played on the black side. We just need to make sure
-that we don't play e.g. e4 in all the games, because we need enough
-black opponents to be playing against d4s and Nf3s and so on.
-So, after all the white players have made their moves, we have
-those boards, and need to make moves for black. For each, just pick
-a compatible board (i.e., something that represents a legal move)
-and play it. When we do so, we update the board to a state like
-``I made this move as white.'' (So at the very beginning, all boards
-are in the starting position with like ``I made this move as black,''
-of course not really, more like ``white opponent to move'').
-This is easy on the first move because all choices (that are in
-the state ``copied this move from white'').
+Once we have paired up each $B$ and $B'$, we simply compute the
+move (which we now know exists) and play it in that game. We
+then wait for the black opponents to play their moves, copy the
+resulting board states into our vector and repeat the above
+process (but flipping ``black'' and ``white'').
 
-Now we wait for black players to make their moves. (Note waiting
-can be done in constant space. You just compare each board that
-has ``black opponent to move'' with the actual board state; if
-the move is compatible then you update it. But might you confuse
-the identities of two games? It would need to be the case that
-there exists board states $B_1$, $B_2$, $B$ where $B$ can
-legally follow $B_1$ and $B_2$ but $B_1$ and $B_2$ are different.
-Of course this is possible! $B$ could be like 
+Although this is more involved than the previous approach, and may
+take exponential time, it allows us to play against $n$ simultaneous
+opponents using $O(n)$ space!\footnote{ 
+%
+If the games in the exhibition were presented to us in some way that
+allowed us to visit them in the same order multiple times, we could
+perhaps get away with {\em only} the random pool? XXX }
+%
+The actual space used per game is primarily the representation of
+a chess position, plus a few bits for bookkeeping. So, representing
+boards compactly gives us a way to increase the number of simultaneous
+games we can play for a given storage size.
 
-\chessboard[tinyboard, setfen=k7/8/8/8/8/8/8/K7 w - -, showmover]
+Mainly, we need to store the pieces and their locations. There are a
+few other bits, like whose turn it is (1 bit), whether each player can
+still castle king- and queen-side (4 bits), and whether and where an
+en passant capture is possible (4 bits).\footnote{
+%
+Technically, we need to store a lot of additional information with the
+board in order to completely implement the rules of
+chess.\cite{fiderules} The trickiest of these involve the rules for
+draw by repetition, which make reference to the history of the game
+(See Footnote~1 in {\it Survival in chessland}\cite{survival} and seem
+to require storing all previous board states. Fortunately, if we are
+being this picky, then we also know that the length of a chess game is
+bounded by a constant: Rule 9.6.2 ends the game in a draw if both
+players have made 75 moves without a pawn move or
+capture,\footnotemark\ so it suffices to store the $75*2$ most recent
+(half-)moves. This sucks so most people don't do it (for example, FEN
+notation only gives the number of such moves, and so cannot implement
+the draw by repetition). On the other hand, if we insist, then this
+may give us a simpler route to a constant-space exhibition, since the
+$B \stepsto{m} B'$ relation is probably reversible with such
+information.}\footnotetext{These are two types of moves that make it impossible
+  to formally repeat a position that preceded them. Castling also has
+  this property, but doesn't count because it is a ``secret move.''}
 
-and then we have $B_1$ and $B_2$ as
+With 64 squares, six pieces for each of the two sides, plus the empty
+square, a straightforward representation of the board uses $64*4=256$
+bits. The Thursd'z Institute considered more compact
+representations\cite{representations}; one nice choice works as follows:
 
-\chessboard[tinyboard, setfen=1k6/8/8/8/8/8/8/K7 b - -, showmover]
-\chessboard[tinyboard, setfen=Rk6/8/8/8/8/8/8/K7 b - -, showmover]
+Start with a single 64-bit mask which indicates, for each square on
+the board, whether it contains any piece. Note that there can only be
+up to 32 pieces on the board. To tell what these pieces are, we then
+follow with 32 four-bit records; these indicate the piece's color and
+type.\footnote{(Since only 32 of the 64 bits can be set, you could do
+  slightly better by representing $\binom{60}{32}$ in $\sim 61$ bits.
+  When fewer than 32 squares are occupied, we can use a record
+  containing e.g. a third king (otherwise impossible) to indicate that
+  we should ignore the remaining bits. However, this gets vastly more
+  complicated for only 3 bits of savings.)} 
+%
+With the 9 bits of extra state above, this totals $64+32*4+9=201$
+bits. There is some slack in the representation, because there are
+only 12 actual possibilities for a piece but we can indicate 16 with 4
+bits. It is great to abuse this slack to save bits; for example, we
+can store a new type of rook that is still able to castle (it can only
+be in the corners and thus also indicates its own color), eliminating
+the 4 castling bits. We can similarly introduce an en-passantable
+pawn, saving the 4 bits of en passant state; this piece can only be in
+ranks 4 or 5, so it also indicates its color. We can also have a
+``king whose turn it is'' for each side, saving the side-to-move bit.
+This totals a nice round $64+32*4=192$ bits.\footnote{ Since this is
+  SIGBOVIK, I am freed from the burden of comparing related work. I
+  did however read the rather bad Wikipedia article on the
+  topic\cite{wikipediaboard} which describes a Huffman-based encoding
+  that uses a ``maximum of 204 bits, and often much less.'' This also
+  includes a 7-bit 50-move counter (but you really need to implement a
+  75-move counter; 50 moves only allow a player to {\em claim} a draw)
+  so should be compared as $197$ bits. But the article also contains
+  many bugs, like the misconception that there can only be four total
+  rooks (pawns are allowed to promote to rook). So the approach
+  described here is both {\em more efficient} and {\em more correct}.}
+%
+This would allow approximately an 11 billion-game simultaneous
+exhibition in RAM on my desktop computer.
 
-And so if we misassign $B$ to $B_1$, and then later see $B'$:
-
-\chessboard[tinyboard, setfen=R7/1k6/8/8/8/8/8/K7 w - -, showmover]
-
-We are stuck because $B'$ cannot follow $B_2$.
-
-So if we're actually going to do it with this method, we would
-need to be able to compute the bipartite matching looking at all
-the constraints. There certainly exists one, and any one will do. 
-(Actually what we want is called a ``perfect matching.'')
-So the question is, can we compute a perfect matching in constant
-space? I mean, it seems like not. How could we even {\em store}
-the matching? Well, we don't actually need to store the matching
-because it's not *literally* what we need; we just want to have
-assigned the games according to a perfect match. So one approach
-is like, pick a random assignment. If we get stuck, just start
-over (so we would have to keep two board states, in order to
-be able to ``undo'', but that is still constant) and commit
-the whole thing if we succeed. We're actually quite likely to
-succeed since ambiguities are pretty rare. So this may work
-fine in practice. The main thing we achieve here is that we
-don't need to store the matching itself between rounds; the
-matching is ``expensive'' because it contains an index, which
-is logarithmic size in the number of games. So, with this
-method, we get $O(n)$ space, which is actually around $200 n$.
-
-
-For each pair, we store the state of the board $B$
-as last we saw it in $G_w$ or $G_b$.
-
-both Walice and Bob have made their moves (that is, it is white's turn
-in $G_w$ and 
-
-$G_i$, we look up which pair $p$ it is, and look at $B_p$. This board
-
-
-Note that 
-
-Computers can still impress us and each other with computational chess
-feats other than playing. For example, computers are largely concerned
-with filling up their memories with efficiently encoded data.
-
-compactly storing a position. constant state
-
-I think a version I liked was 64 bits (this gives the positions of all
-pieces),\footnote{(We can also do a little better. Note that only up
-  to 32 of the 64 bits can be set, so you could represent
-  $\binom{60}{32}$ in $\sim 61$ bits and use e.g. a third king to
-  indicate that there are no more actually occupied squares if fewer
-  than 32 pieces are present. However, this gets vastly more
-  complicated for only 3 bits of savings.)} followed by 32 records
-giving the piece values (there are 6: pawn, knight, bishop, rook,
-queen, king) and colors. To pick between the 12 possibilities we need
-4 bits, and there is some slack here of course. anyway, that's 64 +
-32*4 = 192 bits, plus 15 bits for other state. Note we could use the
-c\_rook trick to save 4 bits for castling rights (14 possibilities),
-not to mention a en\_passantable pawn (15) and a king whose turn it is
-(even 16). Clear slack here, but that would leave only the 50-move
-rule at 7 bits, for a total of 199. Wikipedia says the huffman
-approach is ``maximum of 204 bits, and often much less.'' but the
-article also contains many bugs, like the misconception that there can
-only be four rooks.
-
+\medskip
 So now comes the main idea of the paper, which is also spoilered in the
 very clear paper title. What if we represented boards {\em only} as the
 64-bit mask telling us what squares are occupied? The encoding is very
 lossy, of course, but it often contains enough information to deduce
-the state of the board, or ...
+the state of the board. For example, can you tell what position this is?
+
+\chessboard[setfen=8/8/8/8/8/8/8/8,
+  showmover=false, 
+  smallboard,  
+  color=gray,
+  strokeopacity=0,
+  markstyle={[fill]circle},
+  markfields={a1,b1,c1,d1,e1,f1,g1,h1,a2,b2,c2,d2,e4,f2,g2,h2,a7,b7,c7,d7,e7,f7,g7,h7,a8,b8,c8,d8,e8,f8,g8,h8
+}]
+
+Correct! It is
+
+\begin{tabular}{p{1.85in}p{1.4in}}
+\chessboard[setfen=nrbqkbrn/pppppppp/8/8/4P3/8/PPPP1PPP/NRBBNRQK b - - 34 19, showmover=false, smallboard] & {
+\vspace{-1.65in} \small after 1. Nf3 Nf6 2. e4 Ng4 3. Bc4 Ne5 4. O-O Ng6
+5. Kh1 Rg8 6. Nc3 Nh8 7. Qe2 Nc6 8. Rb1 Rb8
+9. Nb5 Nb4 10. Rd1 Nd5 11. Qf1 Nb6 12. Qg1 Na8
+13. Nbd4 Nb6 14. Rf1 Na8 15. Be2 Ng6 16. Bd1 Nh8
+17. Nb3 Ng6 18. Ne1 Nh8 19. Na1}
+\end{tabular} \vspace{1em}
+
+So this is kind of like blindfold chess ... XXX
 
 % 
 % % make -j eval-unblinder.exe && ./eval-unblinder.exe net.val
