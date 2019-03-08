@@ -84,7 +84,7 @@ especially in movies, than to play chess---and to shout dramatically
 CHECKMATE! upon surprise-checkmating their opponent? Well, one way is
 to play chess while disadvantaged somehow, for example, by punching
 each other in the face repeatedly during the game to impair brain
-function (see Chess Boxing~\cite{chessboxing}). Another common
+function (see Chess Boxing~\cite{wikipediachessboxing}). Another common
 distraction is to play a multitude of games against many opponents at
 the same time, in a so-called ``simultaneous exhibition.'' The idea is
 that this is more challenging because of the need to maintain mental
@@ -110,6 +110,7 @@ battle.\footnote{JCVD does not play chess on camera, but it is implied
   that he is also holding a simultaneous exhibition between rounds in
   a different room of the underground Hong Kong illegal karate
   complex.}
+% Note: blindfold simuls are banned in russia as a health hazard!?
 
 \section{Impressing computers}
 
@@ -163,7 +164,7 @@ State~\ref{state:mim3}, etc., otherwise we will not have a move to play.
 There are $n/2$ pairs, with two bits for the state, no more\footnote{
   There are only 1792 pairs of squares between which pieces can ever
   move (Section~\ref{sec:legalmove}), so $11+2$ bits suffices, with
-  some added complexity.} than $\log_2(64 * 64 * 4) = 14$ bits for
+  some added complexity.} than $\log_2(64 \times 64 \times 4) = 14$ bits for
 each move (source square, destination square, and 2 bits to
 distinguish promotion to queen, rook, bishop, or knight). However, we
 also need to store the matching of $G_w$ to $G_b$; this can be done
@@ -270,7 +271,9 @@ opponents using $O(n)$ space!\footnote{
 If the games in the exhibition were presented to us in some way that
 allowed us to visit them in the same order multiple times, we could
 perhaps get away with {\em only} the random pool? XXX }
-%
+
+\subsection{Board representations} \label{sec:representation}
+
 The actual space used per game is primarily the representation of
 a chess position, plus a few bits for bookkeeping. So, representing
 boards compactly gives us a way to increase the number of simultaneous
@@ -290,7 +293,7 @@ to require storing all previous board states. Fortunately, if we are
 being this picky, then we also know that the length of a chess game is
 bounded by a constant: Rule 9.6.2 ends the game in a draw if both
 players have made 75 moves without a pawn move or
-capture,\footnotemark\ so it suffices to store the $75*2$ most recent
+capture,\footnotemark\ so it suffices to store the $75\times 2$ most recent
 (half-)moves. This sucks so most people don't do it (for example, FEN
 notation only gives the number of such moves, and so cannot implement
 the draw by repetition). On the other hand, if we insist, then this
@@ -301,7 +304,7 @@ information.}\footnotetext{These are two types of moves that make it impossible
   this property, but doesn't count because it is a ``secret move.''}
 
 With 64 squares, six pieces for each of the two sides, plus the empty
-square, a straightforward representation of the board uses $64*4=256$
+square, a straightforward representation of the board uses $64 \times 4=256$
 bits. The Thursd'z Institute considered more compact
 representations\cite{representations}; one nice choice works as follows:
 
@@ -316,7 +319,7 @@ type.\footnote{(Since only 32 of the 64 bits can be set, you could do
   we should ignore the remaining bits. However, this gets vastly more
   complicated for only 3 bits of savings.)} 
 %
-With the 9 bits of extra state above, this totals $64+32*4+9=201$
+With the 9 bits of extra state above, this totals $64+32 \ times 4+9=201$
 bits. There is some slack in the representation, because there are
 only 12 actual possibilities for a piece but we can indicate 16 with 4
 bits. It is great to abuse this slack to save bits; for example, we
@@ -326,7 +329,7 @@ the 4 castling bits. We can similarly introduce an en-passantable
 pawn, saving the 4 bits of en passant state; this piece can only be in
 ranks 4 or 5, so it also indicates its color. We can also have a
 ``king whose turn it is'' for each side, saving the side-to-move bit.
-This totals a nice round $64+32*4=192$ bits.\footnote{ Since this is
+This totals a nice round $64+32 \times 4=192$ bits.\footnote{ Since this is
   SIGBOVIK, I am freed from the burden of comparing related work. I
   did however read the rather bad Wikipedia article on the
   topic\cite{wikipediaboard} which describes a Huffman-based encoding
@@ -368,9 +371,182 @@ Correct! It is
 17. Nb3 Ng6 18. Ne1 Nh8 19. Na1}
 \end{tabular} \vspace{1em}
 
-So this is kind of like blindfold chess ... XXX
+\section{Color- and piece-blind chess}
 
-% 
+So this is kind of like blindfold chess, but for computers! Instead of
+being blind to the board, and only relying on our memory (trivial for
+computers), we'll only be able to see where pieces are positioned on
+the board, but not what type or color they are. Of course, we also
+have to prohibit the computer from simply remembering the board, so
+the algorithm must be stateless. Specifically, we want a function
+\[
+  {\tt makemove} : {\tt uint64} \rightarrow {\tt move list}
+\]
+that makes a move from a single board position, represented just as 64
+bits. This is a single move; the move list represents our preference
+for the move to make in descending order, and we commit to the first
+move that is actually legal. It does not work well to insist that the
+function return a single move, as it will often be the case that the
+board is misinterpreted and a move is in fact illegal; forcing
+forfeit\footnote{FIDE rules state that the {\em second} attempt at an
+  illegal move results in forfeit (7.5.5).} would mean that almost all
+games end in forfeit, which is boring. On the other hand, allowing the
+function to try again upon learning a move is illegal would allow it
+to interactively ``interrogate'' the board state
+somewhat.\footnote{Similar to Kriegspiel~\cite{wikipediakriegspiel}, although
+  in that game at least one's own pieces are known!} This seems
+counter to the spirit of color- and piece-blind chess, so we instead
+require the function to rank all moves ahead of time.
+
+\section{Unblinding the board}
+
+I went about this by building a function that ``unblinds'' a board; it
+has type
+\[
+{\tt unblind} : {\tt uint64} \rightarrow {\tt position}
+\]
+
+This function is natural for machine learning. It is easy to generate
+copious training data from actual games by simply blinding positions
+into their corresponding 64-bit numbers; I just randomly sampled 100
+million positions from Feburary~2017 on lichess.org.
+
+I repurposed the custom neural network code from my seminal paper {\it
+  Red i removal with artificial retinal networks}~\cite{redi} after
+discovering that artificial retinal networks are actually {\em
+  isomorphic} to neural networks. The main advantage of this code is
+that it allows for sparse networks, but the real reason to use it is
+that I would rather spend dozens of hours debugging my own code, pay a
+larger electric bill, and get worse results in the end, than to spend
+a short while trying to get someone else's probably-very-good neural
+network training package to compile.
+
+The structure of the network is as follows. The input layer is 64
+nodes, one for each of the 64 bits, with each node set to either {\tt
+  1.0f} or {\tt 0.0f}. Three hidden layers of size 1024, 12288, and 567
+do the neural magic. The output layer is 837 nodes; the bulk of which
+is a ``one-hot'' representation of the predictions for the 64 squares,
+each with 13 possible contents (black or white, six pieces, or empty).
+This is $64 \times 13 = 832$ nodes. Then four nodes to predict the
+four castling bits, and one to predict the current side to move. This
+model does not predict the possibility for {\em en passant} capture,
+nor move counters or position repetition. This will not be its main
+source of disadvantage!
+
+I trained the network in two phases, first starting with a densely
+connected one (model size 160 MB), and then after I get fed up with
+how slow training was, a ``vacuumed'' version of the network where I
+removed edges with low absolute weights (model size 5 MB) to continue
+training. Removing edges based on an absolute weight threshold is
+very unprincipled (since a downstream edge can magnify a contribution
+arbitrarily) but I did it anyway.
+
+Everything was trained on a single GPU, though a fairly decent one in
+2018, the EVGA GeForce GTX 1080 FTW (really), using OpenCL. Biases
+were initialized to $0$ and weights with a Gaussian of mean $0$ and
+standard deviation $0.025$. In the first phase, there were 64 examples
+per round, and after vacuuming, 2048. The round learning rate
+$\alpha_r$ started at $0.1$ and descended linearly to $0.002$ over
+500,000 rounds; and the learning rate when updating weights (for each
+example) $\alpha$ is $\alpha_r / \verb+examples_per_round+$. In no way
+am I recommending these parameters. Fiddling with the parameters to
+make it do its black magic or alternately carom off to a sea of NaNs
+or zeroes is for sure the worst part of neural networks. In fact, I
+initially started with the classical sigmoid transfer function, but
+``upgraded'' to the ``leaky rectified linear'' function
+%
+$$((potential < 0.0f) ? potential * 0.01f : potential)$$
+%
+after getting fed up with sigmoid weights caroming off (see
+``vanishing gradient problem'' and/or ``exploding gradient problem'').
+The final model was trained over 339,885 rounds on 223 million
+examples. It did not appear to show signs of improving for
+several days before I terminated it.
+
+\subsection{Statistical evaluation}
+
+The unblinding component can be evaluated on its own, by running
+it on examples sampled independently of the training set. Over
+50,000 examples, these were the results:
+
+9,584 predicted boards were exactly correct (19.17\%). There were a
+total of 161,166 piece mistakes, which is an average of 3.22 per
+board. This is wherever we predict a square's contents incorrectly.
+There were only 1630 castling status mistakes, an average of 0.03 per
+board (there can be up to four mistakes per board). This is probably
+because when the king and rook are in their starting squares, castling
+is almost always still allowed. In 19,014 boards, we mispredicted
+whose move it is (38\%). This appears to be the most difficult thing
+to predict, which is not surprising.\footnote{ Prior to ``vacuuming'',
+  the 160 MB network actually performed slightly better than the final
+  5 MB network, with 21.20\% of boards exactly correct, and an average
+  of 3.12 mistakes per board. This suggests that the model may only be
+  doing a limited amount of generalization, instead mostly memorizing
+  board positions. Representing the 223 million examples seen exactly
+  (using our best board representation described in
+  Section~\ref{sec:representation}) would take 42.8 GB, so at 5 MB at
+  least the data is represented compactly, if also rather lossily.}
+
+\subsection{Subjective evaluation}
+
+The unblinder {\em must} make mistakes since the 64-bit representation
+is ambiguous. Subjectively, the unblinder makes reasonable mistakes.
+It is excellent at common openings, usually getting these exactly
+correct. On the other hand, it is fairly bad at sparse endgames, where
+it is difficult to tell a pawn from a rook from a king. It is terrible
+at unlikely positions that can be confused for likely ones. If you are
+playing against it and know how it works, it is easy to trick it by
+doing something like capturing one of its starting-position pawns with
+your queen; nobody does this in real games (because the queen can be
+immediately recaptured), so the square is predicted as a pawn and the
+queen ``disappears'' to the unblinder (Figure~\ref{fig:trick}). Having
+an invisible queen in your camp is of course very dangerous. Resolving
+ambiguities in favor of more likely positions is the right thing for
+the model to do, so this is just an inherent flaw with the
+decomposition of the problem. There are some ways we can account for
+this (Section~\ref{sec:using}). % XXX make sure I did this work
+
+\begin{figure}[ht]
+XXX actual example
+\caption{The white queen ``disappears'' after QxWhatever, because
+  unblinding predicts it to be one of black's own pawns, which is far
+  more likely in that square.} \label{fig:trick}
+\end{figure}
+
+A few things are distinctly disappointing about its performance. Even
+outside of ``likely'' positions, it usually predicts that pieces on
+black's side of the board are black, and vice versa
+(Figure~\ref{fig:allon}). This makes sense, but suggests serious
+limitation on using the prediction to play chess. Less forgivably, it
+sometimes predicts more than one king per side (or zero), which is
+always wrong. Actually, an early version had this problem in spades,
+usually frequently predicting two or three kings. Upon debugging, I
+had simply made the noob mistake of printing both King and Knight with
+the letter ``K.'' Ha! It often predicts the ``wrong'' number of
+bishops (etc.), or places them on the same color. This is technically
+possible through promotion, but usually a bad guess, since promotion
+is relatively rare, and moreso promotion to a piece other than a
+queen. An approach that might handle this better (but may have
+different downsides) would be instead to predict the ``fates'' of the
+32 initial pieces. The fate of a pawn can include promotion, but no
+other pieces can. This would {\em require} that the model only predict
+a single location for each king, among other things. However, this
+would require a much larger output layer (32 pieces can move to 64
+squares, plus promotion) and it is not always clear how to interpret
+its value into a position (for example, if two pieces are predicted
+strongly to be on the same square).
+
+\begin{figure}[ht]
+\includegraphics[width=0.9 \linewidth]{blind-allon}
+\caption{What the model predicts (in single-king mode;
+  Section~\ref{sec:using}) for {\tt 0xFFFFFFFFFFFFFFFF}, the board
+  with all bits set. This is an impossible position, but it gives some
+  idea of the model's biases for each square. Notably, most of the pieces
+  on each half of the board have a single color. This makes sense, but
+  also suggests substantial limitation. When single-king mode is off,
+  the bottom right king is predicted as a white rook.} \label{fig:allon}
+\end{figure}
+
 % % make -j eval-unblinder.exe && ./eval-unblinder.exe net.val
 % .!Evaluating model net.val...
 % Loaded 50000 positions in 122.59s
@@ -432,11 +608,6 @@ So this is kind of like blindfold chess ... XXX
 % 
 % (cite #kingme)
 % 
-
-% all bits set to 1 (with single_kings)
-% (without single_kings, only difference is that the bottom right becomes a
-% rook; no white queen)
-\includegraphics[width=0.9 \linewidth]{blind-allon}
 
 \bibliography{chess}{}
 \bibliographystyle{plain}

@@ -1966,7 +1966,7 @@ static void TrainThread() {
 	double f = input / round_target;
 	return start + f * height;
       };
-      const float round_learning_rate = Linear(0.10, 0.002, 500000.0, net->rounds);
+    const float round_learning_rate = Linear(0.10, 0.002, 500000.0, net->rounds);
       
     // const float round_learning_rate =
     //     std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (net->rounds + 1)/3.0)));
