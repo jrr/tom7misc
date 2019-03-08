@@ -135,18 +135,111 @@ externally in the exhibition itself.
 However, we run the risk of losing the tournament (other players may
 be yet stronger computers). The man-in-the-middle attack remains an
 efficient way way to minimize loss (ensuring an exactly even score).
-Suppose that there are $n$ games $G$ being played. We generate a
-bipartite matching that pairs games $\langle G_w, G_b \rangle$ (where
-we play as white against Bob and black against Walice, respectively).
-This is $n/2$ pairs, and we record which pair each game belongs to, in
-$n \log_2(n/2)$ bits. Now, to make progress, we look at a game $G_i$
-where it is our move, and consult our state for this pair. If the
-pair has the has-move bit (actually just store it as the move itself), 
+The simplest way to do this is to explicily generate a perfect
+bipartite matching over the $n$ games $G$ being played. This consists
+of $n/2$ pairs $\langle G_w, G_b \rangle$ (where we play as white
+against Bob and black against Walice, respectively). Since each game
+starts in the starting position, this is very easy; we can just assign
+the matches consecutively. Along with each pair we also record which
+of the following states we are in:
+\begin{enumerate}
+\item We are waiting for a move from Walice (our white opponent) \label{state:mim1}
+\item We have seen a move from Walice, which is \underline{\hspace{6em}}. \label{state:mim2}
+\item We are waiting for a move from Bob (our black opponent) \label{state:mim3}
+\item We have seen a move from Bob, which is \underline{\hspace{6em}}. \label{state:mim4}
+\end{enumerate}
+If in State~\ref{state:mim1}, we just watch $G_b$ until Walice makes a
+move, then record it and proceed to State~\ref{state:mim2}. We consume
+the move and move to State~\ref{state:mim3} by playing that move in
+$G_w$ against Bob (where it must be our turn). We can immediately seek
+out that game or wait until we naturally come upon it. However, we
+should only approach $G_w$ when the pair of games is in
+State~\ref{state:mim3}, etc., otherwise we will not have a move to play.
 
-ok, so probably the most efficient thing is to store instead the
-move played in each row. Moves are like 64*64*4 (promotion) = 6+6+2 bits.
-The only way to really motivate the board approach would be if it
-allows us to avoid the log(n/2) factor from storing the matching?
+There are $n/2$ pairs, with two bits for the state, no more\footnote{
+  There are only 1792 pairs of squares between which pieces can ever
+  move (Section~\ref{sec:legalmove}), so $11+2$ bits suffices, with
+  some added complexity.} than $\log_2(64 * 64 * 4) = 14$ bits for
+each move (source square, destination square, and 2 bits to
+distinguish promotion to queen, rook, bishop, or knight). However, we
+also need to store the matching of $G_w$ to $G_b$; this can be done
+with a pair of indices (or e.g. memory addresses) but unfortunately,
+this requires $\log_2(n)$ bits to represent. So overall this approach
+requires $O(n \log(n))$ space to play a simultaneous exhibition of $n$
+games.
+
+It appears to be possible to reduce the space usage per game to a
+constant. In order to perform a man-in-the-middle attack, we need
+a perfect matching between the white games and black games. It is
+not essential that the matching be stable over time; for example
+if we are forwarding moves between Walice and Bob, and between
+Waluigi and Bario, and these games happen to transpose to the same
+position, then it works just fine to switch to forwarding between
+Walice and Bario; Waluigi and Bob. So, rather than store the
+matching explicitly, we can reconstruct it from the stored state.
+We two vectors of $n/2$ rows, the ``source'' and ``destination'' rows,  (XXX I think we do not need destination)
+each containing a game {\em position} (not move).
+This position represents XXXX (like the last time we saw it?).
+The positions are initialized to the starting position. Like before
+we can be in one of four states:
+\begin{itemize}
+\item Waiting for all ``source'' players (who play as white) to complete their moves. \label{state:cmim1}
+\item Forwarding our moves from ``source'' to our black opponents. \label{state:cmim2}
+\item `` \ldots '' (who play as black) `` \ldots '' \label{state:cmim3}
+\item `` \ldots '' white opponents. \label{state:cmim3}
+\end{itemize}
+
+\newcommand\stepsto[1]{\stackrel{#1}{\rightarrow}}
+
+% (XXX So actually, simpler here is just: Loop until all white players have
+% made their moves. Then copy all their boards to our board vector.)
+While in State~\label{state:cmim1} (which we also start in), we
+compare our stored source board states to the boards where we play as
+black. Once the white opponent has made a move, resulting in $B'$,
+there will be some position $B$ in our ``source'' set that is a valid
+predecessor for $B'$ (that is, there exists some legal move $M$ that
+advances $B$ to $B'$). For example, at the beginning, $B$ may be the
+starting position (in fact it must, since all boards are initialized
+this way) and $B'$ may be the position resulting from $1. e4$. With
+the matching constructed (see below) we copy each $B'$ into our set of
+boards, forgetting $B$.\footnote{In fact, we do not even need to
+  construct the matching, although it may help us with bookkeeping
+  (e.g., which games have already been copied?), depending on how the
+  exhibition itself is represented.} Then we transition to
+State~\label{state:cmim2}. In this state, we figure out what moves to
+play in the pending boards. By invariant, each one $B$ will be
+compatible with at least one of our source boards $B'$. Compatible
+means that there exists a move $m$ where playing $m$ in board $B$
+results in $B'$. If $m$ exists, it is unique (and easy to compute), so
+this is the move that we will play. The only tricky thing is figuring
+out which boards go with which; this is the problem of reconstructing
+the perfect matching.
+
+Although if $B \stepsto{m} B'$ it is easy to deduce $m$, it is not
+possible to compute $B$ from $B'$, or even from $B'$ and $m$. This is
+because we may have both $B_a \stepsto{m_a} B'$ and $B_b \stepsto{m_b}
+B'$ with $B_a \neq B_b$. For example with $B'$
+
+\chessboard[tinyboard, setfen=k7/8/8/8/8/8/8/K7 w - -, showmover]
+
+we could have $B_a$ and $B_b$ be
+
+\chessboard[tinyboard, setfen=Nk6/8/8/8/8/8/8/K7 b - -, showmover]
+\chessboard[tinyboard, setfen=Rk6/8/8/8/8/8/8/K7 b - -, showmover]
+
+Both of which can precede $B'$ (the move is even the same: Kxa1).
+So it is not enough to greedily assign edges in our perfect match;
+if we choose the edge $B_b$ to go with $B'$, we might later find
+$B'_2$:
+
+\chessboard[tinyboard, setfen=R7/1k6/8/8/8/8/8/K7 w - -, showmover]
+
+\ldots and have no possible matching board, since it cannot follow
+$B_a$.
+
+Fortunately, we know the
+ - there exists a perfect matching (players playing legally)
+ - we can tell if we found one
 
 so you have a set of black and white games, same number of each.
 goal is to get an even score, while using O(n) space.
@@ -228,17 +321,23 @@ with filling up their memories with efficiently encoded data.
 compactly storing a position. constant state
 
 I think a version I liked was 64 bits (this gives the positions of all
-pieces), followed by 32 records giving the piece values (there are 6:
-pawn, knight, bishop, rook, queen, king) and colors. To pick between
-the 12 possibilities we need 4 bits, and there is some slack here of
-course. anyway, that's 64 + 32*4 = 192 bits, plus 15 bits for other
-state. Note we could use the c\_rook trick to save 4 bits for castling
-rights (14 possibilities), not to mention a en\_passantable pawn (15)
-and a king whose turn it is (even 16). Clear slack here, but that
-would leave only the 50-move rule at 7 bits, for a total of 199.
-Wikipedia says the huffman approach is ``maximum of 204 bits, and
-often much less.'' but the article also contains many bugs, like
-the misconception that there can only be four rooks. 
+pieces),\footnote{(We can also do a little better. Note that only up
+  to 32 of the 64 bits can be set, so you could represent
+  $\binom{60}{32}$ in $\sim 61$ bits and use e.g. a third king to
+  indicate that there are no more actually occupied squares if fewer
+  than 32 pieces are present. However, this gets vastly more
+  complicated for only 3 bits of savings.)} followed by 32 records
+giving the piece values (there are 6: pawn, knight, bishop, rook,
+queen, king) and colors. To pick between the 12 possibilities we need
+4 bits, and there is some slack here of course. anyway, that's 64 +
+32*4 = 192 bits, plus 15 bits for other state. Note we could use the
+c\_rook trick to save 4 bits for castling rights (14 possibilities),
+not to mention a en\_passantable pawn (15) and a king whose turn it is
+(even 16). Clear slack here, but that would leave only the 50-move
+rule at 7 bits, for a total of 199. Wikipedia says the huffman
+approach is ``maximum of 204 bits, and often much less.'' but the
+article also contains many bugs, like the misconception that there can
+only be four rooks.
 
 So now comes the main idea of the paper, which is also spoilered in the
 very clear paper title. What if we represented boards {\em only} as the
