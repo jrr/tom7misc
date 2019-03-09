@@ -455,7 +455,7 @@ or zeroes is for sure the worst part of neural networks. In fact, I
 initially started with the classical sigmoid transfer function, but
 ``upgraded'' to the ``leaky rectified linear'' function
 %
-$$((potential < 0.0f) ? potential * 0.01f : potential)$$
+$$(p < 0) \,?\, p \times 0.01 : p$$
 %
 after getting fed up with sigmoid weights caroming off (see
 ``vanishing gradient problem'' and/or ``exploding gradient problem'').
@@ -465,9 +465,12 @@ several days before I terminated it.
 
 \subsection{Statistical evaluation}
 
-The unblinding component can be evaluated on its own, by running
-it on examples sampled independently of the training set. Over
-50,000 examples, these were the results:
+The unblinding component can be evaluated on its own, by running it on
+examples sampled independently of the training set. The model outputs
+a score for each possible contents of each square; we simply
+discretize to the highest-scoring one (same too for the predicted
+castling state and turn). Over 50,000 examples, these were the
+results:
 
 9,584 predicted boards were exactly correct (19.17\%). There were a
 total of 161,166 piece mistakes, which is an average of 3.22 per
@@ -528,13 +531,14 @@ possible through promotion, but usually a bad guess, since promotion
 is relatively rare, and moreso promotion to a piece other than a
 queen. An approach that might handle this better (but may have
 different downsides) would be instead to predict the ``fates'' of the
-32 initial pieces. The fate of a pawn can include promotion, but no
-other pieces can. This would {\em require} that the model only predict
-a single location for each king, among other things. However, this
-would require a much larger output layer (32 pieces can move to 64
-squares, plus promotion) and it is not always clear how to interpret
-its value into a position (for example, if two pieces are predicted
-strongly to be on the same square).
+32 initial pieces~\cite{survival}. The fate of a pawn includes what if
+any piece it has promoted to, but no other pieces can. This would {\em
+  require} that the model only predict a single location for each
+king, among other things. However, this would require a much larger
+output layer (32 pieces can move to 64 squares, plus promotion) and it
+is not always clear how to interpret its value into a position (for
+example, if two pieces are predicted strongly to be on the same
+square).
 
 \begin{figure}[ht]
 \includegraphics[width=0.9 \linewidth]{blind-allon}
@@ -546,6 +550,83 @@ strongly to be on the same square).
   also suggests substantial limitation. When single-king mode is off,
   the bottom right king is predicted as a white rook.} \label{fig:allon}
 \end{figure}
+
+\section{Playing blind}
+
+Once we have predicated a board state, we can play with it. The
+simplest way to do this is to use a strong chess engine to pick a move
+for the position. Here, I use Stockfish with a node budget of 1
+million nodes, which takes about 1 second of CPU time per move on my
+computer; henceforth {\sf stockfish1m}.
+
+There are some complications:
+\begin{itemize}
+\item Frequently, the unblinded board will not match the true
+  position, and Stockfish will choose a move that is illegal. So, as discussed
+  before, we actually return a prioritzed list of moves. For this first
+  experiment, we just return the move Stockfish recommends, followed by all
+  other moves ordered randomly.
+\item Stockfish is a very strong engine, and in my opinion the code is generally
+  good, but it is very sensitive to bad FEN (the notation used to give it a
+  position to evaluate) strings. Given a bad string, like one that says castling
+  is possible when the king isn't in its home square, often crashes the engine.
+  So we need to make sure to actually pass valid positions. I accomplish this
+  by making the following modifications to the predicted board:
+  \begin{itemize}
+  \item If a castling bit is set, but castling is not possible due to the position
+    of the king or rook, I clear the bit.
+  \item Set the side-to-move to be the correct actual value. This uses
+    the unblinded state, so is superficially cheating. But note that
+    if we get the side wrong, then Stockfish's move will always be
+    illegal: Moves are specified as a source and destination
+    square,\footnote{Plus promotion piece. Castling is represented as
+      a two-square move of the king.} and so the source square of
+    Stockfish's move would always be a piece of the wrong piece's
+    color. So this is equivalent to (but twice as efficient as)
+    running stockfish twice, one for each side, and prioritizing the
+    predicted side's move first.
+  \end{itemize}
+  This won't fix all positions, for example, if the white and black king are
+  adjacent to one another in mutual check. If an irreparable problem is detected,
+  then I just return a uniformly random move list.
+\end{itemize}
+
+It is easy to beat this chess engine, by tricking it as in
+Figure~\ref{fig:trick}, although this involves unnatural moves, so it
+may only apply if you know how it works.
+% XXX example game?
+Measuring how well it plays in an absolute sense is a subject of some
+interest, so I wrote a separate paper about that~\cite{eloworld}. This
+algorithm, called \verb+blind_yolo+, had an Elo World score of XXX.
+
+\subsection{We three kings}
+
+When evaluating the first version I found that it was producing a
+fairly high number of illegal positions, which was causing us to fall
+back on making random moves, which is mostly boring. The second version
+reduces the rate of illegal positions due to too many or too few kings.
+
+ - we get scores with each piece
+ etc.
+
+This version, called \verb+blind_kings+, performs consistently better
+than \verb+blind_yolo+ (XXX give actual record). It had an Elo World
+score of XXX.
+
+\cite{kingme}
+
+
+\section{Conclusion}
+
+- Other structures for the network
+- Stochastic approach
+- How do the solutions compare to other chess algorithms that
+  could be applied in the blind? Random works, also lexicographic,
+  any others? Most are inspecting the board state, obviously.
+- Could estimate the upper bound for accuracy by blinding every
+  game in the database, and doing a ``lookup''-based version of
+  the eval.
+
 
 % % make -j eval-unblinder.exe && ./eval-unblinder.exe net.val
 % .!Evaluating model net.val...
