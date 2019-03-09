@@ -31,7 +31,9 @@ static Unblinder *GetUnblinder() {
 
 struct BlindPlayer : public StatelessPlayer {
   BlindPlayer(const string &name,
+	      bool spycheck,
 	      bool single_king) : name(name),
+				  spycheck(spycheck),
 				  single_king(single_king),
 				  rc(PlayerUtil::GetSeed()) {
     fish.reset(new Stockfish(20, 1'000'000));
@@ -104,6 +106,21 @@ struct BlindPlayer : public StatelessPlayer {
     const uint64 blinded = Unblinder::Blind(orig_pos);
     Position predicted = unblinder->Unblind(single_king, blinded);
 
+    // HERE: Do spy check if enabled. Note that it would be
+    // wrong for us to do this using the correct side-to-move, because
+    // we don't actually have that information. (Below it can be seen
+    // as an optimization, equivalent to running stockfish for both
+    // possibilities, since the potentially legal move sets would be
+    // completely disjoint.)
+    if (spycheck) {
+      // ... Possible to do this a symmetric way, though? I guess we
+      // can just prioritize any legal move where the source and
+      // destination pieces are predicted to be the same color, but
+      // maybe put moves for the predicted side-to-move first. Also
+      // makes sense to break ties by capturing with a weaker
+      // (predicted) piece, probably.
+    }
+
     // Force the current player.
     predicted.SetBlackMove(orig_pos.BlackMove());
 
@@ -146,13 +163,16 @@ struct BlindPlayer : public StatelessPlayer {
   }
 
   string Desc() const override {
-    return StringPrintf("Predict a board state%s. If valid (or can be made "
+    return StringPrintf("Predict a board state%s.%s If valid (or can be made "
 			"valid trivially), use stockfish1m to make a move. "
 			"If move is invalid or other problem, random.",
+			(spycheck ? " First, spy-check pieces that we think are our "
+			 "own." : ""),
 			(single_king ? "" : " with exactly one king per side"));
   }
 
   const string name;
+  const bool spycheck = false;
   const bool single_king = false;
   ArcFour rc;
   std::unique_ptr<Stockfish> fish;
@@ -164,9 +184,13 @@ struct BlindPlayer : public StatelessPlayer {
 
 
 Player *BlindYolo() {
-  return new MakeStateless<BlindPlayer, string, bool>("blind_yolo", false);
+  return new MakeStateless<BlindPlayer, string, bool, bool>("blind_yolo", false, false);
 }
 
 Player *BlindSingleKings() {
-  return new MakeStateless<BlindPlayer, string, bool>("blind_kings", true);
+  return new MakeStateless<BlindPlayer, string, bool, bool>("blind_kings", false, true);
+}
+
+Player *BlindSpycheck() {
+  return new MakeStateless<BlindPlayer, string, bool, bool>("blind_spycheck", true, true);
 }
