@@ -20,7 +20,9 @@ struct PlayerUtil {
 
   static bool ParseLongMove(const std::string &move_s,
 			    bool black, Position::Move *m);
-  
+
+  // Get the best item from the non-empty vector f, where
+  // f(a, b) returns true if a is better than b.
   template<class T, class F>
   static const T &GetBest(const std::vector<T> &v, F f) {
     CHECK(!v.empty());

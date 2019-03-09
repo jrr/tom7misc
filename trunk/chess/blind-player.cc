@@ -103,6 +103,11 @@ struct BlindPlayer : public StatelessPlayer {
   }
   
   Move MakeMove(const Position &orig_pos) override {
+    Position pos = orig_pos;    
+    // We only need this on some code paths. Empty means that
+    // we haven't computed it.
+    std::vector<Position::Move> legal;
+
     const uint64 blinded = Unblinder::Blind(orig_pos);
     Position predicted = unblinder->Unblind(single_king, blinded);
 
@@ -113,18 +118,84 @@ struct BlindPlayer : public StatelessPlayer {
     // possibilities, since the potentially legal move sets would be
     // completely disjoint.)
     if (spycheck) {
+      if (legal.empty()) legal = pos.GetLegalMoves();
+      CHECK(!legal.empty());
       // ... Possible to do this a symmetric way, though? I guess we
       // can just prioritize any legal move where the source and
       // destination pieces are predicted to be the same color, but
       // maybe put moves for the predicted side-to-move first. Also
       // makes sense to break ties by capturing with a weaker
       // (predicted) piece, probably.
+
+      // Rather than generate the O(n^2) possible captures, we'll
+      // instead inspect the actual legal move list, and select
+      // the one that would have had the highest priority (if any).
+      struct SpycheckMove {
+	Move m;
+	bool color_agrees = false;
+	int capture_value = 0;
+	uint32 r = 0;
+      };
+      vector<SpycheckMove> spymoves;
+
+      for (const Move &m : legal) {
+	// Here we must only consult the predicted board.
+	const uint8 srcp = predicted.PieceAt(m.src_row, m.src_col);
+	const uint8 dstp = predicted.PieceAt(m.dst_row, m.dst_col);
+	if (srcp == Position::EMPTY || dstp == Position::EMPTY)
+	  continue;
+	if ((srcp & Position::COLOR_MASK) == (dstp & Position::COLOR_MASK)) {
+	  // This is a valid spycheck move. We act as though we first try all
+	  // spycheck moves of the predicted color, then the opposite.
+	  SpycheckMove sm;
+	  sm.m = m;
+	  sm.r = Rand32(&rc);
+	  sm.color_agrees = ((srcp & Position::COLOR_MASK) == Position::BLACK) ==
+	    predicted.BlackMove();
+	  const uint8 srct = srcp & Position::TYPE_MASK;
+	  // We know that we got the destination piece wrong if the move is legal,
+	  // so we don't base our decision on that at all.
+	  sm.capture_value = [srct]() {
+	    switch (srct) {
+	    case Position::QUEEN: return 7;
+	    // Actually prefer capturing with the king if it is legal.
+	    case Position::KING: return 6;
+	    case Position::C_ROOK:
+	    case Position::ROOK: return 5;
+	    case Position::KNIGHT: return 3;
+	    case Position::BISHOP: return 3;
+	    case Position::PAWN: return 1;
+	    default: 
+	    // Should be impossible.
+	    return 0;
+	    }
+	  }();
+	  spymoves.push_back(sm);
+	}
+      }
+
+      // Now, if we had any spycheck moves, play the best one.
+      if (!spymoves.empty()) {
+	return PlayerUtil::GetBest(spymoves,
+				   [](const SpycheckMove &a,
+				      const SpycheckMove &b) {
+				     // Prefer all moves where the color agrees
+				     // with our prediction.
+				     if (a.color_agrees != b.color_agrees)
+				       return a.color_agrees;
+				     // a is better if it captures with a lower-value
+				     // piece.
+				     if (a.capture_value != b.capture_value)
+				       return a.capture_value < b.capture_value;
+				     // And break ties randomly.
+				     return a.r < b.r;
+				   }).m;
+      }
     }
 
     // Force the current player.
     predicted.SetBlackMove(orig_pos.BlackMove());
 
-    Position pos = orig_pos;
     if (OK(&predicted)) {
       string fen = predicted.ToFEN(10, 10);
       string move_s;
@@ -153,7 +224,7 @@ struct BlindPlayer : public StatelessPlayer {
     }
     
     // Random move.
-    std::vector<Position::Move> legal = pos.GetLegalMoves();
+    if (legal.empty()) legal = pos.GetLegalMoves();
     CHECK(!legal.empty());
     return legal[RandTo32(&rc, legal.size())];
   }
