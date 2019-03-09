@@ -601,20 +601,48 @@ algorithm, called \verb+blind_yolo+, had an Elo World score of XXX.
 
 \subsection{We three kings}
 
-When evaluating the first version I found that it was producing a
-fairly high number of illegal positions, which was causing us to fall
-back on making random moves, which is mostly boring. The second version
-reduces the rate of illegal positions due to too many or too few kings.
+When evaluating the first version I found that it was predicting a
+disappointingly high number of illegal positions in practice, which
+was causing us to fall back on making random moves, which is mostly
+boring. The second version reduces the rate of illegal positions due
+to too many or too few kings~\cite{kingme}.
 
- - we get scores with each piece
- etc.
+The model predicts a score for each type of piece in each square,
+and we do not have to necessarily interpret it by always taking
+the highest-scoring piece. This version first finds the two squares
+with the highest scores for the white king, and same for the black
+king. We take two in case the same square is predicted for both.
+Then this square gets one of the kings (whichever has higher score)
+and the other king goes in the highest-scoring unclaimed square. The
+rest of the squares just get the highest-scoring prediction as before,
+but we never predict kings.
 
 This version, called \verb+blind_kings+, performs consistently better
-than \verb+blind_yolo+ (XXX give actual record). It had an Elo World
-score of XXX.
+than \verb+blind_yolo+ (63 wins, 45 losses, 412 draws).
+% XXX could run a lot more games between these two.
+% as white: 31/24/207, as black 21/32/205
+It had an Elo World score of XXX.
 
-\cite{kingme}
+\subsection{Spy check}
 
+Say \verb+blind_kings+ is playing as black; it remains easy to fool it
+by moving black pieces into white's camp, since they are usually then
+predicted to be white pieces. We can defend against this somewhat.
+Since it is illegal to capture one's own piece, there is little risk
+in trying; if it is indeed our own piece then the move will be
+rejected, and if it is not our piece, then capturing is good for two
+reasons: One, we capture a piece, and two, we avoid having
+Stockfish make a move in this incorrectly predicted board. (Of course
+there are many reasons why eagerly capturing a piece can be a bad
+idea, but at this level of play, an edge in material is likely worth
+it.)
+
+There is one subtlety here, which is that we can't fairly use the
+information of the actual side-to-move, as above. So there is some
+additional chance that we end up making a dumb move because we
+both mispredicted the side-to-move and the identity of some pieces.
+
+(XXX evaluation here)
 
 \section{Conclusion}
 
