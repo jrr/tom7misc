@@ -312,14 +312,14 @@ Start with a single 64-bit mask which indicates, for each square on
 the board, whether it contains any piece. Note that there can only be
 up to 32 pieces on the board. To tell what these pieces are, we then
 follow with 32 four-bit records; these indicate the piece's color and
-type.\footnote{(Since only 32 of the 64 bits can be set, you could do
+type.\footnote{Since only 32 of the 64 bits can be set, you could do
   slightly better by representing $\binom{60}{32}$ in $\sim 61$ bits.
   When fewer than 32 squares are occupied, we can use a record
   containing e.g. a third king (otherwise impossible) to indicate that
   we should ignore the remaining bits. However, this gets vastly more
-  complicated for only 3 bits of savings.)} 
+  complicated for only 3 bits of savings.} 
 %
-With the 9 bits of extra state above, this totals $64+32 \ times 4+9=201$
+With the 9 bits of extra state above, this totals $64+32 \times 4+9=201$
 bits. There is some slack in the representation, because there are
 only 12 actual possibilities for a piece but we can indicate 16 with 4
 bits. It is great to abuse this slack to save bits; for example, we
@@ -380,7 +380,7 @@ the board, but not what type or color they are. Of course, we also
 have to prohibit the computer from simply remembering the board, so
 the algorithm must be stateless. Specifically, we want a function
 \[
-  {\tt makemove} : {\tt uint64} \rightarrow {\tt move list}
+  {\tt makemove} \;:\; {\tt uint64} \rightarrow {\tt move\ list}
 \]
 that makes a move from a single board position, represented just as 64
 bits. This is a single move; the move list represents our preference
@@ -403,7 +403,7 @@ require the function to rank all moves ahead of time.
 I went about this by building a function that ``unblinds'' a board; it
 has type
 \[
-{\tt unblind} : {\tt uint64} \rightarrow {\tt position}
+{\tt unblind} \;:\; {\tt uint64} \rightarrow {\tt position}
 \]
 
 This function is natural for machine learning. It is easy to generate
@@ -507,7 +507,7 @@ an invisible queen in your camp is of course very dangerous. Resolving
 ambiguities in favor of more likely positions is the right thing for
 the model to do, so this is just an inherent flaw with the
 decomposition of the problem. There are some ways we can account for
-this (Section~\ref{sec:using}). % XXX make sure I did this work
+this (Section~\ref{sec:spycheck}).
 
 \begin{figure}[ht]
 XXX actual example
@@ -607,15 +607,22 @@ was causing us to fall back on making random moves, which is mostly
 boring. The second version reduces the rate of illegal positions due
 to too many or too few kings~\cite{kingme}.
 
-The model predicts a score for each type of piece in each square,
-and we do not have to necessarily interpret it by always taking
-the highest-scoring piece. This version first finds the two squares
-with the highest scores for the white king, and same for the black
-king. We take two in case the same square is predicted for both.
-Then this square gets one of the kings (whichever has higher score)
-and the other king goes in the highest-scoring unclaimed square. The
-rest of the squares just get the highest-scoring prediction as before,
-but we never predict kings.
+The model predicts a score for each type of piece in each square, and
+we do not have to necessarily interpret it by always taking the
+highest-scoring piece. This version first finds the two squares with
+the highest scores for the white king, and same for the black king. We
+take two in case the same square is predicted for both. Then this
+square gets one of the kings (whichever has higher score) and the
+other king goes in the highest-scoring unclaimed square. The rest of
+the squares get the highest-scoring prediction as before, but we never
+predict kings for them.
+
+This change just affects the unblinding process, so we can directly
+evaluate its accuracy. It gets 19.28\% of positions exactly correct
+(slightly better), with an average of 3.26 piece mistakes per position
+(slightly worse). This is expected; we exchange local mistakes (each
+was trained independently to minimize its local error) for global
+correctness (which is not taken into account at all during training).
 
 This version, called \verb+blind_kings+, performs consistently better
 than \verb+blind_yolo+ (63 wins, 45 losses, 412 draws).
@@ -623,7 +630,7 @@ than \verb+blind_yolo+ (63 wins, 45 losses, 412 draws).
 % as white: 31/24/207, as black 21/32/205
 It had an Elo World score of XXX.
 
-\subsection{Spy check}
+\subsection{Spy check} \label{sec:spycheck}
 
 Say \verb+blind_kings+ is playing as black; it remains easy to fool it
 by moving black pieces into white's camp, since they are usually then
@@ -665,19 +672,36 @@ second for each (distinct) sampled board. So I did not try it,
 at least not before submitting this paper.
 
 
+\medskip
+I initially considered trying to solve this whole problem with neural
+networks. The current best known engine in the world (AlphaZero) at
+least {\em uses} a neural network.
+% XXX is the whole thing just a network? I guessed it's probably
+% alpha-beta plus a NN evaluation function?
+The biggest advantage would be that it would naturally be able to
+consider multiple moves under uncertainty about the board state, as
+just discussed, without any particular extra logic. My plan was to
+make a multiple different components that coud be evaluated
+separately, starting with the unblinder described, followed by a unit
+that predicts legal moves, and then a unit that takes these two (and
+also the 64-bit blinded mask if it likes) and scores each move.
+Training a reasonable unblinder took longer than I expected, and the
+legal move predictor never really worked that well,
+% (XXX some evaluation of it)
+so I just settled for basing it off the single unblinder unit. Can you
+do better?
 
 \section{Conclusion}
+% 
+% - How do the solutions compare to other chess algorithms that
+%   could be applied in the blind? Random works, also lexicographic,
+%   any others? Most are inspecting the board state, obviously.
+% - Could estimate the upper bound for accuracy by blinding every
+%   game in the database, and doing a ``lookup''-based version of
+%   the eval.
 
-
-
-- Other structures for the network
-- How do the solutions compare to other chess algorithms that
-  could be applied in the blind? Random works, also lexicographic,
-  any others? Most are inspecting the board state, obviously.
-- Could estimate the upper bound for accuracy by blinding every
-  game in the database, and doing a ``lookup''-based version of
-  the eval.
-
+I would like to thank the little people (pawns) and the anonymous
+referrees.
 
 % % make -j eval-unblinder.exe && ./eval-unblinder.exe net.val
 % .!Evaluating model net.val...
@@ -734,12 +758,6 @@ at least not before submitting this paper.
 %   1633 castling mistakes (0.03/pos)
 %   19014 move mistakes (0.38/pos)
 %   183451 total mistakes (3.67/pos)
-% 
-% It's actually kind of heartening that it performs worse with this approach,
-% though we are more likely to get the whole board correct.
-% 
-% (cite #kingme)
-% 
 
 \bibliography{chess}{}
 \bibliographystyle{plain}
