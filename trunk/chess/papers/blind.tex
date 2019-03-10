@@ -84,22 +84,23 @@ especially in movies, than to play chess---and to shout dramatically
 CHECKMATE! upon surprise-checkmating their opponent? Well, one way is
 to play chess while disadvantaged somehow, for example, by punching
 each other in the face repeatedly during the game to impair brain
-function (see Chess Boxing~\cite{wikipediachessboxing}). Another common
-distraction is to play a multitude of games against many opponents at
-the same time, in a so-called ``simultaneous exhibition.'' The idea is
-that this is more challenging because of the need to maintain mental
-state for so many games at once, whereas your opponents only need to
-maintain state for one game. In truth, simultaneous exhibitions easily
-fall to a ``man-in-the-middle attack.'' If the purported genius simply
-creates a bipartite matching of the games played with the white pieces
-and the games played with black, he can mechanically forward moves
-between these pairs of boards. This requires only constant state (see
-next section) per pair of games, and guarantees an even score for the
-exhibition. So that's not very impressive.
+function (see Chess Boxing~\cite{wikipediachessboxing}). Another
+common distraction is to play a multitude of games against many
+opponents at the same time, in a so-called ``simultaneous
+exhibition.'' The idea is that this is more challenging because of the
+need to maintain mental state for so many games at once, whereas your
+opponents only need to maintain state for one game. In truth,
+simultaneous exhibitions easily fall to a ``man-in-the-middle
+attack.'' If the purported genius simply creates a perfect bipartite
+matching of the games played with the white pieces and the games
+played with black, he can mechanically forward moves between these
+pairs of boards. This requires only constant state (see next section)
+per pair of games, and guarantees an even score for the exhibition. So
+that's not very impressive.
 
 Another disadvantage that humans sometimes use to impress each other
 is a blindfold (worn over the eyes). In this predicament they only
-hear the opponent announce moves and must keep the position on the
+hear the opponent announce moves and must imagine the position on the
 board in their mind's eye, both for the sake of remembering it and
 while exploring potential moves.
 % This is effective, since although the .
@@ -118,8 +119,8 @@ In contrast, it is much more difficult to impress computers or impress
 people with computers. When it comes to computers playing chess,
 largely, the jig is up; it is now easy for chess programs, running on
 consumer hardware, to defeat the strongest human players. It is well
-known that striking a computer actually {\em fixes} it, so chess
-boxing becomes trivial. Blindfold chess is the natural interface for a
+known that striking a computer actually {\em fixes} it, so Chess
+Boxing becomes trivial. Blindfold chess is the natural interface for a
 chess computer; it is actually {\em much more difficult} to have the
 computer interpret the opponent's move by visually studying a physical
 board!
@@ -130,16 +131,18 @@ board!
 
 Playing multiple games simutaneously is an easy extension of playing a
 single game, although in principle the scale of such a thing could
-still be impressive. With a modern chess engine, it is easy to scale
+still be impressive. This is also impressive to other computers, who
+are largely concerned with filling up their memories with efficiently
+coded data. With a modern chess engine, it is easy to scale
 to an arbitrary number of games, since the exhibitor can make progress
 by observing one of the boards, computing a strong move, and playing
-it; this requires $O(0)$ space because all of the state is stored
+it; this requires $O(1)$ space because all of the state is stored
 externally in the exhibition itself. 
 % If playing blindfold, then the
 % main cost is storing the state of each game. 
 However, we run the risk of losing the tournament (other players may
 be yet stronger computers). The man-in-the-middle attack remains an
-efficient way way to minimize loss (ensuring an exactly even score).
+efficient way to minimize loss (ensuring an exactly even score).
 The simplest way to do this is to explicily generate a perfect
 bipartite matching over the $n$ games $G$ being played. This consists
 of $n/2$ pairs $\langle G_w, G_b \rangle$ (where we play as white
@@ -149,7 +152,7 @@ the matches consecutively. Along with each pair we also record which
 of the following states we are in:
 \begin{enumerate}
 \item We are waiting for a move from Walice (our white opponent) \label{state:mim1}
-\item We have seen a move from Walice, which is \underline{\hspace{6em}}. \label{state:mim2}
+\item We have seen a move from Walice, which is \underline{\hspace{3em}}. \label{state:mim2}
 \item We are waiting for a move from Bob (our black opponent) \label{state:mim3}
 \item We have seen a move from Bob, which is \underline{\hspace{6em}}. \label{state:mim4}
 \end{enumerate}
@@ -181,47 +184,43 @@ if we are forwarding moves between Walice and Bob, and between
 Waluigi and Bario, and these games happen to transpose to the same
 position, then it works just fine to switch to forwarding between
 Walice and Bario; Waluigi and Bob. So, rather than store the
-matching explicitly, we can reconstruct it from the stored state.
-We two vectors of $n/2$ rows, the ``source'' and ``destination'' rows,  (XXX I think we do not need destination)
-each containing a game {\em position} (not move).
-This position represents XXXX (like the last time we saw it?).
-The positions are initialized to the starting position. Like before
-we can be in one of four states:
-\begin{itemize}
-\item Waiting for all ``source'' players (who play as white) to complete their moves. \label{state:cmim1}
-\item Forwarding our moves from ``source'' to our black opponents. \label{state:cmim2}
-\item `` \ldots '' (who play as black) `` \ldots '' \label{state:cmim3}
-\item `` \ldots '' white opponents. \label{state:cmim3}
-\end{itemize}
+matching explicitly, we can reconstruct it from the stored state
+at each step.
+
+Let's think about the process of forwarding the moves from our white
+opponents to our black opponents; the reverse is of course symmetric.
+The first step will be to wait for the white opponents to make their
+moves, and then copy these $n/2$ positions (not moves) into a vector
+in memory.
 
 \newcommand\stepsto[1]{\stackrel{#1}{\rightarrow}}
+The black opponents are waiting for a move from us. Next, we'll copy
+their $n/2$ positions into memory, aligned with the $n/2$ positions
+already present. Let's say that the relation that defines a legal
+move in chess is
+%
+$$
+B \stepsto{m} B'
+$$ 
+%
+where $B$ is the position before the move $m$, and $B'$ is the
+resulting position. Our goal is to align the games such that $B'$ (a
+position copied from our white opponent) is aligned with $B$ (a
+position pending a move for our black opponent) in memory; this will
+represent the perfect matching. Computing $m$ from $B$ and $B'$ when
+$B \stepsto{m} B'$ is easy (and unique), so this allows us to read off
+and play the move for each row.
 
-% (XXX So actually, simpler here is just: Loop until all white players have
-% made their moves. Then copy all their boards to our board vector.)
-While in State~\label{state:cmim1} (which we also start in), we
-compare our stored source board states to the boards where we play as
-black. Once the white opponent has made a move, resulting in $B'$,
-there will be some position $B$ in our ``source'' set that is a valid
-predecessor for $B'$ (that is, there exists some legal move $M$ that
-advances $B$ to $B'$). For example, at the beginning, $B$ may be the
-starting position (in fact it must, since all boards are initialized
-this way) and $B'$ may be the position resulting from $1. e4$. With
-the matching constructed (see below) we copy each $B'$ into our set of
-boards, forgetting $B$.\footnote{In fact, we do not even need to
-  construct the matching, although it may help us with bookkeeping
-  (e.g., which games have already been copied?), depending on how the
-  exhibition itself is represented.} Then we transition to
-State~\label{state:cmim2}. In this state, we figure out what moves to
-play in the pending boards. By invariant, each one $B$ will be
-compatible with at least one of our source boards $B'$; we can iterate
-over source boards until we find one in constant space (and mark it
-as ``taken'' with . Compatible
-means that there exists a move $m$ where playing $m$ in board $B$
-results in $B'$. If $m$ exists, it is unique (and easy to compute), so
-this is the move that we will play. The only tricky thing is figuring
-out which boards go with which; this is the problem of reconstructing
-the perfect matching.
+By invariant, it will be possible to produce such an alignment. For
+example, the first time we do this, each $B$ will be the starting
+position, and $B'$ will be a legal move made by white from the
+starting position. Any alignment will work. Let's say that just one of
+the white opponents played 1. d4, resulting in $B_0$; then one black
+opponent will make a legal response to this (say 1. \ldots Nf6, giving
+$B_1$). Then $B_1$ can be $B'$ for the next round, which we can align
+with $B=B_0$, and so on.
 
+The only tricky thing is figuring out which boards go with which.
 Although if $B \stepsto{m} B'$ it is easy to deduce $m$, it is not
 possible to compute $B$ from $B'$, or even from $B'$ and $m$. This is
 because we may have both $B_a \stepsto{m_a} B'$ and $B_b \stepsto{m_b}
@@ -229,7 +228,7 @@ B'$ with $B_a \neq B_b$. For example with $B'$
 
 \chessboard[tinyboard, setfen=k7/8/8/8/8/8/8/K7 w - -, showmover]
 
-we could have $B_a$ and $B_b$ be
+\noindent \ldots we could have $B_a$ and $B_b$ be
 
 \chessboard[tinyboard, setfen=Nk6/8/8/8/8/8/8/K7 b - -, showmover]
 \chessboard[tinyboard, setfen=Rk6/8/8/8/8/8/8/K7 b - -, showmover]
@@ -241,8 +240,8 @@ $B'_2$:
 
 \chessboard[tinyboard, setfen=R7/1k6/8/8/8/8/8/K7 w - -, showmover]
 
-\ldots and have no possible matching board, since it cannot follow
-$B_a$.
+\noindent \ldots and have no possible matching board, since it cannot
+legally follow $B_a$.
 
 Fortunately, we know that there exists a perfect matching (assuming
 all players are playing legal moves) and we can tell if we found
@@ -251,8 +250,8 @@ to choose randomly when there is some ambiguity, and start over
 from the beginning if we ever get stuck. In practice this will
 be pretty efficient, since convergent board states are unusual.
 We only need a single pseudorandom pool for the entire process,
-so it can be O(n) bits; this seems easily enough to generate all
-possible permutations of $n/2$ items. Even $n^{2n}$ grows much
+so it can be $O(n)$ bits; this seems easily enough to generate all
+possible permutations of $n/2$ items. Even $2^{2n}$ grows much
 faster than $n!$. If we don't like the random approach, I believe
 it is also possible to compute \verb+next_permutation+ in
 constant space; so we can just explicitly try all orderings for $B'$
@@ -266,11 +265,10 @@ process (but flipping ``black'' and ``white'').
 
 Although this is more involved than the previous approach, and may
 take exponential time, it allows us to play against $n$ simultaneous
-opponents using $O(n)$ space!\footnote{ 
-%
-If the games in the exhibition were presented to us in some way that
-allowed us to visit them in the same order multiple times, we could
-perhaps get away with {\em only} the random pool? XXX }
+opponents using $O(n)$ space!
+% If the games in the exhibition were presented to us in some way that
+% allowed us to visit them in the same order multiple times, we could
+% perhaps get away with {\em only} the random pool? XXX
 
 \subsection{Board representations} \label{sec:representation}
 
@@ -288,7 +286,7 @@ Technically, we need to store a lot of additional information with the
 board in order to completely implement the rules of
 chess.\cite{fiderules} The trickiest of these involve the rules for
 draw by repetition, which make reference to the history of the game
-(See Footnote~1 in {\it Survival in chessland}\cite{survival} and seem
+(See Footnote~1 in {\it Survival in chessland}~\cite{survival}) and seem
 to require storing all previous board states. Fortunately, if we are
 being this picky, then we also know that the length of a chess game is
 bounded by a constant: Rule 9.6.2 ends the game in a draw if both
@@ -306,14 +304,14 @@ information.}\footnotetext{These are two types of moves that make it impossible
 With 64 squares, six pieces for each of the two sides, plus the empty
 square, a straightforward representation of the board uses $64 \times 4=256$
 bits. The Thursd'z Institute considered more compact
-representations\cite{representations}; one nice choice works as follows:
+representations~\cite{representations}; one nice choice works as follows:
 
 Start with a single 64-bit mask which indicates, for each square on
 the board, whether it contains any piece. Note that there can only be
 up to 32 pieces on the board. To tell what these pieces are, we then
 follow with 32 four-bit records; these indicate the piece's color and
 type.\footnote{Since only 32 of the 64 bits can be set, you could do
-  slightly better by representing $\binom{60}{32}$ in $\sim 61$ bits.
+  slightly better by representing $\binom{64}{32}$ in $\sim 61$ bits.
   When fewer than 32 squares are occupied, we can use a record
   containing e.g. a third king (otherwise impossible) to indicate that
   we should ignore the remaining bits. However, this gets vastly more
@@ -332,7 +330,7 @@ ranks 4 or 5, so it also indicates its color. We can also have a
 This totals a nice round $64+32 \times 4=192$ bits.\footnote{ Since this is
   SIGBOVIK, I am freed from the burden of comparing related work. I
   did however read the rather bad Wikipedia article on the
-  topic\cite{wikipediaboard} which describes a Huffman-based encoding
+  topic~\cite{wikipediaboard} which describes a Huffman-based encoding
   that uses a ``maximum of 204 bits, and often much less.'' This also
   includes a 7-bit 50-move counter (but you really need to implement a
   75-move counter; 50 moves only allow a player to {\em claim} a draw)
@@ -451,7 +449,7 @@ $\alpha_r$ started at $0.1$ and descended linearly to $0.002$ over
 example) $\alpha$ is $\alpha_r / \verb+examples_per_round+$. In no way
 am I recommending these parameters. Fiddling with the parameters to
 make it do its black magic or alternately carom off to a sea of NaNs
-or zeroes is for sure the worst part of neural networks. In fact, I
+or zeroes is for sure the worst part of neural networks. Indeed, I
 initially started with the classical sigmoid transfer function, but
 ``upgraded'' to the ``leaky rectified linear'' function
 %
@@ -523,27 +521,27 @@ black's side of the board are black, and vice versa
 limitation on using the prediction to play chess. Less forgivably, it
 sometimes predicts more than one king per side (or zero), which is
 always wrong. Actually, an early version had this problem in spades,
-usually frequently predicting two or three kings. Upon debugging, I
-had simply made the noob mistake of printing both King and Knight with
-the letter ``K.'' Ha! It often predicts the ``wrong'' number of
-bishops (etc.), or places them on the same color. This is technically
-possible through promotion, but usually a bad guess, since promotion
-is relatively rare, and moreso promotion to a piece other than a
-queen. An approach that might handle this better (but may have
-different downsides) would be instead to predict the ``fates'' of the
-32 initial pieces~\cite{survival}. The fate of a pawn includes what if
-any piece it has promoted to, but no other pieces can. This would {\em
-  require} that the model only predict a single location for each
-king, among other things. However, this would require a much larger
-output layer (32 pieces can move to 64 squares, plus promotion) and it
-is not always clear how to interpret its value into a position (for
-example, if two pieces are predicted strongly to be on the same
+frequently predicting two or three kings. Upon debugging, I had simply
+made the noob mistake of printing both King and Knight with the letter
+``K.'' Ha! It often predicts the ``wrong'' number of bishops (etc.),
+or places them on the same color. This is technically possible through
+promotion, but usually a bad guess, since promotion is relatively
+rare, and moreso promotion to a piece other than a queen. An approach
+that might handle this better (but may have different downsides) would
+be instead to predict the ``fates'' of the 32 initial
+pieces~\cite{survival}. The fate of a pawn includes what if any piece
+it has promoted to, but this is not necessary for the other pieces.
+This would {\em require} that the model only predict a single location
+for each king, among other things. However, this would require a much
+larger output layer (32 pieces can move to 64 squares, plus promotion)
+and it is not always clear how to interpret its value into a position
+(for example, if two pieces are predicted strongly to be on the same
 square).
 
 \begin{figure}[ht]
 \includegraphics[width=0.9 \linewidth]{blind-allon}
 \caption{What the model predicts (in single-king mode;
-  Section~\ref{sec:using}) for {\tt 0xFFFFFFFFFFFFFFFF}, the board
+  Section~\ref{sec:singleking}) for {\tt 0xFFFFFFFFFFFFFFFF}, the board
   with all bits set. This is an impossible position, but it gives some
   idea of the model's biases for each square. Notably, most of the pieces
   on each half of the board have a single color. This makes sense, but
@@ -557,13 +555,11 @@ Once we have predicated a board state, we can play with it. The
 simplest way to do this is to use a strong chess engine to pick a move
 for the position. Here, I use Stockfish with a node budget of 1
 million nodes, which takes about 1 second of CPU time per move on my
-computer; henceforth {\sf stockfish1m}.
-
-There are some complications:
+computer. There are some complications:
 \begin{itemize}
 \item Frequently, the unblinded board will not match the true
   position, and Stockfish will choose a move that is illegal. So, as discussed
-  before, we actually return a prioritzed list of moves. For this first
+  before, we actually return a prioritized list of moves. For this first
   experiment, we just return the move Stockfish recommends, followed by all
   other moves ordered randomly.
 \item Stockfish is a very strong engine, and in my opinion the code is generally
@@ -573,8 +569,8 @@ There are some complications:
   So we need to make sure to actually pass valid positions. I accomplish this
   by making the following modifications to the predicted board:
   \begin{itemize}
-  \item If a castling bit is set, but castling is not possible due to the position
-    of the king or rook, I clear the bit.
+  \item If a castling bit is set, but castling is not possible due to
+    the position of the king or rook, clear the bit.
   \item Set the side-to-move to be the correct actual value. This uses
     the unblinded state, so is superficially cheating. But note that
     if we get the side wrong, then Stockfish's move will always be
@@ -597,9 +593,13 @@ may only apply if you know how it works.
 % XXX example game?
 Measuring how well it plays in an absolute sense is a subject of some
 interest, so I wrote a separate paper about that~\cite{eloworld}. This
-algorithm, called \verb+blind_yolo+, had an Elo World score of XXX.
+algorithm, called \verb+blind_yolo+, had an Elo World score of XXX. It
+beats a purely random player with a score of 101 wins, 27 losses, and
+389 draws. Making moves purely at random is one of the few fair
+comparisons, since the random strategy also works with color- and
+piece-blind chess.
 
-\subsection{We three kings}
+\subsection{We three kings} \label{sec:singleking}
 
 When evaluating the first version I found that it was predicting a
 disappointingly high number of illegal positions in practice, which
@@ -672,7 +672,7 @@ second for each (distinct) sampled board. So I did not try it,
 at least not before submitting this paper.
 
 
-\medskip
+\subsubsection{No, {\em u r} a lnetwork} \label{sec:legalmove}
 I initially considered trying to solve this whole problem with neural
 networks. The current best known engine in the world (AlphaZero) at
 least {\em uses} a neural network.
@@ -681,12 +681,22 @@ least {\em uses} a neural network.
 The biggest advantage would be that it would naturally be able to
 consider multiple moves under uncertainty about the board state, as
 just discussed, without any particular extra logic. My plan was to
-make a multiple different components that coud be evaluated
+make a multiple different components that could be evaluated
 separately, starting with the unblinder described, followed by a unit
 that predicts legal moves, and then a unit that takes these two (and
 also the 64-bit blinded mask if it likes) and scores each move.
-Training a reasonable unblinder took longer than I expected, and the
-legal move predictor never really worked that well,
+Predicting a legal move is also a natural function for machine
+learning; a move can be given just as a source and destination
+square.\footnote{ There are also four choices for promotion when
+  moving a pawn into the last rank. It is always the case that if any
+  promotion is legal, all choices are legal, so this does not need to
+  be encoded in this phase. Also, at this level of play, always
+  promoting to queen is a very safe simplification.} Many pairs of
+squares are always impossible (e.g. no piece can ever move from A1 to
+B8); so there are only 1792 potential moves to predict. However,
+training a reasonable unblinder took longer than I expected, and the
+legal move predictor never really worked that well (it has a harder
+job),
 % (XXX some evaluation of it)
 so I just settled for basing it off the single unblinder unit. Can you
 do better?
