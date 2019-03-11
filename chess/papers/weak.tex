@@ -62,7 +62,7 @@
 Copyright \copyright\ 2019 the Regents of the Wikiplia Foundation.
 Appears in SIGBOVIK 19119 with the
 %
-insufficient material 
+title inflation
 %
 of the Association for Computational Heresy; {\em IEEEEEE!}
 press, Verlag-Verlag volume no.~0x40-2A. 1600 rating points}
@@ -91,21 +91,81 @@ chess, bad
 
 \maketitle \thispagestyle{empty}
 
+\section{Introduction}
+
 Fiddly bits aside, it is a solved problem to maintain a numeric rating
 of players for some game (for example chess, but also sports,
 e-sports, probably also z-sports if that's a thing). Though it has
 some competition (suggesting the need for a meta-rating system to
 compare them), the Elo Rating System~\cite{elo1978rating} is a simple
-and effective way to do it.
+and effective way to do it. This paper is concerned with Elo in chess,
+its original purpose.
 
 The gist of this system is to track a score for each player. The
 scores are defined such that the expected outcomes of games can
 be computed from the scores (for example, a player with a rating
 of 2400 should win 9/10 of her games against a player with a
-rating of 2000). If the true outcome doesn't match the 
+rating of 2000). If the true outcome (of e.g.~a tournament) doesn't
+match the expected outcome, then both player's scores are adjusted
+towards values that would have produced the expected result. Over
+time, scores thus become a more accurate reflection of player's skill,
+while also allowing for players to get stronger or weaker. This
+system is carefully described elsewhere, so we can just leave it
+at that.
 
-.. so we can just leave it at that
+The players need not be human, and in fact this can facilitate running
+many games and thereby getting accurate ratings.
 
+The problem this paper is concerned with is that basically all chess
+tournaments (whether with humans or computers or both) are between
+players who know how to play chess, are interested in winning their
+games, and have some reasonable level of skill. This makes it hard to
+give a rating to weak players: They just lose every single game and so
+tend towards a rating of $-\infty$\footnote{Some organizations don't
+  even let ratings fall beneath a certain level, for example, the
+  lowest possible USCF rating is 100.} Even if other comparatively
+weak players existed to participate in the tournament and occasionally
+lose to the player under study, it may still be difficult to
+understand how this cohort performs in any absolute sense. (In
+contrast we have ``the highest ever human rating was 2882,'' and
+``there are 5,323 players with ratings in 2200--2299'' and ``Players
+whose ratings drop below 1000 are listed on the next list as
+'delisted'.''\cite{fideratings}.) It may also be the case that all
+weak players always lose to all strong players, making it unclear just
+how wide the performance gap between the two sets is. The goal of
+this paper is to expand the dynamic range of chess ratings to span
+all the way from extremely weak players to extremely strong ones, while
+providing canonical reference points along the way.
+
+\section{Elo world}
+
+Elo World is a tournament with dozens of computer players. The
+computer players include some traditional chess engines, but also many
+algorithms chosen for their simplicity, as well as some designed to
+be competitively bad.
+
+The fun part is the various algorithms, so let's get into that. First,
+some ground rules and guidelines:
+\begin{itemize}
+\item No resigning (forfeiting) or claiming a draw. The player will
+  only be asked to make a move when there exists one, and it must
+  choose a move in finite time. (In practice, most of the players are
+  extremely fast, with the slowest ones using about one second of
+  CPU time per move.)
+\item The player can retain state for the game, and executes moves
+  sequentially (for either the white or black pieces), but cannot have
+  state meaningfully span games. For example, it is not permitted to
+  do man-in-the-middle attacks~\cite{blind} or learn opponent's moves
+  from previous rounds, or to get better at chess. The majority of
+  players are actually completely stateless, just a partial function
+  of type ${\tt position} \rightarrow {\tt move}$.
+\item black and white behave the same
+\item 
+\end{itemize}
+
+
+Ideally, such a system would be robust against adding new players,
+but this is probably not the case.
 
 % Names:
 % "Stalemate"
