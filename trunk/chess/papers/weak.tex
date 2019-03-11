@@ -1,4 +1,112 @@
 
+% [computermodern], 
+\documentclass[numbers]{sigplanconf}
+
+\usepackage{url}
+% \usepackage{code}
+% \usepackage{cite}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{chessboard}
+
+% \usepackage{chessfs}
+\usepackage{adjustbox}
+
+% Define black versions of pieces for inline use. Gross, but it works.
+\newcommand{\Pawn}[1][1.3ex]{%
+\adjustbox{Trim=4.3pt 2.6pt 4.3pt 0pt,width=#1,margin=0.2ex 0ex 0.2ex 0ex}{\BlackPawnOnWhite}%
+}%
+\newcommand{\Rook}[1][1.58ex]{%
+\adjustbox{Trim=3.2pt 2.2pt 3.2pt 0pt,width=#1,raise=0ex,margin=0.1ex 0ex 0.1ex 0ex}{\BlackRookOnWhite}%
+}%
+\newcommand{\Knight}[1][1.85ex]{%
+\adjustbox{Trim=2.3pt 2.35pt 2.5pt 0pt,width=#1,raise=-0.03ex,margin=0.14ex 0ex 0.14ex 0ex}{\BlackKnightOnWhite}%
+}%
+\newcommand{\Bishop}[1][1.79ex]{%
+\adjustbox{Trim=2.3pt 2pt 2.3pt 0pt,width=#1,raise=-0.12ex,margin=0.1ex 0ex 0.1ex 0ex}{\BlackBishopOnWhite}%
+}%
+\newcommand{\Queen}[1][2.05ex]{%
+\adjustbox{Trim=1.2pt 2.2pt 1.2pt 0pt,width=#1,raise=-0.08ex,margin=0.1ex 0ex 0.1ex 0ex}{\BlackQueenOnWhite}%
+}%
+\newcommand{\King}[1][1.95ex]{%
+\adjustbox{Trim=2pt 2pt 2pt 0pt,width=#1,raise=-0.06ex,margin=0.13ex 0ex 0.13ex 0ex}{\BlackKingOnWhite}%
+}%
+
+\interfootnotelinepenalty=0
+
+% lets me explicitly set a. or 1. etc. as enum label
+\usepackage{enumitem}
+
+\pagestyle{empty}
+
+\usepackage{ulem}
+% go back to italics for emphasis, though
+\normalem
+
+\usepackage{natbib}
+
+\setlength{\footnotesep}{2em}
+
+% \newcommand\comment[1]{}
+\newcommand\sfrac[2]{\!{}\,^{#1}\!/{}\!_{#2}}
+
+\begin{document} 
+
+\conferenceinfo{SIGBOVIK~2019}{April 1, 2019, Pittsburgh, Pennsylvania, USA}
+\copyrightyear{2019}
+\title{Elo World,}
+\subtitle{a framework for benchmarking weak chess engines}
+\authorinfo{Dr. Tom Murphy VII Ph.D.}{tom7.org Foundation}{tom7@tom7.org}
+\toappear{
+Copyright \copyright\ 2019 the Regents of the Wikiplia Foundation.
+Appears in SIGBOVIK 19119 with the
+%
+insufficient material 
+%
+of the Association for Computational Heresy; {\em IEEEEEE!}
+press, Verlag-Verlag volume no.~0x40-2A. 1600 rating points}
+
+\ccsdesc[500]{Evaluation methodologies~Tournaments}
+\ccsdesc[500]{Chess~Being bad at it}
+% \ccsdesc[100]{Software and its engineering~Control structures}
+% \ccsdesc[300]{Theory of computation~Control primitives}
+
+\terms
+pawn, horse, bishop, castle, queen, king
+\keywords
+chess, bad
+
+\setchessboard{showmover=false}
+
+\newcommand\checkmate{\hspace{-.05em}\raisebox{.4ex}{\tiny\bf ++}}
+
+\renewcommand\th{\ensuremath{{}^{\textrm{th}}}}
+\newcommand\st{\ensuremath{{}^{\textrm{st}}}}
+\newcommand\rd{\ensuremath{{}^{\textrm{rd}}}}
+\newcommand\nd{\ensuremath{{}^{\textrm{nd}}}}
+\newcommand\at{\ensuremath{\scriptstyle @}}
+
+\date{1 April 2019}
+
+\maketitle \thispagestyle{empty}
+
+Fiddly bits aside, it is a solved problem to maintain a numeric rating
+of players for some game (for example chess, but also sports,
+e-sports, probably also z-sports if that's a thing). Though it has
+some competition (suggesting the need for a meta-rating system to
+compare them), the Elo Rating System~\cite{elo1978rating} is a simple
+and effective way to do it.
+
+The gist of this system is to track a score for each player. The
+scores are defined such that the expected outcomes of games can
+be computed from the scores (for example, a player with a rating
+of 2400 should win 9/10 of her games against a player with a
+rating of 2000). If the true outcome doesn't match the 
+
+.. so we can just leave it at that
+
+
 % Names:
 % "Stalemate"
 % "Weaksauce"
@@ -14,7 +122,7 @@ Interpolation, like Scoville scale.
 % Dramatic failure of the "suicide king" strategy against
 % CCCP.
 1. d4 g5 2. Bxg5 Nc6 3. Bxe7 Kxe7 4. d5 Kd6
-5. dxc6+ Kc5 6. Qd6+ Kc4 7. e4#
+5. dxc6+ Kc5 6. Qd6+ Kc4 7. e4++
 
 % miraculous win for "generous" strategy as black:
 % playing against "suicide king". White forces black
@@ -37,7 +145,7 @@ Interpolation, like Scoville scale.
 
 % worstfish (black) somehow beating suicide king
 % white forces the mate. Note that worstfish
-% does assume its opponet will pick good moves...
+% does assume its opponent will pick good moves...
 1. Nf3 g5 2. b4 Na6 3. Nxg5 Nc5 4. b5 f6
 5. c4 Na6 6. Nf7 Rb8 7. d3 h6 8. Kd2 Nb4
 9. Kc3 Rh7 10. Kd4 Rg7 11. Kc5 Nd5 12. Nxh6 Nb4
@@ -47,7 +155,7 @@ Interpolation, like Scoville scale.
 25. h4 Qc7+ 26. Kxc7 Nxa2 27. Raf1 c5 28. Nh6 Ke7
 29. Qd4 Ke6 30. Rc1 Bg7 31. Be1 Ra8 32. Rc2 Nc3
 33. Ra2 Ne7 34. Qxe4 Bf8 35. Kd8 Nxb5 36. Qxf5+ Kd6
-37. Qxd7+ Bxd7#
+37. Qxd7+ Bxd7++
 
 
 % Fate-based algorithms.
@@ -81,12 +189,12 @@ Interpolation, like Scoville scale.
 // http://www.computerchess.org.uk/ccrl/404/
 
 
+\nocite{elo1978rating}
+\nocite{topple}
 // citation for knights distance:
-// Counting the Number of Squares Reachable in k
-// Knight's Moves
-// Amanda M. Miller, David L. Farnsworth
-// Open Journal of Discrete Mathematics, 2013, 3, 151-154
-// http://dx.doi.org/10.4236/ojdm.2013.33027 
+\nocite{miller2013counting}
 
-// Topple by Vincent Tang
-// https://github.com/konsolas/ToppleChess/releases/
+\bibliography{chess}{}
+\bibliographystyle{plain}
+
+\end{document}
