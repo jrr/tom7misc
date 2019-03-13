@@ -70,8 +70,8 @@
 \acmConference{SIGBOVIK~2019}{April 1, 2019, Pittsburgh, Pennsylvania, USA}
 
 \title[Elo World]{Elo World, a framework for \\ benchmarking weak chess \\ engines}
-% \authorinfo{Dr. Tom Murphy VII Ph.D.}{tom7.org Foundation}{tom7@tom7.org}
-\author{Dr. Tom Murphy VII Ph.D.}\email{tom7@tom7.org}
+% \authorinfo{Dr.~Tom Murphy VII Ph.D.}{tom7.org Foundation}{tom7@tom7.org}
+\author{Dr.~Tom Murphy VII Ph.D.}\email{tom7@tom7.org}
 \thanks{Copyright \copyright\ 2019 the Regents of the Wikiplia Foundation.
 Appears in SIGBOVIK 19119 with the
 %
@@ -181,7 +181,7 @@ some ground rules and guidelines:
 
 % dispense with alpha-beta, etc.
 
-\subsection{The players}
+\subsection{Simple players}
 
 \newcommand\describeplayer[1]{\smallskip\noindent {\texttt{\textbf{#1}}}.\quad}
 \newcommand\player[1]{\texttt{#1}}
@@ -242,9 +242,9 @@ rarely get forced into mating its opponent by aggressive but weak
 players. \vegetarian
 
 \describeplayer{first\_move} Make the lexicographically first legal
-move. The moves are ordered as $\langle$ \verb+src_row+,
+move. The moves are ordered as $\langle\!\!$ \verb+src_row+,
 \verb+src_col+, \verb+dst_row+, \verb+dst_col+,
-\verb+promote_to+ $\rangle$ for white (rank $1$ is row $0$) and the rows
+\verb+promote_to+ $\!\!\rangle$ for white (rank $1$ is row $0$) and the rows
 are reversed for black to make the strategy symmetric. Tends to
 produce draws (by repetition), because knights and rooks can often
 move back and forth on the first few files. \deterministic
@@ -253,26 +253,98 @@ move back and forth on the first few files. \deterministic
 using standard PGN short notation. White and black both try to move
 towards A1. \asymmetric \deterministic
 
+\describeplayer{huddle} As white, make moves that minimize the total
+distance between white pieces and the white king. Distance is the
+Chebyshev distance, which is the number of moves a king takes to move
+between squares. This forms a defensive wall around the king
+(Figure~\ref{fig:huddle}).
+
+\begin{figure}[ht]
+\chessboard[setfen=2r4r/5n2/1p4p1/nP5p/1Ppk3P/2NPRNP1/1bRPPP2/2BQKB2 b - - 80 158,showmover=false]
+\caption{\player{huddle} (white) checkmates \player{pacifist} on move
+  158 with substantial help. Note that white's distal pawns have
+  advanced; these are actually the same distance from the King as they
+  are in their home row, since the distance metric includes diagonal
+  moves. } \label{fig:huddle}
+\end{figure}
+
+\describeplayer{swarm} Like \player{huddle}, but instead move pieces
+such that they are close to opponent's king. This is essentially an
+all-out attack with no planning, and manages to be one of the
+better-performing ``simple'' strategies. From the bloodbaths it
+creates, it even manages a few victories against strong opponents
+(Figure~\ref{fig:swarm}).
+
+% XXX illustrate the moves here
+\begin{figure}[ht]
+\chessboard[setfen=rnbqkb1r/pp1ppp1p/7p/1Bp5/3PnP2/8/PPP3PP/RN1QK1NR b KQkq - 1 5,showmover=false]
+\caption{\player{swarm} (white) vs.~\player{stockfish1m\_r4096}
+  with black to move after 1.~d4 Nf6 2.~Bh6 gxh6 3.~f4 c5 4.~e4 Nxe4
+  5.~Bb5. Black blunders 5\ldots f6??, which must have been a random
+  move as \player{swarm} immediately wins with 6.~Qh5++.} \label{fig:swarm}
+\end{figure}
+
+\describeplayer{generous} Move so as to maximize the number of
+opponent moves that capture our pieces, weighting by the value of the
+offered piece ($\pawn = 1$, $\bishop = \knight = 3$, $\rook = 5$,
+$\queen = 9$). A piece that can be catpured multiple ways is counted
+multiple times.
+
+\describeplayer{no\_i\_insist} Like \player{generous}, but be overwhelmingly
+polite by trying to {\em force} the opponent to accept the gift of material.
+There are three tiers: Avoid at all costs mating the opponent (and moreso
+checkmating). Stalemate is polite, but it is more canonical for two
+polite players to form a draw by repetition, from continually offering up
+material to one another and declining it. Next, avoid situations where
+the opponent can refuse our gift; among these, prefer the move where the
+opponent must capture the highest value piece. Finally, prefer moves
+where the expected value of the offered material (i.e.~against random play)
+is highest. (This means that if there are three moves, and one captures a
+rook but the others capture nothing, the value is $5/3$.) This strategy
+almost never wins, but is not among the worst players, since it often forces
+a draw by exchanging all its pieces.
+
+\describeplayer{reverse\_starting} This player thinks that the board is
+upside-down, and as white, tries to put its pieces where black pieces
+start. This often causes some conflict since the black pieces are already
+there, but can also end peacefully (Figure~\ref{fig:reversestarting}).
+
+\begin{figure}[ht]
+\chessboard[setfen=1NB1K2R/8/8/8/8/8/6p1/rnbqkbn1 b - - 19 64,showmover=false]
+\caption{\player{reverse\_starting} draws against \player{reverse\_starting}
+by repetition, both players having happily moved their surviving pieces into the
+correct spots.} \label{fig:reversestarting}
+\end{figure}
+
+\subsection{Fate-based players}
+
+\subsection{Engine-based players}
+
+
+\subsection{Blind players}
+
+(I guess we can also segue by discussing handicaps)
+(end with this so that we can segue into dilution methods)
+
+\subsection{Diultion methods}
+% Stockfish1m_32768 loses to reverse_starting in 3 moves!
+1. e4 g5 2. Ba6 f5 3. Qh5
+
 \describeplayer{worstfish}
-\describeplayer{generous}
 \describeplayer{safe}
 \describeplayer{popular}
 \describeplayer{dangerous}
 \describeplayer{rare}
-\describeplayer{no\_i\_insist}
-\describeplayer{sym\_mirror\_x}
-\describeplayer{huddle}
 \describeplayer{survivalist}
+\describeplayer{sym\_mirror\_x}
 \describeplayer{sym\_180}
 \describeplayer{sym\_mirror\_y}
 \describeplayer{suicide\_king}
-\describeplayer{reverse\_starting}
 \describeplayer{fatalist}
 \describeplayer{blind\_yolo}
 \describeplayer{cccp}
 \describeplayer{equalizer}
 \describeplayer{blind\_kings}
-\describeplayer{swarm}
 \describeplayer{min\_oppt\_moves}
 \describeplayer{chessmaster.nes\_lv1}
 \describeplayer{stockfish1m\_r32768}
