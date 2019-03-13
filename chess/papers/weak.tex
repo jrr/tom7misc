@@ -1,6 +1,11 @@
 
 % [computermodern], 
-\documentclass[numbers]{sigplanconf}
+% \documentclass[numbers]{sigplanconf}
+\documentclass[10pt,preprint,twocolumn]{acmart}
+
+\usepackage[T1]{fontenc}
+\usepackage{libertine}%% Only as example for the romans/sans fonts
+\usepackage[scaled=0.85]{beramono}
 
 \usepackage{url}
 % \usepackage{code}
@@ -51,15 +56,23 @@
 % \newcommand\comment[1]{}
 \newcommand\sfrac[2]{\!{}\,^{#1}\!/{}\!_{#2}}
 
+% skip acm copyright shits
+\makeatletter
+\def\@copyrightspace{\relax}
+\makeatother
+
+\setcopyright{none}
+
 \begin{document} 
 
-\conferenceinfo{SIGBOVIK~2019}{April 1, 2019, Pittsburgh, Pennsylvania, USA}
-\copyrightyear{2019}
-\title{Elo World,}
-\subtitle{a framework for benchmarking weak chess engines}
-\authorinfo{Dr. Tom Murphy VII Ph.D.}{tom7.org Foundation}{tom7@tom7.org}
-\toappear{
-Copyright \copyright\ 2019 the Regents of the Wikiplia Foundation.
+% \copyrightyear{2019}
+
+\acmConference{SIGBOVIK~2019}{April 1, 2019, Pittsburgh, Pennsylvania, USA}
+
+\title[Elo World]{Elo World, a framework for \\ benchmarking weak chess \\ engines}
+% \authorinfo{Dr. Tom Murphy VII Ph.D.}{tom7.org Foundation}{tom7@tom7.org}
+\author{Dr. Tom Murphy VII Ph.D.}\email{tom7@tom7.org}
+\thanks{Copyright \copyright\ 2019 the Regents of the Wikiplia Foundation.
 Appears in SIGBOVIK 19119 with the
 %
 title inflation
@@ -72,10 +85,8 @@ press, Verlag-Verlag volume no.~0x40-2A. 1600 rating points}
 % \ccsdesc[100]{Software and its engineering~Control structures}
 % \ccsdesc[300]{Theory of computation~Control primitives}
 
-\terms
-pawn, horse, bishop, castle, queen, king
-\keywords
-chess, bad
+\keywords{pawn, horse, bishop, castle, queen, king}
+% \keywords{chess, bad}
 
 \setchessboard{showmover=false}
 
@@ -93,28 +104,27 @@ chess, bad
 
 \section{Introduction}
 
-Fiddly bits aside, it is a solved problem to maintain a numeric rating
-of players for some game (for example chess, but also sports,
+Fiddly bits aside, it is a solved problem to maintain a numeric skill
+rating of players for some game (for example chess, but also sports,
 e-sports, probably also z-sports if that's a thing). Though it has
 some competition (suggesting the need for a meta-rating system to
 compare them), the Elo Rating System~\cite{elo1978rating} is a simple
 and effective way to do it. This paper is concerned with Elo in chess,
 its original purpose.
 
-The gist of this system is to track a score for each player. The
-scores are defined such that the expected outcomes of games can
-be computed from the scores (for example, a player with a rating
-of 2400 should win 9/10 of her games against a player with a
-rating of 2000). If the true outcome (of e.g.~a tournament) doesn't
-match the expected outcome, then both player's scores are adjusted
-towards values that would have produced the expected result. Over
-time, scores thus become a more accurate reflection of player's skill,
-while also allowing for players to get stronger or weaker. This
-system is carefully described elsewhere, so we can just leave it
-at that.
+The gist of this system is to track a single score for each player.
+The scores are defined such that the expected outcomes of games can be
+computed from the scores (for example, a player with a rating of 2400
+should win 9/10 of her games against a player with a rating of 2000).
+If the true outcome (of e.g.~a tournament) doesn't match the expected
+outcome, then both player's scores are adjusted towards values that
+would have produced the expected result. Over time, scores thus become
+a more accurate reflection of players' skill, while also allowing for
+players to change skill level. This system is carefully described
+elsewhere, so we can just leave it at that.
 
 The players need not be human, and in fact this can facilitate running
-many games and thereby getting accurate ratings.
+many games and thereby getting arbitrarily accurate ratings.
 
 The problem this paper is concerned with is that basically all chess
 tournaments (whether with humans or computers or both) are between
@@ -130,7 +140,7 @@ understand how this cohort performs in any absolute sense. (In
 contrast we have ``the highest ever human rating was 2882,'' and
 ``there are 5,323 players with ratings in 2200--2299'' and ``Players
 whose ratings drop below 1000 are listed on the next list as
-'delisted'.''\cite{fideratings}.) It may also be the case that all
+'delisted'.''~\cite{fideratings}) It may also be the case that all
 weak players always lose to all strong players, making it unclear just
 how wide the performance gap between the two sets is. The goal of
 this paper is to expand the dynamic range of chess ratings to span
@@ -157,15 +167,137 @@ some ground rules and guidelines:
   state meaningfully span games. For example, it is not permitted to
   do man-in-the-middle attacks~\cite{blind} or learn opponent's moves
   from previous rounds, or to get better at chess. The majority of
-  players are actually completely stateless, just a partial function
-  of type ${\tt position} \rightarrow {\tt move}$.
+  players are actually completely stateless, just a function of type
+  ${\tt position} \rightarrow {\tt move}$.
 \item black and white behave the same
-\item 
+\item Avoid game-tree search. Minimax, alpha--beta, etc. are the
+  correct way to play chess programmatically. They are well-studied
+  (i.e., boring) and effective, and so not well suited to our problem.
+  A less obvious issue is that they are endlessly parameterizable, for
+  example the search ply; this leaves us with a million things to
+  fiddle with. In any case, several traditional chess engines are
+  included for comparison.
 \end{itemize}
 
+% dispense with alpha-beta, etc.
+
+\subsection{The players}
+
+\newcommand\describeplayer[1]{\smallskip\noindent {\texttt{\textbf{#1}}}.\quad}
+\newcommand\player[1]{\texttt{#1}}
+\newcommand\deterministic{\colorbox{black}{\color{white} \textsf{det}}}
+\newcommand\traditional{\colorbox{black}{\color{white} \textsf{trad}}}
+% funny to use that v symbol made of leaves
+\newcommand\vegetarian{\colorbox{black}{\color{white} \textsf{v}}}
+\newcommand\canonical{\colorbox{black}{\color{white} \textsf{canon}}}
+\newcommand\stateful{\colorbox{black}{\color{white} \textsf{state}}}
+\newcommand\asymmetric{\colorbox{black}{\color{white} \textsf{asym}}}
+
+\describeplayer{random} We must begin with the most canonical of all
+strategies: Choosing a legal move uniformly at random. This is a
+lovely choice for Elo World, for several reasons: It is simple to
+describe. It is clearly canonical, in that anyone undertaking a
+similar project would come up with the same thing. It is capable of
+producing any sequence of moves, and thus completely spans the gamut
+from the worst possible player to the best. If we run the tournament
+long enough, it will eventually draw games even against a hypothetical
+perfect opponent, a sort of Boltzmann Brilliancy. Note that this
+strategy actually does keep state (the pseudorandom pool), despite the
+admonition above. We can see this as not really state but a simulation
+of an external source of ``true'' randomness. Most other players
+fall back on making random moves to break ties or when their primary
+strategy does not apply. \canonical
+
+\describeplayer{same\_color} When playing as white, put pieces on
+white squares. Vice versa for black. This is accomplished by counting
+the number of white pieces on white squares {\em after} each possible
+move, and then playing one of the moves that maximizes this number.
+Ties are broken randomly. Like many algorithms described this way, it
+tends to reach a plateau where the metric cannot be increased in a
+single move, and then plays randomly along this local maximum
+(Figure~\ref{fig:samecolor}). This particular strategy moves one
+knight at most once (because they always change color when moving)
+unless forced; on the other hand both bishops can be safely moved
+anywhere when the metric is maxed out.
+
+\begin{figure}[ht]
+\chessboard[setfen=1n1r3q/1Q2r1bp/1p1p1p1n/p1pPp1p1/P1PkR3/1P1P1P1N/6BP/1N1R3K b - - 85 73,showmover=false]
+\caption{\player{same\_color} (playing as white) checkmates
+  \player{same\_color} (playing as black) on move 73. Note that since
+  white opened with Nh3, the h2 pawn is stuck on a black square.
+  Moving the knight out of the way would require that move to be
+  forced. } \label{fig:samecolor}
+\end{figure}
+
+\describeplayer{opposite\_color} Same idea, opposite parity.
+
+% XXX more clear/efficient description here?
+\describeplayer{pacifist} Avoid moves that mate the opponent, and
+failing that, avoid moves that check, and failing that, avoid moves
+that capture pieces, and failing that, capture lower value pieces.
+Break ties randomly. This is one of the worst strategies, drawing
+against players that are not ambitious about normal chess pursuits,
+and easily losing to simple strategies. On the other hand, it does
+rarely get forced into mating its opponent by aggressive but weak
+players. \vegetarian
+
+\describeplayer{first\_move} Make the lexicographically first legal
+move. The moves are ordered as $\langle$ \verb+src_row+,
+\verb+src_col+, \verb+dst_row+, \verb+dst_col+,
+\verb+promote_to+ $\rangle$ for white (rank $1$ is row $0$) and the rows
+are reversed for black to make the strategy symmetric. Tends to
+produce draws (by repetition), because knights and rooks can often
+move back and forth on the first few files. \deterministic
+
+\describeplayer{alphabetical} Make the alphabetically first move,
+using standard PGN short notation. White and black both try to move
+towards A1. \asymmetric \deterministic
+
+\describeplayer{worstfish}
+\describeplayer{generous}
+\describeplayer{safe}
+\describeplayer{popular}
+\describeplayer{dangerous}
+\describeplayer{rare}
+\describeplayer{no\_i\_insist}
+\describeplayer{sym\_mirror\_x}
+\describeplayer{huddle}
+\describeplayer{survivalist}
+\describeplayer{sym\_180}
+\describeplayer{sym\_mirror\_y}
+\describeplayer{suicide\_king}
+\describeplayer{reverse\_starting}
+\describeplayer{fatalist}
+\describeplayer{blind\_yolo}
+\describeplayer{cccp}
+\describeplayer{equalizer}
+\describeplayer{blind\_kings}
+\describeplayer{swarm}
+\describeplayer{min\_oppt\_moves}
+\describeplayer{chessmaster.nes\_lv1}
+\describeplayer{stockfish1m\_r32768}
+\describeplayer{chessmaster.nes\_lv2}
+\describeplayer{stockfish1m\_r16384}
+\describeplayer{stockfish0}
+\describeplayer{stockfish5}
+\describeplayer{stockfish1m\_r8192}
+\describeplayer{topple10k}
+\describeplayer{stockfish15}
+\describeplayer{stockfish10}
+\describeplayer{stockfish1m\_r4096}
+\describeplayer{stockfish20}
+\describeplayer{topple1m}
+\describeplayer{stockfish1m\_r2048}
+\describeplayer{stockfish1m\_r1024}
+\describeplayer{stockfish1m\_r512}
+\describeplayer{stockfish1m\_r256}
+\describeplayer{stockfish1m\_r64}
+\describeplayer{stockfish1m}
+\describeplayer{stockfish1m\_r128}
 
 Ideally, such a system would be robust against adding new players,
 but this is probably not the case.
+
 
 % Names:
 % "Stalemate"
@@ -254,7 +386,9 @@ Interpolation, like Scoville scale.
 // citation for knights distance:
 \nocite{miller2013counting}
 
-\bibliography{chess}{}
-\bibliographystyle{plain}
+% \balance
+% \bibliographystyle{plain}
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{chess}
 
 \end{document}

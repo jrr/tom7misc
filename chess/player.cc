@@ -784,7 +784,6 @@ struct SinglePlayerPlayer : public StatelessPlayer {
 };
 
 // TODO:
-//  - Stockfish, with and without opening book / endgame tablebases
 //  - Maximize net control of squares
 //  - Try to move your pieces to certain squares:
 //       - try to get all pieces close to the center
@@ -795,7 +794,13 @@ struct SinglePlayerPlayer : public StatelessPlayer {
 //  - prefer moves that can be mirrored by the opponent
 //
 //  - select eligible squares with langton's ant, game of life
-
+//
+//  mimic the move your opponent just played (though I guess flipped),
+//  if possible. rather similar to sym_mirror_y
+//
+//  checkmate: make a move that minimizes the number of moves I would
+//  have to make in order to checkmate the opponent, assuming I am
+//  the only one making moves.
 
 }  // namespace
 
