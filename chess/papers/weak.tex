@@ -316,12 +316,153 @@ by repetition, both players having happily moved their surviving pieces into the
 correct spots.} \label{fig:reversestarting}
 \end{figure}
 
+% TODO: Cyrillic tag or toast at the end
+\describeplayer{cccp} Prioritize moves that Checkmate, Check, Capture
+or Push, in that order. Push means to move pieces as deep as possible
+into enemy territory (without any regard for their safety). Ties are
+broken deterministically by the source/destination squares, so this
+one is technically asymmetric. \deterministic \asymmetric
+
+\describeplayer{suicide\_king} Take a random move that minimizes the
+distance between the two kings. Putting one's king out in the open is
+very unprincipled (Figure~\ref{fig:cccpsuicide}), but it does produce
+enough pressure to win against unambitious opponents.
+
+\begin{figure}[ht]
+  \chessboard[setfen=r1bq1bnr/pppp1p1p/2PQ4/8/2k6/8/PPP1PPPP/RN2KBNR b KQ - 0 7,showmover=false]
+\caption{\player{suicide\_king} (black) dramatically failing against
+  \player{cccp}'s slightly more principled play, after 1.~d4
+  g5 2.~Bxg5 Nc6 3.~Bxe7 Kxe7 4.~d5 Kd6 5.~dxc6+ Kc5 6.~Qd6+ Kc4.
+  White delivers a discovered mate with 7.~e4++.} \label{fig:cccpsuicide}
+\end{figure}
+
+% XXX include examples of symmetric players, as they are aesthetic.
+\describeplayer{sym\_mirror\_y} As white, try to maximize symmetry
+when flipping vertically. Zero penalty for opposing e.g.~a \King with
+a \king, but a small penalty when the pieces are not the same type,
+and a larger penalty when they are not opposite coors. The starting
+position is already symmetric this way, so this usually has the effect
+of copying the opponent's moves when possible. As ``copy your
+opponent's moves'' is a commonly known (but underspecified) strategy
+discovered by many children, this player is close to being canonical.
+However, it admits a bit too much arbitrary choice in the penalties
+assigned.
+
+\describeplayer{sym\_mirror\_x} As \player{sym\_mirror\_y}, but
+maximize symmetry when flipping horizontally. This does not make much
+chess sense, but can produce aesthetic arrangements
+(Figure~\ref{fig:XXX}).
+
+% XXX show self play perhaps?
+\describeplayer{sym\_180} As \player{sym\_mirror\_y}, but maximize
+symmetry under $180\deg$ rotation of the board. An emergent priority is
+to ``castle'' with the king and queen to ``fix'' them.
+
+\describeplayer{min\_oppt\_moves} Take a move that minimizes the
+number of resulting legal moves for the opponent, breaking ties
+randomly. This is a beautifully simple approach that generalizes many
+chess principles: Occupying space reduces the destination squares
+available to the opponent; capturing their pieces reduces the number
+of their pieces that they can move; pinning pieces or checking the
+king further reduces the legal moves; and mating the opponent is the
+best possible move.\footnote{However note that it does not distinguish
+  checkmate and stalemate, despite these having very different
+  results.} Among the players in the paper, this one is Pareto
+efficient in terms of its simplicity and effectiveness. \canonical
+
+% XXX cite blog comment?
+\describeplayer{equalizer} Prefer to move a piece that has been
+moved the fewest times, and then prefer moving to a square that
+has been visited the fewest times. Castling counts as moving
+both the king and rook, and visiting both destination squares.
+This is the first strategy described that keeps meaningful state.
+\canonical \stateful
+
 \subsection{Fate-based players}
+
+If we keep state, then we can track the location of each piece as it
+moves around the board (allowing us to distinguish the two rooks, or
+follow a pawn as it promotes). We can then use statistics on the
+average fates of each piece over hundreds of millions of games to
+guide the moves. These statistics give us, for each piece (e.g.~the c2
+pawn) and square, how likely it is to end the game on that square, and
+how likely it is to be alive or dead there when the game
+ends~\cite{survival}.
+
+\describeplayer{safe} This strategy moves pieces towards squares where
+they are likely to end the game alive. For this strategy and several
+others, simply moving to maximize this score (e.g.~its sum or product
+over all pieces) is very boring, since the score is almost always
+maximized in the starting position. So this strategy actually makes
+each move randomly, weighted by the total score of the resulting
+positions. The scores are normalized (with the lowest-scoring move
+receiving weight 0.0 and the highest 1.0) and then sampled according
+to these weights. Without normalization, the play is almost identical
+to uniformly random, since the weights of the resulting positions tend
+to be very similar (dominated by the many pieces that don't move). But
+it's pretty arbitrary.
+
+\describeplayer{popular} Like \player{safe}, but the score for a
+piece/square pair is the probability that the piece ends on that
+square, whether it lives or dies. This player likes to follow the
+crowd!
+
+\describeplayer{dangerous} The dual of \player{safe}; the score is
+the probability that the piece dies on that square. Note that a
+king is said to die if it is checkmated. This player likes to
+live life on the edge!
+
+\describeplayer{rare} The dual of \player{dangerous}; the score
+is one minus the probability of ending the game on that square. This
+player has a thirst for adventure!
+
+\describeplayer{survivalist} Like the above, but the score is the
+ratio of the survival and death probabilities on the square. In the
+data set, every piece ends alive or dead in every square (except
+for the bishops, which can only legally occupy squares of their
+color) at least 1000 times, so each ratio is defined. Here, the
+sums of ratios have plenty of variability, and the highest
+ratios are not so often on the starting squares. So with this
+strategy, we simply do a weighted sample from the moves according
+to their (non-normalized) scores.
+
+\describeplayer{fatalist} The dual of \player{fatalist}; the score is
+the ratio of the death and survival probability on the square. This
+player knows that even if you win, you just have to keep playing over
+and over again, so you might as well get it over with!
 
 \subsection{Engine-based players}
 
+...
+
+\describeplayer{stockfish0}
+\describeplayer{stockfish5}
+\describeplayer{stockfish15}
+\describeplayer{stockfish10}
+\describeplayer{stockfish20}
+
+\describeplayer{worstfish} (compare ``losing chess'')
+uses stockfish20; we could use 1m (but slow), but it
+probably doesn't benefit from this depth of analysis,
+since the engine assumes the opponent is playing well.
+To do even worse, we would want to play moves that
+trap the opponent into beating us, as well as ones that 
+avoid repetition draws
+
+\describeplayer{chessmaster.nes\_lv1}
+\describeplayer{chessmaster.nes\_lv2} \deterministic
+\describeplayer{stockfish1m\_r32768}
+\describeplayer{stockfish1m\_r16384}
+\describeplayer{stockfish1m\_r8192}
+\describeplayer{topple1m}
+\describeplayer{topple10k}
+\describeplayer{stockfish1m}
 
 \subsection{Blind players}
+
+\describeplayer{blind\_yolo}
+\describeplayer{blind\_kings}
+% \describeplayer{blind\_spycheck} (described in paper, not yet run)
 
 (I guess we can also segue by discussing handicaps)
 (end with this so that we can segue into dilution methods)
@@ -330,41 +471,13 @@ correct spots.} \label{fig:reversestarting}
 % Stockfish1m_32768 loses to reverse_starting in 3 moves!
 1. e4 g5 2. Ba6 f5 3. Qh5
 
-\describeplayer{worstfish}
-\describeplayer{safe}
-\describeplayer{popular}
-\describeplayer{dangerous}
-\describeplayer{rare}
-\describeplayer{survivalist}
-\describeplayer{sym\_mirror\_x}
-\describeplayer{sym\_180}
-\describeplayer{sym\_mirror\_y}
-\describeplayer{suicide\_king}
-\describeplayer{fatalist}
-\describeplayer{blind\_yolo}
-\describeplayer{cccp}
-\describeplayer{equalizer}
-\describeplayer{blind\_kings}
-\describeplayer{min\_oppt\_moves}
-\describeplayer{chessmaster.nes\_lv1}
-\describeplayer{stockfish1m\_r32768}
-\describeplayer{chessmaster.nes\_lv2}
-\describeplayer{stockfish1m\_r16384}
-\describeplayer{stockfish0}
-\describeplayer{stockfish5}
-\describeplayer{stockfish1m\_r8192}
-\describeplayer{topple10k}
-\describeplayer{stockfish15}
-\describeplayer{stockfish10}
+
 \describeplayer{stockfish1m\_r4096}
-\describeplayer{stockfish20}
-\describeplayer{topple1m}
 \describeplayer{stockfish1m\_r2048}
 \describeplayer{stockfish1m\_r1024}
 \describeplayer{stockfish1m\_r512}
 \describeplayer{stockfish1m\_r256}
 \describeplayer{stockfish1m\_r64}
-\describeplayer{stockfish1m}
 \describeplayer{stockfish1m\_r128}
 
 Ideally, such a system would be robust against adding new players,
@@ -383,10 +496,6 @@ but this is probably not the case.
 
 Interpolation, like Scoville scale.
 
-% Dramatic failure of the "suicide king" strategy against
-% CCCP.
-1. d4 g5 2. Bxg5 Nc6 3. Bxe7 Kxe7 4. d5 Kd6
-5. dxc6+ Kc5 6. Qd6+ Kc4 7. e4++
 
 % miraculous win for "generous" strategy as black:
 % playing against "suicide king". White forces black
@@ -452,6 +561,15 @@ Interpolation, like Scoville scale.
 // Good site for some computer chess programs with ELO:
 // http://www.computerchess.org.uk/ccrl/404/
 
+\section{Conclusion}
+
+The author would like to thank the anonymous referees
+of the Special Interest Group on
+B
+O
+V
+In
+Chess journal for their careful reviews.
 
 \nocite{elo1978rating}
 \nocite{topple}
