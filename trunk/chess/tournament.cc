@@ -53,7 +53,7 @@ using namespace std;
 // This used to be round-robin style, but since the work grows
 // quadratically, it got to the point that running even a single
 // round would take hours. New version picks cells that are 
-static constexpr int THREADS = 54;
+static constexpr int THREADS = 56;
 static constexpr int RUN_FOR_SECONDS = 60 * 20;
 
 // Fill in the diagonal just a little. After reaching this number of games,
@@ -107,6 +107,7 @@ const vector<Entrant> &GetEntrants() {
 
 			BlindYolo,
 			BlindSingleKings,
+			BlindSpycheck,
 			
 			Worstfish,
 
