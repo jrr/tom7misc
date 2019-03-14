@@ -440,7 +440,7 @@ very unprincipled (since a downstream edge can magnify a contribution
 arbitrarily) but I did it anyway.
 
 Everything was trained on a single GPU, though a fairly decent one in
-2018, the EVGA GeForce GTX 1080 FTW (really), using OpenCL. Biases
+2018, the EVGA GeForce GTX 1080 ``FTW'' (really), using OpenCL. Biases
 were initialized to $0$ and weights with a Gaussian of mean $0$ and
 standard deviation $0.025$. In the first phase, there were 64 examples
 per round, and after vacuuming, 2048. The round learning rate
@@ -508,10 +508,14 @@ decomposition of the problem. There are some ways we can account for
 this (Section~\ref{sec:spycheck}).
 
 \begin{figure}[ht]
-XXX actual example
-\caption{The white queen ``disappears'' after QxWhatever, because
-  unblinding predicts it to be one of black's own pawns, which is far
-  more likely in that square.} \label{fig:trick}
+\chessboard[tinyboard,setfen=rnbqkbnr/ppp2pQp/8/3pp3/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 0 3,showmover=false] (a)
+  \includegraphics[width=0.75 \linewidth]{queendisappears} (b)
+  \caption{(a) Position after 1.~e4 e5 2.~Qg4 d5 3.~Qxg7; note the white
+    queen strangely on g7.
+    (b) The bitmask for this position and the unblinder's prediction.
+    The queen ``disappears'' after Qxg7, because
+    unblinding predicts it to be one of black's own pawns---far
+    more likely in that square.} \label{fig:trick}
 \end{figure}
 
 A few things are distinctly disappointing about its performance. Even
@@ -551,7 +555,7 @@ square).
 
 \section{Playing blind}
 
-Once we have predicated a board state, we can play with it. The
+Once we have predicted a board state, we can play with it. The
 simplest way to do this is to use a strong chess engine to pick a move
 for the position. Here, I use Stockfish with a node budget of 1
 million nodes, which takes about 1 second of CPU time per move on my
@@ -575,7 +579,7 @@ computer. There are some complications:
     the unblinded state, so is superficially cheating. But note that
     if we get the side wrong, then Stockfish's move will always be
     illegal: Moves are specified as a source and destination
-    square,\footnote{Plus promotion piece. Castling is represented as
+    square,\footnote{\,Plus promotion piece. Castling is represented as
       a two-square move of the king.} and so the source square of
     Stockfish's move would always be a piece of the wrong piece's
     color. So this is equivalent to (but twice as efficient as)
@@ -661,15 +665,15 @@ side-to-move and the identity of some pieces.
 The predicted board often expresses uncertainty about some squares,
 which could be thought of as probabilities. A principled improvement
 would be to try to find moves that are good in expectation, that is,
-integrated all possible boards in proportion to their predicted
-probability. A good approximation might be had by sampling a bunch
-of boards according to the predicted distribution, and then using
-Stockfish to score the top $k$ moves for each; we can then order
-moves by their expected score. Unfortunately, it is not easy to
-efficiently get Stockfish to generate scored moves for $k \neq 1$.
-Even with $k = 1$, this approach would be slow, taking about a
-second for each (distinct) sampled board. So I did not try it,
-at least not before submitting this paper.
+integrated over all possible boards in proportion to their predicted
+probability. A good approximation might be had by sampling a bunch of
+boards according to the predicted distribution, and then using
+Stockfish to score the top $k$ moves for each; we can then order moves
+by their expected score. Unfortunately, it is not easy to efficiently
+get Stockfish to generate scored moves for $k \neq 1$. Even with $k =
+1$, this approach would be slow, taking about a second for each
+(distinct) sampled board. So I did not try it, at least not before
+submitting this paper.
 
 
 \subsubsection{No, {\em u r} a lnetwork} \label{sec:legalmove}
@@ -681,7 +685,7 @@ least {\em uses} a neural network.
 The biggest advantage would be that it would naturally be able to
 consider multiple moves under uncertainty about the board state, as
 just discussed, without any particular extra logic. My plan was to
-make a multiple different components that could be evaluated
+make multiple different components that could be evaluated
 separately, starting with the unblinder described, followed by a unit
 that predicts legal moves, and then a unit that takes these two (and
 also the 64-bit blinded mask if it likes) and scores each move.
@@ -710,8 +714,8 @@ do better?
 %   game in the database, and doing a ``lookup''-based version of
 %   the eval.
 
-I would like to thank the little people (pawns) and the triple-blind
-anonymous referrees.
+I would like to thank the little people (pawns) and the the author-
+and content-blind anonymous referrees.
 
 % % make -j eval-unblinder.exe && ./eval-unblinder.exe net.val
 % .!Evaluating model net.val...

@@ -3,9 +3,12 @@
 % \documentclass[numbers]{sigplanconf}
 \documentclass[10pt,preprint,twocolumn]{acmart}
 
-\usepackage[T1]{fontenc}
+\usepackage[T2A,T1]{fontenc}
 \usepackage{libertine}%% Only as example for the romans/sans fonts
 \usepackage[scaled=0.85]{beramono}
+
+\usepackage[utf8]{inputenc}
+\usepackage[russian,english]{babel}
 
 \usepackage{url}
 % \usepackage{code}
@@ -14,6 +17,7 @@
 \usepackage{amssymb}
 \usepackage{graphicx}
 \usepackage{chessboard}
+\usepackage{gensymb}
 
 % \usepackage{chessfs}
 \usepackage{adjustbox}
@@ -183,7 +187,7 @@ some ground rules and guidelines:
 
 \subsection{Simple players}
 
-\newcommand\describeplayer[1]{\smallskip\noindent {\texttt{\textbf{#1}}}.\quad}
+\newcommand\describeplayer[1]{\smallskip\noindent {\texttt{\textbf{#1}}}.\ \ }
 \newcommand\player[1]{\texttt{#1}}
 \newcommand\deterministic{\colorbox{black}{\color{white} \textsf{det}}}
 \newcommand\traditional{\colorbox{black}{\color{white} \textsf{trad}}}
@@ -311,7 +315,7 @@ there, but can also end peacefully (Figure~\ref{fig:reversestarting}).
 
 \begin{figure}[ht]
 \chessboard[setfen=1NB1K2R/8/8/8/8/8/6p1/rnbqkbn1 b - - 19 64,showmover=false]
-\caption{\player{reverse\_starting} draws against \player{reverse\_starting}
+\caption{\player{reverse\_starting} draws against itself
 by repetition, both players having happily moved their surviving pieces into the
 correct spots.} \label{fig:reversestarting}
 \end{figure}
@@ -321,7 +325,11 @@ correct spots.} \label{fig:reversestarting}
 or Push, in that order. Push means to move pieces as deep as possible
 into enemy territory (without any regard for their safety). Ties are
 broken deterministically by the source/destination squares, so this
-one is technically asymmetric. \deterministic \asymmetric
+one is technically asymmetric.
+% \begin{otherlanguage*}{russian}
+%   Ни шагу назад!
+% \end{otherlanguage*}
+\deterministic \asymmetric
 
 \describeplayer{suicide\_king} Take a random move that minimizes the
 distance between the two kings. Putting one's king out in the open is
@@ -355,9 +363,9 @@ chess sense, but can produce aesthetic arrangements
 
 % XXX show self play perhaps?
 \describeplayer{sym\_180} As \player{sym\_mirror\_y}, but maximize
-symmetry under 180 degree
+symmetry under 180\degree\ rotation
 % XXX latex symbol for ``degrees''
-rotation of the board. An emergent priority is
+of the board. An emergent priority is
 to ``castle'' with the king and queen to ``fix'' them.
 
 \describeplayer{min\_oppt\_moves} Take a move that minimizes the
@@ -446,7 +454,7 @@ players.
 \describeplayer{stockfish0} Stockfish is probably the strongest
 open-source chess engine (or even publicly available engine); at full
 strength its play is estimated to be around 3500 on the FIDE scale.
-Aside from being quite machine dependent (it can search more moves in
+Aside from being quite machine-dependent (it can search more moves in
 a given amount of time when it has a fast CPU with many cores), there
 are many options to fiddle with. Stockfish can use both opening books
 and endgame tables; neither is used here. It also has a ``difficulty''
@@ -460,10 +468,12 @@ repeating positions.
 
 % TODO: Does lichess publish the difficulty settings ? Nice to compare
 % to my subjective skill level
-\describeplayer{stockfish5} Stockfish as above, but set to difficulty
-5.
+\describeplayer{stockfish5} Stockfish as above, but at difficulty 5.
+
 \describeplayer{stockfish10} Same, at difficulty 10.
+
 \describeplayer{stockfish15} Same, at difficulty 15.
+
 \describeplayer{stockfish20} And difficulty 20, the maximum. Even
 at this difficulty, Stockfish produces moves basically instantaneously.
 
@@ -473,7 +483,7 @@ apparently affecting the time to make moves). I don't know what it's
 doing with these settings. The true way to unleash chess engines is to
 give them a lot of CPU and memory to search. Since the tournament is
 run simultaneously across about 60 threads\footnote{ The computer is
-  the completely egregious AMD 2990WX ``Threadripper~2'', which has 32
+  the completely egregious AMD 2990WX ``Threadripper~2,'' which has 32
   cores (for 64 hardware threads) and 250 Watts of power dissipation
   at load. The torture of this CPU was part of the impetus for the
   paper.} using dozens of gigabytes of memory, and sometimes I would
@@ -481,23 +491,28 @@ play {\it Hollow Knight} while it ran, I wanted to avoid having the
 performance be dependent on the scheduling environment. So here,
 Stockfish is given a ``node'' budget of 1~million, hence {\sf 1m}. It
 takes about one second per move when running alone, and is easily the
-strongest player evaluated.
+strongest player (type) evaluated.
 
 \begin{figure}[ht]
-% worstfish (black) somehow beating suicide king
-% white forces the mate. Note that worstfish
-% does assume its opponent will pick good moves...
-1. Nf3 g5 2. b4 Na6 3. Nxg5 Nc5 4. b5 f6
-5. c4 Na6 6. Nf7 Rb8 7. d3 h6 8. Kd2 Nb4
-9. Kc3 Rh7 10. Kd4 Rg7 11. Kc5 Nd5 12. Nxh6 Nb4
-13. Na3 Rg3 14. Qc2 Bg7 15. f4 a6 16. Qb1 Bh8
-17. Qb2 f5 18. Qf6 Rxg2 19. Qh4 Rxe2 20. Bg2 e5
-21. Bd2 Bf6 22. Nf7 Bh8 23. Qf2 c6 24. Kd6 Re4
-25. h4 Qc7+ 26. Kxc7 Nxa2 27. Raf1 c5 28. Nh6 Ke7
-29. Qd4 Ke6 30. Rc1 Bg7 31. Be1 Ra8 32. Rc2 Nc3
-33. Ra2 Ne7 34. Qxe4 Bf8 35. Kd8 Nxb5 36. Qxf5+ Kd6
-37. Qxd7+ Bxd7++
-\caption{TODO} \label{fig:worstfish}
+  \chessboard[setfen=r1bK1b2/1p1pn3/p2k3N/1np1pQ2/2P2P1P/N2P4/R5B1/4B2R w - - 1 37,showmover=false]
+  \caption{\player{suicide\_king} (white) to move against
+    \player{worstfish} after 36 moves. Since the kings
+    are already at their minimum distance, white will make
+    a move at random. 37.~Qxe5++ wins for white immediately,
+    but \player{suicide\_king} plays 37.~Qxd7??. The only
+    legal move is 37\ldots Bxd7++, so \player{worstfish}
+    must play it, and thus wins one of its only victories.} \label{fig:worstfish}
+% full game:
+% 1. Nf3 g5 2. b4 Na6 3. Nxg5 Nc5 4. b5 f6
+% 5. c4 Na6 6. Nf7 Rb8 7. d3 h6 8. Kd2 Nb4
+% 9. Kc3 Rh7 10. Kd4 Rg7 11. Kc5 Nd5 12. Nxh6 Nb4
+% 13. Na3 Rg3 14. Qc2 Bg7 15. f4 a6 16. Qb1 Bh8
+% 17. Qb2 f5 18. Qf6 Rxg2 19. Qh4 Rxe2 20. Bg2 e5
+% 21. Bd2 Bf6 22. Nf7 Bh8 23. Qf2 c6 24. Kd6 Re4
+% 25. h4 Qc7+ 26. Kxc7 Nxa2 27. Raf1 c5 28. Nh6 Ke7
+% 29. Qd4 Ke6 30. Rc1 Bg7 31. Be1 Ra8 32. Rc2 Nc3
+% 33. Ra2 Ne7 34. Qxe4 Bf8 35. Kd8 Nxb5 36. Qxf5+ Kd6
+% 37. Qxd7+ Bxd7++
 \end{figure}
 
 \describeplayer{worstfish} On the other hand, a strong chess engine
@@ -510,7 +525,7 @@ the resulting position from black's perspective.\footnote{By asking it
 for black. This is easily the worst player evaluated, but it is not
 hard to imagine ways it could be worse. Indeed, playing for a loss is
 a common twist on chess ({\it Losing
-  Chess}~\cite{losingchesswikipedia}), although the rules of this
+  Chess}~\cite{wikipedialosingchess}), although the rules of this
 variant require that you capture a piece if you are able to (without
 this constraint it is fairly boring). So, engines that support this
 variant cannot be directly applied. We could use stronger settings of
@@ -518,7 +533,7 @@ Stockfish, but since it already invokes Stockfish for each legal move,
 it is also one of the slowest players. Like Stockfish, it occasionally
 blunders an otherwise losing position into a draw by repetition. But
 most importantly, its search strategy when evaluating positions is not
-applying the correct logic ($\alpha--\beta$ pruning); it assumes that
+applying the correct logic ($\alpha$--$\beta$ pruning); it assumes that
 its opponent will choose strong moves, and that it will itself play
 strong moves in future plies. As a result, it sometimes allows the
 opponent to create a situation where \player{worstfish} is forced to
@@ -529,15 +544,18 @@ open source engine, provided to keep Stockfish on its toes. Here,
 its node budget is 10,000. \traditional
 
 \describeplayer{topple1m} Topple with a node budget of 1 million,
-as \player{stockfish1m}. Stockfish almost always wins, though it
-is not clear whether the budgets are actually comparable. \traditional
+which like \player{stockfish1m} takes about one second per move.
+Stockfish almost always wins, though it is not clear whether the
+budgets are actually comparable. \traditional
 
-\describeplayer{chessmaster.nes\_lv1}
-\describeplayer{chessmaster.nes\_lv2} \deterministic
+\describeplayer{chessmaster.nes\_lv1} \deterministic \traditional
+
+\describeplayer{chessmaster.nes\_lv2} \deterministic \traditional
 
 \subsection{Blind players}
 
 \describeplayer{blind\_yolo}
+
 \describeplayer{blind\_kings}
 % \describeplayer{blind\_spycheck} (described in paper, not yet run)
 
@@ -629,6 +647,11 @@ Interpolation, like Scoville scale.
 // http://www.computerchess.org.uk/ccrl/404/
 
 \section{Conclusion}
+
+Shout out to the Thursd'z Institute and anonymous commenters
+on my blog for discussion of players and suggestions. Several
+ideas were suggested by multiple people, increasing my confidence
+that they are somehow canonical.
 
 The author would like to thank the anonymous referees
 of the Special Interest Group on
