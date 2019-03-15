@@ -3,12 +3,12 @@
 % \documentclass[numbers]{sigplanconf}
 \documentclass[10pt,preprint,twocolumn]{acmart}
 
-\usepackage[T2A,T1]{fontenc}
+\usepackage[T1]{fontenc}
 \usepackage{libertine}%% Only as example for the romans/sans fonts
 \usepackage[scaled=0.85]{beramono}
 
-\usepackage[utf8]{inputenc}
-\usepackage[russian,english]{babel}
+% \usepackage[utf8]{inputenc}
+% \usepackage[russian,english]{babel}
 
 \usepackage{url}
 % \usepackage{code}
@@ -189,15 +189,29 @@ some ground rules and guidelines:
 
 \newcommand\describeplayer[1]{\smallskip\noindent {\texttt{\textbf{#1}}}.\ \ }
 \newcommand\player[1]{\texttt{#1}}
-\newcommand\deterministic{\colorbox{black}{\color{white} \textsf{det}}}
-\newcommand\traditional{\colorbox{black}{\color{white} \textsf{trad}}}
-% funny to use that v symbol made of leaves
-\newcommand\vegetarian{\colorbox{black}{\color{white} \textsf{v}}}
-\newcommand\canonical{\colorbox{black}{\color{white} \textsf{canon}}}
-\newcommand\stateful{\colorbox{black}{\color{white} \textsf{state}}}
-\newcommand\asymmetric{\colorbox{black}{\color{white} \textsf{asym}}}
+\newcommand\russian{
+  \includegraphics[height=0.9em]{zazdarovye}
+}
+\newcommand\deterministic{
+  \includegraphics[height=0.9em]{deterministic}
+}
+\newcommand\traditional{
+  \includegraphics[height=0.9em]{traditional}
+}
+\newcommand\vegetarian{
+  \includegraphics[height=0.9em]{vegetarian}
+}
+\newcommand\canonical{
+  \includegraphics[height=0.9em]{canonical}
+}
+\newcommand\stateful{
+  \includegraphics[height=0.9em]{stateful}
+}
+\newcommand\asymmetric{
+  \includegraphics[height=0.9em]{asymmetric}
+}
 
-\describeplayer{random} We must begin with the most canonical of all
+\describeplayer{random\_move} We must begin with the most canonical of all
 strategies: Choosing a legal move uniformly at random. This is a
 lovely choice for Elo World, for several reasons: It is simple to
 describe. It is clearly canonical, in that anyone undertaking a
@@ -268,7 +282,7 @@ between squares. This forms a defensive wall around the king
 \caption{\player{huddle} (white) checkmates \player{pacifist} on move
   158 with substantial help. Note that white's distal pawns have
   advanced; these are actually the same distance from the King as they
-  are in their home row, since the distance metric includes diagonal
+  would be in their home row, since the distance metric includes diagonal
   moves. } \label{fig:huddle}
 \end{figure}
 
@@ -327,9 +341,9 @@ into enemy territory (without any regard for their safety). Ties are
 broken deterministically by the source/destination squares, so this
 one is technically asymmetric.
 % \begin{otherlanguage*}{russian}
-%   Ни шагу назад!
+% За здоровье!
 % \end{otherlanguage*}
-\deterministic \asymmetric
+\deterministic \asymmetric \russian
 
 \describeplayer{suicide\_king} Take a random move that minimizes the
 distance between the two kings. Putting one's king out in the open is
@@ -344,7 +358,6 @@ enough pressure to win against unambitious opponents.
   White delivers a discovered mate with 7.~e4++.} \label{fig:cccpsuicide}
 \end{figure}
 
-% XXX include examples of symmetric players, as they are aesthetic.
 \describeplayer{sym\_mirror\_y} As white, try to maximize symmetry
 when flipping vertically. Zero penalty for opposing e.g.~a \King\, with
 a \king, but a small penalty when the pieces are not the same type,
@@ -358,15 +371,17 @@ assigned.
 
 \describeplayer{sym\_mirror\_x} As \player{sym\_mirror\_y}, but
 maximize symmetry when flipping horizontally. This does not make much
-chess sense, but can produce aesthetic arrangements
-(Figure~\ref{fig:XXX}).
+chess sense, but can produce aesthetic arrangements.
 
-% XXX show self play perhaps?
 \describeplayer{sym\_180} As \player{sym\_mirror\_y}, but maximize
 symmetry under 180\degree\ rotation
-% XXX latex symbol for ``degrees''
-of the board. An emergent priority is
+of the board (Figure~\ref{fig:sym180}. An emergent priority is
 to ``castle'' with the king and queen to ``fix'' them.
+
+\begin{figure}
+  \chessboard[setfen=2bkr3/8/n1r1pppp/1PppQ2P/N2BPPP1/1PPP1R1N/8/3RKB2 b - - 8 66,showmover=false]
+  \caption{\player{sym\_180} (white) vs. \player{pacifist} after 66 moves. Note that the position is not quite rotationally symmetric, but is close given the material.} \label{fig:sym180}
+\end{figure}
 
 \describeplayer{min\_oppt\_moves} Take a move that minimizes the
 number of resulting legal moves for the opponent, breaking ties
@@ -380,7 +395,6 @@ best possible move.\footnote{However note that it does not distinguish
   results.} Among the players in the paper, this one is Pareto
 efficient in terms of its simplicity and effectiveness. \canonical
 
-% XXX cite blog comment?
 \describeplayer{equalizer} Prefer to move a piece that has been
 moved the fewest times, and then prefer moving to a square that
 has been visited the fewest times. Castling counts as moving
@@ -410,21 +424,21 @@ receiving weight 0.0 and the highest 1.0) and then sampled according
 to these weights. Without normalization, the play is almost identical
 to uniformly random, since the weights of the resulting positions tend
 to be very similar (dominated by the many pieces that don't move). But
-it's pretty arbitrary.
+it's pretty arbitrary. \stateful
 
 \describeplayer{popular} Like \player{safe}, but the score for a
 piece/square pair is the probability that the piece ends on that
 square, whether it lives or dies. This player likes to follow the
-crowd!
+crowd! \stateful
 
 \describeplayer{dangerous} The dual of \player{safe}; the score is the
 probability that the piece dies on that square. Note that a king is
 said to die if it is checkmated or his side resigns. This player likes
-to live life on the edge!
+to live life on the edge! \stateful
 
 \describeplayer{rare} The dual of \player{dangerous}; the score
 is one minus the probability of ending the game on that square. This
-player has a thirst for adventure!
+player has a thirst for adventure! \stateful
 
 \describeplayer{survivalist} Like the above, but the score is the
 ratio of the survival and death probabilities on the square. In the
@@ -434,12 +448,12 @@ color) at least 1000 times, so each ratio is defined. Here, the
 sums of ratios have plenty of variability, and the highest
 ratios are not so often on the starting squares. So with this
 strategy, we simply do a weighted sample from the moves according
-to their (non-normalized) scores.
+to their (non-normalized) scores. \stateful
 
 \describeplayer{fatalist} The dual of \player{survivalist}; the score is
 the ratio of the death and survival probability on the square. This
 player knows that even if you win, you just have to keep playing over
-and over again, so you might as well get it over with!
+and over again, so you might as well get it over with! \stateful
 
 \subsection{Engine-based players}
 
@@ -450,32 +464,35 @@ skill, and to make sure that weaker players are evaluated somewhat in
 terms of their ability to play chess proper, not just beat other weak
 players.
 
-% XXX citations for stockfish
-\describeplayer{stockfish0} Stockfish is probably the strongest
-open-source chess engine (or even publicly available engine); at full
-strength its play is estimated to be around 3500 on the FIDE scale.
-Aside from being quite machine-dependent (it can search more moves in
-a given amount of time when it has a fast CPU with many cores), there
-are many options to fiddle with. Stockfish can use both opening books
-and endgame tables; neither is used here. It also has a ``difficulty''
-setting, which is set here to 0. Stockfish is run in a separate
-process, and the board is reset before each move, but I am not
-extremely hygienic about flushing e.g.~internal hash tables between
-moves. One consequence of this attempt at statelessness is that
-Stockfish sometimes walks into a draw by repetition in positions
-where it would be able to win, because it doesn't know that it is
-repeating positions.
+\describeplayer{stockfish0} Stockfish~\cite{stockfish} is probably the
+strongest open-source chess engine (or even publicly available
+engine); at full strength its play is estimated to be around 3500 Elo
+on the FIDE scale. Aside from being quite machine-dependent (it can
+search more moves in a given amount of time when it has a fast CPU
+with many cores), there are many options to fiddle with. Stockfish can
+use both opening books and endgame tables; neither is used here. It
+also has a ``difficulty'' setting, which is set here to 0. Stockfish
+is run in a separate process, and the board is reset before each move,
+but I am not extremely hygienic about flushing e.g.~internal hash
+tables between moves. One consequence of this attempt at statelessness
+is that Stockfish sometimes walks into a draw by repetition in
+positions where it would be able to win, because it doesn't know that
+it is repeating positions. \traditional
 
 % TODO: Does lichess publish the difficulty settings ? Nice to compare
 % to my subjective skill level
 \describeplayer{stockfish5} Stockfish as above, but at difficulty 5.
+\traditional
 
 \describeplayer{stockfish10} Same, at difficulty 10.
+\traditional
 
 \describeplayer{stockfish15} Same, at difficulty 15.
+\traditional
 
 \describeplayer{stockfish20} And difficulty 20, the maximum. Even
 at this difficulty, Stockfish produces moves basically instantaneously.
+\traditional
 
 \describeplayer{stockfish1m} As expected, the engine's performance
 increases steadily as the difficulty setting increases (without
@@ -492,6 +509,7 @@ performance be dependent on the scheduling environment. So here,
 Stockfish is given a ``node'' budget of 1~million, hence {\sf 1m}. It
 takes about one second per move when running alone, and is easily the
 strongest player (type) evaluated.
+\traditional
 
 \begin{figure}[ht]
   \chessboard[setfen=r1bK1b2/1p1pn3/p2k3N/1np1pQ2/2P2P1P/N2P4/R5B1/4B2R w - - 1 37,showmover=false]
@@ -501,7 +519,8 @@ strongest player (type) evaluated.
     a move at random. 37.~Qxe5++ wins for white immediately,
     but \player{suicide\_king} plays 37.~Qxd7??. The only
     legal move is 37\ldots Bxd7++, so \player{worstfish}
-    must play it, and thus wins one of its only victories.} \label{fig:worstfish}
+    must play it, and thus wins one of its only victories.}
+  \label{fig:worstfish}
 % full game:
 % 1. Nf3 g5 2. b4 Na6 3. Nxg5 Nc5 4. b5 f6
 % 5. c4 Na6 6. Nf7 Rb8 7. d3 h6 8. Kd2 Nb4
@@ -523,23 +542,25 @@ the resulting position from black's perspective.\footnote{By asking it
   UCI protocol does not seem to offer a way to evaluate a position
   directly.} I then choose the move that produces the best position
 for black. This is easily the worst player evaluated, but it is not
-hard to imagine ways it could be worse. Indeed, playing for a loss is
-a common twist on chess ({\it Losing
-  Chess}~\cite{wikipedialosingchess}), although the rules of this
-variant require that you capture a piece if you are able to (without
-this constraint it is fairly boring). So, engines that support this
-variant cannot be directly applied. We could use stronger settings of
-Stockfish, but since it already invokes Stockfish for each legal move,
-it is also one of the slowest players. Like Stockfish, it occasionally
-blunders an otherwise losing position into a draw by repetition. But
-most importantly, its search strategy when evaluating positions is not
-applying the correct logic ($\alpha$--$\beta$ pruning); it assumes that
-its opponent will choose strong moves, and that it will itself play
-strong moves in future plies. As a result, it sometimes allows the
-opponent to create a situation where \player{worstfish} is forced to
-checkmate its opponent (Figure~\ref{fig:worstfish}).
+hard to imagine ways it could be worse. Indeed, a common twist on
+chess is to play for a loss, called {\it Antichess} or {\it Losing
+  Chess}~\cite{wikipedialosingchess}. Recently it was even proved that
+white can always win (i.e.~lose)~\cite{watkins2017losing} in this
+variant! However, the variant requires that you capture a piece if
+you are able to, so strategies and engines that support this variant
+cannot be directly applied.
+We could use stronger settings of Stockfish, but since it already
+invokes Stockfish for each legal move, it is also one of the slowest
+players. Like Stockfish, it occasionally blunders an otherwise losing
+position into a draw by repetition. But most importantly, its search
+strategy when evaluating positions is not applying the correct logic
+($\alpha$--$\beta$ pruning); it assumes that its opponent will choose
+strong moves, and that it will itself play strong moves in future
+plies. As a result, it sometimes allows the opponent to create a
+situation where \player{worstfish} is forced to checkmate its opponent
+(Figure~\ref{fig:worstfish}).
 
-\describeplayer{topple10k} Topple~\cite{topple} is another strong,
+\describeplayer{topple10k} Topple~\cite{topple} is another strong
 open source engine, provided to keep Stockfish on its toes. Here,
 its node budget is 10,000. \traditional
 
@@ -548,21 +569,85 @@ which like \player{stockfish1m} takes about one second per move.
 Stockfish almost always wins, though it is not clear whether the
 budgets are actually comparable. \traditional
 
-\describeplayer{chessmaster.nes\_lv1} \deterministic \traditional
+\describeplayer{chessmaster.nes\_lv1} This is {\it Chessmaster} for
+the Nintendo Entertainment System, published in AD 1989. Moves are
+extracted from the game via emulation. This proved to be somewhat
+delicate, because the in-memory representation of the board is not
+that simple (it appears to be represented in two parallel arrays,
+perhaps using the ``0x88 method'') and the game understandably goes
+wild if you mess it up. To play a move, I restore a saved machine
+state in the ``board editor'' mode, and then modify memory to contain
+the desired board. I then emulate button presses to operate the game
+menu and return to ``playing'' mode. Chessmaster repairs its internal
+data structures from this board, and makes a move. During this time I
+mash controller buttons to skip its dramatic tunes and modal messages
+like \verb+CHECK+. Once some memory locations reach certain values,
+the move has been played; I can diff the before and after boards to
+uniquely determine the move. Since this approach uses emulation, it
+would normally be completely deterministic, but I deliberately stall
+for a random number of frames so that it can advance its internal
+pseudorandom state. A nice thing about this engine is that it is an
+earnest attempt at writing a good engine, but limited to the
+techniques of the 1980s, and running on hardware that was underpowered
+even for its day. It finishes well behind the modern engines, but
+ahead of all the non-traditional strategies. \traditional
 
-\describeplayer{chessmaster.nes\_lv2} \deterministic \traditional
+\describeplayer{chessmaster.nes\_lv2} Same as
+\player{chessmaster.nes\_lv1}, but increasing the ``Level Of Play'' to
+``Newcomer 2.'' Chessmaster has stronger levels still, but in these
+modes it will think for several NES minutes, which takes multiple
+seconds to emulate---too slow for our purposes. Still much
+weaker than modern engines (Figure~\ref{fig:chessmaster}).
+\traditional
+
+\begin{figure}[ht]
+  \includegraphics[width=0.75 \linewidth]{chessmaster}
+  \caption{\player{stockfish1m} (2019; running on a modern machine) beats
+    \player{chessmaster.nes\_lv2} (1989; running on an emulated NES)
+    thousands of times without a loss or draw.} \label{fig:chessmaster}
+\end{figure}
 
 \subsection{Blind players}
 
-\describeplayer{blind\_yolo}
+\describeplayer{blind\_yolo} This player is only allowed to see the
+64-bit mask of where pieces are placed on the board, but not their
+colors or types. It is described in {\it Color- and Piece-blind
+  Chess}~\cite{blind}.
 
-\describeplayer{blind\_kings}
-% \describeplayer{blind\_spycheck} (described in paper, not yet run)
+\describeplayer{blind\_kings} As \player{blind\_yolo}, but forcing
+the prediction to produce exactly one king for each side, which
+improves its accuracy a little.
 
-(I guess we can also segue by discussing handicaps)
-(end with this so that we can segue into dilution methods)
+\describeplayer{blind\_spycheck} As \player{blind\_kings}, but
+performing a ``spy check'' before each move. Here, the player tries
+capturing each piece of a given (predicted) color with other pieces
+of that same (predicted) color. If such a move is legal, then one
+of the two pieces was mispredicted, so we prefer the capture over
+sending an incorrect position to the engine.
+
+Each of these uses a neural network to predict the configuration of
+the board, and then the equivalent of \player{stockfish1m} to make a
+move for that predicted board. (If that move is illegal because the
+board was mispredicted, then it plays a random legal move.) These
+players can therefore be seen as handicaps on \player{stockfish1m}.
 
 \subsection{Diultion methods}
+
+Even at its weakest setting, \player{stockfish0} crushes all of the
+nontraditional strategies. This is not surprising, but it creates
+a problem for quantifying their difference in skill (do they win
+one in a million games? One in 10^{100}?). Having intermediate
+players allows some Elo points to flow between the two tiers
+transitively. One nice way to construct intermediate players is
+by interpolation. We can interpolate between any two players,\footnote{
+  Even if they are stateful! The interface separates ``please
+  give me a move for the current state'' and ``the following
+  move was played; please update your state,'' allowing them
+  to disagree. So we can just keep two independent states for
+  the two players.} but interpolating with the most canonical
+player, \player{random\_move}. 
+
+
 % Stockfish1m_32768 loses to reverse_starting in 3 moves!
 1. e4 g5 2. Ba6 f5 3. Qh5
 
@@ -665,6 +750,7 @@ Chess journal for their careful reviews.
 \nocite{topple}
 // citation for knights distance:
 \nocite{miller2013counting}
+\nocite{watkins2017losing}
 
 % \balance
 % \bibliographystyle{plain}
