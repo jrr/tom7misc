@@ -10,6 +10,12 @@ void SetPixel(int w, int h, int x, int y,
 	      uint8_t a, uint8_t r, uint8_t g, uint8_t b,
 	      std::vector<uint8_t> *argb);
 
+// Fill rectangle with the given color; replaces alpha channel.
+void FillRect(int w, int h,
+	      int rectx, int recty, int rectw, int recth,
+	      uint8_t a, uint8_t r, uint8_t g, uint8_t b,
+	      std::vector<uint8_t> *argb);
+
 void SaveARGB(const std::vector<uint8_t> &argb, int width, int height,
 	      const std::string &filename);
 

@@ -18,6 +18,7 @@
 \usepackage{graphicx}
 \usepackage{chessboard}
 \usepackage{gensymb}
+\usepackage{supertabular}
 
 % \usepackage{chessfs}
 \usepackage{adjustbox}
@@ -130,12 +131,12 @@ elsewhere, so we can just leave it at that.
 The players need not be human, and in fact this can facilitate running
 many games and thereby getting arbitrarily accurate ratings.
 
-The problem this paper is concerned with is that basically all chess
+The problem this paper addresses is that basically all chess
 tournaments (whether with humans or computers or both) are between
 players who know how to play chess, are interested in winning their
 games, and have some reasonable level of skill. This makes it hard to
 give a rating to weak players: They just lose every single game and so
-tend towards a rating of $-\infty$\footnote{Some organizations don't
+tend towards a rating of $-\infty$.\footnote{Some organizations don't
   even let ratings fall beneath a certain level, for example, the
   lowest possible USCF rating is 100.} Even if other comparatively
 weak players existed to participate in the tournament and occasionally
@@ -173,7 +174,10 @@ some ground rules and guidelines:
   from previous rounds, or to get better at chess. The majority of
   players are actually completely stateless, just a function of type
   ${\tt position} \rightarrow {\tt move}$.
-\item black and white behave the same
+\item The player should try to ``behave the same'' when playing with
+  the white or black pieces. Of course this can't be literally true,
+  and in fact some algorithms can't be symmetric, so it's, like, a
+  suggestion.
 \item Avoid game-tree search. Minimax, alpha--beta, etc. are the
   correct way to play chess programmatically. They are well-studied
   (i.e., boring) and effective, and so not well suited to our problem.
@@ -210,6 +214,18 @@ some ground rules and guidelines:
 \newcommand\asymmetric{
   \includegraphics[height=0.9em]{asymmetric}
 }
+
+\begin{figure}[t]
+\begin{tabular}{cl}
+  \deterministic & The player is deterministic \\
+  \traditional & Traditional approach to chess (e.g. engine) \\
+  \vegetarian & Vegetarian or vegetarian option available \\
+  \canonical & A canonical algorithm! \\
+  \stateful & Stateful (not including pseudorandom pool) \\
+  \asymmetric & Asymmetric \\
+\end{tabular}
+\caption{Key} \label{fig:key}
+\end{figure}
 
 \describeplayer{random\_move} We must begin with the most canonical of all
 strategies: Choosing a legal move uniformly at random. This is a
@@ -268,7 +284,7 @@ produce draws (by repetition), because knights and rooks can often
 move back and forth on the first few files. \deterministic
 
 \describeplayer{alphabetical} Make the alphabetically first move,
-using standard PGN short notation. White and black both try to move
+using standard PGN short notation (e.g. ``a3'' $<$ ``O-O'' $<$ ``Qxg7''). White and black both try to move
 towards A1. \asymmetric \deterministic
 
 \describeplayer{huddle} As white, make moves that minimize the total
@@ -308,6 +324,7 @@ offered piece ($\pawn = 1$, $\bishop = \knight = 3$, $\rook = 5$,
 $\queen = 9$). A piece that can be catpured multiple ways is counted
 multiple times.
 
+% Looks like this is the only one with *no* wins!
 \describeplayer{no\_i\_insist} Like \player{generous}, but be overwhelmingly
 polite by trying to {\em force} the opponent to accept the gift of material.
 There are three tiers: Avoid at all costs mating the opponent (and moreso
@@ -324,8 +341,14 @@ a draw by exchanging all its pieces.
 
 \describeplayer{reverse\_starting} This player thinks that the board is
 upside-down, and as white, tries to put its pieces where black pieces
-start. This often causes some conflict since the black pieces are already
-there, but can also end peacefully (Figure~\ref{fig:reversestarting}).
+start. Since here we have a specific configuration in mind, we can produce
+a distance metric by computing the total distance from each piece to
+its desired destination. Each piece uses a different distance metric;
+Chebyshev distance for the King, Manhattan distance for the Rook, and
+a pretty weird function for the Knight~\cite{miller2013counting}.
+Trying to move the pieces into the reversed starting position often
+causes some conflict since the black pieces are already there, but can
+also end peacefully (Figure~\ref{fig:reversestarting}).
 
 \begin{figure}[ht]
 \chessboard[setfen=1NB1K2R/8/8/8/8/8/6p1/rnbqkbn1 b - - 19 64,showmover=false]
@@ -334,15 +357,11 @@ by repetition, both players having happily moved their surviving pieces into the
 correct spots.} \label{fig:reversestarting}
 \end{figure}
 
-% TODO: Cyrillic tag or toast at the end
 \describeplayer{cccp} Prioritize moves that Checkmate, Check, Capture
 or Push, in that order. Push means to move pieces as deep as possible
 into enemy territory (without any regard for their safety). Ties are
 broken deterministically by the source/destination squares, so this
 one is technically asymmetric.
-% \begin{otherlanguage*}{russian}
-% За здоровье!
-% \end{otherlanguage*}
 \deterministic \asymmetric \russian
 
 \describeplayer{suicide\_king} Take a random move that minimizes the
@@ -375,7 +394,7 @@ chess sense, but can produce aesthetic arrangements.
 
 \describeplayer{sym\_180} As \player{sym\_mirror\_y}, but maximize
 symmetry under 180\degree\ rotation
-of the board (Figure~\ref{fig:sym180}. An emergent priority is
+of the board (Figure~\ref{fig:sym180}). An emergent priority is
 to ``castle'' with the king and queen to ``fix'' them.
 
 \begin{figure}
@@ -412,6 +431,27 @@ guide the moves. These statistics give us, for each piece (e.g.~the c2
 pawn) and square, how likely it is to end the game on that square, and
 how likely it is to be alive or dead there when the game
 ends~\cite{survival}.
+
+% (could work this into a footnote)
+% weighted random is almost the same as random, because
+% the weights tend to be very similar when treated
+% additively. They perform slightly different from
+% random, as so (101.5 million games):
+
+%  player	elo	w/l/d
+%  dangerous	986.29	1374577/1501526/15683897
+%  popular	997.34	1360053/1502995/15696952
+%  random_move	1000.79	1540798/1337668/15681534
+%  rare	1005.85	1554600/1326707/15678693
+%  safe	1009.72	1341030/1502162/15716808
+
+% then with normalization:
+%  player	elo	w/l/d
+%  popular	990.93	25756/43561/346683
+%  safe	993.49	28082/40769/347149
+%  dangerous	996.60	30063/37451/348486
+%  rare	1005.82	50656/27390/337954
+%  random_move	1013.15	41747/27133/347120
 
 \describeplayer{safe} This strategy moves pieces towards squares where
 they are likely to end the game alive. For this strategy and several
@@ -504,8 +544,8 @@ run simultaneously across about 60 threads\footnote{ The computer is
   cores (for 64 hardware threads) and 250 Watts of power dissipation
   at load. The torture of this CPU was part of the impetus for the
   paper.} using dozens of gigabytes of memory, and sometimes I would
-play {\it Hollow Knight} while it ran, I wanted to avoid having the
-performance be dependent on the scheduling environment. So here,
+play {\it Hollow Knight} ({\it aka} \knight) while it ran, I wanted to avoid having the
+chess skill be dependent on the scheduling environment. So here,
 Stockfish is given a ``node'' budget of 1~million, hence {\sf 1m}. It
 takes about one second per move when running alone, and is easily the
 strongest player (type) evaluated.
@@ -592,12 +632,11 @@ techniques of the 1980s, and running on hardware that was underpowered
 even for its day. It finishes well behind the modern engines, but
 ahead of all the non-traditional strategies. \traditional
 
-\describeplayer{chessmaster.nes\_lv2} Same as
-\player{chessmaster.nes\_lv1}, but increasing the ``Level Of Play'' to
-``Newcomer 2.'' Chessmaster has stronger levels still, but in these
-modes it will think for several NES minutes, which takes multiple
-seconds to emulate---too slow for our purposes. Still much
-weaker than modern engines (Figure~\ref{fig:chessmaster}).
+\describeplayer{chessmaster.nes\_lv2} As above, but increasing the
+``Level Of Play'' to ``Newcomer 2.'' Chessmaster has stronger levels
+still, but in these modes it will think for several NES minutes, which
+takes multiple seconds to emulate---too slow for our purposes. Still
+much weaker than modern engines (Figure~\ref{fig:chessmaster}).
 \traditional
 
 \begin{figure}[ht]
@@ -631,41 +670,334 @@ move for that predicted board. (If that move is illegal because the
 board was mispredicted, then it plays a random legal move.) These
 players can therefore be seen as handicaps on \player{stockfish1m}.
 
-\subsection{Diultion methods}
+\subsection{Interpolation methods}
 
 Even at its weakest setting, \player{stockfish0} crushes all of the
-nontraditional strategies. This is not surprising, but it creates
-a problem for quantifying their difference in skill (do they win
-one in a million games? One in 10^{100}?). Having intermediate
-players allows some Elo points to flow between the two tiers
-transitively. One nice way to construct intermediate players is
-by interpolation. We can interpolate between any two players,\footnote{
-  Even if they are stateful! The interface separates ``please
-  give me a move for the current state'' and ``the following
-  move was played; please update your state,'' allowing them
-  to disagree. So we can just keep two independent states for
-  the two players.} but interpolating with the most canonical
-player, \player{random\_move}. 
+nontraditional strategies. This is not surprising, but it creates a
+problem for quantifying their difference in skill (do they win one in
+a million games? One in $10^{100}$?). Having intermediate players
+allows some Elo points to flow between the two tiers transitively. One
+nice way to construct intermediate players is by interpolation. We can
+interpolate between any two players,\footnote{ Even if they are
+  stateful! The interface separates ``please give me a move for the
+  current state'' and ``the following move was played; please update
+  your state,'' allowing them to disagree. So we can just keep two
+  independent states for the two players.} but it is most natural to
+interpolate with the most canonical player, \player{random\_move}.
 
 
-% Stockfish1m_32768 loses to reverse_starting in 3 moves!
-1. e4 g5 2. Ba6 f5 3. Qh5
+\describeplayer{stockfish1m\_r{\it nnn}} There are 15 players in this
+group, each characterized by a number $nnn$. Before each move, we
+generate a random 16-bit number; if the number is less than $nnn$ then
+we play a random move and otherwise, a move as \player{stockfish1m}.
+The values of $nnn$ are chosen so that we mix a power-of-two
+fraction of noise: \player{stockfish1m\_r32768} blends half random
+with half strong moves, but we also have $1/4$ random, $1/8$ random,
+$1/16$, $1/32$, \ldots, $1/1024$. These give us a nice smooth
+gradation at high levels of play (Figure~\ref{fig:heatmap}). At the
+extremes, many games have no random moves, and the performance is
+difficult to distinguish from \player{stockfish1m}.
+% in fact, highest IS r64?
+Even at half random moves, \player{stockfish1m\_r32768} consistently
+beats the non-traditional players. So we also dilute stockfish by
+mixing with a majority of random moves: \player{stockfish1m\_r49152}
+is $3/4$ random, and we also have $7/8$, $15/16$, $31/32$, and
+$63/64$. At this point it becomes hard to distinguish from
+\player{random\_move}.
+
+Note that playing $1/64$ excellent moves and the rest randomly doesn't
+do much to help one's performance. On the other hand, playing one
+random move for $63/64$ strong ones does create a significant
+handicap! Against strong opponents, it's easy to see how a mistake can
+end the game. Even against weak ones, a blunder can be fatal
+(Figure~\ref{fig:s32768}).
+% TODO: graph elo with random fraction
+
+\begin{figure}[ht]
+\chessboard[setfen=rnbqkbnr/ppppp2p/B7/5ppQ/4P3/8/PPPP1PPP/RNB1K1NR b KQkq - 1 3,showmover=false]
+\caption{A demonstration of how quickly random play can ruin a game.
+  \player{stockfish1m\_r32768} (black; plays half random moves
+  and half strong moves) loses to \player{reverse\_starting} in one of
+  the shortest possible sequences: 1.~e4 g5 2.~Ba6 f5 3.~Qh5++. Both
+  of black's moves are bad (so they must be random) but white's 2.~Ba6
+  is a blunder as well. White is just pushing pieces as far as possible;
+  the mate is purely accidental.} \label{fig:s32768}
+\end{figure}
 
 
-\describeplayer{stockfish1m\_r32768}
-\describeplayer{stockfish1m\_r16384}
-\describeplayer{stockfish1m\_r8192}
-\describeplayer{stockfish1m\_r4096}
-\describeplayer{stockfish1m\_r2048}
-\describeplayer{stockfish1m\_r1024}
-\describeplayer{stockfish1m\_r512}
-\describeplayer{stockfish1m\_r256}
-\describeplayer{stockfish1m\_r64}
-\describeplayer{stockfish1m\_r128}
+%  \describeplayer{stockfish1m\_r64512} 63/64
+%  \describeplayer{stockfish1m\_r63488} 31/32
+%  \describeplayer{stockfish1m\_r61440} 15/16
+%  \describeplayer{stockfish1m\_r57344} 7/8
+%  \describeplayer{stockfish1m\_r49152} 3/4
+%  \describeplayer{stockfish1m\_r32768} 1/2
+%  \describeplayer{stockfish1m\_r16384} 1/4
+%  \describeplayer{stockfish1m\_r8192} 1/8
+%  \describeplayer{stockfish1m\_r4096} 1/16
+%  \describeplayer{stockfish1m\_r2048} 1/32
+%  \describeplayer{stockfish1m\_r1024} 1/64
+%  \describeplayer{stockfish1m\_r512} 1/128
+%  \describeplayer{stockfish1m\_r256} 1/256
+%  \describeplayer{stockfish1m\_r128} 1/512
+%  \describeplayer{stockfish1m\_r64} 1/1024
 
-Ideally, such a system would be robust against adding new players,
-but this is probably not the case.
+\section{Running the tournament}
 
+Given the players, it's a simple matter to simulate a bunch of games.
+Since the tournament runs for tens of thousands of CPU hours, there is
+of course some code to allow it to checkpoint its work, to make
+efficient use of CPU and RAM, and to provide attractive ANSI graphics
+showing off its activity---but this is all straightforward.\footnote{
+  The source code can be found at
+  \url{sourceforge.net/p/tom7misc/svn/HEAD/tree/trunk/chess/}
+} The
+tournament accumulates win/loss/draw counts for each pair of players
+(playing as both white and black), as well as example games used to
+debug or create the figures in this paper.
+
+After the tournament is done, or from any checkpoint, I can run a
+separate program to produce Elo (and other) rankings. Elo depends
+on the order in which games are played, because it is designed to take
+into account changes in player skill over time. However, it is easy
+to just make up a random order in which the games were played, because
+these players do not change over time.
+
+Despite its strong reputation, I found Elo to be rather finnicky. It
+is sensitive to the starting scores for the players, and the factor
+$k$ which governs how strong of a correction to make after a game.
+With players of such vastly different skill, it is also very sensitive
+to the order in which the games are played.\footnote{For example,
+  suppose the weak player \player{random\_move} has one win against
+  \player{stockfish1m}. If this win happens early, when the two
+  players have their initial Elo scores, then it doesn't affect
+  anything. If it happens last, when \player{stockfish1m} has
+  thousands of Elo points over \player{random\_move}, then it produces
+  a very strong correction.} For similar reasons, it is also very
+sensitive to imbalance in the number of games played between a
+particular pair of players; if some player mostly has games against
+weak players, this can artificially inflate its score.
+
+To control for these effects, I compute the maximum number $n$ for
+which we have $n$ games played between every pair of players. I then
+seed each player with an initial Elo score of 1000, and sample exactly
+$n$ games to play from each cell without replacement. This is so that
+we play a balanced number of games. I also randomize the global order
+of all games. Then I do this over again, with a smaller update factor
+$k$, for 20 passes. I don't know whether it's the fact that I reduce
+$k$ over time, or that I end up with effectively 20 times the number
+of games played,\footnote{To be clear, running 20 passes means that
+  games can be reused, which is not ideal.} but doing this
+significantly reduces variance. I run the whole thing 19 times and the
+result is the median Elo score. I also computed the 25\th\ and
+75\th\ percentiles, which were within 1--2\% of the median, which is
+good. The Elo scores appear in Section~\ref{sec:results}; $n > 400$
+for this run.
+
+
+Ideally, such a system would be robust against adding new players, but
+this is probably not the case; it is easy to see from the results
+(Figure~\ref{fig:heatmap}) that there are certain matchups that favor
+one of the players despite its average skill. During development, I
+often noticed significant swings in Elo scores as players were added,
+especially before there were middle-tier players in the mix. One way
+to deal with this would be to run the Elo simulations multiple times
+while randomly ablating players from the tournament; we could then at
+least estimate the variance in the Elo scores under the removal of
+players, which is like adding players in reverse. I did not implement
+such a thing because of oppressive SIGBOVIK deadlines.
+
+
+\section{Results} \label{sec:results}
+
+% maybe whole-page?
+\begin{figure}[ht]
+  \includegraphics[width=\linewidth]{elo-heatmap}
+  \caption{ The matrix of outcomes for all players. There is too much
+    data to print, so we just have a bunch of colors, mostly because
+    it looks rad. If you don't have a color printer or TV it will
+    probably not look rad. Rows indicate the player playing as white,
+    from worst (\player{worstfish}, top) to best
+    (\player{stockfish1m}, bottom). Columns for the player with the
+    black pieces, in the same order from left to right. Green
+    indicates a cell that is predominately wins (for white), red is
+    losses, and blue is draws. The right and bottom third of the
+    graphic are all different levels/dilutions of strong engines
+    (Stockfish and Topple). This creates a nice smooth gradient where
+    better engines regularly beat even slightly weaker ones, but start
+    to produce draws at the highest levels. They consistently destroy
+    weak engines; a cell with an $\times$ indicates that it only
+    contained wins or only contained losses (not even draws).
+    \\
+    At the low end, there is a large splat of matchups that mostly
+    produce draws against one another, but can consistently beat
+    the weakest tier. In the top-left corner, a square of blue
+    draws from low-ambition play; these aggressively bad players
+    almost never win games, even when playing each other.
+    \\
+    Microtexture outside of these broad trends comes from matchups
+    where the player is unusually suited or weak against that
+    particular opponent. For example, the bright red cell on the
+    diagonal near the center is \player{cccp} vs. \player{cccp}; this
+    determinisic strategy alwasy wins in self-play as black.
+  } \label{fig:heatmap}
+\end{figure}
+
+
+The main use of the Elo~World tournament is to benchmark some new
+engine or algorithm for playing chess, particularly if it is not that
+good~\cite{blind}. There are a few ways that we can interpret the
+results:
+
+The {\bf Elo score}, as described.
+
+We can find a {\bf comparable interpolated player}. This is like the
+  Scoville scale for measuring how spicy something is: Some
+  golden-tongued blind tasters are given the pure chili oil and asked
+  to distinguish it from a cup of sugar water, which they of course
+  can do. They then dilute the chili oil 1:1 with sugar water, and try
+  again. The number of dilutions before the testers cannot reliably
+  tell the drink from sugar water yields the score on the Scoville
+  scale. Here, for example, we can say that \player{blind\_spycheck}
+  performs between \player{stockfish1m\_r63488} and
+  \player{\_r61440}, so it is approximately a
+  93.75--96.875\% diluted Stockfish.
+
+We can compute a {\bf Markov probability}. The tournament table can be
+  easily thought of as a Markov transition matrix.
+  Imagine that there is a
+  Champion trophy, held by the player corresponding to some row. Each
+  cell in that row contains the probability that in a game betweeen
+  those two players, the trophy would be passed to that player. We
+  treat draws as choosing one of the two sides by a coin flip (or,
+  equivalently, splitting the trophy in half); and for the games that
+  the row player wins, the trophy is retained (probability mass assigned
+  to a self-transition). It is easy to compute this matrix from the
+  win/loss/draw counts in the tournament table, and it is not sensitive
+  to imbalance like the Elo calculation is.
+  Presented this way, we can compute the stationary distribution (if
+  it exists, which it typically will), which basically tells us that
+  after an extremely large number of games, what is the probability
+  that a given player holds the Champion trophy? This tends to
+  agree with the Elo score, but there are a few places where it does
+  not (e.g. \player{same\_color} has a much higher p(Champion) score
+  than its Elo seems to warrant).
+
+And so finally, a table with numbers:
+\smallskip
+
+% \begin{footnotesize}
+\tablefirsthead{%
+  \hline
+  Player & Elo & p(Champion) \\
+  \hline
+  }
+\tablehead{%
+  \hline
+  \ldots\ Player & Elo & p(Champion) \\
+  \hline
+}
+\tabletail{%
+  \multicolumn{3}{|c|}{\ldots} \\
+  \hline
+}
+\tablelasttail{%
+  \hline
+}
+\begin{supertabular}{|r|l|l|}
+\player{worstfish} & 188.54 & 0.00000071 \\
+\player{pacifist} & 286.90 & 0.00000509 \\
+\player{alphabetical} & 320.91 & 0.00000276 \\
+\player{generous} & 342.71 & 0.00000306 \\
+\player{popular} & 349.48 & 0.00000374 \\
+\player{dangerous} & 349.60 & 0.00000291 \\
+\player{safe} & 350.64 & 0.00000454 \\
+\player{first\_move} & 357.71 & 0.00000434 \\
+\player{rare} & 361.39 & 0.00000323 \\
+\player{no\_i\_insist} & 378.23 & 0.00000244 \\
+\player{huddle} & 399.55 & 0.00000933 \\
+\player{sym\_180} & 429.94 & 0.00000331 \\
+\player{same\_color} & 430.90 & 0.00002590 \\
+\player{opposite\_color} & 432.11 & 0.00000293 \\
+\player{sym\_mirror\_x} & 438.87 & 0.00000305 \\
+\player{survivalist} & 439.03 & 0.00000681 \\
+\player{random\_move} & 439.21 & 0.00000462 \\
+\player{fatalist} & 439.89 & 0.00000314 \\
+\player{sym\_mirror\_y} & 442.50 & 0.00000716 \\
+\player{reverse\_starting} & 445.56 & 0.00000301 \\
+\player{suicide\_king} & 447.02 & 0.00000493 \\
+\player{stockfish1m\_r64512} & 462.82 & 0.00000297 \\
+\player{stockfish1m\_r63488} & 482.44 & 0.00000356 \\
+\player{blind\_yolo} & 488.97 & 0.00000488 \\
+\player{blind\_kings} & 501.98 & 0.00000633 \\
+\player{equalizer} & 504.21 & 0.00000653 \\
+\player{stockfish1m\_r61440} & 521.45 & 0.00001173 \\
+\player{swarm} & 534.03 & 0.00000623 \\
+\player{blind\_spycheck} & 546.91 & 0.00002554 \\
+\player{cccp} & 553.54 & 0.00000544 \\
+\player{min\_oppt\_moves} & 597.04 & 0.00001076 \\
+\player{stockfish1m\_r57344} & 600.54 & 0.00001112 \\
+\player{stockfish1m\_r49152} & 752.22 & 0.00000737 \\
+\player{chessmaster.nes\_lv1} & 776.15 & 0.00002055 \\
+\player{stockfish1m\_r32768} & 976.20 & 0.00003025 \\
+\player{chessmaster.nes\_lv2} & 989.21 & 0.00012094 \\
+\player{stockfish1m\_r16384} & 1277.73 & 0.00012509 \\
+\player{stockfish0} & 1335.69 & 0.00008494 \\
+\player{stockfish5} & 1644.63 & 0.00070207 \\
+\player{stockfish1m\_r8192} & 1690.15 & 0.00152052 \\
+\player{topple10k} & 1771.65 & 0.00179298 \\
+\player{stockfish10} & 1915.23 & 0.00257648 \\
+\player{stockfish15} & 1952.93 & 0.00310436 \\
+\player{stockfish1m\_r4096} & 2020.25 & 0.00886928 \\
+\player{stockfish20} & 2139.47 & 0.00721173 \\
+\player{topple1m} & 2218.71 & 0.01091286 \\
+\player{stockfish1m\_r2048} & 2261.50 & 0.03132272 \\
+\player{stockfish1m\_r1024} & 2425.72 & 0.06759788 \\
+\player{stockfish1m\_r512} & 2521.78 & 0.11122236 \\
+\player{stockfish1m\_r256} & 2581.97 & 0.15364889 \\
+\player{stockfish1m\_r128} & 2609.45 & 0.17861429 \\
+\player{stockfish1m\_r64} & 2637.78 & 0.20508090 \\
+\player{stockfish1m} & 2644.10 & 0.21523142 \\
+\end{supertabular}
+% \end{footnotesize}
+
+%  % miraculous win for "generous" strategy as black:
+%  % playing against "suicide king". White forces black
+%  % to mate him:
+%  1. a4 b5 2. d3 Nh6 3. Kd2 Ng8 4. Kc3 Nh6
+%  5. Kd4 c6 6. Ke5 f5 7. a5 Qb6 8. Bg5 Qe3+
+%  9. Bxe3 Na6 10. f3 Nc5 11. Ra2 Ne4 12. f4 Nd2
+%  13. Bf2 Nf3+ 14. exf3 Ng4+ 15. Kxf5 g5 16. Nh3 e5
+%  17. Bh4 Ba3 18. b4 e4 19. Nf2 c5 20. c4 Ba6
+%  21. g3 Rc8 22. Be2 Kf7 23. fxe4 d5 24. Qc1 dxe4
+%  25. Rg1 bxc4 26. Rd1 cxd3 27. Qxc5 Rhf8 28. Nd2 Bc4
+%  29. Kxg5 Rc7 30. Bf3 Ke8 31. Qe5+ Kf7 32. Qe6+ Kg7
+%  33. Qb6 Rxf4 34. Nb3 Bb5 35. Qb7 d2 36. Nh3 Bc1
+%  37. Qxa7 Be2 38. Nd4 h5 39. Ra1 Nf2 40. Raxc1 Nh1
+%  41. Rf1 d1=Q 42. Qxc7+ Kh8 43. Kg6 Bc4 44. Bxd1 e3
+%  45. Qf7 Bb3 46. Rf3 Nf2 47. Rc6 e2 48. Rc7 Rf5
+%  49. Rc4 Rf4 50. Nb5 e1=Q 51. Rc2 Qc3 52. g4 Rf5
+%  53. Ng1 Qc7 54. Rcc3 Nd3 55. Rc5 Nf2 56. Nc3 Ba2
+%  57. Qh7+
+%  
+
+
+% Good site for some computer chess programs with ELO:
+% http://www.computerchess.org.uk/ccrl/404/
+
+\section{Conclusion}
+
+Shout out to the Thursd'z Institute and anonymous commenters
+on my blog for discussion of players and suggestions. Several
+ideas were suggested by multiple people, increasing my confidence
+that they are somehow canonical.
+
+The author would also like to thank the anonymous referees
+of the Special Interest Group on
+Bafflingly
+Overdone
+Ventures
+In
+Chess journal for their careful reviews.
 
 % Names:
 % "Stalemate"
@@ -676,81 +1008,6 @@ but this is probably not the case.
 % inFIDElity
 % blunderbuss
 % 
-
-Interpolation, like Scoville scale.
-
-
-% miraculous win for "generous" strategy as black:
-% playing against "suicide king". White forces black
-% to mate him:
-1. a4 b5 2. d3 Nh6 3. Kd2 Ng8 4. Kc3 Nh6
-5. Kd4 c6 6. Ke5 f5 7. a5 Qb6 8. Bg5 Qe3+
-9. Bxe3 Na6 10. f3 Nc5 11. Ra2 Ne4 12. f4 Nd2
-13. Bf2 Nf3+ 14. exf3 Ng4+ 15. Kxf5 g5 16. Nh3 e5
-17. Bh4 Ba3 18. b4 e4 19. Nf2 c5 20. c4 Ba6
-21. g3 Rc8 22. Be2 Kf7 23. fxe4 d5 24. Qc1 dxe4
-25. Rg1 bxc4 26. Rd1 cxd3 27. Qxc5 Rhf8 28. Nd2 Bc4
-29. Kxg5 Rc7 30. Bf3 Ke8 31. Qe5+ Kf7 32. Qe6+ Kg7
-33. Qb6 Rxf4 34. Nb3 Bb5 35. Qb7 d2 36. Nh3 Bc1
-37. Qxa7 Be2 38. Nd4 h5 39. Ra1 Nf2 40. Raxc1 Nh1
-41. Rf1 d1=Q 42. Qxc7+ Kh8 43. Kg6 Bc4 44. Bxd1 e3
-45. Qf7 Bb3 46. Rf3 Nf2 47. Rc6 e2 48. Rc7 Rf5
-49. Rc4 Rf4 50. Nb5 e1=Q 51. Rc2 Qc3 52. g4 Rf5
-53. Ng1 Qc7 54. Rcc3 Nd3 55. Rc5 Nf2 56. Nc3 Ba2
-57. Qh7+
-
-
-
-% Fate-based algorithms.
-% The deterministic version is fairly boring, since the
-% highest probability states are similar to the starting
-% position (this might not be true for "survivalist"
-% or "fatalist"? check?)
-
-% weighted random is almost the same as random, because
-% the weights tend to be very similar when treated
-% additively. They perform slightly different from
-% random, as so (101.5 million games):
-
-%  player	elo	w/l/d
-%  dangerous	986.29	1374577/1501526/15683897
-%  popular	997.34	1360053/1502995/15696952
-%  random_move	1000.79	1540798/1337668/15681534
-%  rare	1005.85	1554600/1326707/15678693
-%  safe	1009.72	1341030/1502162/15716808
-
-% then with normalization:
-%  player	elo	w/l/d
-%  popular	990.93	25756/43561/346683
-%  safe	993.49	28082/40769/347149
-%  dangerous	996.60	30063/37451/348486
-%  rare	1005.82	50656/27390/337954
-%  random_move	1013.15	41747/27133/347120
-
-
-// Good site for some computer chess programs with ELO:
-// http://www.computerchess.org.uk/ccrl/404/
-
-\section{Conclusion}
-
-Shout out to the Thursd'z Institute and anonymous commenters
-on my blog for discussion of players and suggestions. Several
-ideas were suggested by multiple people, increasing my confidence
-that they are somehow canonical.
-
-The author would like to thank the anonymous referees
-of the Special Interest Group on
-B
-O
-V
-In
-Chess journal for their careful reviews.
-
-\nocite{elo1978rating}
-\nocite{topple}
-// citation for knights distance:
-\nocite{miller2013counting}
-\nocite{watkins2017losing}
 
 % \balance
 % \bibliographystyle{plain}
