@@ -62,7 +62,15 @@ static constexpr int SELFPLAY_TARGET = 5;
 
 typedef Player *(*Entrant)();
 
-
+static Player *Stockfish1M_64512() {
+  return new BlendRandom<64512>(Stockfish1M());
+}
+static Player *Stockfish1M_63488() {
+  return new BlendRandom<63488>(Stockfish1M());
+}
+static Player *Stockfish1M_61440() {
+  return new BlendRandom<61440>(Stockfish1M());
+}
 static Player *Stockfish1M_57344() {
   return new BlendRandom<57344>(Stockfish1M());
 }
@@ -149,6 +157,9 @@ const vector<Entrant> &GetEntrants() {
 			
 			Stockfish1M,
 
+			Stockfish1M_64512,
+			Stockfish1M_63488,
+			Stockfish1M_61440,
 			Stockfish1M_57344,
 			Stockfish1M_49152,
 			Stockfish1M_32768,

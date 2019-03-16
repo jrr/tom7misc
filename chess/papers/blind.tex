@@ -597,7 +597,7 @@ may only apply if you know how it works.
 % XXX example game?
 Measuring how well it plays in an absolute sense is a subject of some
 interest, so I wrote a separate paper about that~\cite{eloworld}. This
-algorithm, called \verb+blind_yolo+, had an Elo World score of XXX. It
+algorithm, called \verb+blind_yolo+, had an Elo World score of $489 \pm 2$. It
 beats a purely random player with a score of 101 wins, 27 losses, and
 389 draws. Making moves purely at random is one of the few fair
 comparisons, since the random strategy also works with color- and
@@ -628,11 +628,11 @@ evaluate its accuracy. It gets 19.28\% of positions exactly correct
 was trained independently to minimize its local error) for global
 correctness (which is not taken into account at all during training).
 
-This version, called \verb+blind_kings+, performs consistently better
+This version, called \verb+blind_kings+, performs a small amount better
 than \verb+blind_yolo+ (63 wins, 45 losses, 412 draws).
 % XXX could run a lot more games between these two.
 % as white: 31/24/207, as black 21/32/205
-It had an Elo World score of XXX.
+It had an Elo World score of $502 \pm 3$.
 
 \subsection{Spy check} \label{sec:spycheck}
 
@@ -658,7 +658,10 @@ randomly.) Due to this, there is some additional chance that we end up
 making an especially dumb move because we both mispredicted the
 side-to-move and the identity of some pieces.
 
-(XXX evaluation here)
+This version, \verb+blind_spycheck+, works significantly better than
+\verb+blind_kings+. It has an Elo World score of $547 \pm 1$, somewhere
+between a 93.75--96.875\% dilution of \verb+stockfish1m+ (the third
+best non-engine player).
 
 \subsection{Future work}
 

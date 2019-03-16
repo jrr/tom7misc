@@ -15,6 +15,7 @@
 #include "../cc-lib/arcfour.h"
 #include "../cc-lib/randutil.h"
 
+#include "headless-graphics.h"
 #include "chess.h"
 #include "tournament-db.h"
 
@@ -24,6 +25,14 @@ using Move = Position::Move;
 using int64 = int64_t;
 
 static constexpr double ELO_START = 1000.0;
+
+// 9 and 20 were decent
+// static constexpr int NUM_ELO_ROUNDS = 19;
+// static constexpr int ELO_PASSES = 20;
+
+static constexpr int NUM_ELO_ROUNDS = 19;
+static constexpr int ELO_PASSES = 20;
+
 
 // To protect against the effects of imbalanced number of games
 // in the elo calculation, sample this many games from each cell
@@ -153,7 +162,10 @@ static vector<double> ComputeStationary(int num_entrants,
 }
 
 // With the win/loss/draw matrix, compute elo ratings for each player.
-static vector<Elo> ComputeElo(int num_entrants,
+static vector<Elo> ComputeElo(ArcFour *rc,
+			      int num_entrants,
+			      const std::vector<double> &start_elos,
+			      double k,
 			      const std::vector<Cell> &orig_outcomes) {
   CHECK(orig_outcomes.size() == num_entrants * num_entrants);
   // We don't need the examples, but it's easiest to just copy
@@ -162,8 +174,10 @@ static vector<Elo> ComputeElo(int num_entrants,
   
   vector<Elo> elos;
   elos.resize(num_entrants);
+  CHECK(start_elos.size() == num_entrants);
+  for (int i = 0; i < num_entrants; i++)
+    elos[i].elo = start_elos[i];
   
-  ArcFour rc(StringPrintf("elo.%lld", (int64)time(nullptr)));
   // Perform iterative updates in random order.
   vector<pair<int, int>> nonempty_matchups;
   // Initialize, ignoring self-play.
@@ -181,12 +195,12 @@ static vector<Elo> ComputeElo(int num_entrants,
   }
 
   auto ClaimResult =
-    [&rc](Cell *cell) {
+    [rc](Cell *cell) {
       // Pick uniformly in proportion to the number of games
       // played, not the three (non-empty) categories.
       int total_mass = cell->white_wins + cell->white_losses + cell->draws;
       CHECK(total_mass > 0) << "Invariant";
-      int idx = RandTo32(&rc, total_mass);
+      int idx = RandTo32(rc, total_mass);
       if (idx < cell->white_wins) {
 	cell->white_wins--;
 	return 1;
@@ -203,7 +217,7 @@ static vector<Elo> ComputeElo(int num_entrants,
     };
   
   while (!nonempty_matchups.empty()) {
-    Shuffle(&rc, &nonempty_matchups);
+    Shuffle(rc, &nonempty_matchups);
     vector<pair<int, int>> next_matchups;
     for (pair<int, int> p : nonempty_matchups) {
       const int white = p.first, black = p.second;
@@ -242,8 +256,8 @@ static vector<Elo> ComputeElo(int num_entrants,
       // Modulating this based on the rating does not make that much sense to me;
       // I think this is intended to capture the fact that true human skill changes
       // over time. Our computer players are not like that.
-      const double k_white = 10.0;
-      const double k_black = 10.0;
+      const double k_white = k;
+      const double k_black = k;
 
       elos[white].elo += k_white * (s_white - e_white);
       elos[black].elo += k_black * (s_black - e_black);
@@ -362,7 +376,26 @@ int main(int argc, char **argv) {
   printf("Running elo:\n");
   fflush(stdout);
   const int64 start_elo = time(nullptr);
-  const vector<Elo> elos = ComputeElo(num_entrants, sampled_outcomes);
+  ArcFour elo_rc(StringPrintf("elo.%lld", start_elo));
+  vector<vector<Elo>> all_elos;
+  all_elos.reserve(NUM_ELO_ROUNDS);
+  for (int i = 0; i < NUM_ELO_ROUNDS; i++) {
+    vector<double> start_elos(num_entrants, ELO_START);
+    vector<Elo> elos;
+    for (int j = 0; j < ELO_PASSES; j++) {
+      elos = ComputeElo(&elo_rc,
+			num_entrants,
+			start_elos,
+			// let k shrink from 10 to 10/PASSES.
+			10.0 * ((ELO_PASSES - j) / (double)ELO_PASSES),
+			sampled_outcomes);
+      for (int e = 0; e < elos.size(); e++)
+	start_elos[e] = elos[e].elo;
+    }
+    
+    all_elos.push_back(std::move(elos));
+    if (i % 100 == 0) { printf("%d ", i); fflush(stdout); }
+  }
   printf("Done in %lld sec.\n", time(nullptr) - start_elo);
   fflush(stdout);
 
@@ -389,14 +422,42 @@ int main(int argc, char **argv) {
   }
   fprintf(f, "];\n</script>\n\n");
 
+  struct EloSummary {
+    double median = 0.0;
+    double p25 = 0.0, p75 = 0.0;
+    // For the median one.
+    int wins = 0, losses = 0, draws = 0;
+  };
 
+  vector<EloSummary> elos;
+  for (int i = 0; i < num_entrants; i++) {
+    vector<Elo> player_elos;
+    player_elos.reserve(all_elos.size());
+    for (int r = 0; r < all_elos.size(); r++) {
+      player_elos.push_back(all_elos[r][i]);
+    }
+    std::sort(player_elos.begin(), player_elos.end(),
+	      [](const Elo &a, const Elo &b) {
+		return a.elo < b.elo;
+	      });
+    EloSummary es;
+    const Elo &median = player_elos[NUM_ELO_ROUNDS >> 1];
+    es.median = median.elo;
+    es.wins = median.wins;
+    es.losses = median.losses;
+    es.draws = median.draws;
+    es.p25 = player_elos[NUM_ELO_ROUNDS >> 2].elo;
+    es.p75 = player_elos[(NUM_ELO_ROUNDS >> 2) * 3].elo;
+    elos.push_back(es);
+  }
+  
   vector<int> by_elo;
   for (int i = 0; i < num_entrants; i++) by_elo.push_back(i);
   // Note: Assumes no nans.
   std::sort(by_elo.begin(), by_elo.end(),
 	    [&elos](int a, int b) {
-	      if (elos[a].elo != elos[b].elo)
-		return elos[a].elo < elos[b].elo;
+	      if (elos[a].median != elos[b].median)
+		return elos[a].median < elos[b].median;
 	      return a < b;
 	    });
   
@@ -456,15 +517,116 @@ int main(int argc, char **argv) {
   PrintColumns();
 
   fprintf(f, "</table>\n");
+
+  {
+    std::vector<uint8> argb;
+    static constexpr int CELL = 16;
+    const int WIDTH = CELL * num_entrants;
+    const int HEIGHT = CELL * num_entrants;
+    argb.resize(WIDTH * HEIGHT * 4);
+
+    auto BlendQuarter = [&argb, WIDTH, HEIGHT](int x, int y,
+					       uint8 r, uint8 g, uint8 b) {
+	const int i = (WIDTH * y + x) * 4;
+
+	const uint8 olda = argb[i + 0];
+	const uint8 oldr = argb[i + 1];
+	const uint8 oldg = argb[i + 2];
+	const uint8 oldb = argb[i + 3];
+	uint8 rr = Mix4(oldr, oldr, oldr, r);
+	uint8 gg = Mix4(oldg, oldg, oldg, g);
+	uint8 bb = Mix4(oldb, oldb, oldb, b);
+	SetPixel(WIDTH, HEIGHT, x, y, olda, rr, gg, bb, &argb);
+      };
+
+    auto BlendHalf = [&argb, WIDTH, HEIGHT](int x, int y,
+					    uint8 r, uint8 g, uint8 b) {
+	const int i = (WIDTH * y + x) * 4;
+
+	const uint8 olda = argb[i + 0];
+	const uint8 oldr = argb[i + 1];
+	const uint8 oldg = argb[i + 2];
+	const uint8 oldb = argb[i + 3];
+	uint8 rr = Mix4(oldr, oldr, r, r);
+	uint8 gg = Mix4(oldg, oldg, g, g);
+	uint8 bb = Mix4(oldb, oldb, b, b);
+	SetPixel(WIDTH, HEIGHT, x, y, olda, rr, gg, bb, &argb);
+      };
+
+    for (int erow = 0; erow < num_entrants; erow++) {
+      const int row = by_elo[erow];
+      for (int ecol = 0; ecol < num_entrants; ecol++) {
+	const int col = by_elo[ecol];
+	const int idx = row * num_entrants + col;
+	const Cell &cell = outcomes[idx];
+
+	const int64 total = cell.white_wins + cell.white_losses + cell.draws;
+
+	int xx = ecol * CELL, yy = erow * CELL;
+	
+	if (total > 0) {
+	  double fr = cell.white_losses / (double)total;
+	  double fg = cell.white_wins / (double)total;
+	  double fb = cell.draws / (double)total;
+	  // We want black text to be visible on the color, so use
+	  // the space from 0.5 - 1.
+	  uint8 ir = (int)round((0.5 + (fr * 0.5)) * 255.0);
+	  uint8 ig = (int)round((0.5 + (fg * 0.5)) * 255.0);
+	  uint8 ib = (int)round((0.5 + (fb * 0.5)) * 255.0);
+	  FillRect(WIDTH, HEIGHT,
+		   xx, yy, CELL, CELL,
+		   255, ir, ig, ib, &argb);
+	}
+
+	if (cell.white_wins == 0 && cell.draws == 0) {
+	  for (int i = 3; i < CELL - 2; i++) {
+	    BlendHalf(xx + i, yy + i, 0, 0, 0);
+	  }
+
+	  for (int i = 3; i < CELL - 2; i++) {
+	    BlendHalf(xx + (CELL - i), yy + i, 0, 0, 0);
+	  }
+	}
+	
+	if (cell.white_losses == 0 && cell.draws == 0) {
+	  for (int i = 3; i < CELL - 2; i++) {
+	    BlendHalf(xx + i, yy + i, 0, 0, 0);
+	  }
+
+	  for (int i = 3; i < CELL - 2; i++) {
+	    BlendHalf(xx + (CELL - i), yy + i, 0, 0, 0);
+	  }
+	}
+
+      }
+    }
+    
+    // Draw grid over it.
+    for (int y = 1; y < num_entrants; y++) {
+      for (int x = 0; x < WIDTH; x++) {
+	BlendQuarter(x, y * CELL, 0, 0, 0);
+      }
+    }
+    for (int x = 1; x < num_entrants; x++) {
+      for (int y = 0; y < HEIGHT; y++) {
+	BlendQuarter(x * CELL, y, 0, 0, 0);
+      }
+    }
+    
+    SaveARGB(argb, WIDTH, HEIGHT, "elo.png");
+  }
   
-  fprintf(f, "<table><tr><td>player</td><td>elo</td><td>w/l/d</td>"
+  
+  fprintf(f, "<table><tr><td>player</td><td>25</td><td>elo</td><td>75</td><td>w/l/d</td>"
 	  "<td>p | norm(p)</td></tr>\n");
   for (int i : by_elo) {
     fprintf(f,
-	    " <tr><td>%s</td><td>%.2f</td><td>%d/%d/%d</td>"
+	    " <tr><td>%s</td><td>%.2f</td><td>%.2f</td><td>%.2f</td><td>%d/%d/%d</td>"
 	    "<td>%.8f | %.8f</td></tr>\n",
 	    names[i].c_str(),
-	    elos[i].elo,
+	    elos[i].p25,
+	    elos[i].median,
+	    elos[i].p75,
 	    elos[i].wins,
 	    elos[i].losses,
 	    elos[i].draws,
