@@ -1,0 +1,131 @@
+(local IP is 10.0.0.36)
+
+installing open ocd on pi:
+sudo apt-get install git autoconf libtool make pkg-config libusb-1.0-0 libusb-1.0-0-dev
+git clone http://openocd.zylin.com/openocd && cd openocd
+./bootstrap
+./configure --enable-sysfsgpio --enable-bcm2835gpio
+make -j 2
+sudo make install
+
+interfaces are in here:
+/usr/local/share/openocd/scripts/interface
+
+
+page with pinout for SWD:
+https://learn.adafruit.com/programming-microcontrollers-using-openocd-on-raspberry-pi/compiling-openocd
+
+I used
+raspberrypi2-native.cfg
+
+openocd.conf was:
+source [find interface/raspberrypi2-native.cfg]
+transport select swd
+
+set CHIPNAME stm32f303rdt6
+source [find target/stm32f3x.cfg]source [find interface/raspberrypi2-native.cfg]
+transport select swd
+
+set CHIPNAME stm32f303rdt6
+source [find target/stm32f3x.cfg]
+
+# did not yet manage to make a working setup using srst
+#reset_config srst_only
+reset_config  srst_nogate
+
+adapter_nsrst_delay 100
+adapter_nsrst_assert_width 100
+
+init
+targets
+reset halt
+
+
+
+then I just run "sudo openocd"
+
+when it connects to the chip you'll see somehing like:
+
+
+
+Open On-Chip Debugger 0.10.0+dev-00746-g8f518d35 (2019-03-18-03:13)
+Licensed under GNU GPL v2
+For bug reports, read
+        http://openocd.org/doc/doxygen/bugs.html
+BCM2835 GPIO config: tck = 11, tms = 25, tdi = 10, tdo = 9
+BCM2835 GPIO nums: swclk = 11, swdio = 25
+adapter speed: 1000 kHz
+adapter_nsrst_delay: 100
+none separate
+cortex_m reset_config sysresetreq
+none separate
+adapter_nsrst_delay: 100
+adapter_nsrst_assert_width: 100
+Info : BCM2835 GPIO JTAG/SWD bitbang driver
+Info : JTAG and SWD modes enabled
+Info : clock speed 1001 kHz
+Info : SWD DPIDR 0x2ba01477
+Info : SWD DPIDR 0x2ba01477
+Error: Failed to read memory at 0xe000ef48
+Info : stm32f303rdt6.cpu: hardware has 6 breakpoints, 4 watchpoints
+Info : stm32f303rdt6.cpu: external reset detected
+Info : Listening on port 3333 for gdb connections
+    TargetName         Type       Endian TapName            State
+--  ------------------ ---------- ------ ------------------ ------------
+ 0* stm32f303rdt6.cpu  cortex_m   little stm32f303rdt6.cpu  running
+adapter speed: 1001 kHz
+target halted due to debug-request, current mode: Thread
+xPSR: 0x01000000 pc: 0x1ffff19c msp: 0x20001258
+Info : Listening on port 6666 for tcl connections
+Info : Listening on port 4444 for telnet connections
+
+
+(The essential part being that it identifies a target!)
+
+With the wrong connections (etc.), you will see most of this including
+(SWD DPIDR 0xblahblah, and Info: Listening on ...) but not the things
+between that.
+
+Connected to BCM 11 (swdclk) and BCM 25 (swdio), plus 3v3 and GND
+of course. NRST not needed it seems. but I had to have BOOT0 connected
+to 3v3 in order to get openocd to connect. (I think I probably
+manually reset after connecting this, using the button)
+
+(Note that the wiring info on the adafruit link is just wrong. trust
+the openocd config)
+
+for "program" command you probably need to provide an offset.
+
+use openocd -d to run in debugging mode (LOTS of output).
+It actually seemed to work in this mode, supporting the hypothesis
+that I just need to slow the data rate.
+
+well actually, now it's just magically fixed?!
+
+
+I think it may just be flakey and need me to go slower, so I
+modified the stm32f3x.cfg so that in stm32f3x_default_reset_init, it sets the frequency to 1000 khz, not 8000 khz.
+(actually made local copies of the two .cfg files)
+
+even 1000 khz is super fast... 21kb/sec to write, 320kb/sec to verify
+
+
+ok, so my procedure for programming is like:
+ - connect BOOT0 to 3v3 (yellow wire)
+ - reboot (e.g. reset switch)
+ - "sudo openocd", reading from main.bin
+
+At this point, reset switch doesn't seem to work!
+However, upon removing power to the nand board, and restoring it,
+the program definitely seems to be running. So I think this is the
+right way to reset, for unknown reasons.
+
+Actually just kidding: new hypothesis is that I need to tie
+BOOT0 to ground when resetting; otherwise it is just floating
+and you have a good chance of booting into system mode. So probably
+the board should have a dip switch (or pull-down?), but fortunately
+there's a pin in the "SWD" header that I can just jumper.
+
+I was able to get it to strobe between output pins, after getting
+it to blink them synchronously... so I'm pretty confident that
+it is working, if possibly flaky.

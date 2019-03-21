@@ -1,9 +1,9 @@
 
-\documentclass[twocolumn]{article}
+\documentclass[twocolumn,cm]{article}
 \usepackage[top=0.5in, left=0.45in, right=0.45in, bottom=0.5in]{geometry}
 
 \usepackage{url}
-% \usepackage{code}
+\usepackage{code}
 % \usepackage{cite}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -36,12 +36,14 @@
 
 \begin{document} 
 
+\newcommand\ieee[2]{[{\it IEEE 754-2008}, #1, p#2]}
+
 % flInf flops?
 \title{NaN gates and flip FLOPS}
 \author{Dr.~Tom~Murphy~VII~Ph.D.\footnote{
 Copyright \copyright\ 2019 the Regents of the Wikiplia
 Foundation. Appears in SIGBOVIK 2019 with the
-XXX JOKE
+half precision
 of the Association for Computational Heresy; 
 {\em IEEEEEE!} press, Verlag-Verlag volume no.~0x40-2A.
 \$-0.00 } }
@@ -57,7 +59,7 @@ of the Association for Computational Heresy;
 \maketitle \thispagestyle{empty}
 
 \begin{abstract}
-what do I put here
+Yes, this paper contains many layers of abstraction.
 \end{abstract}
 
 \section*{Introduction}
@@ -77,21 +79,20 @@ modern software, there are still many components of the computer (e.g.
 RAM, registers, the {\it scroll lock} LED, a tiny USB-powered fan that
 can cool you on hot summer days or during particularly strenuous
 programming sessions) % XXX cite skymall etc?
-that are not integer-based.
+that are not integer-based, and thus cannot be replaced with real numbers
+via this techique.
 
 In this paper I give a new foundation for computing based solely on
-real numbers. This ...
-
-I begin with a brief reminder of the definition of real numbers,
-although the reader is expected to be familiar as these are pretty
-fundamental to everything. The approach of the paper is then to
+real numbers. I begin with a brief reminder of the definition of real
+numbers, although the reader is expected to be familiar as these are
+pretty fundamental to everything. The approach of the paper is then to
 identify a pair of real numbers that have nice properties
 (Section~\ref{sec:distinguished}), and then to give mathematical
 operations on these numbers that parallel the logical operations
 typically used in the construction of computers
-(Section~\ref{sec:logical}). I then discuss how these operations
-can be implemented efficiently (Section~\ref{sec:representations}).
-I conclude with some wild speculation.
+(Section~\ref{sec:logical}). I then discuss how these operations can
+be implemented efficiently (Section~\ref{sec:hardware}). I
+conclude with some wild speculation.
 
 \section{Real numbers}
 The real numbers are described by IEEE 754, most recently revised in
@@ -103,257 +104,276 @@ exponent. We also have \inf\ and $-\inf$, which do have a sign, but no
 mantissa nor exponent. These are the infinite numbers that you get if
 you count very high or very low. Excitingly, we also have both
 positive and negative versions of 0. Some numbers have multiple
-representations, and most numbers cannot be represented at all.
+representations, and almost all numbers cannot be represented at all.
 
 The real numbers have an equality operation {\tt ==}. This operation
-has some very exciting properties: It is not reflexive (\nan\ {\tt ==}
-\nan\ is false), and does not obey substitution (for $+0$ {\tt ==} $-0$
-is true, but $\sfrac{1}{+0}$ {\tt ==} $\sfrac{1}{-0}$ is false).
+has some very exciting properties which are unusual for an equivalence
+relation: It is not reflexive (\nan\ {\tt ==} \nan\ is false), and
+does not obey substitution (for $+0$ {\tt ==} $-0$ is true, but
+$\sfrac{1}{+0}$ {\tt ==} $\sfrac{1}{-0}$ is false).
 
-Real numbers are an absolute joy to work with.
-
-Beautiful identities such as
-
-$0^{\nan * \inf} = 1$
-
+As a result, real numbers are an absolute joy to work with.
 
 \subsection{Choosing some distinguished values} \label{sec:distinguished}
 
+Computing will need at least two different values. We could choose
+$0.0$ and $1.0$ as in ``binary,'' but these numbers are extremely
+arbitrary; why not $1.0$ and $2.0$? $e$ and $\sfrac{\pi}{2}$? These
+numbers are easily confused with one another. It seems better to use
+distinguished values, making the resulting mathematics more
+distinguished. One of the most distinguished numbers is
+\nan\ (Figure~\ref{fig:gentlenan}). One nice thing about using the
+number \nan\ is that it is not comparable to other numbers, e.g. both
+$\nan < 0.0$ and $0.0 < \nan$ are false. Does it really make sense for
+our fundamental particles to be ordered (e.g. $0 < 1$)? The lack of
+symmetry is abhorrent.
 
+\begin{figure}[ht]
+  \begin{center}
+  \includegraphics[width=0.55 \linewidth]{gentlenan}
+  \caption{A distinguished gentleNaN.} \label{fig:gentlenan}
+  \end{center}
+\end{figure}
 
-use nan and inf because other real numbers can be ``easily confused''
-with one another. And do we really want ordering relationships on
-our fundamental particles, like $0 < 1$?
-
+The two numbers we choose need to be different; alas they cannot both
+be \nan, since although \nan\ is different from \nan\ (\nan\ {\tt !=}
+\nan), it is not possible to tell them apart (except that
+\nan\ actually has multiple binary
+representations---see Section~\ref{sec:representation}). Another great choice is
+$+\inf$ or $-\inf$. We choose to use $+\inf$ in order to break
+symmetry, and because it will make our scientific contribution more
+positive.
+% So the two values will be \nan\ and \inf; it may
+% be helpful to think of these as false and true, (or 0 and 1), respectively.
 
 % really lean into the joke that we choose the "number" NAN
 
+\subsection{IEEEuler's Identity}
 
-ha okay now there is just notes
+Moreover, \nan\ and \inf\ are part of the pantheon of special values, exhibiting
+exquisite properties, such as IEEEuler's identity:
 
-Some useful primitives:
+\begin{huge}
+  \[
+  e^{i \pi} + 1^{\nan \times \inf} = 0
+  \]
+\end{huge}
 
-        These are called minNum and maxNum in IEE 754-2008 (5.3.1, p19)
+because $1^n$ is $1$\footnote{This paper uses both exponents and footnotes
+  extensively; please be careful of the difference.}, even for $n=\nan$.\footnote{\ieee{9.2.1}{44}} Another nice
+pair of properties ties these fundamental constants together a
+different way:
 
-        "If exactly one argument is NaN, they return the other.
-        If both are NaN they return NaN.
+\begin{huge}
+  \[
+  {(e^{i \pi})}^{-\inf} = {\tt compound}(\nan, 0)
+  \]
+\end{huge}
 
-        NAND  0 1     MAX  nan inf
-             +---         +-------
-           0 |1 1     nan |nan inf
-           1 |1 0     inf |inf inf
+${\tt compound}(x, n)$ is the ``compound interest'' function
+$(1 + x)^n$, defined in the IEEE 754 standard, but only available
+in C via floating point extensions~\cite{fpextensions}. This
+function is $1$ for $n=0$ and $x=\nan$.\footnote{\ieee{9.2.1}{44}}
+More excitingly, we have $e^{i \pi} = -1$ (Euler) and ${-1}^{-\inf} =
+1$ ``because all large positive floating-point values are even
+integers.''~\cite{crationale510}
 
-                    HYPOT  nan inf
-                          +-------
-                      nan |nan inf
-                      inf |inf inf
+\subsection{NaN's Not GNU} \label{sec:logical}
 
-        So if 0 = nan and 1 = inf, then MAX is OR.
+People who work with real numbers are often taught that the number
+\nan\ is propagated through all expressions that use it (e.g. $\nan -
+1 = \nan$), like some kind of GNU Public Licensed number. This is a
+misconception. We already saw in the beautiful identities above that
+some expressions involving \nan\ do not result in \nan, like $1^{\nan}
+= 1$ and ${\tt compound}(\nan, 0) = 0$. But it is also the case that
+$1^{\inf} = 1$ and ${\tt compound}(\inf, 0) = 0$. Are there mathematical
+functions that distinguish between \nan\ and \inf? 
 
-        We also have AND, since only inf*inf (aka 1 AND 1)
-        returns inf in that truth table.
+It turns out that there are! For example, the functions {\tt minNum}
+and {\tt maxNum} (\ieee{5.3.1}{19}) take two arguments and return the
+min and max, respectively. They have the special, distinguished property
+that ``if exactly one argument is \nan, they return the other. If
+both are \nan\ they return \nan.'' 
 
-        Is AND and OR together complete? (I don't think so?)
-        Do we have NOT?
+\begin{figure}[ht]
+\renewcommand*{\arraystretch}{1.4}
+  \begin{tabular}{cc}
+  \begin{tabular}{r|cc}
+    \multicolumn{1}{r}{${\tt maxNum}(a,b)$} & \multicolumn{1}{c}{\nan} & \inf \\[0.2em]\cline{2-3}
+    \nan & \nan & \inf \\
+    \inf & \inf & \inf \\
+  \end{tabular} &
+  \begin{tabular}{r|cc}
+    \multicolumn{1}{r}{$a * b$} & \multicolumn{1}{c}{\nan} & \inf \\[0.2em]\cline{2-3}
+    \nan & \nan & \nan \\
+    \inf & \nan & \inf \\
+  \end{tabular}
+  \end{tabular}
+  \caption{
+    The behavior of some mathematical functions on our distinguished values \nan\ and \inf.
+    {\tt maxNum} returns \inf\ if either of its arguments is \inf\ (some other functions have
+    this property, like {\tt hypot}). $a * b$ is \inf\ only
+    if both of its arguments are \inf\ (there are many other examples, like $a + b$).
+  } \label{fig:truthtables}
+\end{figure}
 
+With functions such as these, we can begin constructing the building blocks
+of more interesting functions (Figure~\ref{fig:truthtables}). Unfortunately,
+${\tt maxNum}(a,b)$ and $a*b$ are not complete on their own; we additionally
+need at least a function $f(x)$ where $f(\nan) = \inf$ and $f(\inf) = \nan$.
+Does such a function exist? Yes! Several can be built from IEEE 754 primitives:
+\[
+\begin{array}{rcl}
+  f(x) & = & {\tt minNum}(-x, -1.0) + \inf \\
+  f(x) & = & {\tt hypot}(\nan, {\tt maxNum}(1/x, -\inf)) \\
+  f(x) & = & \inf - {\tt maxNum}(x, 1.0) \\
+  f(x) & = & {\tt sqrt}({\tt copysign}(\inf, -x)) \\
+\end{array}
+\]
+You can try these out in your favorite programming language, and if they don't
+work, your implementation is not IEEE 754 compliant. Why do these work? Let's
+take the first one, and compare \nan\ and \inf\ for $x$:
+\[
+\begin{array}{l|r}
+  \hline
+  x = \nan                             & x = \inf \\
+  \hline
+  {\tt minNum}(-x, -1.0) + \inf    & {\tt minNum}(-x, -1.0) + \inf \\
+  {\tt minNum}(-\nan, -1.0) + \inf & {\tt minNum}(-\inf, -1.0) + \inf \\
+      -1.0 + \inf                      & -\inf + \inf \\
+      \inf                             & \nan \\
+\end{array}
+\]
 
-YES!
-
-Here are some:
-Min(-x, -1.0) + inf
-hypot(nan, max(1/x, -inf))
-inf - max(x, 1)
-sqrt(copysign(inf, -x))
-
-
-Now direct search for some gates:
-NAND: inf - max(x + y, -inf)
-AND: x + y
-OR: hypot(x, y)
-XOR: Abs(max(y, -inf) - max(x, -inf))
-     Abs(min(y, -x) + max(y, -inf))
-     (Wouldn't be surprised if there's a simpler one,
-     but my search does not find it before it gets
-     out of hand...)
-    
-NOR: -inf / max(y, max(x, -1))
-     
-
-
-And how about if we leave out min, max? They are certainly
-reasonable since they are defined in IEEE 754, but perhaps
-not the best joke since they are not as math-y as e.g. hypot
-
-
-NOR: sqrt(copysign(-inf, -hypot(y, x)))
-(Here, hypot is just computing OR.)
-
-So another NOT is:
-sqrt(copysign(-inf, -x))  (actually can be inf)
-
-XOR: abs(copysign(-inf, y) - copysign(-inf, x))
-OR: hypot(y, x)
-AND: x + y
-NAND: inf - copysign(-inf, x + y)
-
-
-ok cool, but copysign kinda has the same problems as min,max.
-maybe without that?
-
-
-the database saturates with 36 entries if we remove
-copysign and min, max. They are these:
-
-[nan, nan, nan, nan] = NaN
-[nan, nan, nan, ~inf] = Minus(Neg(y), x)
-[nan, nan, nan, ~2.0] = Plus(Tanh(Minus(Neg(y), x)), -1)
-[nan, nan, nan, ~1.0] = Tanh(Minus(Neg(y), x))
-[nan, nan, nan, 0.0] = Pow(y, Neg(x))
-[nan, nan, nan, 1.0] = Exp(Pow(y, Neg(x)))
-[nan, nan, nan, 2.0] = Plus(Exp(Pow(y, Neg(x))), 1)
-[nan, nan, nan, inf] = Plus(y, x)
-[nan, nan, ~inf, ~inf] = Neg(y)
-[nan, nan, ~2.0, ~2.0] = Plus(Tanh(Neg(y)), -1)
-[nan, nan, ~1.0, ~1.0] = Tanh(Neg(y))
-[nan, nan, ~0.0, ~0.0] = Div(-1, y)
-[nan, nan, 1.0, 1.0] = Exp(Div(-1, y))
-[nan, nan, 2.0, 2.0] = Minus(1, Tanh(Neg(y)))
-[nan, nan, inf, inf] = y
-[nan, ~inf, nan, ~inf] = Neg(x)
-[nan, ~inf, ~inf, ~inf] = Neg(Hypot(y, x))
-[nan, ~2.0, nan, ~2.0] = Plus(Tanh(Neg(x)), -1)
-[nan, ~2.0, ~2.0, ~2.0] = Plus(Tanh(Neg(Hypot(y, x))), -1)
-[nan, ~1.0, nan, ~1.0] = Tanh(Neg(x))
-[nan, ~1.0, ~1.0, ~1.0] = Tanh(Neg(Hypot(y, x)))
-[nan, ~0.0, nan, ~0.0] = Div(-1, x)
-[nan, ~0.0, ~0.0, ~0.0] = Div(-1, Hypot(y, x))
-[nan, 1.0, nan, 1.0] = Exp(Div(-1, x))
-[nan, 1.0, 1.0, 1.0] = Exp(Div(-1, Hypot(y, x)))
-[nan, 2.0, nan, 2.0] = Minus(1, Tanh(Neg(x)))
-[nan, 2.0, 2.0, 2.0] = Minus(1, Tanh(Neg(Hypot(y, x))))
-[nan, inf, nan, inf] = x
-[nan, inf, inf, inf] = Hypot(y, x)
-[~inf, ~inf, ~inf, ~inf] = NegInf
-[~2.0, ~2.0, ~2.0, ~2.0] = Plus(-1, -1)
-[~1.0, ~1.0, ~1.0, ~1.0] = -1
-[0.0, 0.0, 0.0, 0.0] = 0
-[1.0, 1.0, 1.0, 1.0] = 1
-[2.0, 2.0, 2.0, 2.0] = Plus(1, 1)
-[inf, inf, inf, inf] = Inf
+Thinking of \nan\ as {\tt false} and \inf\ as {\tt true}, we now have {\tt AND} ({\tt maxNum}),
+{\tt OR} ($*$), and {\tt NOT} (${\tt minNum}(-x, -1.0)$). With these we can create arbitrary
+functions $f(a_1, a_2, \ldots, a_n)$ that return our choice of $\nan$ or $\inf$ for the $2^n$
+different combinations of arguments. It is also possible to find more direct expressions that
+compute simple functions (Figure~\ref{fig:truthtables2}).
 
 
-IEEE 754, 3.3
-minimal encoding size:
-b, radix, 2
-p, precision, ?
-emax, maximum exponent, ?
-emin = always 1 - emax
+\begin{figure}[ht]
+\renewcommand*{\arraystretch}{1.4}
 
+  \begin{tabular}{r|cc}
+    \multicolumn{1}{r}{$\inf - {\tt maxNum}(a + b, -\inf)$} & \multicolumn{1}{c}{\nan} & \inf \\[0.2em]\cline{2-3}
+    \nan & \inf & \inf \\
+    \inf & \inf & \nan \\
+    \multicolumn{3}{c}{}\\[0.1em]
+    \multicolumn{1}{r}{${\tt abs}({\tt minNum}(b, -a) + {\tt maxNum}(b, -\inf))$} & \multicolumn{1}{c}{\nan} & \inf \\[0.2em]\cline{2-3}
+    \nan & \nan & \inf \\
+    \inf & \inf & \nan \\
+    \multicolumn{3}{c}{}\\[0.1em]
+    \multicolumn{1}{r}{$-\inf / {\tt maxNum}(b, {\tt maxNum}(a, -1))$} & \multicolumn{1}{c}{\nan} & \inf \\[0.2em]\cline{2-3}
+    \nan & \inf & \nan \\
+    \inf & \nan & \nan \\
+  \end{tabular}
 
-I deduce:
-p = t + 1
-    (because you get one implied bit by normalization)
-t = 1
-% using the table
-emax = $2^{k-p-1} - 1$, which is $2^{4-2-1}-1 = 2^1-1 = 1$
-bias = emax
-emin = 1 - emax = 0
+  \caption{
+    Some interesting functions of two variables. They are isomorphic to the boolean functions {\tt NAND},
+    {\tt XOR} and {\tt NOR} respectively, but more beautiful.
+  } \label{fig:truthtables2}
+\end{figure}
 
-I think there's still some ambiguity about whether we have
-emax = 1, emin = 0,
-or
-emax = 0, emin = -1,
-probably both work, but I think the former has more support
-in the docs.
+\begin{figure*}[tp]
+\begin{tabular}{|l|c|c|c|c|c|c|}
+  \hline
+  parameter & {\bf binary4} & binary16 & binary32 & binary64 & binary128 & binary$_k$ \\
+  \hline
+  $k$, storage in bits & {\bf 4} & 16 & 32 & 64 & 128 & multiple of 32 \\
+  $p$, precision in bits & {\bf 2} & 11 & 24 & 53 & 113 & $k$ - round(4 * log$_2$(k)) + 13 \\
+  $emax$, maximum exponent e & {\bf 1} & 15 & 127 & 1023 & 16383 & $2^{k-p-1}$ - 1 \\
+  $bias$ = $E$ - $e$ & {\bf 1} & 15 & 127 & 1023 & 16383 & emax \\
+  $sign bits$ & {\bf 1} & 1 & 1 & 1 & 1 & 1 \\
+  $w$, exponent width & {\bf 2} & 5 & 8 & 11 & 15 & round(4 * log$_2$(k)) - 13 \\
+  $t$, trailing significand width & {\bf 1} & 10 & 23 & 52 & 112 & k - w - 1 \\
+  $k$, storage width & {\bf 4} & 16 & 32 & 64 & 128 & 1 + w + t \\
+\hline
+\end{tabular}
+\caption{Parameters for the newly-introduced {\bf binary4} encoding
+  for IEEE 754, compared to the standard widths (see Table~3.5 in the
+  standard\cite{ieee754}). } \label{fig:binary4}
+\end{figure*}
 
-\comment{
-a normal value is
-(-1)^sign x b^{exp} x significand
-(I think significand = mantissa?)
+I found these functions through computer search,\footnote{
+  Source code is available at \url{https://sourceforge.net/p/tom7misc/svn/HEAD/tree/trunk/nand/}
+  } using a technique
+like bottom-up logic programming~\cite{pfenning2006logic}. I start
+with a small set of constants, including arguments {\sf a} and {\sf
+  b}, and then compute all of the expressions that can be made by
+applying a single mathematical function (e.g. ${\tt abs}(x)$, $-x$) or
+binary mathematical function ($x + y$, $x / y$, ${\tt maxNum}(x, y)$)
+to existing expressions. The expression is actually a collection of
+values taken on for each possible substitution (in $\{\nan, \inf\}$)
+to arguments {\sf a} and {\sf b} (i.e., it represents a function). If
+the expression has the correct values for each possible assignment to
+the arguments, then we are done. We only need to keep one (the
+smallest) expression that represents a distinct function, but note
+that we have to consider intermediate expressions that compute values
+other than \nan\ and \inf. Also note that we need one of {\tt minNum},
+{\tt maxNum} or {\tt copySign} in order to compute the {\tt NOT}
+function; we could think of these functions as therefore essential
+to mathematical completeness.
+% TODO: Could show all 36 functions without these..
 
-by standard, need:
-- sign bit
-- exponent could maybe be empty, though it's sort of implied
-that you just have emax=0, emin= -1, so one bit
-- m could probably be empty (no bits mantissa = 0)
+Particularly nice is $\inf - {\tt maxNum}(a + b, -\inf)$, which
+returns $\inf$ if either of its arguments is $\nan$. We will call this
+the ``{\tt NAN} gate'', for ``Not \nan''. The {\tt NAN} gate is
+exciting because it can be used on its own to construct all other
+boolean functions! We can use \nan, \inf, and this function to
+construct any computer and any computable function. Beautiful!
 
+To program with numbers on computers, the real numbers are
+represented as strings of bits. Next we'll talk about efficient
+representations that allow us to manipulate \nan\ and \inf\ 
+with {\tt NAN} gates.
 
-DID YOU KNOW?
-``every finite floating point numbe is an integral multiple
-of the smallest subnormal magnitude b^{emin} * b^{1 - p}''
+\section{The binary4 representation} \label{sec:representation}
 
-fewest exponent bits w?
-The range of the encoding's biased exponent E shall include:
-- every integer between 1 and 2^{w}−2, inclusive, to encode normal numbers
-- the reserved value 0 to encode +/-0 and subnormal numbers
-- the reserved value 2^{w}−1 to encode +/-inf and NaNs
+% bias = 1
 
-so we need at least 0,
-and a reserved value for inf & nan,
-so if w = 1, we'd have 0 and 2^1-1 = 1,
-but this seems to violate the spec because you need
-``every integer between 1 and 2^w-2 inclusive'', and here 2^w-2 is 0,
-so either this interval is inverted (arguable?) and that's why it
-doesn't include its endpoints, or it's in violation
-but with w = 2,
-
-2^2 - 1 = 0b11 = 3 (inf, nan)
-1 to 2^2 - 2 = 0b01, 0b10 = 1,2 (normals)
-0 = 0b00 = 0 (zero, subnormals)
-
-(Note this is the biased exponent E, not e)
-
-2 bits looks clearly legal.
-
- s       w bits           t bits
-[sign][ exponent ][  trailing significand T   ]
-
-when e=0b11, t determines inf or nan.
-- nan is any nonzero sign is ignored.
-(recall, nans can carry info, so that is why they get
-the nonzero case)
-- inf is zero
-
-so we clearly need 1 t-bit to encode inf vs nan,
-but it seems that this is enough
-
-so probable case is four bits:
-
- - sign
- - two exponent bits
- - one mantissa bit
-
-The sign is always 0 (positive infinity; doesn't matter for nan)
-and the exponent is always 11 (since we always encode nan or
-positive inf). Unless we do any intermediate calculations
-(could check what all the intermediate values are in the above
-expressions and make sure they fit in 4 bits), a hardware
-realization of this could just hard-wire 3 of 4 bits? Is that
-better or worse?
-
-so another version of this joke is that a NAND gate is a super
-fast FPU for calculating inf - max(x + y, -inf) on four-bit
-IEEE 754 where the top 3 MSBs are fixed (although be careful,
-nan = 1 and inf = 0 in this representation. Is that maybe a
-better choice for this presentation? it just dualizes some
-gates)
-
-}
-
-\section{The binary4 representation}
+\begin{figure}[ht]
+\begin{center}
+  \begin{tabular}{|l@{\,}c@{\,}l|p{2.5in}|}
+\hline
+  $s$ & $E$ & $T$ & value \\
+  \hline
+0 & 00 & 0 &   $+0$ \\
+0 & 00 & 1 &    subnormal: % $2^{emin} * 2^{1-p} * T$ =
+                $2^0 * 2^{1-2} * 1$ =
+                $1 * \sfrac{1}{2} * 1$ = 0.5 \\
+0 & 01 & 0 &    normal: % $2^{E - bias} * (1 + 2^{1-p} * T)$
+                $2^0 * (1 + \sfrac{1}{2} * 0)$ = 1 \\
+0 & 01 & 1 &    $2^0 * (1 + \sfrac{1}{2} * 1)$ = 1.5 \\
+0 & 10 & 0 &    $2^1 * (1 + \sfrac{1}{2} * 0)$ = 2 \\
+0 & 10 & 1 &    $2^1 * (1 + \sfrac{1}{2} * 1)$ = 3 \\
+0 & 11 & 0 &   $+\inf$ \\
+0 & 11 & 1 &    \nan \\
+1 & 00 & 0 &   $-0$ \\
+1 & 00 & 1 &   $-0.5$ \\
+1 & 01 & 0 &   $-1$ \\ 
+1 & 01 & 1 &   $-1.5$ \\
+1 & 10 & 0 &   $-2$ \\
+1 & 10 & 1 &   $-3$ \\ 
+1 & 11 & 0 &   $-\inf$ \\
+1 & 11 & 1 &    \nan \\
+\hline
+\end{tabular}
+\end{center}
+  \caption{All 16 values representable in binary4 floating-point.
+  The format works reasonably well even at this very low precision,
+  although note how many of the values are not finite.} \label{fig:allvalues4}
+\end{figure}
 
 IEEE 754 natively defines several bit widths for floating-point
 values, such as the 32-bit binary32 (aka ``single-precision float'')
 and 64-bit binary64 (aka ``double-precision float''). The
 specification is parameterized to allow other bit widths; for example,
 half-precision 16-bit floats are common in GPU code for machine
-learning applications (XXX cite). Smaller floats sacrifice precision,
+learning applications~\cite{wikipedia16}. Smaller floats sacrifice precision,
 but require less space and allow faster calculations. For our purposes
 in this paper, since we only need to represent the two numbers \nan\ and
 \inf, we are interested in the smallest possible representation. 
-
-% TODO: what if each bit in the float is itself represented as
-% inf or NaN?
 
 This section describes the binary4 representation, a four-bit floating
 point number that is clearly allowed by the IEEE 754 standard.
@@ -364,10 +384,10 @@ bits. For binary32, $w = 8$ and $t = 23$; and with the sign bit we
 have $23 + 8 + 1 = 32$ bits as expected. We need at least a sign bit,
 but what are the smallest permissible values of $w$ and $t$?
 
-The most stringent constraint on $w$ comes in IEEE-754-2008~3.4, which
+The most stringent constraint on $w$ comes in \ieee{3.4}{9}, which
 states
 \begin{quote}
-  The range of the encoding's biased exponent E shall include:
+  The range of the encoding's biased exponent $E$ shall include:
   \begin{enumerate}[label=---]
     \item every integer between 1 and $2^w - 2$, inclusive, to encode
       normal numbers
@@ -399,84 +419,13 @@ values representable, it would be practical for all the standard
 operations to be done in constant time via table lookups. All 16
 possible values are given in Figure~\ref{fig:binary4}.
 
-
-\begin{figure*}[tp]
-\begin{tabular}{|l|c|c|c|c|c|c|}
-  \hline
-  parameter & {\bf binary4} & binary16 & binary32 & binary64 & binary128 & binary$_k$ \\
-  \hline
-  $k$, storage in bits & {\bf 4} & 16 & 32 & 64 & 128 & multiple of 32 \\
-  $p$, precision in bits & {\bf 2} & 11 & 24 & 53 & 113 & $k$ - round(4 * log$_2$(k)) + 13 \\
-  $emax$, maximum exponent e & {\bf 1} & 15 & 127 & 1023 & 16383 & $2^{k-p-1}$ - 1 \\
-  $bias$ = $E$ - $e$ & {\bf 1} & 15 & 127 & 1023 & 16383 & emax \\
-  $sign bits$ & {\bf 1} & 1 & 1 & 1 & 1 & 1 \\
-  $w$, exponent width & {\bf 2} & 5 & 8 & 11 & 15 & round(4 * log$_2$(k)) - 13 \\
-  $t$, trailing significand width & {\bf 1} & 10 & 23 & 52 & 112 & k - w - 1 \\
-  $k$, storage width & {\bf 4} & 16 & 32 & 64 & 128 & 1 + w + t \\
-\hline
-\end{tabular}
-\caption{Parameters for the newly-introduced {\bf binary4} encoding
-  for IEEE-754, compared to the standard widths (see Table~3.5 in the
-  standard\cite{ieee754}). } \label{fig:binary4}
-\end{figure*}
-
-% bias = 1
-
-\begin{figure}[h]
-\begin{tabular}{|l@{\,}c@{\,}l|p{2.5in}|}
-\hline
-  $s$ & $E$ & $T$ & value \\
-  \hline
-0 & 00 & 0 &   $+0$ \\
-0 & 00 & 1 &    subnormal: % $2^{emin} * 2^{1-p} * T$ =
-                $2^0 * 2^{1-2} * 1$ =
-                $1 * \sfrac{1}{2} * 1$ = 0.5 \\
-0 & 01 & 0 &    normal: % $2^{E - bias} * (1 + 2^{1-p} * T)$
-                $2^0 * (1 + \sfrac{1}{2} * 0)$ = 1 \\
-0 & 01 & 1 &    $2^0 * (1 + \sfrac{1}{2} * 1)$ = 1.5 \\
-0 & 10 & 0 &    $2^1 * (1 + \sfrac{1}{2} * 0)$ = 2 \\
-0 & 10 & 1 &    $2^1 * (1 + \sfrac{1}{2} * 1)$ = 3 \\
-0 & 11 & 0 &   $+\infty$ \\
-0 & 11 & 1 &    \nan \\
-1 & 00 & 0 &   $-0$ \\
-1 & 00 & 1 &   $-0.5$ \\
-1 & 01 & 0 &   $-1$ \\ 
-1 & 01 & 1 &   $-1.5$ \\
-1 & 10 & 0 &   $-2$ \\
-1 & 10 & 1 &   $-3$ \\ 
-1 & 11 & 0 &   $-\infty$ \\
-1 & 11 & 1 &    \nan \\
-\hline
-\end{tabular}
-\caption{All 16 values representable in binary4 floating-point.
-  The format works reasonably well even at this very low precision,
-  although note how many of the values are not finite.} \label{fig:allvalues4}
-\end{figure}
-
+Four bits is not many, but is it possible to represent these two
+values more efficiently?
 
 \subsection{The hypothesized binary3 format} \label{sec:binary3}
-The IEEE-754 representation clearly requires a sign bit, and for this
-purpose we need at least one bit for the mantissa in order to
-distinguish \nan\ and \inf. It is perhaps a stretch of the wording,
-but arguably the spec permits a 1-bit exponent ($w = 1$). To
-rationalize this we need to interpret the phrase ``every integer
-between $1$ and $2^w-2$ inclusive'' (that is, between 1 and 0 inclusive)
-as denoting the empty set.
 
-With one bit for sign, exponent, and mantissa, we can represent just 8
-different values. Here $emax$ is $0$, and the standard clearly
-requires $emin = 1 - emax$, so $emin = 1$. Certainly fishy for $emin$
-to be larger than $emax$, but we can just not stress out about it; the
-representable values are all reasonable-looking
-(Figure~\ref{fig:allvalues3}).
-
-% here, precision is still 2 (just one mantissa bit)
-% so emax is 2^{k-p-1}-1, which is 2^{3-2-1}-1 = 0
-% bias = 0
-% emin is 1 - emax = 1 (!?)
-% this is kind of absurd, it may still "work"?
-
-\begin{figure}[h]
+\begin{figure}[ht]
+\begin{center}
 \begin{tabular}{|l@{\,}c@{\,}l|p{2.5in}|}
 \hline
   $s$ & $E$ & $T$ & value \\
@@ -485,11 +434,11 @@ representable values are all reasonable-looking
 0 & 0 & 1 &    subnormal: % $2^{emin} * 2^{1-p} * T$ =
                 $2^1 * 2^{1-2} * 1$ =
                 $2 * \sfrac{1}{2} * 1$ = 1 \\
-0 & 1 & 0 &   $+\infty$ \\
+0 & 1 & 0 &   $+\inf$ \\
 0 & 1 & 1 &    \nan \\
 1 & 0 & 0 &   $-0$ \\
 1 & 0 & 1 &   $-1$ \\
-1 & 1 & 0 &   $-\infty$ \\
+1 & 1 & 0 &   $-\inf$ \\
 1 & 1 & 1 &    \nan \\
 \hline
 \end{tabular}
@@ -498,167 +447,135 @@ representable values are all reasonable-looking
   positive and negative zero and a single subnormal which
   denotes $1$ (or $-1$).
 } \label{fig:allvalues3}
+\end{center}
 \end{figure}
 
-% TODO: We could do without a mantissa if we didn't care about
-% distinguishing NaN and inf. With an empty t, we should
-% consider it to have value 0 (true? maybe it is defined as
-% a product so the empty string is the multiplicative unit 1?)
-% which means that we encode +/- inf, and nan cannot be encoded.
-% Now the operations will not be closed since e.g. 0/0 needs to
-% result in nan.
+The IEEE 754 representation clearly requires a sign bit, and for this
+purpose we need at least one bit for the mantissa in order to
+distinguish \nan\ and \inf. It is perhaps a stretch of the wording,
+but arguably the spec permits a 1-bit exponent ($w = 1$). To
+rationalize this we need to interpret the phrase ``every integer
+between $1$ and $2^w-2$ inclusive'' (that is, between 1 and 0 inclusive)
+as denoting the empty set. This seems reasonable.
 
-% TODO: What if we have no mantissa or exponent, just a sign bit?
-% When E=0 and T=0, we can only encode +/- zero. This definitely
-% involves some leaps (and is not closed as above), but could
-% we find expressions that work for just +/- 0?
+With one bit for sign, exponent, and mantissa, we can represent just 8
+different values. Here $emax$ is $0$, and the standard clearly
+requires $emin = 1 - emax$, so $emin = 1$. Certainly fishy for $emin$
+to be larger than $emax$, but we can just not stress out about it; the
+representable values are all reasonable-looking
+(Figure~\ref{fig:allvalues3}).
 
-% hardware notes:
-% http://openocd.org/ looks like a good way to do in-device
-% programming like over SWD, because it runs on the pi. A board
-% could have jumpers or even software route to different
-% gpio pins. (You would need to run at 3v3 for this of course.)
-% I guess make sure the chip is compatible, but there are lots
-% explicitly listed.
+\section{A hardware math accelerator} \label{sec:hardware}
 
-% Some supported devices:
-% AT91SAM7 - no fp in the M7
-% at91sam3u - no fp here either :/
+\begin{figure}[ht]
+  \begin{center}
+    \includegraphics[width=0.95 \linewidth]{chip}
+  \caption{The STM32F303RDT6 wired up as 5 {\tt NAN} gates, shown here
+    {\it in situ}. This is a portion of a larger schematic.
+    Also shown is some support hardware needed for each microprocessor:
+    A programming header, 5 filter capacitors, a crystal oscillator circuit,
+    and a reset switch with external pull-up.
+  }
+  \label{fig:schematic}
+  \end{center}
+\end{figure}
 
-% LPC1700, LPC1800,
-% LPC2000, LPC4300, , STR7x, STR9x, LM3, STM32x and
-% EFM32
+So now we know that we can build arbitrary computers with the {\tt
+  NAN} gate, representing the interconnects between the gates efficiently
+with binary3-coded real numbers. All that remains is an efficient
+implementation of the {\tt NAN} gate itself. We could emulate such
+a thing in software, but software is much slower than hardware;
+we would also like to maximize the number of times that we can flip
+between states of the gate (the flip FLOPS) per second.
 
-% ok the STM32f3 is supported, has FPU, 51 IO pins,
-% specifically like the
-% https://www.mouser.com/ProductDetail/STMicroelectronics/STM32F303RDT7?qs=%2Fha2pyFaduikpRt0bOqlahEvgTujL2BrdYPen6RZRRk%3D
+Fortunately, there are several pieces of hardware that implement
+IEEE 754 real numbers. I found a moderately-priced micrprocessor
+(\$6.48/ea.), the STM32F303RDT6. This is a 32-bit ARM Cortex M4F
+processor with hardware floating-point running at 72MHz~\cite{stm32}.
+In the rather-difficult-to-solder 10mm surface-mount LQFP64 package,
+it has 64 pins, 51 of which can be used for general-purpose IO.
+Since a {\tt NAN} gate using the binary3 representation needs 9
+pins ($3 \times 2$ for the inputs, $3$ for the outputs), it is
+feasible to implement five {\tt NAN} gates on the same chip with
+a few pins left over for jiggery pokery (Figure~\ref{fig:schematic}).
 
-% here is an example breakout:
-% http://ebrombaugh.studionebula.com/embedded/stm32f303breakout/index.html
-% requires a crystal, voltage regulator, and some filter capacitors,
-% but looks manageable. (And the chip has some 5V tolerant TTL I/O
-% pins too, which could be nice for other projects)
-% also maybe a ferrite bead (for input to analog VDDA, so probably
-% not needed for this project)
+\begin{figure*}[t!]
+  \begin{center}
+    \includegraphics[width=0.55 \linewidth]{board}
+  \end{center}\vspace{-0.1in}
+  \caption{A beautiful hand-routed circuit board implementing a
+    universal math accelerator, using only the universal {\tt NAN} gate
+    implemented with native floating point hardware.}
+  \label{fig:board}
+\end{figure*}
 
-Idea: Make a FPU. How small could it be?
-I guess the simplest thing that could be described as faithful
-would compute the NAND function of two binary3 numbers, but on
-the entire domain. There are six input pins, three output pins,
-and a table size of 8^2 = 64.
+The hardware math accelerator itself can be thought of as a floating
+point unit (FPU), but one that is streamlined to run only a single
+instruction, the universal function $\inf - {\tt maxNum}(a + b, -\inf)$.
+This is a function taking two binary3 real numbers and
+outputting a single binary3 number. Since there are only $2^6 = 64$
+possible inputs, it can be straightforwardly implemented with table
+lookup, but this would require dozens of microprocessors, which
+might exceed our power budget. In fact there is significant structure
+to the function; for one thing, it can only return $\nan$ or $\inf$ (even
+if arguments like -1.0 or 0.0 are given), and the
+binary3 representation of these only differ in one bit. Equivalent
+logic to determine that bit is as follows:
 
-inf is logic true, 010 binary3
-nan is logic false, 011 binary3
-
-A nice simple nand function is
-f(x, y) = inf - max(x + y, -inf)
-
-What is a simple implementation of this function?
-It can only output inf or nan, so that's good. Of the three
-output pins, the first is always 0, the second always 1, so
-at worst we would just need a table of 64 bits for this last
-value.
-
-Further simplification:
-
-if isfinite(x) && isfinite(y)
+\begin{small}
+\begin{code}
+if isfinite(a) && isfinite(b)
 then
-  // inf - (x + y) = inf
+  // inf - (a + b) = inf
   0
 else
-// x + y is nan when x is nan, y is nan, or x and y are
-// infinites with different signs. If they are both -inf,
-// then we have max(-inf, -inf) anyway, which is the same
-// as max(nan, -inf). So we have
-  if x == inf && y == inf
+  // a + b is nan when a is nan, b is nan, or a and b are
+  // infinites with different signs. If they are both
+  // -inf, then we have max(-inf, -inf) anyway, which is
+  // the same as max(nan, -inf). So we have:
+  if a == inf && b == inf
     // both positive infinities
     // inf - inf = nan
     1
   else
     // inf - -inf = inf
     0
+\end{code}
+\end{small}    
 
-So ultimately this function only returns 1 in the case
-that both inputs are exactly +inf, the pattern 0 1 0.
+So ultimately this function only returns 1 in the case that both
+inputs are exactly $+\inf$, the pattern {\tt 0 1 0}.
 
 If the inputs are a0 a1 a2, b0, b1, b2, and outputs
 are c0, c1, c2, then:
+\begin{small}
+\begin{code}
 c0 = 0
 c1 = 1
 c2 = !a0 && !a2 && !b0 && !b2 && a1 && b1
+\end{code}
+\end{small}
 
-// Could adapt find.sml to find solutions for this,
-// using only NAND. Only 2^6 = 64 possible values
-// for these variables
+So we can hardwire the outputs c0 and c1, and use the microprocessor-based
+{\tt NAN} gates to compute c2 as a small boolean function.
 
-let x = nand(!a0, !a2)
-let y = nand(!b0, !b2)
-let z = nand(a1, b1)
+Of course, each $0$ or $1$ above is actually itself a binary3-coded
+\nan\ or \inf. Thus on the physical circuit board, this math
+accelerator has $2 \times 3 \times 3$ input pins and $1 \times 3
+\times 3$ output pins. This is just shy of the total number of IO pins
+on the Raspberry~Pi, so we use such a computer to drive the math
+accelerator. Given the large number of traces and small footprint of
+the microprocessors, routing the board gets somewhat involved
+(Figure~\ref{fig:board}).
 
+As of the SIGBOVIK 2019 deadline, such a circuit board has been
+manufactured in China and is in possession of the author (actually the
+minimum order quantity of 10), but he is somewhat nervous about his
+ability to hand-solder these 0.1mm surface-mount leads, so we'll see
+how it goes! Please see \url{http://tom7.org/nan} for project updates
+or an embarrassing {\tt 404 Not Found} if I fail to reboot computing
+using the beautiful foundation of real numbers.
 
-let w = Not(Nand(Not(x), Not(y)))
-let out = Not(Nand(w, Not(z))
-
-... this is pretty much a straightforward Nand construction.
-I guess it doesn't really simplify much across units.
-
-or with more gates,
-Not(Or(z, Or(y, x)))
-
-and I mean obviously it's just
-And(Not (Or (a0, a2, b0, b2)), a1, b1)
-if you have all the gates directly.
-
-we can certainly make chips implementing each of these gates,
-since we have floating point implementations of each, but
-then we sort of lose the final joke since we'd just build
-a floating point unit that computes the NAND instruction.
-
-so let's try the pure-nand approach.
-
-implementing the nots also with nands, this works out to 14
-gates, which is ``just'' three chips. very reasonable. I was
-actually hoping for it to be a little more ridiculous.
-(maybe there is a lower pin-count device with an easier
-package? programming them is still going to be a huge pain)
-
-if we used the meta-nand gates, we'd have 14 * 3 = 42 chips,
-which is OTOH probably too many.
-
-with this meta-fpu, we have 2 binary3 inputs and 1 binary3
-output, but each ``bit'' is represented as a binary3 number
-itself. So this makes (3 * 2 + 1) * 3 = 27 wires to interface
-with it. This is exactly as many GPIO the pi has, so that
-is good, although IIRC a few pi pins have special annoyances,
-and it doesn't leave us any space for a programmer.
-Maybe just best to make a separate programmer and connect it
-up to different test points manually. Then we could reuse
-the programmer pretty easily.
-
-Note that in a pinch we can ``cheat'' pretty easily here
-since some of the pins have constant values. Probably justifiable
-is that the meta-nand always outputs 0 (nan) for g and 1 (inf) for h,
-plus two of the bits of i are fixed because it will only represent
-nan or inf. But really would be ``prettiest'' to not make this cheat,
-I mean, it's a pretty silly excursion anyway.
-
-oh jk there is actually gpio0 too, so 28 pins on pi.
-
-#  0 & 0 & 0 &   $+0$ \\
-#  0 & 0 & 1 &   +1
-#  0 & 1 & 0 &   $+\infty$ \\
-#  0 & 1 & 1 &    \nan \\
-#  1 & 0 & 0 &   $-0$ \\
-#  1 & 0 & 1 &   $-1$ \\
-#  1 & 1 & 0 &   $-\infty$ \\
-#  1 & 1 & 1 &    \nan \\
-
-
-% would be cool if the meta NAND gate were addressable
-% from the rasberry pi (well duh of course it is?) because
-% then we could also use it to simulate itself in software
-
-\nocite{ieee754}
 \bibliography{nand}{}
 \bibliographystyle{plain}
 
