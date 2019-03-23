@@ -40,6 +40,7 @@ int main(int argc, char **argv) {
     pins[pin] = true;
     bcm2835_gpio_fsel(pin, BCM2835_GPIO_FSEL_INPT);
     bcm2835_gpio_set_pud(pin, BCM2835_GPIO_PUD_OFF);
+    // bcm2835_gpio_set_pud(pin, BCM2835_GPIO_PUD_DOWN);
     printf("Set input %d.\n", pin);
   }
 
@@ -54,7 +55,7 @@ int main(int argc, char **argv) {
       }
     }
     printf("%s", out.c_str());
-    usleep(250 * 1000);
+	//     usleep(250 * 1000);
     Yield();
   }
     
