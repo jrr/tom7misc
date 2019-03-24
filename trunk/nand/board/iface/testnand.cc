@@ -1,4 +1,9 @@
 // Tests the FPU NAND gate through the testing header.
+// This is for testing chip 3, which has an extra
+// NAND gate wired directly to the header. For testing
+// the entire board through the pi header, see
+// piface.cc.
+//
 // This requires the following connections:
 //
 // chip      testing header pin   BCM
