@@ -1,4 +1,5 @@
-all : testnand.exe
+default : piface.exe
+all : testnand.exe piface.exe
 
 CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O2 --std=c++14 -I ../../../cc-lib  -DPSS_STYLE=1 -I ../../../cc-lib/pi
 # XXX for windows
@@ -17,6 +18,9 @@ ALL_CCLIB_OBJECTS=$(CCLIB_OBJECTS) ../../../cc-lib/stb_image_write.o ../../../cc
 CCLIB_PI_OBJECTS=../../../cc-lib/pi/bcm2835.o
 
 testnand.exe : testnand.o $(CCLIB_PI_OBJECTS) $(CCLIB_OBJECTS)
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LFLAGS)
+
+piface.exe : piface.o $(CCLIB_PI_OBJECTS) $(CCLIB_OBJECTS)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LFLAGS)
 
 clean :
