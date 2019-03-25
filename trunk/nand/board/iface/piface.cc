@@ -1,5 +1,25 @@
 // Interface from raspberry pi (the one soldered onto
 // the pi header) to the META FPU.
+//
+// Expected output is like this:
+//
+// [000] [000] -> 110 | 010 | 110
+// [000] [001] -> 110 | 010 | 110
+// [000] [010] -> 110 | 010 | 110
+// [000] [011] -> 110 | 010 | 110
+// [001] [000] -> 110 | 010 | 110
+// [001] [001] -> 110 | 010 | 110
+// [001] [010] -> 110 | 010 | 110
+// [001] [011] -> 110 | 010 | 110
+// [010] [000] -> 110 | 010 | 110
+// [010] [001] -> 110 | 010 | 110
+// [010] [010] -> 110 | 010 | 010  <- note nan inf inf  = meta-nan
+// [010] [011] -> 110 | 010 | 110
+// [011] [000] -> 110 | 010 | 110
+// [011] [001] -> 110 | 010 | 110
+// [011] [010] -> 110 | 010 | 110
+// [011] [011] -> 110 | 010 | 110
+// 
 
 #include <sched.h>
 #include <sys/mman.h>
@@ -120,17 +140,25 @@ int main(int argc, char **argv) {
 	 Bits(h).c_str(),
 	 Bits(i).c_str());
 
-#if 0
   for (int x = 0; x < 4; x++) {
     for (int y = 0; y < 4; y++) {
-      uint8 z = GetNand(x, y);
-      printf("%s %s -> %s\n",
+      uint8 g, h, i;
+      std::tie(g, h, i) = GetInnerNand(x & 0b100 ? INF3 : NAN3,
+				       x & 0b010 ? INF3 : NAN3,
+				       x & 0b001 ? INF3 : NAN3,
+				       y & 0b100 ? INF3 : NAN3,
+				       y & 0b010 ? INF3 : NAN3,
+				       y & 0b001 ? INF3 : NAN3);
+
+
+      printf("[%s] [%s] -> %s | %s | %s\n",
 	     Bits(x).c_str(),
 	     Bits(y).c_str(),
-	     Bits(z).c_str());
+	     Bits(g).c_str(),
+	     Bits(h).c_str(),
+	     Bits(i).c_str());
     }
   }
-#endif
   
   CHECK(bcm2835_close());
   return 0;
