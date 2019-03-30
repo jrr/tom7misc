@@ -535,6 +535,14 @@ public:
 	return alleq;
       };
 
+    // Note, this checks for equality of the two, but returns a boolean,
+    // not a gate3.
+    auto Eq3 = [&](gate3 a, gate3 b) -> gateb {
+	return Andb(Eqb(std::get<0>(a), std::get<0>(b)),
+		    Andb(Eqb(std::get<1>(a), std::get<1>(b)),
+			 Eqb(std::get<2>(a), std::get<2>(b))));
+      };
+    
     auto And3 = [&](gate3 a, gate3 b) -> gate3 {
 	return gate3(Andb(std::get<0>(a), std::get<0>(b)),
 		     Andb(std::get<1>(a), std::get<1>(b)),
@@ -597,8 +605,8 @@ public:
 
 	// So we can push_front.
 	deque<int> out;
-	for (int i = 0; i < 3 * D; i++) {
-	  gateb bit = Xorb(carry, bit);
+	for (int i = 3 * D - 1; i >= 0; i--) {
+	  gateb bit = Xorb(carry, x[i]);
 	  out.push_front(bit);
 	  // PERF final carry value not used.
 	  carry = Andb(carry, bit);
@@ -628,6 +636,10 @@ public:
 	gateb ncond = Notb(cond);
 	return Or3(And3(gate3{cond, cond, cond}, a),
 		   And3(gate3{ncond, ncond, ncond}, b));
+      };
+
+    auto Ifb = [&](gateb cond, gateb a, gateb b) -> gateb {
+	return Orb(Andb(cond, a), Andb(Notb(cond), b));
       };
     
     gate3 ab_value = Ifb3(use_reg_b, b_in, a_in);
@@ -687,6 +699,13 @@ public:
     full_addr.push_back(std::get<1>(addr_part));
     full_addr.push_back(std::get<2>(addr_part));
 
+    // True if this is a load, store, or jump, which will actually
+    // accept the shifted address above.
+    gateb is_addressing =
+      Orb(Eq3(op, Literal3(Binary3(LOAD))),
+	  Orb(Eq3(op, Literal3(Binary3(STORE))),
+	      Eq3(op, Literal3(Binary3(JMP)))));
+    
     // And the value loaded from this address in memory, in case
     // we do a load.
 
@@ -702,7 +721,119 @@ public:
     printf("[prep values] Total gates: %d\n",
 	   (int)gates.size());
 
+    // addr_count is just a rotation, but only if is_addressing is true.
+    gaten addr_count_out;
+    for (int i = 0; i < D; i++) {
+      addr_count_out.push_back(
+	  Ifb(is_addressing,
+	      addr_count_in[(i + 1) % D],
+	      addr_count_in[i]));
+    }
+    // like the test of (ADDR_COUNT == 0); this is true if we
+    // just overflowed after incrementing and now the LSB is 1.
+    gateb addr_count_active = addr_count_out[D - 1];
+
+    static_assert(((PLUS | MINUS | MAX | LOAD) & 0b100) == 0,
+		  "assumed these have leading 0 below");
+    gate3 ab_value_out =
+      Ifb3(std::get<0>(op),
+	   // None of the ops with leading 1 bit set ab.
+	   ab_value,
+	   Ifb3(std::get<1>(op),
+		// 0b01x
+		Ifb3(std::get<2>(op),
+		     // 0b000 = PLUS
+		     plus_value,
+		     // 0b001 = MINUS
+		     minus_value),
+		// 0b00x
+		Ifb3(std::get<2>(op),
+		     // 0b010 = MAX
+		     max_value,
+		     // 0b011 = LOAD
+		     // (but only if addr_count_active)
+		     Ifb3(addr_count_active,
+			  load_value,
+			  ab_value))));
+
     
+    // Now update memory.
+    auto WriteAddr3d = [&](gate3d addr, gate3 value) {
+	CHECK(addr.size() == 3 * D);
+	// Generate a new memory, which contains zeroes everywhere
+	// except the indicated address.
+	// PERF: We probably already have this from the load before.
+	
+	// First, a bit mask indicating which address is correct.
+#if 0
+	vector<gateb> correct;
+	for (int i = 0; i < MEM_SIZE; i++) {
+	  correct.push_back(LiteralEq3D(addr, i));
+	}
+
+	// Then, a copy of the memory masked by this.
+	vector<gate3> masked;
+	for (int i = 0; i < MEM_SIZE; i++) {
+	  gate3 mask{correct[i], correct[i], correct[i]};
+	  gate3 src{mem_in[3 * i + 0],
+		    mem_in[3 * i + 1],
+		    mem_in[3 * i + 2]};
+	  masked.push_back(And3(src, mask));
+	}
+
+	gate3 result{0, 0, 0};
+	for (int i = 0; i < MEM_SIZE; i++) {
+	  result = Or3(result, masked[i]);
+	}
+	return result;
+#endif
+      };
+
+    WriteAddr3d(full_addr,
+		// Store back the load value (from the same
+		// address!) if addr_count_active is false,
+		// or the instruction is not STORE.
+		// This is then an expensive no-op.
+		Ifb3(Andb(addr_count_active,
+			  Eq3(op, Literal3(Binary3(STORE)))),
+		     ab_value,
+		     load_value));
+    
+    /*
+    
+    // Update registers. They can get the new value
+    // or persist their current one.
+    A = (reg.Bits() & 0b100) ? A : ab_value_out;
+    B = (reg.Bits() & 0b100) ? ab_value_out : B;
+    C = ((reg.Bits() & 0b100) && op.Bits() == STASH) ? C : reg_value;
+    Z = ((reg.Bits() & 0b100) && op.Bits() == STASH) ? reg_value : Z;
+    
+    // Update memory. Really MEM_SIZE of these in parallel.
+    for (int i = 0; i < MEM_SIZE; i++) {
+      MEM[i] = (full_addr == i && ADDR_COUNT == 0 && op.Bits() == 0b100) ?
+	ab_value : MEM[i];
+    }
+
+    // Update instruction pointer if necessary.
+    IP = (op.Bits() == JMP && ADDR_COUNT == 0 && ab_value.IsFinite()) ?
+      ADDR : IP;
+    */
+
+    /*
+    // .. and internal address value.
+    ADDR = (op.Bits() == LOAD ||
+	    op.Bits() == STORE ||
+	    op.Bits() == JMP) ? full_addr : ADDR;
+    */
+    
+    // Sanity check: no forward references.
+    // Early gates will have inputs set to 0, which is fine since
+    // they are not real gates and because values[0] will be false
+    // in initialization.
+    for (int i = 0; i < gates.size(); i++) {
+      CHECK(gates[i].src_a == 0 || gates[i].src_a < i);
+      CHECK(gates[i].src_b == 0 || gates[i].src_b < i);
+    }
   }
 
   #if 0
@@ -761,11 +892,11 @@ public:
 	switch (op.Bits()) {
 	case PLUS: // Plus
 	  return plus_value;
-	case 0b001: // Minus
+	case MINUS: // Minus
 	  return minus_value;
-	case 0b010: // Max
+	case MAX: // Max
 	  return max_value;
-	case 0b011: // Load
+	case LOAD: // Load
 	  return (ADDR_COUNT == 0) ? load_value : ab_value;
 	default:
 	  // No change.
