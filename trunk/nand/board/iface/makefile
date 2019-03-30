@@ -1,9 +1,18 @@
-default : piface.exe
-all : testnand.exe piface.exe
+default : nandy.exe
+all : testnand.exe nandy.exe piface.exe
 
-CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O2 --std=c++14 -I ../../../cc-lib  -DPSS_STYLE=1 -I ../../../cc-lib/pi
+
+CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O2 --std=c++14 -I ../../../cc-lib   -I ../../../cc-lib/pi
+
 # XXX for windows
-LFLAGS=-static -lpthread
+PLATFORMCFLAGS= -D__MINGW32__ -DHAVE_ALLOCA  -D_WIN32_WINNT=0x0602 -D_GLIBCXX_HAS_GTHREADS -mthreads
+PLATFORMLINK=-Wl,--subsystem,console -L.
+CXX=x86_64-w64-mingw32-g++
+CC=x86_64-w64-mingw32-gcc
+
+
+CPPFLAGS=-m64 $(INCLUDES) $(PLATFORMCFLAGS) $(SYMBOLS)
+LFLAGS=-m64 -mthreads -lwinpthread -lpsapi -static $(PLATFORMLINK)
 
 %.o : %.cc *.h
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
@@ -18,7 +27,10 @@ ALL_CCLIB_OBJECTS=$(CCLIB_OBJECTS) ../../../cc-lib/stb_image_write.o ../../../cc
 CCLIB_PI_OBJECTS=../../../cc-lib/pi/bcm2835.o
 
 testnand.exe : testnand.o $(CCLIB_PI_OBJECTS) $(CCLIB_OBJECTS)
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(LFLAGS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ -o $@ $(LFLAGS)
+
+nandy.exe : nandy.o $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
 
 piface.exe : piface.o $(CCLIB_PI_OBJECTS) $(CCLIB_OBJECTS)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LFLAGS)
