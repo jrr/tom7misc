@@ -17,6 +17,10 @@
 
 //  011 load    A|B <- [reg + lit]   (or A + reg + lit?)
 //  100 store   [reg + lit] <- A|B
+//
+//  101 stash   C|Z <- reg + lit
+//  110 jump to addr:reg+lit if A|B is finite
+//  111 NOP
 
 // For load and store, you are computing a point in D-dimensional
 // space, where each axis can take on the 8 values of binary3 numbers.
@@ -39,6 +43,10 @@
 #include <cstdint>
 #include <vector>
 
+#include "arcfour.h"
+#include "image.h"
+#include "md5.h"
+
 using namespace std;
 using uint8 = uint8_t;
 using uint64 = uint64_t;
@@ -50,6 +58,19 @@ public:
   uint8_t Bits() const { return bits; }
 
   static constexpr Binary3 Plus(Binary3 a, Binary3 b);
+  static constexpr Binary3 Minus(Binary3 a, Binary3 b);
+  static constexpr Binary3 Max(Binary3 a, Binary3 b);
+  bool IsFinite() const {
+    switch (bits) {
+    case 0b000:
+    case 0b001:
+    case 0b100:
+    case 0b101:
+      return true;
+    default:
+      return false;
+    }
+  }
   
 private:
   // Representation invariant: only low 3 bits can be 1.
@@ -161,6 +182,177 @@ constexpr Binary3 Binary3::Plus(Binary3 a, Binary3 b) {
 }
 
 
+constexpr Binary3 Binary3::Minus(Binary3 a, Binary3 b) {
+  switch ((a.bits << 3) | b.bits) {
+  default:
+    // 0 - x = x
+  case 0b0'000'000: /* Zero */ return Zero;
+  case 0b0'000'001: /* One */ return NegOne;
+  case 0b0'000'010: /* Inf */ return NegInf;
+  case 0b0'000'011: /* Nan */ return Nan;
+  case 0b0'000'100: /* NegZero */ return Zero;
+  case 0b0'000'101: /* NegOne */ return One;
+  case 0b0'000'110: /* NegInf */ return Inf;
+  case 0b0'000'111: /* NegNan */ return NegNan;
+
+    // 1 - x...
+  case 0b0'001'000: /* Zero */ return One;
+  case 0b0'001'001: /* One */ return Zero;
+  case 0b0'001'010: /* Inf */ return NegInf;
+  case 0b0'001'011: /* Nan */ return Nan;
+  case 0b0'001'100: /* NegZero */ return One;
+  case 0b0'001'101: /* NegOne */ return Inf;
+  case 0b0'001'110: /* NegInf */ return Inf;
+  case 0b0'001'111: /* NegNan */ return NegNan;
+
+    // Inf - x ...
+  case 0b0'010'000: /* Zero */ return Inf;
+  case 0b0'010'001: /* One */ return Inf;
+  case 0b0'010'010: /* Inf */ return Nan;
+  case 0b0'010'011: /* Nan */ return Nan;
+  case 0b0'010'100: /* NegZero */ return Inf;
+  case 0b0'010'101: /* NegOne */ return Inf;
+  case 0b0'010'110: /* NegInf */ return Inf;
+  case 0b0'010'111: /* NegNan */ return NegNan;
+
+    // Nan - x ...
+  case 0b0'011'000: /* Zero */ return Nan;
+  case 0b0'011'001: /* One */ return Nan;
+  case 0b0'011'010: /* Inf */ return Nan;
+  case 0b0'011'011: /* Nan */ return Nan;
+  case 0b0'011'100: /* NegZero */ return Nan;
+  case 0b0'011'101: /* NegOne */ return Nan;
+  case 0b0'011'110: /* NegInf */ return Nan;
+  case 0b0'011'111: /* NegNan */ return Nan;
+
+    // -0 - x ...
+  case 0b0'100'000: /* Zero */ return NegZero;
+  case 0b0'100'001: /* One */ return NegOne;
+  case 0b0'100'010: /* Inf */ return NegInf;
+  case 0b0'100'011: /* Nan */ return Nan;
+  case 0b0'100'100: /* NegZero */ return Zero;
+  case 0b0'100'101: /* NegOne */ return One;
+  case 0b0'100'110: /* NegInf */ return Inf;
+  case 0b0'100'111: /* NegNan */ return NegNan;
+
+    // -1 - x ...
+  case 0b0'101'000: /* Zero */ return NegOne;
+  case 0b0'101'001: /* One */ return NegInf;
+  case 0b0'101'010: /* Inf */ return NegInf;
+  case 0b0'101'011: /* Nan */ return Nan;
+  case 0b0'101'100: /* NegZero */ return NegOne;
+  case 0b0'101'101: /* NegOne */ return Zero;
+  case 0b0'101'110: /* NegInf */ return Inf;
+  case 0b0'101'111: /* NegNan */ return NegNan;
+
+    // -inf - x ...
+  case 0b0'110'000: /* Zero */ return NegInf;
+  case 0b0'110'001: /* One */ return NegInf;
+  case 0b0'110'010: /* Inf */ return NegInf;
+  case 0b0'110'011: /* Nan */ return Nan;
+  case 0b0'110'100: /* NegZero */ return NegInf;
+  case 0b0'110'101: /* NegOne */ return NegInf;
+  case 0b0'110'110: /* NegInf */ return Nan;
+  case 0b0'110'111: /* NegNan */ return NegNan;
+
+    // -nan - x ...
+  case 0b0'111'000: /* Zero */ return NegNan;
+  case 0b0'111'001: /* One */ return NegNan;
+  case 0b0'111'010: /* Inf */ return NegNan;
+  case 0b0'111'011: /* Nan */ return Nan;
+  case 0b0'111'100: /* NegZero */ return NegNan;
+  case 0b0'111'101: /* NegOne */ return NegNan;
+  case 0b0'111'110: /* NegInf */ return NegNan;
+  case 0b0'111'111: /* NegNan */ return NegNan;
+  }
+}
+
+constexpr Binary3 Binary3::Max(Binary3 a, Binary3 b) {
+  switch ((a.bits << 3) | b.bits) {
+  default:
+    // max(0, x)
+  case 0b0'000'000: /* Zero */ return Zero;
+  case 0b0'000'001: /* One */ return One;
+  case 0b0'000'010: /* Inf */ return Inf;
+  case 0b0'000'011: /* Nan */ return Zero;
+  case 0b0'000'100: /* NegZero */ return Zero;
+  case 0b0'000'101: /* NegOne */ return Zero;
+  case 0b0'000'110: /* NegInf */ return Zero;
+  case 0b0'000'111: /* NegNan */ return Zero;
+
+    // max(1, x)
+  case 0b0'001'000: /* Zero */ return One;
+  case 0b0'001'001: /* One */ return One;
+  case 0b0'001'010: /* Inf */ return Inf;
+  case 0b0'001'011: /* Nan */ return One;
+  case 0b0'001'100: /* NegZero */ return One;
+  case 0b0'001'101: /* NegOne */ return One;
+  case 0b0'001'110: /* NegInf */ return One;
+  case 0b0'001'111: /* NegNan */ return One;
+
+    // max(Inf, x)
+  case 0b0'010'000: /* Zero */ return Inf;
+  case 0b0'010'001: /* One */ return Inf;
+  case 0b0'010'010: /* Inf */ return Inf;
+  case 0b0'010'011: /* Nan */ return Inf;
+  case 0b0'010'100: /* NegZero */ return Inf;
+  case 0b0'010'101: /* NegOne */ return Inf;
+  case 0b0'010'110: /* NegInf */ return Inf;
+  case 0b0'010'111: /* NegNan */ return Inf;
+
+    // max(Nan, x)
+  case 0b0'011'000: /* Zero */ return Zero;
+  case 0b0'011'001: /* One */ return One;
+  case 0b0'011'010: /* Inf */ return Inf;
+  case 0b0'011'011: /* Nan */ return Nan;
+  case 0b0'011'100: /* NegZero */ return NegZero;
+  case 0b0'011'101: /* NegOne */ return NegOne;
+  case 0b0'011'110: /* NegInf */ return NegInf;
+  case 0b0'011'111: /* NegNan */ return Nan;
+
+    // max(-0, x)
+  case 0b0'100'000: /* Zero */ return Zero;
+  case 0b0'100'001: /* One */ return One;
+  case 0b0'100'010: /* Inf */ return Inf;
+  case 0b0'100'011: /* Nan */ return NegZero;
+  case 0b0'100'100: /* NegZero */ return NegZero;
+  case 0b0'100'101: /* NegOne */ return NegZero;
+  case 0b0'100'110: /* NegInf */ return NegZero;
+  case 0b0'100'111: /* NegNan */ return NegZero;
+
+    // max(-1, x)
+  case 0b0'101'000: /* Zero */ return Zero;
+  case 0b0'101'001: /* One */ return One;
+  case 0b0'101'010: /* Inf */ return Inf;
+  case 0b0'101'011: /* Nan */ return NegOne;
+  case 0b0'101'100: /* NegZero */ return NegZero;
+  case 0b0'101'101: /* NegOne */ return NegOne;
+  case 0b0'101'110: /* NegInf */ return NegOne;
+  case 0b0'101'111: /* NegNan */ return NegOne;
+
+    // max(-inf, x)
+  case 0b0'110'000: /* Zero */ return Zero;
+  case 0b0'110'001: /* One */ return One;
+  case 0b0'110'010: /* Inf */ return Inf;
+  case 0b0'110'011: /* Nan */ return NegInf;
+  case 0b0'110'100: /* NegZero */ return NegZero;
+  case 0b0'110'101: /* NegOne */ return NegOne;
+  case 0b0'110'110: /* NegInf */ return NegInf;
+  case 0b0'110'111: /* NegNan */ return NegInf;
+
+    // max(-nan, x)
+  case 0b0'111'000: /* Zero */ return Zero;
+  case 0b0'111'001: /* One */ return One;
+  case 0b0'111'010: /* Inf */ return Inf;
+  case 0b0'111'011: /* Nan */ return Nan;
+  case 0b0'111'100: /* NegZero */ return NegZero;
+  case 0b0'111'101: /* NegOne */ return NegOne;
+  case 0b0'111'110: /* NegInf */ return NegInf;
+  case 0b0'111'111: /* NegNan */ return NegNan;
+  }
+}
+
+
 // Compile-time integer power, for small exponents.
 static constexpr IPow(int base, int exponent) {
   return (exponent == 0) ? 1 : base * IPow(base, exponent - 1);
@@ -171,21 +363,55 @@ public:
   // Could be a template parameter, but for simplicity...
   static constexpr int D = 4;
   static constexpr int MEM_SIZE = IPow(8, D);
-
-  using Binary3D = uint16_t;
-  static_assert(3 * D <= sizeof(Binary3D * 8),
-		"need an integral type that's big enough for this");
   
-  Binary3 Z = Zero, A = Zero, B = Zero, C = Zero;
+  using Binary3D = uint16_t;
+  static constexpr Binary3D MASK_3D = IPow(8, D) - 1;
+
+  static_assert(3 * D <= sizeof(Binary3D) * 8,
+		"need an integral type that's big enough for this");
+
+  static constexpr uint8 PLUS  = 0b000;
+  static constexpr uint8 MINUS = 0b001;
+  static constexpr uint8 MAX   = 0b010;
+  static constexpr uint8 LOAD  = 0b011;
+  static constexpr uint8 STORE = 0b100;
+  static constexpr uint8 STASH = 0b101;
+  static constexpr uint8 JMP   = 0b110;
+  static constexpr uint8 NOP   = 0b111;
+  
+  
+  Binary3 Z = NegZero, A = NegZero, B = NegZero, C = NegZero;
   // "Big-endian"
   Binary3D IP = 0LL;
 
+  // For load, store, and jump, we have an address that we can shift
+  // bits into.
   // "Big-endian"
   Binary3D ADDR = 0LL;
-  int addr_count = 0;
+  // XXX Actually just need enough bits to store up to D.
+  Binary3D ADDR_COUNT = 0;
   
   std::vector<Binary3> mem;
 
+  std::vector<Binary3> GetState() const {
+    std::vector<Binary3> state;
+    state.reserve(D + D + D + 4 + MEM_SIZE);
+    auto Add3D = [&](Binary3D b) {
+	for (int i = D - 1; i >= 0; i--) {
+	  state.push_back(Binary3((b >> (i * 3)) & 0b111));
+	}
+      };
+    Add3D(IP);
+    Add3D(ADDR);
+    Add3D(ADDR_COUNT);
+    state.push_back(Z);
+    state.push_back(A);
+    state.push_back(B);
+    state.push_back(C);
+    for (Binary3 b : mem) state.push_back(b);
+    return state;
+  }
+  
   Nandy() {
     // Initialize memory to NAN.
     mem.reserve(MEM_SIZE);
@@ -201,28 +427,13 @@ public:
     // addressing here, since you need it to be auto-incremented.
     // (I guess maybe you could have the "instruction pointer" be
     // a D-dimensional vector. It would get pretty crazy..?)
-
-    static_assert(3 * D <= 64, "want to use uint64 for this");
-    uint64 ip = 0ULL;
-    for (int i = 0; i < D; i++) {
-      ip <<= 3;
-      ip |= IP[i].Bits();
-    }
-
-    // Overflow OK; we want wrap-around semantics.
-    Binary3 ins = mem[ip];
-    ip++;
-
-    // And put it back.
-    for (int i = D - 1; i >= 0; i--) {
-      IP[i] = Binary3(ip & 0b111);
-      ip >>= 3;
-    }
-
+    const Binary3 ins = mem[IP];
+    IP++;
+    IP &= MASK_3D;
     return ins;
   }
   
-  Step() {
+  void Step() {
     // All instructions consist of op/reg/lit fields, each 3 bits.
     const Binary3 op = GetNextInstruction();
     const Binary3 reg = GetNextInstruction();
@@ -244,28 +455,112 @@ public:
     // The address part we would shift into when doing a load
     // or store.
     const Binary3 addr_part = Binary3::Plus(reg_value, lit);
-    const Binary3 full_addr = 
-    
-    
-    switch (op.Bits()) {
-    case 0b000:
-      
-    case 0b001:
-    case 0b010:
-    case 0b011:
-    case 0b100:
-    case 0b101:
-    case 0b110:
-    case 0b111:
+    const Binary3D full_addr = ((ADDR << 3) & MASK_3D) | addr_part.Bits();
+    // The value at the loaded memory address.
+    const Binary3 load_value = mem[full_addr];
 
-      break;
+    // Can reuse addr_part instead of computing it again.
+    const Binary3 plus_value = Binary3::Plus(ab_value, addr_part);
+    const Binary3 minus_value =
+      Binary3::Minus(ab_value, Binary3::Minus(reg_value, lit));
+    const Binary3 max_value =
+      Binary3::Max(ab_value, Binary3::Max(reg_value, lit));
+
+    // If load, store, or jump, advance address count.
+    ADDR_COUNT = (op.Bits() == LOAD ||
+		  op.Bits() == STORE ||
+		  op.Bits() == JMP) ? (ADDR_COUNT + 1) % D : ADDR_COUNT;
+    // .. and internal address value.
+    ADDR = (op.Bits() == LOAD ||
+	    op.Bits() == STORE ||
+	    op.Bits() == JMP) ? full_addr : ADDR;
+    
+    // Value written to a|b.
+    const Binary3 ab_value_out = [&]() {
+	switch (op.Bits()) {
+	case PLUS: // Plus
+	  return plus_value;
+	case 0b001: // Minus
+	  return minus_value;
+	case 0b010: // Max
+	  return max_value;
+	case 0b011: // Load
+	  return (ADDR_COUNT == 0) ? load_value : ab_value;
+	default:
+	  // No change.
+	  return ab_value;
+	}
+      }();
+    
+    // Update registers. They can get the new value
+    // or persist their current one.
+    A = (reg.Bits() & 0b100) ? A : ab_value_out;
+    B = (reg.Bits() & 0b100) ? ab_value_out : B;
+    C = ((reg.Bits() & 0b100) && op.Bits() == STASH) ? C : reg_value;
+    Z = ((reg.Bits() & 0b100) && op.Bits() == STASH) ? reg_value : Z;
+    
+    // Update memory. Really MEM_SIZE of these in parallel.
+    for (int i = 0; i < MEM_SIZE; i++) {
+      mem[i] = (full_addr == i && ADDR_COUNT == 0 && op.Bits() == 0b100) ?
+	ab_value : mem[i];
     }
+
+    // Update instruction pointer if necessary.
+    IP = (op.Bits() == JMP && ADDR_COUNT == 0 && ab_value.IsFinite()) ?
+      ADDR : IP;
   }
   
 };
 
-int main(int argc, char **argv) {
+#define SAVE_IMAGE 0
+
+void TestNandy() {
+  ArcFour rc{"nandy"};
+  auto Rand3 = [&rc]() { return Binary3(rc.Byte() & 0b111); };
   Nandy nandy;
-  nandy.Step();
+  for (int i = 0; i < Nandy::MEM_SIZE; i++) {
+    nandy.mem[i] = Rand3();
+  }
+  
+  static constexpr int NUM_STEPS = 2048;
+  const int width = nandy.GetState().size();
+# if SAVE_IMAGE
+  const int height = NUM_STEPS;
+  ImageRGBA image(width, height);
+# endif
+  
+  string trace = "start";
+  trace.reserve(48 + width);
+  for (int y = 0; y < NUM_STEPS; y++) {
+    nandy.Step();
+    vector<Binary3> row = nandy.GetState();
+    for (int x = 0; x < row.size(); x++) {
+      uint8 rgb = row[x].Bits();
+#     if SAVE_IMAGE
+      image.SetPixel(x, y,
+		     rgb & 0b100 ? 255 : 0,
+		     rgb & 0b010 ? 255 : 0,
+		     rgb & 0b001 ? 255 : 0,
+		     255);
+#     endif
+      trace.push_back('0' + rgb);
+    }
+    trace = MD5::Ascii(MD5::Hash(trace));
+  }
+
+# if SAVE_IMAGE
+  image.Save("nandy-trace.png");
+# endif
+
+  printf("Trace hash: %s\n", trace.c_str());
+  CHECK_EQ(trace, "19341ca6ce648ff081d127643a8d0c15");
+}
+
+int main(int argc, char **argv) {
+  // Nandy nandy;
+  // nandy.Step();
+
+  TestNandy();
+  
   return 0;
 }
