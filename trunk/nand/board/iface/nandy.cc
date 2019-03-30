@@ -6,42 +6,14 @@
 // The first three bits are the opcode, the second describe the
 // addressing, and the third a literal.
 
-// Addressing is: 1 bit to choose A or B
-// 2 bits to choose reg = Z,A,B,C
-// A|B <- op(A|B, reg, lit)
-
-// ops are
-//  000 +
-//  001 -
-//  010 max
-
-//  011 load    A|B <- [reg + lit]   (or A + reg + lit?)
-//  100 store   [reg + lit] <- A|B
-//
-//  101 stash   C|Z <- reg + lit
-//  110 jump to addr:reg+lit if A|B is finite
-//  111 NOP
-
-// For load and store, you are computing a point in D-dimensional
-// space, where each axis can take on the 8 values of binary3 numbers.
-// So there are 8^D storage locations. (I guess instructions can
-// also come from this same memory, as consecutive triples. Annoying
-// that 3 doesn't divide 8, then.)
-// There is an internal shift register (which starts as D*3 0s), and
-// the first D-1 calls to load/store are just shifting into this
-// register, but not actually performing the load. The Dth call
-// shifts and then does it.
-
-//  101 something that allows writing to C
-//  110 some way to do (conditional) control flow
-//  111 I/O? (for example print A + reg + lit, three bits)
-//      (or just memory-mapped IO)
-
-// or if  C can't be written, then it just always contains NaN maybe?
-// or Z = +0 and C = -0 for no good reason?
+// See below for the canonical semantics; the old comment was out
+// of date!
 
 #include <cstdint>
 #include <vector>
+#include <tuple>
+#include <deque>
+#include <functional>
 
 #include "arcfour.h"
 #include "image.h"
@@ -391,7 +363,7 @@ public:
   // XXX Actually just need enough bits to store up to D.
   Binary3D ADDR_COUNT = 0;
   
-  std::vector<Binary3> mem;
+  std::vector<Binary3> MEM;
 
   std::vector<Binary3> GetState() const {
     std::vector<Binary3> state;
@@ -408,14 +380,14 @@ public:
     state.push_back(A);
     state.push_back(B);
     state.push_back(C);
-    for (Binary3 b : mem) state.push_back(b);
+    for (Binary3 b : MEM) state.push_back(b);
     return state;
   }
   
   Nandy() {
     // Initialize memory to NAN.
-    mem.reserve(MEM_SIZE);
-    for (int i = 0; i < MEM_SIZE; i++) mem.push_back(Nan);
+    MEM.reserve(MEM_SIZE);
+    for (int i = 0; i < MEM_SIZE; i++) MEM.push_back(Nan);
   }
 
   // This just gets the next binary3 word; we will fetch three
@@ -427,11 +399,320 @@ public:
     // addressing here, since you need it to be auto-incremented.
     // (I guess maybe you could have the "instruction pointer" be
     // a D-dimensional vector. It would get pretty crazy..?)
-    const Binary3 ins = mem[IP];
+    const Binary3 ins = MEM[IP];
     IP++;
     IP &= MASK_3D;
     return ins;
   }
+
+  struct Gate {
+    Gate() {}
+    Gate(int src_a, int src_b) : src_a(src_a), src_b(src_b) {}
+    int src_a = 0, src_b = 0;
+  };
+
+  // Same as above, using only nand ("NAN") gates.
+  // This is just a transformation of the entire state (no latches,
+  // clock, flip-flops, etc.). The execution model is that we have
+  // some N bits; the first two are set to constants 0 and 1 respectively,
+  // then the next K are initialized with the current state,
+  // and the remainder are defined as a nand of a pair of bits from
+  // *earlier* in the bit vector. The final K bits become the state
+  // for the next round.
+  static void MakeNandwork() {
+    // We never actually look at the first K+2 gates' sources, but
+    // this is easiest to think about if it's aligned with the values
+    // array.
+    // First 2 gates are built-in 0 and 1.
+    vector<Gate> gates(2);
+
+    // bool
+    using gateb = int;
+    using gate3 = std::tuple<int, int, int>;
+    // often contiguous, but not always. Has length 3*D.
+    using gate3d = std::vector<int>;
+    // no conventional length.
+    using gaten = std::vector<int>; 
+    
+    auto Place3 = [&]() {
+	int idx = gates.size();
+	gates.emplace_back();
+	gates.emplace_back();
+	gates.emplace_back();
+	return gate3(idx, idx + 1, idx + 2);
+      };
+
+    auto PlaceN = [&](int n) {
+	vector<int> idxes;
+	for (int i = 0; i < n; i++) {
+	  idxes.push_back(gates.size());
+	  gates.emplace_back();
+	}
+	return idxes;
+      };
+    
+    auto Place3D = [&]() { return PlaceN(D * 3); };
+    
+    gate3 z_in = Place3();
+    gate3 a_in = Place3();
+    gate3 b_in = Place3();
+    gate3 c_in = Place3();
+
+    gate3d ip_in = Place3D();
+    gate3d addr_in = Place3D();
+
+    // for the address count, we use unary
+    gaten addr_count_in = PlaceN(D);
+    
+    // And then the memory is most of the space.
+    gaten mem_in = PlaceN(MEM_SIZE * 3);
+
+    printf("[input state = K + 2] Total gates: %d\n",
+	   (int)gates.size());
+    
+    // PERF reserve the fixed size ahead of time.
+
+    // The vector consists just of bits, but we have some higher-level
+    // structure to them. We can allocate and name a single bit,
+    // or a trio of them (e.g. representing a binary3 number); then
+    // we have a trio of bit addresses. Finally, a Binary3D number,
+    // which is D * 3 bits.
+
+    // TODO: Read and increment instructions.
+
+    // Where 0 is the MSB.
+    auto Binary3DGetBit = [](Binary3D value, int i) {
+	return (value >> ((D - i) - 1)) & 1;
+      };
+    
+    auto Nandb = [&](gateb a, gateb b) -> gateb {
+	// TODO PERF peephole
+	const int idx = gates.size();
+	gates.emplace_back(a, b);
+	return idx;
+    };
+
+    auto Notb = [&](gateb a) -> gateb {
+	// TODO PERF peephole
+	const int idx = gates.size();
+	gates.emplace_back(a, a);
+	return idx;
+      };
+    
+    auto Orb = [&](gateb a, gateb b) -> gateb {
+	// TODO: Simple peephole optimizations if a == 1 or 0, etc.
+	gateb nota = Notb(a);
+	gateb notb = Notb(b);
+	return Nandb(nota, notb);
+      };
+
+    auto Andb = [&](gateb a, gateb b) -> gateb {
+	// TODO: Simple peephole optimizations if a == 1 or 0, etc.
+	gateb g = Nandb(a, b);
+	return Notb(g);
+      };
+
+    auto Xorb = [&](gateb a, gateb b) -> gateb {
+	gateb g = Nandb(a, b);
+	gateb ga = Nandb(a, g);
+	gateb gb = Nandb(b, g);
+	return Nandb(ga, gb);
+      };
+    
+    // Same as "XNOR"
+    auto Eqb = [&](gateb a, gateb b) -> gateb {
+	gateb nota = Notb(a);
+	gateb notb = Notb(b);
+	return Nandb(Nandb(a, b), Nandb(nota, notb));
+      };
+    
+    auto LiteralEq3D = [&](gate3d v, Binary3D literal) -> gateb {
+	CHECK(v.size() == 3 * D);
+	gateb alleq = 1;
+	for (int i = 0; i < 3 * D; i++) {
+	  alleq = Andb(alleq, Eqb(v[i], Binary3DGetBit(literal, i)));
+	}
+	return alleq;
+      };
+
+    auto And3 = [&](gate3 a, gate3 b) -> gate3 {
+	return gate3(Andb(std::get<0>(a), std::get<0>(b)),
+		     Andb(std::get<1>(a), std::get<1>(b)),
+		     Andb(std::get<2>(a), std::get<2>(b)));
+      };
+
+    auto Or3 = [&](gate3 a, gate3 b) -> gate3 {
+	return gate3(Orb(std::get<0>(a), std::get<0>(b)),
+		     Orb(std::get<1>(a), std::get<1>(b)),
+		     Orb(std::get<2>(a), std::get<2>(b)));
+      };
+
+    // Read 3 bits from mem, at the 3*D bit address.
+    // PERF: This is a pretty intense way to do this.
+    // PERF: One easy optimization would be to compute
+    // the 'correct' bit just once for the sequence of
+    // three loads below; then just reference it offset
+    // (modulo the memory size) for the two that come
+    // after.
+    auto ReadAddr3d = [&](gate3d addr) {
+	CHECK(addr.size() == 3 * D);
+	// Generate a new memory, which contains zeroes everywhere
+	// except the indicated address.
+
+	// First, a bit mask indicating which address is correct.
+	vector<gateb> correct;
+	for (int i = 0; i < MEM_SIZE; i++) {
+	  correct.push_back(LiteralEq3D(addr, i));
+	}
+
+	// Then, a copy of the memory masked by this.
+	vector<gate3> masked;
+	for (int i = 0; i < MEM_SIZE; i++) {
+	  gate3 mask{correct[i], correct[i], correct[i]};
+	  gate3 src{mem_in[3 * i + 0],
+		    mem_in[3 * i + 1],
+		    mem_in[3 * i + 2]};
+	  masked.push_back(And3(src, mask));
+	}
+
+	gate3 result{0, 0, 0};
+	for (int i = 0; i < MEM_SIZE; i++) {
+	  result = Or3(result, masked[i]);
+	}
+	return result;
+      };
+
+    auto DeqVec = [](std::deque<int> d) {
+	vector<int> ret;
+	for (int i : d) ret.push_back(i);
+	return ret;
+      };
+
+    auto Increment3d = [&](gate3d x) {
+	// Incremeting works its way from lsb to msb.
+	// We have a carry, which starts as 1. The
+	// output bit is Xor(carry, bit), and then
+	// carry is And(carry, bit).
+	gateb carry = 1;
+
+	// So we can push_front.
+	deque<int> out;
+	for (int i = 0; i < 3 * D; i++) {
+	  gateb bit = Xorb(carry, bit);
+	  out.push_front(bit);
+	  // PERF final carry value not used.
+	  carry = Andb(carry, bit);
+	}
+
+	return DeqVec(out);
+      };
+    
+    gate3 op = ReadAddr3d(ip_in);
+    gate3d ip2 = Increment3d(ip_in);
+    gate3 reg = ReadAddr3d(ip2);
+    gate3d ip3 = Increment3d(ip2);
+    gate3 lit = ReadAddr3d(ip3);
+    // Not ip_out, since we may jump.
+    gate3d ip4 = Increment3d(ip3);
+
+    // 1.2 million gates to read the current instruction......!
+    
+    printf("[read instruction, increment IP] Total gates: %d\n",
+	   (int)gates.size());
+
+    // This is just a bit in the instruction we can use directly.
+    gateb use_reg_b = std::get<0>(reg);
+
+    // if cond is true, then a, else b.
+    auto Ifb3 = [&](gateb cond, gate3 a, gate3 b) -> gate3 {
+	gateb ncond = Notb(cond);
+	return Or3(And3(gate3{cond, cond, cond}, a),
+		   And3(gate3{ncond, ncond, ncond}, b));
+      };
+    
+    gate3 ab_value = Ifb3(use_reg_b, b_in, a_in);
+    gate3 reg_value =
+      Ifb3(std::get<1>(reg),
+	   // Z or A,
+	   Ifb3(std::get<2>(reg), z_in, a_in),
+	   // B or C
+      	   Ifb3(std::get<2>(reg), b_in, c_in));
+
+    auto Literal3 = [&](Binary3 v) {
+	uint8 b = v.Bits();
+	return gate3((b & 0b100) ? 1 : 0,
+		     (b & 0b010) ? 1 : 0,
+		     (b & 0b001) ? 1 : 0);
+      };
+    
+    auto Tabled = [&](Binary3 (*f)(Binary3, Binary3), gate3 a, gate3 b) {
+	// TODO PERF: Opportunities to optimize this significantly,
+	// although maybe memoization is actually enough?
+	vector<int> invec = {std::get<0>(a), std::get<1>(a), std::get<2>(a),
+			     std::get<0>(b), std::get<1>(b), std::get<2>(b)};
+	
+	vector<gate3> result;
+	for (int i = 0; i < 64; i++) {
+	  result.push_back(
+	      Literal3((*f)(Binary3(i >> 3), Binary3(i & 0b111))));
+	}
+
+	// Now like we did for reg_value above, test each bit
+	// to split the space in half.
+	std::function<gate3(int, int, int)> Rec =
+	  [&](int input, int idx, int bits_left) -> gate3 {
+	    if (bits_left == 0) {
+	      return gate3{result[input]};
+	    } else {
+	      gate3 one_branch = Rec((input << 1) | 1, idx + 1, bits_left - 1);
+	      gate3 zero_branch = Rec((input << 1) | 0, idx + 1, bits_left - 1);
+	      return Ifb3(invec[idx], one_branch, zero_branch);
+	    }
+	  };
+
+	return Rec(0, 0, 6);
+      };
+
+    // The address part we would shift into when doing a load
+    // or store.
+    gate3 addr_part = Tabled(Binary3::Plus, reg_value, lit);
+
+    // Full address, with this new part shifted in. Note that we
+    // don't even need to do any computation for this; it's just
+    // a renumbering of bits we've already computed.
+    gate3d full_addr;
+    // First 3 bits get shifted off.
+    for (int i = 3; i < 3 * D; i++) full_addr.push_back(addr_in[i]);
+    full_addr.push_back(std::get<0>(addr_part));
+    full_addr.push_back(std::get<1>(addr_part));
+    full_addr.push_back(std::get<2>(addr_part));
+
+    // And the value loaded from this address in memory, in case
+    // we do a load.
+
+    gate3 load_value = ReadAddr3d(full_addr);
+    
+    // Note: Can reuse addr_part instead of computing it again.
+    gate3 plus_value = Tabled(Binary3::Plus, ab_value, addr_part);
+    gate3 minus_value =
+      Tabled(Binary3::Minus, ab_value, Tabled(Binary3::Minus, reg_value, lit));
+    gate3 max_value =
+      Tabled(Binary3::Max, ab_value, Tabled(Binary3::Max, reg_value, lit));
+
+    printf("[prep values] Total gates: %d\n",
+	   (int)gates.size());
+
+    
+  }
+
+  #if 0
+      void ExecuteNand() {
+    vector<bool> values(K + 2);
+    values[0] = false;
+    values[1] = true;
+
+    }
+#endif
   
   void Step() {
     // All instructions consist of op/reg/lit fields, each 3 bits.
@@ -457,7 +738,7 @@ public:
     const Binary3 addr_part = Binary3::Plus(reg_value, lit);
     const Binary3D full_addr = ((ADDR << 3) & MASK_3D) | addr_part.Bits();
     // The value at the loaded memory address.
-    const Binary3 load_value = mem[full_addr];
+    const Binary3 load_value = MEM[full_addr];
 
     // Can reuse addr_part instead of computing it again.
     const Binary3 plus_value = Binary3::Plus(ab_value, addr_part);
@@ -501,8 +782,8 @@ public:
     
     // Update memory. Really MEM_SIZE of these in parallel.
     for (int i = 0; i < MEM_SIZE; i++) {
-      mem[i] = (full_addr == i && ADDR_COUNT == 0 && op.Bits() == 0b100) ?
-	ab_value : mem[i];
+      MEM[i] = (full_addr == i && ADDR_COUNT == 0 && op.Bits() == 0b100) ?
+	ab_value : MEM[i];
     }
 
     // Update instruction pointer if necessary.
@@ -519,7 +800,7 @@ void TestNandy() {
   auto Rand3 = [&rc]() { return Binary3(rc.Byte() & 0b111); };
   Nandy nandy;
   for (int i = 0; i < Nandy::MEM_SIZE; i++) {
-    nandy.mem[i] = Rand3();
+    nandy.MEM[i] = Rand3();
   }
   
   static constexpr int NUM_STEPS = 2048;
@@ -560,6 +841,8 @@ int main(int argc, char **argv) {
   // Nandy nandy;
   // nandy.Step();
 
+  Nandy::MakeNandwork();
+  
   TestNandy();
   
   return 0;
