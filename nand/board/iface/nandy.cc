@@ -18,6 +18,9 @@
 #include "arcfour.h"
 #include "image.h"
 #include "md5.h"
+#include "base/stringprintf.h"
+
+#define VERBOSE if (0)
 
 using namespace std;
 using uint8 = uint8_t;
@@ -28,7 +31,14 @@ public:
   Binary3() {}
   explicit constexpr Binary3(uint8_t bits) : bits(bits & 0b111) {}
   uint8_t Bits() const { return bits; }
-
+  string ToString() const {
+    string ret = "...";
+    ret[0] = (bits & 0b100) ? '1' : '0';
+    ret[1] = (bits & 0b010) ? '1' : '0';
+    ret[2] = (bits & 0b001) ? '1' : '0';
+    return ret;
+  }
+  
   static constexpr Binary3 Plus(Binary3 a, Binary3 b);
   static constexpr Binary3 Minus(Binary3 a, Binary3 b);
   static constexpr Binary3 Max(Binary3 a, Binary3 b);
@@ -354,7 +364,7 @@ public:
   
   Binary3 Z = NegZero, A = NegZero, B = NegZero, C = NegZero;
   // "Big-endian"
-  Binary3D IP = 0LL;
+  Binary3D IP = 123; // XXXXXXXXX 0LL;
 
   // For load, store, and jump, we have an address that we can shift
   // bits into.
@@ -384,6 +394,17 @@ public:
     return state;
   }
   
+  string GetStateString() const {
+    string ret;
+    StringAppendF(&ret, "%d/%d/%d:%s|%s|%s|%s:(mem)",
+		  IP, ADDR, ADDR_COUNT,
+		  Z.ToString().c_str(),
+		  A.ToString().c_str(),
+		  B.ToString().c_str(),
+		  C.ToString().c_str());
+    return ret;
+  }
+
   Nandy() {
     // Initialize memory to NAN.
     MEM.reserve(MEM_SIZE);
@@ -407,7 +428,7 @@ public:
 
   // Where 0 is the MSB.
   static constexpr uint8 Binary3DGetBit(Binary3D value, int i) {
-    return (value >> ((D - i) - 1)) & 1;
+    return (value >> (((3 * D) - i) - 1)) & 1;
   }
   
   struct Gate {
@@ -445,6 +466,22 @@ public:
     // MEM_SIZE * 3
     gaten mem_in;
 
+    // Debugging locations.
+    gate3 op;
+    gate3 reg;
+    gate3 lit;
+    gate3d ip2;
+    gate3 reg_value;
+    gate3 ab_value;
+    gate3 addr_part;
+    gate3 load_value;
+
+    gate3 plus_value, minus_value, max_value, ab_value_out;
+    
+    // pure debugging output for binary ops
+    gateb deb00, deb01, deb10, deb11;
+    gate3 deba, debb, debc;
+    
     // Output locations.
     gate3 z_out;
     gate3 a_out;
@@ -514,6 +551,13 @@ public:
   void StepBools(const Nandwork &work, vector<bool> *values) {
     CHECK(values->size() == work.num_inputs);
 
+    /*
+    for (int i = 0; i < 128; i++) {
+      printf("%c", (*values)[i] ? '1' : '0');
+    }
+    printf("\n");
+    */
+    
     for (int i = work.num_inputs; i < work.gates.size(); i++) {
       const Gate &gate = work.gates[i];
       bool a = (*values)[gate.src_a];
@@ -521,6 +565,68 @@ public:
       bool res = !(a && b);
       values->push_back(res);
     }
+
+    auto Get3D = [&](gate3d g) -> Binary3D {
+	CHECK(g.size() == 3 * D);
+	Binary3D res = 0;
+	for (int i : g) {
+	  res <<= 1;
+	  res |= ((*values)[i] ? 0b1 : 0b0);
+	}
+	return res;
+      };
+    
+    // XXX debugging crap
+    auto ToString3 = [&](gate3 g) {
+	const uint8 b =
+	  ((*values)[std::get<0>(g)] ? 0b100 : 0) |
+	  ((*values)[std::get<1>(g)] ? 0b010 : 0) |
+	  ((*values)[std::get<2>(g)] ? 0b001 : 0);
+	return Binary3(b).ToString();
+      };
+
+    VERBOSE
+    printf("Nand ip: %d->%d ADDR %d instruction: %s|%s|%s\n",
+	   Get3D(work.ip_in),
+	   Get3D(work.ip2),
+	   Get3D(work.addr_in),
+	   ToString3(work.op).c_str(),
+	   ToString3(work.reg).c_str(),
+	   ToString3(work.lit).c_str());
+
+    VERBOSE
+    printf("NAND Reg value: %s AB value: %s Addr part: %s Load val: %s\n",
+	   ToString3(work.reg_value).c_str(),
+	   ToString3(work.ab_value).c_str(),
+	   ToString3(work.addr_part).c_str(),
+	   ToString3(work.load_value).c_str());
+
+    VERBOSE
+    printf("NAND plus %s minus %s max %s ab_value_out %s\n",
+	   ToString3(work.plus_value).c_str(),
+	   ToString3(work.minus_value).c_str(),
+	   ToString3(work.max_value).c_str(),
+	   ToString3(work.ab_value_out).c_str());
+
+    VERBOSE
+    printf("Deb\n"
+	   "00: %c\n"
+	   "01: %c\n"
+	   "10: %c\n"
+	   "11: %c\n",
+	   (*values)[work.deb00] ? '1' : '0',
+	   (*values)[work.deb01] ? '1' : '0',
+	   (*values)[work.deb10] ? '1' : '0',
+	   (*values)[work.deb11] ? '1' : '0');
+
+    VERBOSE
+    printf("Deb3\n"
+	   "a: %s\n"
+	   "b: %s\n"
+	   "c: %s\n",
+	   ToString3(work.deba).c_str(),
+	   ToString3(work.debb).c_str(),
+	   ToString3(work.debc).c_str());
   }
 
   void CopyBoolsToState(const Nandwork &work,
@@ -548,7 +654,7 @@ public:
     B = Get3(work.b_out);
     C = Get3(work.c_out);
     IP = Get3D(work.ip_out);
-    ADDR = Get3D(work.ip_out);
+    ADDR = Get3D(work.addr_out);
 
     ADDR_COUNT = [&]() {
 	CHECK(work.addr_count_out.size() == D);
@@ -772,7 +878,7 @@ public:
 	  gateb bit = Xorb(carry, x[i]);
 	  out.push_front(bit);
 	  // PERF final carry value not used.
-	  carry = Andb(carry, bit);
+	  carry = Andb(carry, x[i]);
 	}
 
 	return DeqVec(out);
@@ -787,7 +893,7 @@ public:
     gate3d ip4 = Increment3d(ip3);
 
     // 1.2 million gates to read the current instruction......!
-    
+
     printf("[read instruction, increment IP] Total gates: %d\n",
 	   (int)gates.size());
 
@@ -818,10 +924,10 @@ public:
     gate3 ab_value = Ifb3(use_reg_b, b_in, a_in);
     gate3 reg_value =
       Ifb3(std::get<1>(reg),
-	   // Z or A,
-	   Ifb3(std::get<2>(reg), z_in, a_in),
 	   // B or C
-      	   Ifb3(std::get<2>(reg), b_in, c_in));
+      	   Ifb3(std::get<2>(reg), c_in, b_in),
+	   // Z or A,
+	   Ifb3(std::get<2>(reg), a_in, z_in));
 
     auto Literal3 = [&](Binary3 v) {
 	uint8 b = v.Bits();
@@ -914,19 +1020,19 @@ public:
 	   Ifb3(std::get<1>(op),
 		// 0b01x
 		Ifb3(std::get<2>(op),
-		     // 0b000 = PLUS
-		     plus_value,
-		     // 0b001 = MINUS
-		     minus_value),
-		// 0b00x
-		Ifb3(std::get<2>(op),
-		     // 0b010 = MAX
-		     max_value,
 		     // 0b011 = LOAD
 		     // (but only if addr_count_active)
 		     Ifb3(addr_count_active,
 			  load_value,
-			  ab_value))));
+			  ab_value),
+		     // 0b010 = MAX
+		     max_value),
+		// 0b00x
+		Ifb3(std::get<2>(op),
+		     // 0b001 = MINUS
+		     minus_value,
+		     // 0b000 = PLUS
+		     plus_value)));
 
     
     // Now update memory.
@@ -994,8 +1100,8 @@ public:
 
     gate3d addr_out = Ifb3d(is_addressing, full_addr, addr_in);
 
-    gate3d ip_out = Ifb3d(Andb(Andb(Eq3(op, Literal3(Binary3(JMP))),
-				    addr_count_active),
+    gateb is_jump = Eq3(op, Literal3(Binary3(JMP)));
+    gate3d ip_out = Ifb3d(Andb(Andb(is_jump, addr_count_active),
 			       ab_is_finite),
 			  full_addr,
 			  ip4);
@@ -1012,6 +1118,21 @@ public:
     }
 
     Nandwork work;
+    // This kind of debugging stuff has to happen before copying gates.
+    // Tested: Nand, And, Xorb, Eqb, Orb
+    // work.deb00 = Orb(0, 0);
+    // work.deb01 = Orb(0, 1);
+    // work.deb10 = Orb(1, 0);
+    // work.deb11 = Orb(1, 1);
+    work.deb00 = is_addressing;
+    work.deb01 = LiteralEq3D(ip_in, 2816);
+    work.deb10 = LiteralEq3D(ip_in, 321);
+    work.deb11 = LiteralEq3D(ip_in, 0);
+    
+    work.deba = Tabled(Binary3::Plus, Literal3(Nan), Literal3(Nan));
+    work.debb = Tabled(Binary3::Plus, Literal3(NegNan), Literal3(Inf));
+    work.debc = Tabled(Binary3::Plus, Literal3(NegOne), Literal3(One));
+    
     work.gates = gates;
     work.num_inputs = num_inputs;
     work.zero = 0;
@@ -1026,6 +1147,22 @@ public:
     work.addr_count_in = addr_count_in;
     work.mem_in = mem_in;
 
+    // Debugging
+    work.op = op;
+    work.reg = reg;
+    work.lit = lit;
+    work.ip2 = ip2;
+
+    work.reg_value = reg_value;
+    work.ab_value = ab_value;
+    work.addr_part = addr_part;
+    work.load_value = load_value;
+
+    work.plus_value = plus_value;
+    work.minus_value = minus_value;
+    work.max_value = max_value;
+    work.ab_value_out = ab_value_out;
+    
     // Outputs.
     work.z_out = z_out;
     work.a_out = a_out;
@@ -1049,11 +1186,20 @@ public:
 #endif
   
   void Step() {
+    Binary3D start_ip = IP;
     // All instructions consist of op/reg/lit fields, each 3 bits.
     const Binary3 op = GetNextInstruction();
     const Binary3 reg = GetNextInstruction();
     const Binary3 lit = GetNextInstruction();
 
+    VERBOSE
+    printf("IP: %d. ADDR: %d, Instruction: %s|%s|%s\n",
+	   start_ip,
+	   ADDR,
+	   op.ToString().c_str(),
+	   reg.ToString().c_str(),
+	   lit.ToString().c_str());
+    
     // Not all instructions will use them, but we always compute
     // them for simplicity:
 
@@ -1067,6 +1213,7 @@ public:
 	case 0b11: return C;
 	}
       }();
+    
     // The address part we would shift into when doing a load
     // or store.
     const Binary3 addr_part = Binary3::Plus(reg_value, lit);
@@ -1074,6 +1221,13 @@ public:
     // The value at the loaded memory address.
     const Binary3 load_value = MEM[full_addr];
 
+    VERBOSE
+    printf("Reg value: %s AB value: %s addr part: %s load_value: %s\n",
+	   reg_value.ToString().c_str(),
+	   ab_value.ToString().c_str(),
+	   addr_part.ToString().c_str(),
+	   load_value.ToString().c_str());
+    
     // Can reuse addr_part instead of computing it again.
     const Binary3 plus_value = Binary3::Plus(ab_value, addr_part);
     const Binary3 minus_value =
@@ -1106,6 +1260,14 @@ public:
 	  return ab_value;
 	}
       }();
+
+    VERBOSE
+    printf("plus %s minus %s max %s, ab_value_out: %s\n",
+	   plus_value.ToString().c_str(),
+	   minus_value.ToString().c_str(),
+	   max_value.ToString().c_str(),
+	   ab_value_out.ToString().c_str());
+
     
     // Update registers. They can get the new value
     // or persist their current one.
@@ -1129,8 +1291,7 @@ public:
 
 #define SAVE_IMAGE 0
 
-void TestNandy() {
-  Nandy::Nandwork work = Nandy::MakeNandwork();
+static void TestNandy() {
   ArcFour rc{"nandy"};
   auto Rand3 = [&rc]() { return Binary3(rc.Byte() & 0b111); };
   Nandy nandy;
@@ -1138,6 +1299,73 @@ void TestNandy() {
     nandy.MEM[i] = Rand3();
   }
   
+  static constexpr int NUM_STEPS = 2048;
+  const int width = nandy.GetState().size();
+# if SAVE_IMAGE
+  const int height = NUM_STEPS;
+  ImageRGBA image(width, height);
+# endif
+  
+  string trace = "start";
+  trace.reserve(48 + width);
+  for (int y = 0; y < NUM_STEPS; y++) {
+    nandy.Step();
+    vector<Binary3> row = nandy.GetState();
+    for (int x = 0; x < row.size(); x++) {
+      uint8 rgb = row[x].Bits();
+#     if SAVE_IMAGE
+      image.SetPixel(x, y,
+		     rgb & 0b100 ? 255 : 0,
+		     rgb & 0b010 ? 255 : 0,
+		     rgb & 0b001 ? 255 : 0,
+		     255);
+#     endif
+      trace.push_back('0' + rgb);
+    }
+    trace = MD5::Ascii(MD5::Hash(trace));
+  }
+
+# if SAVE_IMAGE
+  image.Save("nandy-trace.png");
+# endif
+
+  printf("Trace hash: %s\n", trace.c_str());
+  CHECK_EQ(trace, "6dcd0f2d4041009b704ce11d393dce24");
+}
+
+void Test2Nandy() {
+  Nandy::Nandwork work = Nandy::MakeNandwork();
+
+  // Always with the same identical state.
+  auto Initialize = [](Nandy *nandy) {
+      ArcFour rc{"nandy"};
+      auto Rand3 = [&rc]() { return Binary3(rc.Byte() & 0b111); };
+      for (int i = 0; i < Nandy::MEM_SIZE; i++) {
+	nandy->MEM[i] = Rand3();
+      }
+    };
+  
+  Nandy nandy, nandy_nand;
+  Initialize(&nandy);
+  Initialize(&nandy_nand);
+
+  /*
+  CHECK_EQ(nandy.GetStateString(),
+	   nandy_nand.GetStateString());
+  */
+  
+  for (int i = 0; i < 10; i++) {
+    string s1 = nandy.GetStateString();
+    string s2 = nandy_nand.GetStateString();
+    printf("%s <- step\n%s <- step_nand\n",
+	   s1.c_str(), s2.c_str());
+    CHECK_EQ(s1, s2);
+
+    nandy.Step();
+    nandy_nand.StepNand(work);
+  }
+  
+#if 0
   static constexpr int NUM_STEPS = 2048;
   const int width = nandy.GetState().size();
 # if SAVE_IMAGE
@@ -1170,15 +1398,28 @@ void TestNandy() {
 
   printf("Trace hash: %s\n", trace.c_str());
   CHECK_EQ(trace, "6dcd0f2d4041009b704ce11d393dce24");
+#endif
 }
 
+
 int main(int argc, char **argv) {
+  (void)TestNandy;
+  (void)Test2Nandy;
   // Nandy nandy;
   // nandy.Step();
 
+  #if 0
+  Nandy::Binary3D ip = 123;
+  printf("Getbit: ");
+  for (int i = 0; i < 3 * Nandy::D; i++) {
+    printf("%c", Nandy::Binary3DGetBit(ip, i) ? '1' : '0');
+  }
+  printf("\n");
+  #endif
+  
   // Nandy::MakeNandwork();
   
-  TestNandy();
+  Test2Nandy();
   
   return 0;
 }
