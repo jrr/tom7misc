@@ -405,12 +405,93 @@ public:
     return ins;
   }
 
+  // Where 0 is the MSB.
+  static constexpr uint8 Binary3DGetBit(Binary3D value, int i) {
+    return (value >> ((D - i) - 1)) & 1;
+  }
+  
   struct Gate {
     Gate() {}
     Gate(int src_a, int src_b) : src_a(src_a), src_b(src_b) {}
     int src_a = 0, src_b = 0;
   };
 
+  // bool
+  using gateb = int;
+  using gate3 = std::tuple<int, int, int>;
+  // often contiguous, but not always. Has length 3*D.
+  using gate3d = std::vector<int>;
+  // no conventional length.
+  using gaten = std::vector<int>; 
+  
+  struct Nandwork {
+    vector<Gate> gates;
+    // Number of "gates" that are actually input wires. ("K")
+    int num_inputs;
+
+    // Must be set to 0, 1 respectively.
+    gateb zero;
+    gateb one;
+    
+    // Inputs.
+    gate3 z_in;
+    gate3 a_in;
+    gate3 b_in;
+    gate3 c_in;
+    gate3d ip_in;
+    gate3d addr_in;
+    // D
+    gaten addr_count_in;
+    // MEM_SIZE * 3
+    gaten mem_in;
+
+    // Output locations.
+    gate3 z_out;
+    gate3 a_out;
+    gate3 b_out;
+    gate3 c_out;
+    gate3d ip_out;
+    gate3d addr_out;
+    // D
+    gaten addr_count_out;
+    // MEM_SIZE * 3
+    gaten mem_out;
+  };
+
+  // Initialize the vector<bool> with work.num_inputs from the
+  // current state (plus constants).
+  vector<bool> InitializeBools(const Nandwork &work) const {
+    vector<bool> ret;
+    ret.resize(work.num_inputs);
+    ret[0] = 0;
+    ret[1] = 1;
+
+    auto AssignTo3 = [&](gate3 g, Binary3 b) {
+	int x, y, z;
+	std::tie(x, y, z) = g;
+	uint8 bb = b.Bits();
+	ret[x] = !!(bb & 0b100);
+	ret[y] = !!(bb & 0b010);
+	ret[z] = !!(bb & 0b001);
+      };
+    AssignTo3(work.z_in, Z);
+    AssignTo3(work.a_in, A);
+    AssignTo3(work.b_in, B);
+    AssignTo3(work.c_in, C);
+
+    auto AssignTo3D = [&](gate3d g, Binary3D b) {
+	CHECK(g.size() == 3 * D);
+	for (int i = 0; i < 3 * D; i++) {
+	  ret[g[i]] = !!Binary3DGetBit(b, i);
+	}
+      };
+
+    AssignTo3D(work.ip_in, IP);
+    AssignTo3D(work.addr_in, ADDR);
+
+    // TODO: addr_count, mem
+  }
+  
   // Same as above, using only nand ("NAN") gates.
   // This is just a transformation of the entire state (no latches,
   // clock, flip-flops, etc.). The execution model is that we have
@@ -419,21 +500,13 @@ public:
   // and the remainder are defined as a nand of a pair of bits from
   // *earlier* in the bit vector. The final K bits become the state
   // for the next round.
-  static void MakeNandwork() {
+  static Nandwork MakeNandwork() {
     // We never actually look at the first K+2 gates' sources, but
     // this is easiest to think about if it's aligned with the values
     // array.
     // First 2 gates are built-in 0 and 1.
-    vector<Gate> gates(2);
+    vector<Gate> gates;
 
-    // bool
-    using gateb = int;
-    using gate3 = std::tuple<int, int, int>;
-    // often contiguous, but not always. Has length 3*D.
-    using gate3d = std::vector<int>;
-    // no conventional length.
-    using gaten = std::vector<int>; 
-    
     auto Place3 = [&]() {
 	int idx = gates.size();
 	gates.emplace_back();
@@ -452,6 +525,10 @@ public:
       };
     
     auto Place3D = [&]() { return PlaceN(D * 3); };
+
+    // 0 and 1
+    gates.emplace_back();
+    gates.emplace_back();
     
     gate3 z_in = Place3();
     gate3 a_in = Place3();
@@ -467,6 +544,8 @@ public:
     // And then the memory is most of the space.
     gaten mem_in = PlaceN(MEM_SIZE * 3);
 
+    const int num_inputs = gates.size();
+    
     printf("[input state = K + 2] Total gates: %d\n",
 	   (int)gates.size());
     
@@ -479,11 +558,6 @@ public:
     // which is D * 3 bits.
 
     // TODO: Read and increment instructions.
-
-    // Where 0 is the MSB.
-    auto Binary3DGetBit = [](Binary3D value, int i) {
-	return (value >> ((D - i) - 1)) & 1;
-      };
     
     auto Nandb = [&](gateb a, gateb b) -> gateb {
 	// TODO PERF peephole
@@ -637,9 +711,19 @@ public:
 	return Or3(And3(gate3{cond, cond, cond}, a),
 		   And3(gate3{ncond, ncond, ncond}, b));
       };
-
+    
     auto Ifb = [&](gateb cond, gateb a, gateb b) -> gateb {
 	return Orb(Andb(cond, a), Andb(Notb(cond), b));
+      };
+
+    auto Ifb3d = [&](gateb cond, gate3d a, gate3d b) -> gate3d {
+	CHECK(a.size() == 3 * D);
+	CHECK(b.size() == 3 * D);
+	vector<int> out;
+	for (int i = 0; i < 3 * D; i++) {
+	  out.push_back(Ifb(cond, a[i], b[i]));
+	}
+	return out;
       };
     
     gate3 ab_value = Ifb3(use_reg_b, b_in, a_in);
@@ -718,8 +802,7 @@ public:
     gate3 max_value =
       Tabled(Binary3::Max, ab_value, Tabled(Binary3::Max, reg_value, lit));
 
-    printf("[prep values] Total gates: %d\n",
-	   (int)gates.size());
+    printf("[prep values] Total gates: %d\n", (int)gates.size());
 
     // addr_count is just a rotation, but only if is_addressing is true.
     gaten addr_count_out;
@@ -765,66 +848,70 @@ public:
 	// PERF: We probably already have this from the load before.
 	
 	// First, a bit mask indicating which address is correct.
-#if 0
 	vector<gateb> correct;
 	for (int i = 0; i < MEM_SIZE; i++) {
 	  correct.push_back(LiteralEq3D(addr, i));
 	}
 
-	// Then, a copy of the memory masked by this.
-	vector<gate3> masked;
+	// Then, a copy that replaces only the one with the
+	// correct address.
+	
+	vector<int> result;
+	result.reserve(MEM_SIZE * 3);
 	for (int i = 0; i < MEM_SIZE; i++) {
-	  gate3 mask{correct[i], correct[i], correct[i]};
-	  gate3 src{mem_in[3 * i + 0],
+	  gate3 old{mem_in[3 * i + 0],
 		    mem_in[3 * i + 1],
 		    mem_in[3 * i + 2]};
-	  masked.push_back(And3(src, mask));
+
+	  gate3 res = Ifb3(correct[i], value, old);
+	  result.push_back(std::get<0>(res));
+	  result.push_back(std::get<1>(res));
+	  result.push_back(std::get<2>(res));
 	}
 
-	gate3 result{0, 0, 0};
-	for (int i = 0; i < MEM_SIZE; i++) {
-	  result = Or3(result, masked[i]);
-	}
 	return result;
-#endif
       };
 
-    WriteAddr3d(full_addr,
-		// Store back the load value (from the same
-		// address!) if addr_count_active is false,
-		// or the instruction is not STORE.
-		// This is then an expensive no-op.
-		Ifb3(Andb(addr_count_active,
-			  Eq3(op, Literal3(Binary3(STORE)))),
-		     ab_value,
-		     load_value));
-    
-    /*
-    
-    // Update registers. They can get the new value
-    // or persist their current one.
-    A = (reg.Bits() & 0b100) ? A : ab_value_out;
-    B = (reg.Bits() & 0b100) ? ab_value_out : B;
-    C = ((reg.Bits() & 0b100) && op.Bits() == STASH) ? C : reg_value;
-    Z = ((reg.Bits() & 0b100) && op.Bits() == STASH) ? reg_value : Z;
-    
-    // Update memory. Really MEM_SIZE of these in parallel.
-    for (int i = 0; i < MEM_SIZE; i++) {
-      MEM[i] = (full_addr == i && ADDR_COUNT == 0 && op.Bits() == 0b100) ?
-	ab_value : MEM[i];
-    }
 
-    // Update instruction pointer if necessary.
-    IP = (op.Bits() == JMP && ADDR_COUNT == 0 && ab_value.IsFinite()) ?
-      ADDR : IP;
-    */
+    printf("[got values] Total gates: %d\n", (int)gates.size());
 
-    /*
-    // .. and internal address value.
-    ADDR = (op.Bits() == LOAD ||
-	    op.Bits() == STORE ||
-	    op.Bits() == JMP) ? full_addr : ADDR;
-    */
+    gaten mem_out =
+      WriteAddr3d(full_addr,
+		  // Store back the load value (from the same
+		  // address!) if addr_count_active is false,
+		  // or the instruction is not STORE.
+		  // This is then an expensive no-op.
+		  Ifb3(Andb(addr_count_active,
+			    Eq3(op, Literal3(Binary3(STORE)))),
+		       ab_value,
+		       load_value));
+
+    // Middle bit 1 means nan/infinite.
+    gateb ab_is_finite = Notb(std::get<1>(ab_value));
+    
+    printf("[performed store] Total gates: %d\n", (int)gates.size());
+
+    gate3 a_out = Ifb3(use_reg_b, a_in, ab_value_out);
+    gate3 b_out = Ifb3(use_reg_b, ab_value_out, b_in);
+
+    gate3 c_out = Ifb3(Andb(Notb(use_reg_b),
+			    Eq3(op, Literal3(Binary3(STASH)))),
+		       addr_part,
+		       c_in);
+    gate3 z_out = Ifb3(Andb(use_reg_b,
+			    Eq3(op, Literal3(Binary3(STASH)))),
+		       addr_part,
+		       z_in);
+
+    gate3d addr_out = Ifb3d(is_addressing, full_addr, addr_in);
+
+    gate3d ip_out = Ifb3d(Andb(Andb(Eq3(op, Literal3(Binary3(JMP))),
+				    addr_count_active),
+			       ab_is_finite),
+			  full_addr,
+			  ip4);
+
+    printf("[final] Total gates: %d\n", (int)gates.size());
     
     // Sanity check: no forward references.
     // Early gates will have inputs set to 0, which is fine since
@@ -834,6 +921,33 @@ public:
       CHECK(gates[i].src_a == 0 || gates[i].src_a < i);
       CHECK(gates[i].src_b == 0 || gates[i].src_b < i);
     }
+
+    Nandwork work;
+    work.gates = gates;
+    work.num_inputs = num_inputs;
+    work.zero = 0;
+    work.one = 1;
+    
+    work.z_in = z_in;
+    work.a_in = a_in;
+    work.b_in = b_in;
+    work.c_in = c_in;
+    work.ip_in = ip_in;
+    work.addr_in = addr_in;
+    work.addr_count_in = addr_count_in;
+    work.mem_in = mem_in;
+
+    // Outputs.
+    work.z_out = z_out;
+    work.a_out = a_out;
+    work.b_out = b_out;
+    work.c_out = c_out;
+    work.ip_out = ip_out;
+    work.addr_out = addr_out;
+    work.addr_count_out = addr_count_out;
+    work.mem_out = mem_out;
+
+    return work;
   }
 
   #if 0
@@ -908,8 +1022,8 @@ public:
     // or persist their current one.
     A = (reg.Bits() & 0b100) ? A : ab_value_out;
     B = (reg.Bits() & 0b100) ? ab_value_out : B;
-    C = ((reg.Bits() & 0b100) && op.Bits() == STASH) ? C : reg_value;
-    Z = ((reg.Bits() & 0b100) && op.Bits() == STASH) ? reg_value : Z;
+    C = (!(reg.Bits() & 0b100) && op.Bits() == STASH) ? addr_part : C;
+    Z = ((reg.Bits() & 0b100) && op.Bits() == STASH) ? addr_part : Z;
     
     // Update memory. Really MEM_SIZE of these in parallel.
     for (int i = 0; i < MEM_SIZE; i++) {
@@ -965,7 +1079,7 @@ void TestNandy() {
 # endif
 
   printf("Trace hash: %s\n", trace.c_str());
-  CHECK_EQ(trace, "19341ca6ce648ff081d127643a8d0c15");
+  CHECK_EQ(trace, "6dcd0f2d4041009b704ce11d393dce24");
 }
 
 int main(int argc, char **argv) {
