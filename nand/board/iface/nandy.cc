@@ -469,7 +469,7 @@ public:
     auto AssignTo3 = [&](gate3 g, Binary3 b) {
 	int x, y, z;
 	std::tie(x, y, z) = g;
-	uint8 bb = b.Bits();
+	const uint8 bb = b.Bits();
 	ret[x] = !!(bb & 0b100);
 	ret[y] = !!(bb & 0b010);
 	ret[z] = !!(bb & 0b001);
@@ -489,10 +489,99 @@ public:
     AssignTo3D(work.ip_in, IP);
     AssignTo3D(work.addr_in, ADDR);
 
-    // TODO: addr_count, mem
+    {
+      // addr_count is a shift register
+      for (int i : work.addr_count_in) {
+	ret[i] = 0;
+      }
+      CHECK(ADDR_COUNT >= 0 && ADDR_COUNT < work.addr_count_in.size());
+      int ac_bit_index = (D - 1) - ADDR_COUNT;
+      CHECK(ac_bit_index >= 0 && ac_bit_index < work.addr_count_in.size());
+      ret[work.addr_count_in[ac_bit_index]] = 1;
+    }
+    
+    CHECK_EQ(MEM.size() * 3, work.mem_in.size());
+    for (int m = 0; m < MEM.size(); m++) {
+      const uint8 bb = MEM[m].Bits();
+      ret[work.mem_in[m * 3 + 0]] = !!(bb & 0b100);
+      ret[work.mem_in[m * 3 + 1]] = !!(bb & 0b010);
+      ret[work.mem_in[m * 3 + 2]] = !!(bb & 0b001);
+    }
+
+    return ret;
+  }
+
+  void StepBools(const Nandwork &work, vector<bool> *values) {
+    CHECK(values->size() == work.num_inputs);
+
+    for (int i = work.num_inputs; i < work.gates.size(); i++) {
+      const Gate &gate = work.gates[i];
+      bool a = (*values)[gate.src_a];
+      bool b = (*values)[gate.src_b];
+      bool res = !(a && b);
+      values->push_back(res);
+    }
+  }
+
+  void CopyBoolsToState(const Nandwork &work,
+			const vector<bool> &values) {
+
+    auto Get3 = [&](gate3 g) -> Binary3 {
+	const uint8 b =
+	  (values[std::get<0>(g)] ? 0b100 : 0) |
+	  (values[std::get<1>(g)] ? 0b010 : 0) |
+	  (values[std::get<2>(g)] ? 0b001 : 0);
+	return Binary3(b);
+      };
+
+    auto Get3D = [&](gate3d g) -> Binary3D {
+	Binary3D res = 0;
+	for (int i : g) {
+	  res <<= 1;
+	  res |= (values[i] ? 0b1 : 0b0);
+	}
+	return res;
+      };
+    
+    Z = Get3(work.z_out);
+    A = Get3(work.a_out);
+    B = Get3(work.b_out);
+    C = Get3(work.c_out);
+    IP = Get3D(work.ip_out);
+    ADDR = Get3D(work.ip_out);
+
+    ADDR_COUNT = [&]() {
+	CHECK(work.addr_count_out.size() == D);
+	int count = 0;
+	for (int i = D - 1; i >= 0; i--) {
+	  if (values[work.addr_count_out[i]]) {
+	    return count;
+	  }
+	  count++;
+	}
+	CHECK(false) << "No bit set in addr_count_out?!";
+	return 0;
+      }();
+
+    CHECK(work.mem_out.size() == MEM_SIZE * 3);
+    for (int m = 0; m < MEM_SIZE; m++) {
+      // In groups of three.
+      const uint8 b =
+	(values[work.mem_out[m * 3 + 0]] ? 0b100 : 0) |
+	(values[work.mem_out[m * 3 + 1]] ? 0b010 : 0) |
+	(values[work.mem_out[m * 3 + 2]] ? 0b001 : 0);
+      MEM[m] = Binary3(b);
+    }
   }
   
-  // Same as above, using only nand ("NAN") gates.
+  // Step, using only NAND gates.
+  void StepNand(const Nandwork &work) {
+    vector<bool> values = InitializeBools(work);
+    StepBools(work, &values);
+    CopyBoolsToState(work, values);
+  }
+  
+  // Construct the nand-based network for the Step state transformation.
   // This is just a transformation of the entire state (no latches,
   // clock, flip-flops, etc.). The execution model is that we have
   // some N bits; the first two are set to constants 0 and 1 respectively,
@@ -1041,6 +1130,7 @@ public:
 #define SAVE_IMAGE 0
 
 void TestNandy() {
+  Nandy::Nandwork work = Nandy::MakeNandwork();
   ArcFour rc{"nandy"};
   auto Rand3 = [&rc]() { return Binary3(rc.Byte() & 0b111); };
   Nandy nandy;
@@ -1058,7 +1148,7 @@ void TestNandy() {
   string trace = "start";
   trace.reserve(48 + width);
   for (int y = 0; y < NUM_STEPS; y++) {
-    nandy.Step();
+    nandy.StepNand(work);
     vector<Binary3> row = nandy.GetState();
     for (int x = 0; x < row.size(); x++) {
       uint8 rgb = row[x].Bits();
@@ -1086,7 +1176,7 @@ int main(int argc, char **argv) {
   // Nandy nandy;
   // nandy.Step();
 
-  Nandy::MakeNandwork();
+  // Nandy::MakeNandwork();
   
   TestNandy();
   
