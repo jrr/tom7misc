@@ -1,5 +1,5 @@
-default : nandy.exe
-all : testnand.exe nandy.exe piface.exe
+default : nandy-graph.exe
+all : testnand.exe test-nandy.exe piface.exe test-nandy.exe
 
 
 CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O2 --std=c++14 -I ../../../cc-lib   -I ../../../cc-lib/pi
@@ -29,11 +29,17 @@ CCLIB_PI_OBJECTS=../../../cc-lib/pi/bcm2835.o
 testnand.exe : testnand.o $(CCLIB_PI_OBJECTS) $(CCLIB_OBJECTS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ -o $@ $(LFLAGS)
 
-nandy.exe : nandy.o $(ALL_CCLIB_OBJECTS)
+test-nandy.exe : test-nandy.o nandy.o $(ALL_CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+nandy-graph.exe : nandy-graph.o nandy.o $(ALL_CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 piface.exe : piface.o $(CCLIB_PI_OBJECTS) $(CCLIB_OBJECTS)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LFLAGS)
+
+nandwork.dot : nandy-graph.exe
+	./nandy-graph.exe
 
 clean :
 	rm -f *.o *.exe core $(ALL_CCLIB_OBJECTS) $(CCLIB_PI_OBJECTS) $(FCEULIB_OBJECTS)
