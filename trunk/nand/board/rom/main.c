@@ -113,10 +113,17 @@ static inline uint8_t FloatToBinary3(float f) {
   // +/- 0 and +/- 1.
   if (f > 0.5f) return 0b001;
   if (f < -0.5f) return 0b101;
-  // XXX Might not actually work for -0?
+  // Note: Might not actually work for -0?
+  // Not clear what a strict reading of IEEE 754 says,
+  // but it seems intuitive to convert 32-bit -0
+  // to 3-bit -0.
   if (f < 0.0f) return vneg0;
   return 0.0f;
 }
+
+// Should behave the same as this:
+#define NAND(x, y) (0 << 2) | (1 << 1) | \
+      (((x) == 0b010 && (y) == 0b010) ? 1 : 0)
 
 uint8_t NandFp(uint8_t x, uint8_t y) {
   const float fx = Binary3ToFloat(x);
@@ -218,15 +225,11 @@ int main(void) {
     const uint8_t x4 = READ3(inputc, 9, inputc, 10, inputc, 11);
     const uint8_t y4 = READ3(inputc, 12, inputc, 13, inputc, 14);
 
-    // Now we can compute zi from these. (XXX do it)
-    // XXX use fpu for this!
-#define NAND(x, y) (0 << 2) | (1 << 1) | \
-      (((x) == 0b010 && (y) == 0b010) ? 1 : 0)
-    uint8_t z0 = NAND(x0, y0);
-    uint8_t z1 = NAND(x1, y1);
-    uint8_t z2 = NAND(x2, y2);
-    uint8_t z3 = NAND(x3, y3);
-    uint8_t z4 = NAND(x4, y4);
+    uint8_t z0 = NandFp(x0, y0);
+    uint8_t z1 = NandFp(x1, y1);
+    uint8_t z2 = NandFp(x2, y2);
+    uint8_t z3 = NandFp(x3, y3);
+    uint8_t z4 = NandFp(x4, y4);
 
 #   define GET(z, b) ((uint16_t)(((z) >> (b)) & 1))
     // distribute the three bits of z to bit positions msb, mb, lsb.
