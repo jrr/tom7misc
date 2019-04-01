@@ -5,7 +5,7 @@
 namespace {
 struct pair_hash {
   std::size_t operator() (const std::pair<int, int> &p) const {
-    return (((size_t)p.first) << 32) ^ p.second;
+    return (((size_t)p.first) << 17) ^ p.second;
   }
 };
 };

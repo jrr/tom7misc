@@ -337,14 +337,14 @@ constexpr Binary3 Binary3::Max(Binary3 a, Binary3 b) {
 
 
 // Compile-time integer power, for small exponents.
-static constexpr IPow(int base, int exponent) {
+static constexpr int IPow(int base, int exponent) {
   return (exponent == 0) ? 1 : base * IPow(base, exponent - 1);
 }
 
 class Nandy {
 public:
   // Could be a template parameter, but for simplicity...
-  static constexpr int D = 1; // XXXX
+  static constexpr int D = 4;
   static constexpr int MEM_SIZE = IPow(8, D);
   
   using Binary3D = uint16_t;
