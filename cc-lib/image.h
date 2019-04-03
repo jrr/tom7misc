@@ -32,6 +32,11 @@ struct ImageRGBA {
 
   void SetPixel(int x, int y, uint8 r, uint8 g, uint8 b, uint8 a);
   void SetPixel32(int x, int y, uint32 rgba);
+
+  // Blend pixel with existing data.
+  // Note: Currently assumes existing alpha is 0xFF.
+  void BlendPixel(int x, int y, uint8 r, uint8 g, uint8 b, uint8 a);
+  // void BlendPixel32(int x, int y, uint32 rgba);
   
   const int width, height;
   // Size width * height * 4.
