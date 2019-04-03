@@ -98,6 +98,39 @@ void ImageRGBA::SetPixel32(int x, int y, uint32 color) {
   rgba[i + 3] = (color      ) & 255;
 }
 
+void ImageRGBA::BlendPixel(int x, int y,
+			   uint8 r, uint8 g, uint8 b, uint8 a) {
+  if (x < 0 || x >= width ||
+      y < 0 || y >= height) return;
+  int i = (y * width + x) * 4;
+  uint32 old_r = rgba[i + 0];
+  uint32 old_g = rgba[i + 1];
+  uint32 old_b = rgba[i + 2];
+  // TODO: Figure out how to blend when dest is also transparent.
+
+  // so a + oma = 255.
+  uint32 oma = 0xFF - a;
+
+  // Terrible performance, obviously. Can we divide by 256?
+  // we want (r * a/255) + (oldr * (1-a)/255),
+  // which is (r * a)/255 + (oldr * (1-a))/255
+  // which is (r * a + oldr * (1-a))/255
+  uint32 rr = (((uint32)r * (uint32)a) + (old_r * oma)) / 0xFF;
+  if (rr > 0xFF) rr = 0xFF;
+
+  uint32 gg = (((uint32)g * (uint32)a) + (old_g * oma)) / 0xFF;
+  if (gg > 0xFF) gg = 0xFF;
+
+  uint32 bb = (((uint32)b * (uint32)a) + (old_b * oma)) / 0xFF;
+  if (bb > 0xFF) bb = 0xFF;
+
+  rgba[i + 0] = rr;
+  rgba[i + 1] = gg;
+  rgba[i + 2] = bb;
+  rgba[i + 3] = 0xFF;
+}
+
+
 ImageA::ImageA(const vector<uint8> &alpha, int width, int height)
     : width(width), height(height), alpha(alpha) {
   CHECK(alpha.size() == width * height);

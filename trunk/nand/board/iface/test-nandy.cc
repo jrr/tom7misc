@@ -20,6 +20,36 @@ using uint64 = uint64_t;
 
 #define SAVE_IMAGE 0
 
+static void BenchNandy() {
+  ArcFour rc{"nandy"};
+  auto Rand3 = [&rc]() { return Binary3(rc.Byte() & 0b111); };
+  Nandy nandy;
+  for (int i = 0; i < Nandy::MEM_SIZE; i++) {
+    nandy.MEM[i] = Rand3();
+  }
+
+  int64 start = time(nullptr);
+  static constexpr int NUM_STEPS = 100000000;
+  for (int y = 0; y < NUM_STEPS; y++) {
+    nandy.Step();
+  }
+
+  int64 elapsed = time(nullptr) - start;
+  printf("%d steps in %lld = %.2f/s\n",
+	 NUM_STEPS, elapsed,
+	 (double)NUM_STEPS / (double)elapsed);
+
+  // Make sure result is used.
+  vector<Binary3> row = nandy.GetState();
+  string trace;
+  for (int x = 0; x < row.size(); x++) {
+    uint8 rgb = row[x].Bits();
+    trace.push_back('0' + rgb);
+  }
+  printf("Final: %s\n",
+	 MD5::Ascii(MD5::Hash(trace)).c_str());
+}
+
 static void TestNandy() {
   ArcFour rc{"nandy"};
   auto Rand3 = [&rc]() { return Binary3(rc.Byte() & 0b111); };
@@ -99,6 +129,9 @@ void Test2Nandy() {
 
 
 int main(int argc, char **argv) {
+  BenchNandy();
+  return 0;
+    
   TestNandy();
   
   (void)TestNandy;

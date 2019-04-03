@@ -1,0 +1,139 @@
+<!doctype html>
+
+<script>
+
+ let slides = [
+   "desktop.png",
+   "oneszeroes.png",
+   "inelegant.png",
+   "math.png",
+   "realnumbers.png",
+   "ieee.png",
+   "ieee-positive.png",
+   "ieee-negative.png",
+   "ieee-beauty.png",
+   "ieee-nan.png",
+   "ieee-bestcomputer.png",
+   "equation-editor.png",
+   "equation-ieee.png",
+   "equation-compound.png",
+   "gnu.png",
+   "gnu-maxnum.png",
+   "gnu-incomplete.png",
+   "gnu-nand.png",
+   "gnu-derivation.png",
+   "float32.png",
+   "float3.png",
+   "software.png",
+   "schematic-part.png",
+   "schematic-part-zoom.png",
+   "full-schematic.png",
+   "board.png",
+   "10boards.png",
+   "bermuda.png",
+   "surgeon.png",
+   "schmoo.png",
+   "blob.png",
+   "desolder.png",
+   "populated.png",
+   "belize.png",
+
+   "nandy1000.png",
+   "nandy-beautiful.png",
+   "architecture.png",
+   "layers.png",
+   "simplified-nandwork.png",
+   "nandwork-zoom.png",
+   "process.png",
+   "running.png",
+   "speed-down.png",
+   "nandy1000-computing.png",
+   
+   "tom7.org.png"
+ ];
+ 
+ 
+ let slide_idx = 0;
+ let count = 0;
+
+ function Draw() {
+   let slide = slides[slide_idx];
+   let elt = document.getElementById('proj');
+   elt.src = slide;
+ }
+
+ function Left() {
+   slide_idx--;
+   if (slide_idx < 0) slide_idx = slides.length - 1;
+ }
+
+ function Right() {
+   slide_idx++;
+   if (slide_idx >= slides.length) slide_idx = 0;
+ }
+ 
+ document.onkeydown = function(e) {
+   e = e || window.event;
+   if (e.ctrlKey) return true;
+   
+   switch (e.keyCode) {
+     case 37: // LEFT
+       Left();
+       break;
+     case 38: // UP
+       break;
+     case 39: // RIGHT
+       Right();
+       break;
+     case 40: // DOWN
+       break;
+     case 32: // SPACE
+       break;
+   } 
+   Draw();
+   return false;
+ }
+
+ function Frame() {
+   // advance animation
+   let slide = slides[slide_idx];
+
+   Draw();
+   window.requestAnimationFrame(Frame);
+ }
+
+ function Start() {
+   window.requestAnimationFrame(Frame);
+ }
+ 
+</script>
+<style>
+ .screen {
+    width: 1920px;
+    height: 1080px;
+    image-rendering: auto;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
+    -webkit-user-select: none;
+ }
+ .click {
+   cursor: pointer;
+   font-size: 80px;
+   padding: 20px;
+   border: 2px solid #fff;
+   zzmargin-right: 50px;
+   border-radius: 4px;
+   width: 80px;
+   color: #fff;
+   float: left;
+   -webkit-user-select: none
+ }
+</style>
+    
+<body bgcolor="#000" onload="Start()">
+    <img id="proj" class="screen">
+    <br/>
+    <div class="click" onclick="Left()">&nbsp;&lt;</div>
+    <div class="click" style="float:right;margin-right:85px" onclick="Right()">&nbsp;&gt;</div>
+</body>
+
