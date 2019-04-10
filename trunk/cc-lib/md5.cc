@@ -8,6 +8,7 @@
 #include "md5.h"
 
 using uint32 = uint32_t;
+using uint8 = uint8_t;
 using namespace std;
 
 // XXX this is not thread safe, and is gross. Fix!
@@ -21,14 +22,14 @@ namespace {
 struct MD5Context {
   uint32 buf[4];
   uint32 bits[2];
-  unsigned char in[64];
+  uint8 in[64];
 };
 }
 
 /* XXX there's something strange about this: it works
    with HIGHFIRST and with LOWFIRST on x86.
 
-   but if byteReverse is a no-op on LOWFIRST machines,
+   but if ByteReverse is a no-op on LOWFIRST machines,
    why not just always call it? ("efficiency"?)
 */
 #define ASDF "asdf"
@@ -61,19 +62,19 @@ void MD5::Init() {
 
 static void MD5Init(struct MD5Context *ctx);
 static void MD5Update(struct MD5Context *ctx, 
-		      const unsigned char *buf, unsigned len);
-static void MD5Final(unsigned char digest[16], struct MD5Context *ctx);
+		      const uint8 *buf, unsigned len);
+static void MD5Final(uint8 digest[16], struct MD5Context *ctx);
 static void MD5Transform(uint32 buf[4], uint32 in[16]);
 
 /* old preprocessor way: */
 /*
  ifndef HIGHFIRST
- define byteReverse(buf, len)
+ define ByteReverse(buf, len)
  else
 */
 
 /* swap bytes on LOWFIRST machines */
-static void byteReverse(unsigned char *buf, unsigned longs) {
+static void ByteReverse(uint8 *buf, unsigned longs) {
   if (md5__byteorder == BO_LOWFIRST) {
     uint32 t;
     do {
@@ -103,7 +104,7 @@ static void MD5Init(struct MD5Context *ctx) {
  * Update context to reflect the concatenation of another buffer full
  * of bytes.
  */
-static void MD5Update(struct MD5Context *ctx, const unsigned char *buf,
+static void MD5Update(struct MD5Context *ctx, const uint8 *buf,
 		      unsigned len) {
   uint32 t = ctx->bits[0];
 
@@ -117,7 +118,7 @@ static void MD5Update(struct MD5Context *ctx, const unsigned char *buf,
   /* Handle any leading odd-sized chunks */
 
   if (t) {
-    unsigned char *p = (unsigned char *) ctx->in + t;
+    uint8 *p = (uint8 *) ctx->in + t;
 
     t = 64 - t;
     if (len < t) {
@@ -125,7 +126,7 @@ static void MD5Update(struct MD5Context *ctx, const unsigned char *buf,
       return;
     }
     memcpy(p, buf, t);
-    byteReverse(ctx->in, 16);
+    ByteReverse(ctx->in, 16);
     MD5Transform(ctx->buf, (uint32 *) ctx->in);
     buf += t;
     len -= t;
@@ -134,7 +135,7 @@ static void MD5Update(struct MD5Context *ctx, const unsigned char *buf,
 
   while (len >= 64) {
     memcpy(ctx->in, buf, 64);
-    byteReverse(ctx->in, 16);
+    ByteReverse(ctx->in, 16);
     MD5Transform(ctx->buf, (uint32 *) ctx->in);
     buf += 64;
     len -= 64;
@@ -149,14 +150,14 @@ static void MD5Update(struct MD5Context *ctx, const unsigned char *buf,
  * Final wrapup - pad to 64-byte boundary with the bit pattern 
  * 1 0* (64-bit count of bits processed, MSB-first)
  */
-static void MD5Final(unsigned char digest[16], struct MD5Context *ctx) {
+static void MD5Final(uint8 digest[16], struct MD5Context *ctx) {
   /* Compute number of bytes mod 64 */
   // XXX specify size, not "unsigned"
   unsigned count = (ctx->bits[0] >> 3) & 0x3F;
 
   /* Set the first char of padding to 0x80.  This is safe since there is
      always at least one byte free */
-  unsigned char *p = ctx->in + count;
+  uint8 *p = ctx->in + count;
   *p++ = 0x80;
 
   /* Bytes of padding needed to make 64 bytes */
@@ -166,7 +167,7 @@ static void MD5Final(unsigned char digest[16], struct MD5Context *ctx) {
   if (count < 8) {
     /* Two lots of padding:  Pad the first block to 64 bytes */
     memset(p, 0, count);
-    byteReverse(ctx->in, 16);
+    ByteReverse(ctx->in, 16);
     MD5Transform(ctx->buf, (uint32 *) ctx->in);
 
     /* Now fill the next block with 56 bytes */
@@ -175,14 +176,14 @@ static void MD5Final(unsigned char digest[16], struct MD5Context *ctx) {
     /* Pad block to 56 bytes */
     memset(p, 0, count - 8);
   }
-  byteReverse(ctx->in, 14);
+  ByteReverse(ctx->in, 14);
 
   /* Append length in bits and transform */
   ((uint32 *) ctx->in)[14] = ctx->bits[0];
   ((uint32 *) ctx->in)[15] = ctx->bits[1];
 
   MD5Transform(ctx->buf, (uint32 *) ctx->in);
-  byteReverse((unsigned char *) ctx->buf, 4);
+  ByteReverse((uint8 *) ctx->buf, 4);
   memcpy(digest, ctx->buf, 16);
   memset(ctx, 0, sizeof *ctx);        /* In case it's sensitive */
 }
@@ -288,8 +289,8 @@ static void MD5Transform(uint32 buf[4], uint32 in[16]) {
 }
 
 /* finalize and return a 16-byte string */
-static string md5__result(struct MD5Context *ctx) {
-  unsigned char result[16];
+static string MakeResult(struct MD5Context *ctx) {
+  uint8 result[16];
   MD5Final(result, ctx);
   /* initialize a string of the proper length */
   string r = "0123456789ABCDEF";
@@ -302,9 +303,16 @@ string MD5::Hash(const string &in) {
   
   MD5Init(&ctx);
 
-  MD5Update(&ctx, (const unsigned char *)in.c_str(), in.length());
+  MD5Update(&ctx, (const uint8 *)in.c_str(), in.length());
 
-  return md5__result(&ctx);
+  return MakeResult(&ctx);
+}
+
+string MD5::Hashv(const vector<uint8> &v) {
+  MD5Context ctx;
+  MD5Init(&ctx);
+  MD5Update(&ctx, (const uint8*)v.data(), v.size());
+  return MakeResult(&ctx);
 }
 
 string MD5::Hashf(FILE *f) {
@@ -316,10 +324,10 @@ string MD5::Hashf(FILE *f) {
   do {
     /* XXX doesn't distinguish error from EOF, but... */
     x = fread(buf, 1, 256, f);
-    if (x) MD5Update(&ctx, (const unsigned char *)buf, x);
+    if (x) MD5Update(&ctx, (const uint8 *)buf, x);
   } while (x == 256);
 
-  return md5__result(&ctx);
+  return MakeResult(&ctx);
 }
 
 string MD5::Ascii(const string &s) {

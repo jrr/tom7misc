@@ -6,11 +6,11 @@ TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o
 BASE=base/logging.o base/stringprintf.o
 
 # for 64 bits on windows
-CXX=x86_64-w64-mingw32-g++
-CC=x86_64-w64-mingw32-g++
-# CXX=g++
-# CC=gcc
-CXXFLAGS=-I. --std=c++14 -O2 -static
+# CXX=x86_64-w64-mingw32-g++
+# CC=x86_64-w64-mingw32-g++
+CXX=g++
+CC=gcc
+CXXFLAGS=-I. --std=c++14 -O2 # -static
 
 # For linux, others...
 # (pthreads can't be linked statically)
@@ -41,6 +41,9 @@ rle_test.exe : rle_test.o rle.o $(BASE) arcfour.o
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 arcfour_test.exe : arcfour_test.o arcfour.o $(BASE)
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+md5_test.exe : md5_test.o md5.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 lastn-buffer_test.o : lastn-buffer_test.cc lastn-buffer.h
