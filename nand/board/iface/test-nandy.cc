@@ -92,47 +92,66 @@ static void TestNandy() {
   CHECK_EQ(trace, "6dcd0f2d4041009b704ce11d393dce24");
 }
 
+static string StateString(const Nandy &nandy) {
+  string ret;
+
+  string hashsrc;
+  hashsrc.reserve(nandy.MEM.size());
+  for (Binary3 b : nandy.MEM)
+    hashsrc.push_back('0' + b.Bits());
+  string mem = MD5::Ascii(MD5::Hash(hashsrc));
+  StringAppendF(&ret, "%d/%d/%d:%s|%s|%s|%s:(%s)",
+		nandy.IP, nandy.ADDR, nandy.ADDR_COUNT,
+		nandy.Z.ToString().c_str(),
+		nandy.A.ToString().c_str(),
+		nandy.B.ToString().c_str(),
+		nandy.C.ToString().c_str(),
+		mem.c_str());
+  return ret;
+}
+
 void Test2Nandy() {
   Nandy::Nandwork work = Nandy::MakeNandwork();
-
-  // Always with the same identical state.
-  auto Initialize = [](Nandy *nandy) {
-      ArcFour rc{"nandy"};
-      auto Rand3 = [&rc]() { return Binary3(rc.Byte() & 0b111); };
-      for (int i = 0; i < Nandy::MEM_SIZE; i++) {
-	nandy->MEM[i] = Rand3();
-      }
-    };
-  
-  Nandy nandy, nandy_nand;
-  Initialize(&nandy);
-  Initialize(&nandy_nand);
-
   printf("\n\nTest 2 in parallel:\n");
-  
-  /*
-  CHECK_EQ(nandy.GetStateString(),
-	   nandy_nand.GetStateString());
-  */
-  
-  for (int i = 0; i < 10; i++) {
-    string s1 = nandy.GetStateString();
-    string s2 = nandy_nand.GetStateString();
-    printf("%s <- step\n%s <- step_nand\n",
-	   s1.c_str(), s2.c_str());
-    CHECK_EQ(s1, s2);
 
-    nandy.Step();
-    nandy_nand.StepNand(work);
+  // Initialize to some random setup. 
+  auto Initialize = [](Nandy *nandy, int i) {
+    ArcFour rc{StringPrintf("nandy%d", i)};
+    auto Rand3 = [&rc]() { return Binary3(rc.Byte() & 0b111); };
+    for (int i = 0; i < Nandy::MEM_SIZE; i++) {
+      nandy->MEM[i] = Rand3();
+    }
+  };
+
+  for (int count = 0; count < 100; count++) {
+    Nandy nandy, nandy_nand;
+    Initialize(&nandy, count);
+    Initialize(&nandy_nand, count);
+    
+    CHECK_EQ(StateString(nandy),
+	     StateString(nandy_nand));
+  
+    for (int i = 0; i < 1000; i++) {
+      string s1 = StateString(nandy);
+      string s2 = StateString(nandy_nand);
+      /*
+	printf("%s <- step\n%s <- step_nand\n",
+	s1.c_str(), s2.c_str());
+      */
+      CHECK_EQ(s1, s2) << s1 << "\nvs\n" << s2;
+
+      nandy.Step();
+      nandy_nand.StepNand(work);
+    }
+    printf("%d ok\n", count);
   }
 }
 
 
 int main(int argc, char **argv) {
-  BenchNandy();
-  return 0;
+  (void)BenchNandy;
     
-  TestNandy();
+  // TestNandy();
   
   (void)TestNandy;
   (void)Test2Nandy;
