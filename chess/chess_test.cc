@@ -177,7 +177,7 @@ static void ReadPGNUnterminated() {
 [Termination "Unterminated"]
 
 1. f4 d5 2. Nf3 f6 3. Nh4 Nc6 4. b4 Nxb4 5. Ba3 Nc6 6. e3 b5 7. Bxb5 Rb8 8. Bd3 e6 9. Rf1 Nh6 10. Rf3 Ra8 11. Rg3 a5 12. Bb5 Ra6 13. Ba4 Qd7 14. Nc3 Bxa3 15. Rxg7 Qxg7 16. Rc1 *
-)_";
+    )_";
   CHECK(PGN::Parse(kGame, &pgn));
   CHECK(pgn.result == PGN::Result::OTHER);
   CHECK(pgn.GetTermination() == PGN::Termination::OTHER);
@@ -424,8 +424,18 @@ static void TestEp() {
   CHECK(kingrow == 1 && kingcol == 4) << kingrow << ", " << kingcol;
 }
 
+static void TestParseMoves() {
+  std::vector<PGN::Move> moves;
+  CHECK(PGN::ParseMoves("1. d4 d5 2. Nf3", &moves));
+  CHECK_EQ(moves.size(), 3);
+  CHECK_EQ(moves[0].move, "d4");
+  CHECK_EQ(moves[1].move, "d5");
+  CHECK_EQ(moves[2].move, "Nf3");
+}
+
 int main(int argc, char **argv) {
   CheckInit();
+  TestParseMoves();
 
   PlayGame(kGame1);
   PlayGame(kGame2);

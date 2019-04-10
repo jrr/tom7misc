@@ -87,6 +87,17 @@ bool PGN::Parse(const string &s, PGN *pgn) {
   return parser.Parse(s, pgn);
 }
 
+bool PGN::ParseMoves(const string &s, vector<Move> *moves) {
+  PGNParser parser;
+  string input = (string)"[Event \"ParseMoves\"]\n\n" + s;
+  PGN pgn;
+  if (!parser.Parse(input, &pgn))
+    return false;
+  for (Move &m : pgn.moves)
+    moves->emplace_back(std::move(m));
+  return true;
+}
+
 int PGN::MetaInt(const string &key, int default_value) const {
   auto it = meta.find(key);
   if (it == meta.end()) return default_value;

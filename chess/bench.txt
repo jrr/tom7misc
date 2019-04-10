@@ -1,0 +1,26 @@
+bench.exe on macbook air,
+after king indexing, move pawns into vector loop in Attacked
+Total time: 23.00s (16.09 moves/sec)
+
+After movegen stops when encountering a piece:
+Total time: 24.00s (15.42 moves/sec)
+
+well I ran it a few times and got as low as
+Total time: 22.00s (16.82 moves/sec)
+
+now from 10 games -> 100.
+Total time: 225.00s (16.44 moves/sec)
+
+With MOVEGEN_STOP_PIECE, much worse:
+Total time: 257.00s (14.40 moves/sec)
+
+
+First working version. Lacking odd excursions,
+starts with a white move, doesn't keep up critical streaks,
+perhaps other undiscovered weaknesses.
+Slack 0: 33 time(s)
+Slack 1: 75 time(s)
+Slack 2: 3 time(s)
+Slack 3: 7 time(s)
+Total slack: 102
+Final game is 17598 moves, ending with:
