@@ -111,20 +111,20 @@ OPT=-O2
 SYMBOLS=-g
 
 # Tried switching back to mingw/w64...
-# CXX=g++
-# CC=gcc
-CXX=x86_64-w64-mingw32-g++
-CC=x86_64-w64-mingw32-gcc
+CXX=g++
+CC=gcc
+# CXX=x86_64-w64-mingw32-g++
+# CC=x86_64-w64-mingw32-gcc
 
-PLATFORMCFLAGS= -DPSS_STYLE=2 -D__MINGW32__ -DHAVE_ALLOCA -D_GLIBCXX_HAS_GTHREADS -mthreads
-PLATFORMLINK=libz.a -Wl,--subsystem,console -L.
+# PLATFORMCFLAGS= -DPSS_STYLE=2 -D__MINGW32__ -DHAVE_ALLOCA -D__MINGW32__ -DHAVE_ALLOCA -D_WIN32_WINNT=0x0602 -D_GLIBCXX_HAS_GTHREADS -mthreads
+# PLATFORMLINK=-lwinpthread -lpsapi -L. -static libz.a -Wl,--subsystem,console -L.
 
 
 INCLUDES=-I "../cc-lib" -I "../cc-lib/city" -I "../cc-lib/re2" -I ../fceulib
-CPPFLAGS=-m64 -D__MINGW32__ -DHAVE_ALLOCA -D_WIN32_WINNT=0x0602 -D_GLIBCXX_HAS_GTHREADS -mthreads $(INCLUDES) $(PLATFORMCFLAGS) $(SYMBOLS)
+CPPFLAGS=-m64 $(INCLUDES) $(PLATFORMCFLAGS) $(SYMBOLS)
 
 # without static, can't find lz or lstdcxx maybe?
-LFLAGS=-m64 -mthreads -lwinpthread -lpsapi -L. -static $(PLATFORMLINK)
+LFLAGS=-m64 -mthreads $(PLATFORMLINK)
 
 RE2_OBJECTS=../cc-lib/re2/bitstate.o ../cc-lib/re2/compile.o ../cc-lib/re2/dfa.o ../cc-lib/re2/filtered_re2.o ../cc-lib/re2/mimics_pcre.o ../cc-lib/re2/nfa.o ../cc-lib/re2/onepass.o ../cc-lib/re2/parse.o ../cc-lib/re2/perl_groups.o ../cc-lib/re2/prefilter.o ../cc-lib/re2/prefilter_tree.o ../cc-lib/re2/prog.o ../cc-lib/re2/re2.o ../cc-lib/re2/regexp.o ../cc-lib/re2/set.o ../cc-lib/re2/simplify.o ../cc-lib/re2/stringpiece.o ../cc-lib/re2/tostring.o ../cc-lib/re2/unicode_casefold.o ../cc-lib/re2/unicode_groups.o ../cc-lib/re2/util/rune.o ../cc-lib/re2/util/strutil.o
 
@@ -165,6 +165,9 @@ tournament.exe : tournament-db.o tournament.o chess.o player.o stockfish-player.
 elo.exe : elo.o tournament-db.o chess.o headless-graphics.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+longest.exe : longest.o chess.o pgn.o $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 bench.exe : chess.o player.o bench.o player-util.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
@@ -185,27 +188,27 @@ numa.exe : numa.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 # This depends on rungames.exe, but not including it because I don't want to recompute stats every single time.
-stats-all/stats-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
-	nice -n 19 ./rungames.exe all $< > $@
-
-# stats-titled/stats-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
-# 	nice -n 19 ./rungames.exe titled $< > $@
-
-# This $* is basically how you get the thing that matched %.
-stats/%-titled.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
-	nice -n 19 ./rungames.exe titled,bullet,blitz,rapid,classical $< stats\\$* 
-
-pawns-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
-	nice -n 19 ./chessreduce.exe $< > $@
-
-castlemate-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
-	nice -n 19 ./chessreduce.exe $< > $@
-
-epmate-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
-	nice -n 19 ./chessreduce.exe $< > $@
-
-forced-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
-	nice -n 19 ./chessreduce.exe $< > $@
-
-weirdfate-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
-	nice -n 19 ./chessreduce.exe $< > $@
+#  stats-all/stats-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+#  	nice -n 19 ./rungames.exe all $< > $@
+#  
+#  # stats-titled/stats-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+#  # 	nice -n 19 ./rungames.exe titled $< > $@
+#  
+#  # This $* is basically how you get the thing that matched %.
+#  stats/%-titled.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+#  	nice -n 19 ./rungames.exe titled,bullet,blitz,rapid,classical $< stats\\$* 
+#  
+#  pawns-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+#  	nice -n 19 ./chessreduce.exe $< > $@
+#  
+#  castlemate-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+#  	nice -n 19 ./chessreduce.exe $< > $@
+#  
+#  epmate-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+#  	nice -n 19 ./chessreduce.exe $< > $@
+#  
+#  forced-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+#  	nice -n 19 ./chessreduce.exe $< > $@
+#  
+#  weirdfate-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+#  	nice -n 19 ./chessreduce.exe $< > $@
