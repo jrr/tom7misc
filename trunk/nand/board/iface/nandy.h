@@ -397,17 +397,6 @@ public:
     return state;
   }
   
-  string GetStateString() const {
-    string ret;
-    StringAppendF(&ret, "%d/%d/%d:%s|%s|%s|%s:(mem)",
-		  IP, ADDR, ADDR_COUNT,
-		  Z.ToString().c_str(),
-		  A.ToString().c_str(),
-		  B.ToString().c_str(),
-		  C.ToString().c_str());
-    return ret;
-  }
-
   Nandy() {
     // Initialize memory to NAN.
     MEM.reserve(MEM_SIZE);
