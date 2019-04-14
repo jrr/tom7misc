@@ -258,6 +258,10 @@ struct Position {
     return ret;
   }
 
+  uint8 MovePieceType(Move m) const {
+    return PieceAt(m.src_row, m.src_col) & TYPE_MASK;
+  }
+  
   bool BlackMove() const {
     return !!(bits & BLACK_MOVE);
   }

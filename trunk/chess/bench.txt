@@ -1,3 +1,4 @@
+
 bench.exe on macbook air,
 after king indexing, move pawns into vector loop in Attacked
 Total time: 23.00s (16.09 moves/sec)
@@ -24,3 +25,182 @@ Slack 2: 3 time(s)
 Slack 3: 7 time(s)
 Total slack: 102
 Final game is 17598 moves, ending with:
+
+
+Now with odd excursions:
+Slack 0: 36 time(s)
+Slack 1: 82 time(s)
+Total slack: 82
+Final game is 17618 moves, ending with:
+
+Redo game to:
+  - start with black critical move, w/ white knight on opposite color
+  - try to maximize streak with one side
+  - make capturing the queen at the end optional, for corner case
+    in the rules ("any legal sequence...")
+Slack 0: 114 time(s)
+Slack 1: 4 time(s)
+Total slack: 4
+Final game is 17696 moves, ending with:
+
+The slack comes from the handful of times we switch from black moves
+to white moves:
+  1. We need to at least move some white pawns out of the way before
+     we can get any black pawns to promote. 
+
+  after 34. bxa5:
+  2b1kb2/2np1p1p/8/p7/p1p1p1p1/1r1r1q1n/PPPPPPPP/RNBQKB1R w Q - 0 35
+
+  2. It wasn't possible to get all of the black pawns out of the way,
+     because we could only free the knights without a pawn move (and
+     we chose to just free one anyway); we would need to free four
+     white pieces for the black pawns to capture.
+     (MAYBE it would be possible if we tripled pawns instead of
+      doubling? you could make two files, each with three pawns
+      on them -- you don't want more, because you want to minimize
+      the number of pawn captures (each costs ~150 moves since it
+      is both a capture and a pawn move; precious!). So I think not.)
+
+  after 66. Bc2:
+  2Nk4/3p1pBp/8/p1R1B1R1/p1p1p1p1/1Q1P1P1P/2BP1P1P/4K2R b - - 14 66
+
+  3. Black promotes all their pawns and captures all white's pieces.
+
+  after 124. ... g1=R
+  2nk4/8/4n1n1/K3nn2/8/3P1P1P/3P1P1P/4rrr1 w - - 0 125
+
+  4. White promotes all their pawns and captures all black's pieces.
+
+  after 170. Qxg8
+  3NRNQ1/8/k7/8/2K5/6B1/8/6B1 b - - 0 170
+
+  5. Now black captures all of white's pieces, drawing.
+
+I think each of these is essential, so 17696 is likely the longest
+possible game.
+
+
+MOVEGEN_STOP_PIECE
+true: 2m44.409s = 165.00 s = 22.42 m/s
+      2m48= 168.38 = 21.98
+      2m49   ... 21.83
+  additional work for vertical queen and rooks:
+      2m39   ... 23.2
+false: 3m7 = 186.99 = 19.79 m/s
+       2m58 = 178 = 20.72
+
+
+
+--------------------------------------------------
+tournament of just these:
+			CreateFirstMove,
+			CreateCCCP,
+			CreateNoIInsist,
+			CreatePacifist,
+			CreateSameColor,
+			CreateMinOpponentMoves,
+			CreateSinglePlayer,
+54 rounds, 54 threads
+
+real    41m23.970s
+user    0m0.000s
+sys     0m0.046s
+
+then after improving move generation:
+
+real    35m49.339s
+user    0m0.000s
+sys     0m0.031s
+
+--------------------------------------------------
+
+Read 11340000 games: 8m44s
+
+Read and executed 11348507 games from 2017-04:
+real    73m20.479s
+user    0m0.000s
+sys     0m0.000s
+
+Same but grab batches of results:
+
+real    203m43.468s
+user    0m0.000s
+sys     0m0.015s
+
+(much worse, obviously!)
+
+with BigGetC:
+
+70m45.131s
+
+getc: 500000 games at 12500/sec.
+BigGetC 1M games at 22500/sec
+this definitely helps read speeds.
+
+Avoid LazyRE2 with the thought that it may be introducing
+lock contention:
+
+39m55
+
+very successful! Though we still only utilize one numa node.
+
+Removed some dumb debugging stuff inside PGN Parser. Initialize board
+directly, instead of using FEN:
+
+35m25s
+
+
+Better Rtos for SVG creation:
+- piece0.svg   20142 -> 18990 -> 18670 -> 18366
+- piece0.pdf   19360 -> 19360 -> 19360 
+
+
+
+
+--------------------------------------------------
+
+ time ./chessreduce.exe d:\\chess\\lichess_db_standard_rated_2014-06.pgn
+ 
+real    2m40.769s
+user    0m0.015s
+sys     0m0.000s
+
+
+track king positions:
+real    3m26.525s
+user    0m0.000s
+sys     0m0.015s
+
+
+worst of both worlds:
+(track but then search for it)
+4m52.318s
+
+don't track any more, but have the fields, and inline SetPiece
+
+3m20s
+
+don't explicitly inline SetPiece:
+
+3m51 whattt
+
+and back to the original version:
+
+4m1s??
+
+I guess maybe this benchmark is just bad...
+need to find something more repeatable.
+
+ok, closed lichess analysis tab in chrome!!
+now at 2m35s.
+
+ok but still, surprisingly, 3m15 with king tracking!
+
+
+ugh, back to the old version, now max_parallelism=4
+
+2m22s
+
+with parallelism=2, finally seeing dropoff: 3m52s
+
+

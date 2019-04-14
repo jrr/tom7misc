@@ -111,13 +111,13 @@ OPT=-O2
 SYMBOLS=-g
 
 # Tried switching back to mingw/w64...
-CXX=g++
-CC=gcc
-# CXX=x86_64-w64-mingw32-g++
-# CC=x86_64-w64-mingw32-gcc
+# CXX=g++
+# CC=gcc
+CXX=x86_64-w64-mingw32-g++
+CC=x86_64-w64-mingw32-gcc
 
-# PLATFORMCFLAGS= -DPSS_STYLE=2 -D__MINGW32__ -DHAVE_ALLOCA -D__MINGW32__ -DHAVE_ALLOCA -D_WIN32_WINNT=0x0602 -D_GLIBCXX_HAS_GTHREADS -mthreads
-# PLATFORMLINK=-lwinpthread -lpsapi -L. -static libz.a -Wl,--subsystem,console -L.
+PLATFORMCFLAGS= -DPSS_STYLE=2 -D__MINGW32__ -DHAVE_ALLOCA -D__MINGW32__ -DHAVE_ALLOCA -D_WIN32_WINNT=0x0602 -D_GLIBCXX_HAS_GTHREADS -mthreads
+PLATFORMLINK=-lwinpthread -lpsapi -L. -static libz.a -Wl,--subsystem,console -L.
 
 
 INCLUDES=-I "../cc-lib" -I "../cc-lib/city" -I "../cc-lib/re2" -I ../fceulib

@@ -161,22 +161,44 @@ static vector<Critical> MakeCritical() {
   // white having moved one knight to an opposite color. So the first
   // phase of critical moves should be made by black.
   string slowgame_fen = 
-    "1. a3 Nc6 2. a4 h6 3. Nf3 h5 4. Ng5 h4 5. a5 e6 6. d3 Ne5 7. Bf4 Nc4 "
-    "8. g3 b6 9. g4 b5 10. Bg3 Nb6 11. axb6 hxg3 12. b7 g2 13. b8=Q g1=Q "
-    "14. Ra6 b4 15. c3 Rh3 16. c4 Re3 17. c5 Re5 18. Rb6 a6 19. Rb7 a5 "
-    "20. Rb6 a4 21. Rb7 a3 22. Rb6 a2 23. Ra6 a1=Q 24. Ra3 bxa3 25. Nd2 a2 "
-    "26. b3 Ra6 27. b4 Rb6 28. cxb6 Qb1 29. b7 a1=N 30. Qa7 c6 31. b8=N c5 "
-    "32. b5 c4 33. b6 c3 34. d4 Rc5 35. dxc5 c2 36. h3 Ba6 37. b7 c1=Q "
-    "38. Nc6 Qc4 39. Nxc4 Qb2 40. Nxb2 d6 41. b8=N d5 42. Qc2 d4 43. f3 d3 "
-    "44. h4 d2+ 45. Kd1 Qh2 46. Qd3 Nb3 47. Nxd8 Bxd3 48. exd3 Na5 "
-    "49. Kc2 d1=N+ 50. Kc1 e5 51. c6 e4 52. c7 e3 53. c8=N e2 54. Ndc6 Nxc6 "
-    "55. h5 e1=N 56. h6 g6 57. h7 Qe2 58. Rh5 gxh5 59. h8=N h4 60. Ne4 h3 "
-    "61. g5 h2 62. g6 h1=Q 63. g7 Nf6 64. g8=N Ng4 65. fxg4 Qexf1 "
-    "66. Nxc6 Qxe4 67. Nxd1 f6 68. g5 f5 69. g6 f4 70. g7 Bb4 71. Nxb4 Qxb4 "
-    "72. d4 Qa6 73. Qxa6 f3 74. d5 f2 75. d6 Qh4 76. Nh6 Qxh6+ 77. Kb1 Qxh8 "
-    "78. g8=B Kd8 79. d7 Kc7 80. d8=N Qxg8 81. Qa1 Ng2 82. Nc6 Kxc6 "
-    "83. Ne3 Qxc8 84. Nxg2 f1=B 85. Qh8 Kd5 86. Ka2 Bxg2 87. Qxc8 Bh3 "
-    "88. Qxh3 Ke4 89. Qe3+ Kxe3";
+    "1. Nf3 e6 2. Rg1 e5 3. Rh1 e4 4. Rg1 g6 5. Rh1 g5 6. Rg1 g4 "
+    "7. Rh1 c6 8. Rg1 c5 9. Rh1 c4 10. Rg1 a6 11. Rh1 a5 12. Rg1 a4 "
+    "13. Rh1 Ra7 14. Rg1 Na6 15. Rh1 Nc7 16. Rg1 Bg7 17. Rh1 Qf6 "
+    "18. Rg1 Qg6 19. Rh1 Ra5 20. Rg1 Rb5 21. Rh1 Rb3 22. Rg1 Nf6 "
+    "23. Rh1 Nh5 24. Rg1 Nf4 25. Rh1 Nh3 26. Rg1 Bf8 27. Nd4 Qf5 "
+    "28. Rh1 Qf3 29. Rg1 Rg8 30. Rh1 Rg5 31. Nb5 Rd5 32. Na7 Rdd3 "
+    "33. Nc6 b6 34. Na5 bxa5 35. axb3 Ne6 36. cxd3 Nc7 37. exf3 Ne6 "
+    "38. gxh3 Ng7 39. b4 Ne6 40. b5 Ng7 41. b6 Ne6 42. b7 Ng7 "
+    "43. b8=R Ne6 44. Rb5 Ng7 45. b3 Ne6 46. b4 Ng7 47. Rg5 Ne6 "
+    "48. b5 Ng7 49. b6 Ne6 50. b7 Ng7 51. b8=B Ne6 52. Be5 Nc7 "
+    "53. Ba3 Ne6 54. Bxf8 Ng7 55. Nc3 Ne6 56. Nd5 Ng7 57. Nb6 Ne6 "
+    "58. Nxc8 Ng7 59. Bfxg7 Kd8 60. Rb1 Ke8 61. Rb5 Kd8 62. Rc5 Ke8 "
+    "63. Qb3 Kd8 64. Be2 Ke8 65. Bd1 Kd8 66. Bc2 d6 67. Qb8 dxc5 "
+    "68. Bb3 f6 69. Bc2 fxe5 70. Bb3 h6 71. Bc2 hxg5 72. Bb3 a3 "
+    "73. Bc2 a2 74. Bb3 a1=N 75. Bh6 Nxb3 76. Bg7 a4 77. Bh6 a3 "
+    "78. Bg7 a2 79. Bh6 a1=N 80. Bg7 Na5 81. Qb7 Nxb7 82. Bh6 c3 "
+    "83. Bg7 c2 84. Bh6 c1=N 85. Bg7 c4 86. Bh6 c3 87. Bg7 c2 "
+    "88. Bh6 Ncb3 89. Bg7 c1=N 90. Bf8 N3a5 91. Kd1 Na2 92. Bb4 Nxb4 "
+    "93. Kc1 Nd5 94. Kb2 Nf4 95. Ka2 Ng2 96. Re1 Nxe1 97. Ka3 Ng2 "
+    "98. Ka4 e3 99. Ka3 e2 100. Ka4 e1=N 101. Ka3 e4 102. Ka4 Nec2 "
+    "103. Kb5 Nce3 104. Ka4 Nf5 105. Kb4 Nc4 106. Kb5 Ne5 107. Ka4 Nbd6 "
+    "108. Ka5 Nxc8 109. Ka4 Nc2 110. Ka5 Ncd4 111. Ka4 Ne6 112. Ka5 e3 "
+    "113. Ka4 e2 114. Ka5 e1=R 115. Ka4 Ngh4 116. Ka5 g3 117. Ka4 Nhg6 "
+    "118. Ka5 g4 119. Ka4 g2 120. Ka5 g1=R 121. Ka4 g3 122. Ka5 Rgf1 "
+    "123. Ka4 g2 124. Ka5 g1=R 125. h4 Kc7 126. h5 Kb8 127. h6 Ka8 "
+    "128. h7 Kb8 129. h8=B Ka8 130. Bxe5 Rg3 131. Bxg3 Ne5 132. Bxe5 Neg7 "
+    "133. Bxg7 Nd4 134. Bxd4 Rg1 135. f4 Ref1 136. f3 Re1 137. f5 Ref1 "
+    "138. f6 Re1 139. f7 Ref1 140. f8=R Re1 141. Re8 Ref1 142. Bxg1 Re1 "
+    "143. f4 Rf1 144. f5 Re1 145. f6 Rf1 146. f7 Re1 147. f8=N Re2 "
+    "148. h3 Re1 149. h4 Re2 150. h5 Re1 151. h6 Re2 152. h7 Re1 "
+    "153. h8=Q Re2 154. d4 Re1 155. d5 Re2 156. d6 Re1 157. d7 Re2 "
+    "158. d8=B Re3 159. d3 Re2 160. Bh4 Re3 161. d4 Re2 162. d5 Re3 "
+    "163. d6 Re2 164. d7 Re3 165. d8=N Ka7 166. Ka4 Ka6 167. Kb4 Ne7 "
+    "168. Kc4 Rg3 169. Bxg3 Ng8 170. Qxg8 Ka5 171. Kd3 Ka6 172. Ke2 Ka5 "
+    "173. Kf2 Ka6 174. Kg2 Ka5 175. Bc5 Kb5 176. Bh2 Kxc5 177. Re6 Kd5 "
+    "178. Nh7 Kc5 179. Rd6 Kb5 180. Ra6 Kxa6 181. Nb7 Kxb7 182. Qa2 Kc6 "
+    "183. Bd6 Kxd6 184. Nf6 Ke7 185. Nd7 Kxd7 186. Kf3 Ke7 187. Kf4 Kf6 "
+    "188. Qf2 Kg6 189. Qg2+ Kh5 190. Ke3 Kh6 191. Qg7+ Kxg7";
   
   vector<Move> moves;
   {
@@ -354,15 +376,121 @@ static bool MakeOddExcursion(const Position &orig_pos,
   if ((*seen)[orig_pos] >= 4)
     return false;
 
-  /*
   Position pos = orig_pos;
-  // Otherwise, we just do this by moving a piece out and back.
   vector<Move> cur_moves = pos.GetLegalMoves();
-  // Try these in a random order, which should help avoid
-  // repeating positions.
   Shuffle(rc, &cur_moves);
-  */
+  for (const Move &cur_move : cur_moves) {
+    const uint8 t = pos.MovePieceType(cur_move);
+    if (t == Position::KNIGHT || t == Position::PAWN) continue;
+    if (pos.IsCapturing(cur_move) || pos.IsCastling(cur_move)) continue;
 
+    Position pos2 = pos;
+    pos2.ApplyMove(cur_move);
+    // Too many repeats?
+    if ((*seen)[pos2] >= 4)
+      continue;
+
+    vector<Move> opp_moves = pos2.GetLegalMoves();
+    Shuffle(rc, &opp_moves);
+    for (const Move &opp_move : opp_moves) {
+      const uint8 ot = pos2.MovePieceType(opp_move);
+      if (ot == Position::KNIGHT || ot == Position::PAWN) continue;
+      if (pos2.IsCapturing(opp_move) || pos2.IsCastling(opp_move)) continue;
+
+      Position pos3 = pos2;
+      pos3.ApplyMove(opp_move);
+      // Too many repeats?
+      if ((*seen)[pos3] >= 4)
+	continue;
+
+      // Both players have moved once. Now again, but only consider
+      // the piece we moved the first time.
+
+      // PERF: A version of GetLegalMoves that gave me the moves with
+      // a particular source square would be much faster here.
+      vector<Move> cur2_moves = pos3.GetLegalMoves();
+      Shuffle(rc, &cur2_moves);
+      for (const Move &cur2_move : cur2_moves) {
+	if (cur2_move.src_row == cur_move.dst_row &&
+	    cur2_move.src_col == cur_move.dst_col) {
+
+	  Position pos4 = pos3;
+	  pos4.ApplyMove(cur2_move);
+	  if ((*seen)[pos4] >= 4)
+	    continue;
+
+	  vector<Move> opp2_moves = pos4.GetLegalMoves();
+	  Shuffle(rc, &opp2_moves);
+	  for (const Move &opp2_move : opp2_moves) {
+	    if (opp2_move.src_row == opp_move.dst_row &&
+		opp2_move.src_col == opp_move.dst_col) {
+
+	      Position pos5 = pos4;
+	      pos5.ApplyMove(opp2_move);
+	      if ((*seen)[pos5] >= 4)
+		continue;
+
+	      // Now, both players have moved twice. Try moving back
+	      // to the starting position.
+
+	      // Close the triangle, by moving from the destination of
+	      // move b to the source of move a.
+	      auto Triangle = [](Move ma, Move mb) -> Move {
+		  Move ret;
+		  ret.src_row = mb.dst_row;
+		  ret.src_col = mb.dst_col;
+		  ret.dst_row = ma.src_row;
+		  ret.dst_col = ma.src_col;
+		  return ret;
+		};
+	      
+	      // Now unwind the moves, if possible.
+	      Move rcur_move = Triangle(cur_move, cur2_move);
+	      Position pos6 = pos5;
+	      if (!pos6.IsLegal(rcur_move))
+		continue;
+	      pos6.ApplyMove(rcur_move);
+	      if ((*seen)[pos6] >= 4)
+		continue;
+
+	      Move ropp_move = Triangle(opp_move, opp2_move);
+	      Position pos7 = pos6;
+	      if (!pos7.IsLegal(ropp_move))
+		continue;
+	      pos7.ApplyMove(ropp_move);
+	      if ((*seen)[pos7] >= 4)
+		continue;
+	      
+	      // Like in the Even case.
+	      if (PositionEq{}(orig_pos, pos7)) {
+		// Got one! Commit.
+		printf("Odd Excursion: %s %s  %s %s  %s %s\n",
+		       pos.ShortMoveString(cur_move).c_str(),
+		       pos2.ShortMoveString(opp_move).c_str(),
+		       pos3.ShortMoveString(cur2_move).c_str(),
+		       pos4.ShortMoveString(opp2_move).c_str(),
+		       pos5.ShortMoveString(rcur_move).c_str(),
+		       pos6.ShortMoveString(ropp_move).c_str());
+
+		(*seen)[pos2]++;
+		(*seen)[pos3]++;
+		(*seen)[pos4]++;
+		(*seen)[pos5]++;
+		(*seen)[pos6]++;
+		(*seen)[pos7]++;
+		*excursion = {cur_move, opp_move,
+			      cur2_move, opp2_move,
+			      rcur_move, ropp_move};
+		return true;
+	      }
+	    }
+	  }
+	}
+      }
+    }
+  }
+    
+  // printf("No odd excursion...\n");
   return false;
 }
 
@@ -423,13 +551,13 @@ static void Expand(Critical *crit) {
 	std::function<bool(const Position &,
 			   ArcFour *,
 			   PositionMap<int> *,
-			   vector<Move> *)>) {
+			   vector<Move> *)> MakeExcursion) {
       // Otherwise, try to insert an excursion.
       Position pos = crit->start_pos;
       for (int idx = 0; idx <= crit->moves.size(); idx++) {
 	vector<Move> excursion;
 
-	if (MakeEvenExcursion(pos, &rc, &seen, &excursion)) {
+	if (MakeExcursion(pos, &rc, &seen, &excursion)) {
 	  vector<Move> newmoves;
 	  newmoves.reserve(crit->moves.size() + excursion.size());
 	  for (int i = 0; i < idx; i++) {
@@ -486,9 +614,11 @@ static void MakeLongest() {
   map<int, int> slack_histo;
   int total_slack = 0;
 
+  Position pos;
+  
   vector<Move> final_moves;
   // XXX more verification to do here, like 75-move counter
-  Position pos;
+
   for (const Critical &crit : crits) {
     CHECK(PositionEq{}(pos, crit.start_pos));
     for (const Move &m : crit.moves) {
@@ -523,6 +653,24 @@ static void MakeLongest() {
     final_moves.push_back(crit.critical_move);
   }
 
+  string pgn = "[Event \"Slow game\"]\n\n";
+  {
+    int move_num = 1;
+    Position p;
+    for (const Move &m : final_moves) {
+      if (!p.BlackMove()) {
+	StringAppendF(&pgn, " %d. %s", move_num,
+		      p.ShortMoveString(m).c_str());
+      } else {
+	StringAppendF(&pgn, " %s",
+		      p.ShortMoveString(m).c_str());
+	move_num++;
+      }
+      p.ApplyMove(m);
+    }
+  }
+  Util::WriteFile("slow.pgn", pgn);
+  
   for (const auto &p : slack_histo)
     printf("Slack %d: %d time(s)\n", p.first, p.second);
 
@@ -538,3 +686,22 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+
+/*
+    "1. a3 Nc6 2. a4 h6 3. Nf3 h5 4. Ng5 h4 5. a5 e6 6. d3 Ne5 7. Bf4 Nc4 "
+    "8. g3 b6 9. g4 b5 10. Bg3 Nb6 11. axb6 hxg3 12. b7 g2 13. b8=Q g1=Q "
+    "14. Ra6 b4 15. c3 Rh3 16. c4 Re3 17. c5 Re5 18. Rb6 a6 19. Rb7 a5 "
+    "20. Rb6 a4 21. Rb7 a3 22. Rb6 a2 23. Ra6 a1=Q 24. Ra3 bxa3 25. Nd2 a2 "
+    "26. b3 Ra6 27. b4 Rb6 28. cxb6 Qb1 29. b7 a1=N 30. Qa7 c6 31. b8=N c5 "
+    "32. b5 c4 33. b6 c3 34. d4 Rc5 35. dxc5 c2 36. h3 Ba6 37. b7 c1=Q "
+    "38. Nc6 Qc4 39. Nxc4 Qb2 40. Nxb2 d6 41. b8=N d5 42. Qc2 d4 43. f3 d3 "
+    "44. h4 d2+ 45. Kd1 Qh2 46. Qd3 Nb3 47. Nxd8 Bxd3 48. exd3 Na5 "
+    "49. Kc2 d1=N+ 50. Kc1 e5 51. c6 e4 52. c7 e3 53. c8=N e2 54. Ndc6 Nxc6 "
+    "55. h5 e1=N 56. h6 g6 57. h7 Qe2 58. Rh5 gxh5 59. h8=N h4 60. Ne4 h3 "
+    "61. g5 h2 62. g6 h1=Q 63. g7 Nf6 64. g8=N Ng4 65. fxg4 Qexf1 "
+    "66. Nxc6 Qxe4 67. Nxd1 f6 68. g5 f5 69. g6 f4 70. g7 Bb4 71. Nxb4 Qxb4 "
+    "72. d4 Qa6 73. Qxa6 f3 74. d5 f2 75. d6 Qh4 76. Nh6 Qxh6+ 77. Kb1 Qxh8 "
+    "78. g8=B Kd8 79. d7 Kc7 80. d8=N Qxg8 81. Qa1 Ng2 82. Nc6 Kxc6 "
+    "83. Ne3 Qxc8 84. Nxg2 f1=B 85. Qh8 Kd5 86. Ka2 Bxg2 87. Qxc8 Bh3 "
+    "88. Qxh3 Ke4 89. Qe3+ Kxe3";
+*/
