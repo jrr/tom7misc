@@ -9,7 +9,16 @@ var song_theme = [];
 // Number of elapsed frames in the current scene.
 let frames = 0;
 
-let holding_left = false, holding_right = false;
+let controls = {
+  holding_left: false,
+  holding_right: false,
+  holding_jump: false,
+
+  // These functions are called "onkeydown" if non-null.
+  impulse_left: null,
+  impulse_right: null,
+  impulse_jump: null
+};
 
 const resources = new Resources(
   ['font.png',
@@ -57,6 +66,15 @@ function InitGame() {
   window.facingleft = true;
 
   window.phase = PHASE_GAME;
+
+  controls.impulse_jump = () => {
+    if (window.phase == PHASE_TITLE) {
+      window.phase = PHASE_GAME;
+    } else if (window.phase == PHASE_GAME) {
+      // XXX probably the wrong place for "jumping" logic.
+      window.playerdy -= 1;
+    }
+  };
   
   console.log('initialized game');
 }
@@ -110,14 +128,16 @@ function Step(time) {
 
   frames++;
   if (frames > 1000000) frames = 0;
-
-  if (holding_right)
+  
+  UpdateGamepadControls();
+  
+  if (controls.holding_right)
     window.playerdx += 0.1;
-  else if (holding_left)
+  else if (controls.holding_left)
     window.playerdx -= 0.1;
   else
     window.playerdx *= 0.9;
-  
+
   if (window.playerdx > 2.0) window.playerdx = 2.0;
   else if (window.playerdx < -2.0) window.playerdx = -2.0;
   
@@ -160,10 +180,58 @@ function Step(time) {
   window.requestAnimationFrame(Step);
 }
 
-function GamepadConnected() {
+// This gets called when the gamepad is interacted with.
+// It often happens that there are multiple gamepads, so
+// we take the first one with "standard" mapping. the_gamepad
+// will be an index into the getGamepads array, or null (note
+// 0 != null) if we haven't detected one.
+let the_gamepad = null;
+function GamepadConnected(e) {
   console.log('gamepad connected!');
+  console.log(e);
+  if (the_gamepad != null) {
+    console.log('already have one.');
+    return;
+  }
+  if (!e.gamepad) return;
+  let gp = navigator.getGamepads()[e.gamepad.index];
+  if (!gp) return;
+  console.log('gp ' + gp.index + ' = ' + gp.id + ' mapping ' + gp.mapping);
+  if (gp.mapping == 'standard') {
+    the_gamepad = e.gamepad.index;
+  }
 }
 
+let old_gp_left = false;
+let old_gp_right = false;
+let old_gp_a = false;
+function UpdateGamepadControls() {
+  if (the_gamepad == null) return;
+  let gp = navigator.getGamepads()[the_gamepad];
+  
+  // D-pad up down left right: 12, 13, 14, 15
+  // buttons: 3 0 2 1, aka y a x b
+
+  let new_left = !!gp.buttons[14].pressed;
+  if (new_left != old_gp_left) {
+    if (new_left && controls.impulse_left) controls.impulse_left();
+    controls.holding_left = new_left;
+    old_gp_left = new_left;
+  }
+  let new_right = !!gp.buttons[15].pressed;
+  if (new_right != old_gp_right) {
+    if (new_right && controls.impulse_right) controls.impulse_right();
+    controls.holding_right = new_right;
+    old_gp_right = new_right;
+  }
+
+  let new_a = !!gp.buttons[0].pressed;
+  if (new_a != old_gp_a) {
+    if (new_a && controls.impulse_jump) controls.impulse_jump();
+    controls.holding_jump = new_a;
+    old_gp_a = new_a;
+  }
+}
 
 function Start() {
   Init();
@@ -192,12 +260,13 @@ document.onkeyup = function(event) {
 
   switch (event.keyCode) {
   case 32:  // SPACE
+    controls.holding_jump = false;
     break;
   case 37:  // LEFT
-    holding_left = false;
+    controls.holding_left = false;
     break;
   case 39:  // RIGHT
-    holding_right = false;
+    controls.holding_right = false;
     break;
   case 38:  // UP
   case 40:  // DOWN
@@ -214,21 +283,22 @@ document.onkeydown = function(event) {
 
   switch (event.keyCode) {
   case 32:  // SPACE
-    if (window.phase == PHASE_TITLE)
-      window.phase = PHASE_GAME;
+    controls.holding_jump = true;
+    if (controls.impulse_jump) controls.impulse_jump();
     break;
   case 37:  // LEFT
-    holding_left = true;
+    controls.holding_left = true;
+    if (controls.impulse_left) controls.impulse_left();
     break;
   case 39:  // RIGHT
-    holding_right = true;
+    controls.holding_right = true;
+    if (controls.impulse_right) controls.impulse_right();
     break;
   case 38:  // UP
   case 40:  // DOWN
   case 90:  // z
   case 88:  // x
     break;
-    // TODO: gamepads
     
     /*
     case 49: window.phase = PHASE_PUZZLE; Level1(); break;
@@ -250,6 +320,8 @@ document.onkeydown = function(event) {
     */
     case 27: // ESC
     if (true || DEBUG) {
+      // TODO: Would be much better if this just paused (with music
+      // silenced)! But that can introduce some race conditions.
       ClearSong();
       document.body.innerHTML =
 	  '<b style="color:#fff;font-size:40px">(SILENCED. ' +
