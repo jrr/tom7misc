@@ -8,47 +8,51 @@
 //#define AES192 1
 //#define AES256 1
 
-// Block length in bytes AES is 128b block only
-#define AES_BLOCKLEN 16
 
-#if defined(AES256) && (AES256 == 1)
-  #define AES_KEYLEN 32
-  #define AES_keyExpSize 240
-#elif defined(AES192) && (AES192 == 1)
-  #define AES_KEYLEN 24
-  #define AES_keyExpSize 208
-#else
-  #define AES_KEYLEN 16   // Key length in bytes
-  #define AES_keyExpSize 176
-#endif
-
-struct AES_ctx {
-  uint8_t round_key[AES_keyExpSize];
-  uint8_t iv[AES_BLOCKLEN];
-};
-
+// template<int KEYBITS>
 struct AES {
-  static void InitCtx(struct AES_ctx *ctx, const uint8_t *key);
+  // Block length in bytes. Same for all variants.
+  static constexpr int BLOCKLEN = 16;
 
-  static void InitCtxIV(struct AES_ctx *ctx,
+  // Key length in bytes.
+#if defined(AES256) && (AES256 == 1)
+  static constexpr int KEYLEN = 32;
+  static constexpr int EXPKEYLEN = 240;
+#elif defined(AES192) && (AES192 == 1)
+  static constexpr int KEYLEN = 24;
+  static constexpr int EXPKEYLEN = 208;
+#else
+  static constexpr int KEYLEN = 16;
+  static constexpr int EXPKEYLEN = 176;
+#endif
+  
+  
+  struct Ctx {
+    uint8_t round_key[EXPKEYLEN];
+    uint8_t iv[BLOCKLEN];
+  };
+
+  static void InitCtx(struct Ctx *ctx, const uint8_t *key);
+
+  static void InitCtxIV(struct Ctx *ctx,
 			const uint8_t *key, const uint8_t *iv);
-  static void AES_ctx_set_iv(struct AES_ctx *ctx, const uint8_t *iv);
+  static void Ctx_set_iv(struct Ctx *ctx, const uint8_t *iv);
 
   // Buffer size is exactly AES_BLOCKLEN bytes.
   // You need only InitCtx as IV is not used in ECB 
   // Note: ECB is considered insecure for most uses
-  static void AES_ECB_encrypt(const struct AES_ctx *ctx, uint8_t *buf);
-  static void AES_ECB_decrypt(const struct AES_ctx *ctx, uint8_t *buf);
+  static void AES_ECB_encrypt(const struct Ctx *ctx, uint8_t *buf);
+  static void AES_ECB_decrypt(const struct Ctx *ctx, uint8_t *buf);
 
 
   // buffer size MUST be mutile of AES_BLOCKLEN;
   // Suggest https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS7
   //   for padding scheme.
-  // NOTES: you need to set IV in ctx via InitCtxIV() or AES_ctx_set_iv()
+  // NOTES: you need to set IV in ctx via InitCtxIV() or Ctx_set_iv()
   //        no IV should ever be reused with the same key 
-  static void AES_CBC_encrypt_buffer(struct AES_ctx *ctx,
+  static void AES_CBC_encrypt_buffer(struct Ctx *ctx,
 				     uint8_t *buf, uint32_t length);
-  static void AES_CBC_decrypt_buffer(struct AES_ctx *ctx,
+  static void AES_CBC_decrypt_buffer(struct Ctx *ctx,
 				     uint8_t *buf, uint32_t length);
 
 
@@ -57,10 +61,29 @@ struct AES {
   // XOR-compliment for output.
   // Suggest https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS7
   //   for padding scheme.
-  // NOTES: you need to set IV in ctx with InitCtxIV() or AES_ctx_set_iv()
+  // NOTES: you need to set IV in ctx with InitCtxIV() or Ctx_set_iv()
   //        no IV should ever be reused with the same key 
-  static void AES_CTR_xcrypt_buffer(struct AES_ctx *ctx,
+  static void AES_CTR_xcrypt_buffer(struct Ctx *ctx,
 				    uint8_t *buf, uint32_t length);
+
+private:
+#if defined(AES256) && (AES256 == 1)
+  // The number of 32 bit words in a key.
+  static constexpr int KEY_WORDS = 8;
+  // The number of rounds in AES Cipher.
+  static constexpr int NUM_ROUNDS = 14;
+#elif defined(AES192) && (AES192 == 1)
+  static constexpr int KEY_WORDS = 6;
+  static constexpr int NUM_ROUNDS = 12;
+#else
+  static constexpr int KEY_WORDS = 4; 
+  static constexpr int NUM_ROUNDS = 10;
+#endif
+
 };
+
+// using AES128 = AES<128>;
+// using AES192 = AES<192>;
+// using AES256 = AES<256>;
 
 #endif
