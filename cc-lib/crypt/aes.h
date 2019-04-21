@@ -3,29 +3,30 @@
 
 #include <cstdint>
 
-
-#define AES128 1
-//#define AES192 1
-//#define AES256 1
-
-
-// template<int KEYBITS>
+template<int KEYBITS>
 struct AES {
+  static_assert(KEYBITS == 256 ||
+		KEYBITS == 192 ||
+		KEYBITS == 128, "only these values supported");
+  
   // Block length in bytes. Same for all variants.
   static constexpr int BLOCKLEN = 16;
 
   // Key length in bytes.
-#if defined(AES256) && (AES256 == 1)
-  static constexpr int KEYLEN = 32;
-  static constexpr int EXPKEYLEN = 240;
-#elif defined(AES192) && (AES192 == 1)
-  static constexpr int KEYLEN = 24;
-  static constexpr int EXPKEYLEN = 208;
-#else
-  static constexpr int KEYLEN = 16;
-  static constexpr int EXPKEYLEN = 176;
-#endif
-  
+  static constexpr int KEYLEN =
+    (KEYBITS == 256) ? 32 : (KEYBITS == 192) ? 24 : 16;
+  // Expanded key length in bytes.
+  static constexpr int EXPKEYLEN =
+    (KEYBITS == 256) ? 240 : (KEYBITS == 192) ? 208 : 176;
+
+  // Number of 32-bit words in a key, which is the constant
+  // Nk in AES.
+  static constexpr int KEY_WORDS =
+    (KEYBITS == 256) ? 8 : (KEYBITS == 192) ? 6 : 4;
+
+  // The number of rounds, which is the constant Nr in AES.
+  static constexpr int NUM_ROUNDS =
+    (KEYBITS == 256) ? 14 : (KEYBITS == 192) ? 12 : 10;
   
   struct Ctx {
     uint8_t round_key[EXPKEYLEN];
@@ -65,25 +66,10 @@ struct AES {
   //        no IV should ever be reused with the same key 
   static void AES_CTR_xcrypt_buffer(struct Ctx *ctx,
 				    uint8_t *buf, uint32_t length);
-
-private:
-#if defined(AES256) && (AES256 == 1)
-  // The number of 32 bit words in a key.
-  static constexpr int KEY_WORDS = 8;
-  // The number of rounds in AES Cipher.
-  static constexpr int NUM_ROUNDS = 14;
-#elif defined(AES192) && (AES192 == 1)
-  static constexpr int KEY_WORDS = 6;
-  static constexpr int NUM_ROUNDS = 12;
-#else
-  static constexpr int KEY_WORDS = 4; 
-  static constexpr int NUM_ROUNDS = 10;
-#endif
-
 };
 
-// using AES128 = AES<128>;
-// using AES192 = AES<192>;
-// using AES256 = AES<256>;
+using AES128 = AES<128>;
+using AES192 = AES<192>;
+using AES256 = AES<256>;
 
 #endif

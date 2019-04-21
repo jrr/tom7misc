@@ -220,17 +220,20 @@ static void KeyExpansion(uint8* round_key, const uint8* Key) {
   }
 }
 
-void AES::InitCtx(struct Ctx* ctx, const uint8* key) {
+template<int KEYBITS>
+void AES<KEYBITS>::InitCtx(struct Ctx* ctx, const uint8* key) {
   KeyExpansion<KEY_WORDS, NUM_ROUNDS>(ctx->round_key, key);
 }
 
-void AES::InitCtxIV(struct Ctx* ctx,
+template<int KEYBITS>
+void AES<KEYBITS>::InitCtxIV(struct Ctx* ctx,
 		    const uint8* key, const uint8* iv) {
   KeyExpansion<KEY_WORDS, NUM_ROUNDS>(ctx->round_key, key);
   memcpy(ctx->iv, iv, BLOCKLEN);
 }
 
-void AES::Ctx_set_iv(struct Ctx* ctx, const uint8* iv) {
+template<int KEYBITS>
+void AES<KEYBITS>::Ctx_set_iv(struct Ctx* ctx, const uint8* iv) {
   memcpy(ctx->iv, iv, BLOCKLEN);
 }
 
@@ -425,13 +428,15 @@ static void InvCipher(state_t* state, const uint8* round_key) {
 /* Public functions:                                                         */
 /*****************************************************************************/
 
-void AES::AES_ECB_encrypt(const struct Ctx* ctx, uint8* buf) {
+template<int KEYBITS>
+void AES<KEYBITS>::AES_ECB_encrypt(const struct Ctx* ctx, uint8* buf) {
   // The next function call encrypts the PlainText with the Key using
   // AES algorithm.
   Cipher<NUM_ROUNDS>((state_t*)buf, ctx->round_key);
 }
 
-void AES::AES_ECB_decrypt(const struct Ctx* ctx, uint8* buf) {
+template<int KEYBITS>
+void AES<KEYBITS>::AES_ECB_decrypt(const struct Ctx* ctx, uint8* buf) {
   // The next function call decrypts the PlainText with the Key using
   // AES algorithm.
   InvCipher<NUM_ROUNDS>((state_t*)buf, ctx->round_key);
@@ -445,8 +450,9 @@ static void XorWithIv(uint8* buf, const uint8* iv) {
   }
 }
 
-void AES::AES_CBC_encrypt_buffer(struct Ctx *ctx,
-				 uint8* buf, uint32 length) {
+template<int KEYBITS>
+void AES<KEYBITS>::AES_CBC_encrypt_buffer(struct Ctx *ctx,
+					  uint8* buf, uint32 length) {
   uint8 *iv = ctx->iv;
   for (uintptr_t i = 0; i < length; i += BLOCKLEN) {
     XorWithIv<BLOCKLEN>(buf, iv);
@@ -458,8 +464,9 @@ void AES::AES_CBC_encrypt_buffer(struct Ctx *ctx,
   memcpy(ctx->iv, iv, BLOCKLEN);
 }
 
-void AES::AES_CBC_decrypt_buffer(struct Ctx* ctx,
-				 uint8* buf,  uint32 length) {
+template<int KEYBITS>
+void AES<KEYBITS>::AES_CBC_decrypt_buffer(struct Ctx* ctx,
+					  uint8* buf,  uint32 length) {
   uint8 storeNextIv[BLOCKLEN];
   for (uintptr_t i = 0; i < length; i += BLOCKLEN) {
     memcpy(storeNextIv, buf, BLOCKLEN);
@@ -474,8 +481,9 @@ void AES::AES_CBC_decrypt_buffer(struct Ctx* ctx,
 /* Symmetrical operation: same function for encrypting as for
    decrypting. Note any IV/nonce should never be reused with the same
    key */
-void AES::AES_CTR_xcrypt_buffer(struct Ctx* ctx, uint8* buf,
-				uint32 length) {
+template<int KEYBITS>
+void AES<KEYBITS>::AES_CTR_xcrypt_buffer(struct Ctx* ctx, uint8* buf,
+					 uint32 length) {
   uint8 buffer[BLOCKLEN];
   
   int bi;
@@ -502,3 +510,6 @@ void AES::AES_CTR_xcrypt_buffer(struct Ctx* ctx, uint8* buf,
   }
 }
 
+template class AES<128>;
+template class AES<192>;
+template class AES<256>;
