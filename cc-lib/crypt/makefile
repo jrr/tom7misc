@@ -1,5 +1,5 @@
 
-default : aes_test.exe
+default : aes_test.exe sha256_test.exe
 
 BASE=../base/logging.o ../base/stringprintf.o
 
@@ -23,6 +23,14 @@ aes_test.o : aes_test.cc aes.h
 aes_test.exe : aes.o aes_test.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
+sha256.o : sha256.cc sha256.h
+	$(CXX) $(CXXFLAGS) $< -o $@ -c
+
+sha256_test.o : sha256_test.cc sha256.h
+	$(CXX) $(CXXFLAGS) $< -o $@ -c
+
+sha256_test.exe : sha256.o sha256_test.o $(BASE)
+	$(CXX) $(CXXFLAGS) $^ -o $@
 
 clean :
 	rm -f *.o *.exe

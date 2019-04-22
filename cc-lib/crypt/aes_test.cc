@@ -520,8 +520,6 @@ static int test_decrypt_ecb128(void) {
 }
 
 int main(int argc, char **argv) {
-  int exit;
-
   CHECK(test_encrypt_ecb128());
   CHECK(test_encrypt_ecb192());
   CHECK(test_encrypt_ecb256());
@@ -547,10 +545,5 @@ int main(int argc, char **argv) {
   CHECK(test_xcrypt_ctr256("decrypt"));
 
   test_encrypt_ecb_verbose128();
-
-  /*
-  exit =
-    test_decrypt_ecb();
-  */
-  return exit;
+  return 0;
 }
