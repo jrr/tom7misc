@@ -38,25 +38,7 @@ void SHA256::Init(SHA256::Ctx *c) {
   c->h[5] = 0x9b05688cUL;
   c->h[6] = 0x1f83d9abUL;
   c->h[7] = 0x5be0cd19UL;
-  c->md_len = DIGEST_LENGTH;
 }
-
-#if 0
-// TODO: hash function on string/vector/etc.
-unsigned char *SHA256(const unsigned char *d, size_t n, unsigned char *md)
-{
-    SHA256::Ctx c;
-    static unsigned char m[DIGEST_LENGTH];
-
-    if (md == NULL)
-        md = m;
-    SHA256_Init(&c);
-    SHA256_Update(&c, d, n);
-    SHA256_Final(md, &c);
-    Cleanse(&c, sizeof(c));
-    return md;
-}
-#endif
 
 /*
 static string ResultAsString(SHA256::Ctx *ctx) {
@@ -81,202 +63,63 @@ std::vector<uint8> SHA256::HashString(const string &s) {
   return ResultAsVector(&c);
 }
 
-#define DATA_ORDER_IS_BIG_ENDIAN
-
-#define HASH_LONG               uint32
-#define HASH_CTX                SHA256::Ctx
-#define HASH_CBLOCK             SHA256::SHA_CBLOCK
-
-/*
- * Note that FIPS180-2 discusses "Truncation of the Hash Function Output."
- * default: case below covers for it. It's not clear however if it's
- * permitted to truncate to amount of bytes not divisible by 4. I bet not,
- * but if it is, then default: case shall be extended. For reference.
- * Idea behind separate cases for pre-defined lengths is to let the
- * compiler decide if it's appropriate to unroll small loops.
- */
-#define HASH_MAKE_STRING(c,s)   do {    \
-        unsigned long ll;               \
-        unsigned int  nn;               \
-	for (nn=0; nn < SHA256::DIGEST_LENGTH / 4; nn++)	\
-	  {   ll=(c)->h[nn]; (void)HOST_l2c(ll,(s));   }	\
-        } while (0)
-
-#define HASH_TRANSFORM          SHA256_Transform
-#define HASH_FINAL              SHA256_Final
-#define HASH_BLOCK_DATA_ORDER   sha256_block_data_order
-
 static void sha256_block_data_order(
     SHA256::Ctx *ctx, const uint8 *data, size_t num);
 
-// ---------------------------------------------------------------
-// was #include internal/md32_common.h
-
-/*
- * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
- *
- * Licensed under the Apache License 2.0 (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
- */
-
-/*-
- * This is a generic 32 bit "collector" for message digest algorithms.
- * Whenever needed it collects input character stream into chunks of
- * 32 bit values and invokes a block function that performs actual hash
- * calculations.
- *
- * Porting guide.
- *
- * Obligatory macros:
- *
- * DATA_ORDER_IS_BIG_ENDIAN or DATA_ORDER_IS_LITTLE_ENDIAN
- *      this macro defines byte order of input stream.
- * HASH_CBLOCK
- *      size of a unit chunk HASH_BLOCK operates on.
- * HASH_LONG
- *      has to be at least 32 bit wide.
- * HASH_CTX
- *      context structure that at least contains following
- *      members:
- *              typedef struct {
- *                      ...
- *                      HASH_LONG       Nl,Nh;
- *                      either {
- *                      HASH_LONG       data[HASH_LBLOCK];
- *                      unsigned char   data[HASH_CBLOCK];
- *                      };
- *                      unsigned int    num;
- *                      ...
- *                      } HASH_CTX;
- *      data[] vector is expected to be zeroed upon first call to
- *      Update.
- * HASH_TRANSFORM
- *      name of "Transform" function, implemented here.
- * HASH_FINAL
- *      name of "Final" function, implemented here.
- * HASH_BLOCK_DATA_ORDER
- *      name of "block" function capable of treating *unaligned* input
- *      message in original (data) byte order, implemented externally.
- * HASH_MAKE_STRING
- *      macro converting context variables to an ASCII hash string.
- *
- * MD5 example:
- *
- *      #define DATA_ORDER_IS_LITTLE_ENDIAN
- *
- *      #define HASH_LONG               MD5_LONG
- *      #define HASH_CTX                MD5_CTX
- *      #define HASH_CBLOCK             MD5_CBLOCK
- *      #define HASH_TRANSFORM          MD5_Transform
- *      #define HASH_FINAL              MD5_Final
- *      #define HASH_BLOCK_DATA_ORDER   md5_block_data_order
- */
-
-// #include <openssl/crypto.h>
-
-#if !defined(DATA_ORDER_IS_BIG_ENDIAN) && !defined(DATA_ORDER_IS_LITTLE_ENDIAN)
-# error "DATA_ORDER must be defined!"
-#endif
-
-#ifndef HASH_CBLOCK
-# error "HASH_CBLOCK must be defined!"
-#endif
-#ifndef HASH_LONG
-# error "HASH_LONG must be defined!"
-#endif
-#ifndef HASH_CTX
-# error "HASH_CTX must be defined!"
-#endif
-
-#ifndef HASH_TRANSFORM
-# error "HASH_TRANSFORM must be defined!"
-#endif
-#ifndef HASH_FINAL
-# error "HASH_FINAL must be defined!"
-#endif
-
-#ifndef HASH_BLOCK_DATA_ORDER
-# error "HASH_BLOCK_DATA_ORDER must be defined!"
-#endif
-
 #define ROTATE(a,n)     (((a)<<(n))|(((a)&0xffffffff)>>(32-(n))))
 
-#if defined(DATA_ORDER_IS_BIG_ENDIAN)
+#define HOST_c2l(c,l)  (l =(((unsigned long)(*((c)++)))<<24),		\
+			l|=(((unsigned long)(*((c)++)))<<16),		\
+			l|=(((unsigned long)(*((c)++)))<< 8),		\
+			l|=(((unsigned long)(*((c)++)))    ))
 
-# define HOST_c2l(c,l)  (l =(((unsigned long)(*((c)++)))<<24),          \
-                         l|=(((unsigned long)(*((c)++)))<<16),          \
-                         l|=(((unsigned long)(*((c)++)))<< 8),          \
-                         l|=(((unsigned long)(*((c)++)))    )           )
-# define HOST_l2c(l,c)  (*((c)++)=(unsigned char)(((l)>>24)&0xff),      \
-                         *((c)++)=(unsigned char)(((l)>>16)&0xff),      \
-                         *((c)++)=(unsigned char)(((l)>> 8)&0xff),      \
-                         *((c)++)=(unsigned char)(((l)    )&0xff),      \
-                         l)
+#define HOST_l2c(l,c)  (*((c)++)=(unsigned char)(((l)>>24)&0xff),	\
+			*((c)++)=(unsigned char)(((l)>>16)&0xff),	\
+			*((c)++)=(unsigned char)(((l)>> 8)&0xff),	\
+			*((c)++)=(unsigned char)(((l)    )&0xff),	\
+			l)
 
-#elif defined(DATA_ORDER_IS_LITTLE_ENDIAN)
-
-# define HOST_c2l(c,l)  (l =(((unsigned long)(*((c)++)))    ),          \
-                         l|=(((unsigned long)(*((c)++)))<< 8),          \
-                         l|=(((unsigned long)(*((c)++)))<<16),          \
-                         l|=(((unsigned long)(*((c)++)))<<24)           )
-# define HOST_l2c(l,c)  (*((c)++)=(unsigned char)(((l)    )&0xff),      \
-                         *((c)++)=(unsigned char)(((l)>> 8)&0xff),      \
-                         *((c)++)=(unsigned char)(((l)>>16)&0xff),      \
-                         *((c)++)=(unsigned char)(((l)>>24)&0xff),      \
-                         l)
-
-#endif
-
-/*
- * Time for some action :-)
- */
-
-int SHA256::Update(HASH_CTX *c, const uint8 *data, size_t len) {
+void SHA256::Update(Ctx *c, const uint8 *data, size_t len) {
   unsigned char *p;
-  HASH_LONG l;
+  uint32 l;
   size_t n;
 
   if (len == 0)
-    return 1;
+    return;
 
-  l = (c->Nl + (((HASH_LONG) len) << 3)) & 0xffffffffUL;
-  if (l < c->Nl)              /* overflow */
+  l = (c->Nl + (((uint32) len) << 3)) & 0xffffffffUL;
+  // overflow?
+  if (l < c->Nl)
     c->Nh++;
-  c->Nh += (HASH_LONG) (len >> 29); /* might cause compiler warning on
-				     * 16-bit */
+  // might cause compiler warning on 16-bit
+  c->Nh += (uint32) (len >> 29);
   c->Nl = l;
 
   n = c->num;
   if (n != 0) {
     p = (unsigned char *)c->data;
 
-    if (len >= HASH_CBLOCK || len + n >= HASH_CBLOCK) {
-      memcpy(p + n, data, HASH_CBLOCK - n);
-      HASH_BLOCK_DATA_ORDER(c, p, 1);
-      n = HASH_CBLOCK - n;
+    if (len >= SHA_CBLOCK || len + n >= SHA_CBLOCK) {
+      memcpy(p + n, data, SHA_CBLOCK - n);
+      sha256_block_data_order(c, p, 1);
+      n = SHA_CBLOCK - n;
       data += n;
       len -= n;
       c->num = 0;
-      /*
-       * We use memset rather than OPENSSL_cleanse() here deliberately.
-       * Using OPENSSL_cleanse() here could be a performance issue. It
-       * will get properly cleansed on finalisation so this isn't a
-       * security problem.
-       */
-      memset(p, 0, HASH_CBLOCK); /* keep it zeroed */
+      // Keep it zeroed. (Via OpenSSL we avoid cleanse() here; it gets
+      // cleansed in finalization.)
+      memset(p, 0, SHA_CBLOCK);
     } else {
       memcpy(p + n, data, len);
       c->num += (unsigned int)len;
-      return 1;
+      return;
     }
   }
 
-  n = len / HASH_CBLOCK;
+  n = len / SHA_CBLOCK;
   if (n > 0) {
-    HASH_BLOCK_DATA_ORDER(c, data, n);
-    n *= HASH_CBLOCK;
+    sha256_block_data_order(c, data, n);
+    n *= SHA_CBLOCK;
     data += n;
     len -= n;
   }
@@ -286,14 +129,9 @@ int SHA256::Update(HASH_CTX *c, const uint8 *data, size_t len) {
     c->num = (unsigned int)len;
     memcpy(p, data, len);
   }
-  return 1;
 }
 
-void HASH_TRANSFORM(HASH_CTX *c, const unsigned char *data) {
-    HASH_BLOCK_DATA_ORDER(c, data, 1);
-}
-
-void SHA256::Finalize(Ctx *c, unsigned char *md  ) {
+void SHA256::Finalize(Ctx *c, unsigned char *md) {
   unsigned char *p = (unsigned char *)c->data;
   size_t n = c->num;
 
@@ -301,64 +139,28 @@ void SHA256::Finalize(Ctx *c, unsigned char *md  ) {
   p[n] = 0x80;
   n++;
 
-  if (n > (HASH_CBLOCK - 8)) {
-    memset(p + n, 0, HASH_CBLOCK - n);
+  if (n > (SHA_CBLOCK - 8)) {
+    memset(p + n, 0, SHA_CBLOCK - n);
     n = 0;
-    HASH_BLOCK_DATA_ORDER(c, p, 1);
+    sha256_block_data_order(c, p, 1);
   }
-  memset(p + n, 0, HASH_CBLOCK - 8 - n);
+  memset(p + n, 0, SHA_CBLOCK - 8 - n);
 
-  p += HASH_CBLOCK - 8;
-#if defined(DATA_ORDER_IS_BIG_ENDIAN)
+  p += SHA_CBLOCK - 8;
+
   (void)HOST_l2c(c->Nh, p);
   (void)HOST_l2c(c->Nl, p);
-#elif defined(DATA_ORDER_IS_LITTLE_ENDIAN)
-  (void)HOST_l2c(c->Nl, p);
-  (void)HOST_l2c(c->Nh, p);
-#endif
-  p -= HASH_CBLOCK;
-  HASH_BLOCK_DATA_ORDER(c, p, 1);
+
+  p -= SHA_CBLOCK;
+  sha256_block_data_order(c, p, 1);
   c->num = 0;
-  Cleanse(p, HASH_CBLOCK);
+  Cleanse(p, SHA_CBLOCK);
 
-#ifndef HASH_MAKE_STRING
-# error "HASH_MAKE_STRING must be defined!"
-#else
-  HASH_MAKE_STRING(c, md);
-#endif
+  for (int nn = 0; nn < SHA256::DIGEST_LENGTH / 4; nn++) {
+    uint32 ll = c->h[nn];
+    (void)HOST_l2c(ll, md);
+  }
 }
-
-#ifndef MD32_REG_T
-# if defined(__alpha) || defined(__sparcv9) || defined(__mips)
-#  define MD32_REG_T long
-/*
- * This comment was originally written for MD5, which is why it
- * discusses A-D. But it basically applies to all 32-bit digests,
- * which is why it was moved to common header file.
- *
- * In case you wonder why A-D are declared as long and not
- * as MD5_LONG. Doing so results in slight performance
- * boost on LP64 architectures. The catch is we don't
- * really care if 32 MSBs of a 64-bit register get polluted
- * with eventual overflows as we *save* only 32 LSBs in
- * *either* case. Now declaring 'em long excuses the compiler
- * from keeping 32 MSBs zeroed resulting in 13% performance
- * improvement under SPARC Solaris7/64 and 5% under AlphaLinux.
- * Well, to be honest it should say that this *prevents*
- * performance degradation.
- */
-# else
-/*
- * Above is not absolute and there are LP64 compilers that
- * generate better code if MD32_REG_T is defined int. The above
- * pre-processor condition reflects the circumstances under which
- * the conclusion was made and is subject to further extension.
- */
-#  define MD32_REG_T int
-# endif
-#endif
-
-// ---------------------------------------------------------------
 
 static const uint32 K256[64] = {
   0x428a2f98UL, 0x71374491UL, 0xb5c0fbcfUL, 0xe9b5dba5UL,
@@ -379,37 +181,32 @@ static const uint32 K256[64] = {
   0x90befffaUL, 0xa4506cebUL, 0xbef9a3f7UL, 0xc67178f2UL
 };
 
-/*
- * FIPS specification refers to right rotations, while our ROTATE macro
- * is left one. This is why you might notice that rotation coefficients
- * differ from those observed in FIPS document by 32-N...
- */
-# define Sigma0(x) (ROTATE((x),30) ^ ROTATE((x),19) ^ ROTATE((x),10))
-# define Sigma1(x) (ROTATE((x),26) ^ ROTATE((x),21) ^ ROTATE((x),7))
-# define sigma0(x) (ROTATE((x),25) ^ ROTATE((x),14) ^ ((x)>>3))
-# define sigma1(x) (ROTATE((x),15) ^ ROTATE((x),13) ^ ((x)>>10))
+// Note that FIPS specifies a right rightation, but ROTATE here is
+// actually left rotation.
+#define Sigma0(x) (ROTATE((x),30) ^ ROTATE((x),19) ^ ROTATE((x),10))
+#define Sigma1(x) (ROTATE((x),26) ^ ROTATE((x),21) ^ ROTATE((x),7))
+#define sigma0(x) (ROTATE((x),25) ^ ROTATE((x),14) ^ ((x)>>3))
+#define sigma1(x) (ROTATE((x),15) ^ ROTATE((x),13) ^ ((x)>>10))
 
-# define Ch(x, y, z) (((x) & (y)) ^ ((~(x)) & (z)))
-# define Maj(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+#define Ch(x, y, z) (((x) & (y)) ^ ((~(x)) & (z)))
+#define Maj(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
 
 static void sha256_block_data_order(SHA256::Ctx *ctx, const uint8 *data,
                                     size_t num) {
-  unsigned MD32_REG_T a, b, c, d, e, f, g, h, s0, s1, T1, T2;
+  uint32 s0, s1, T1, T2;
   uint32 X[16], l;
-  int i;
 
   while (num--) {
+    uint32 a = ctx->h[0];
+    uint32 b = ctx->h[1];
+    uint32 c = ctx->h[2];
+    uint32 d = ctx->h[3];
+    uint32 e = ctx->h[4];
+    uint32 f = ctx->h[5];
+    uint32 g = ctx->h[6];
+    uint32 h = ctx->h[7];
 
-    a = ctx->h[0];
-    b = ctx->h[1];
-    c = ctx->h[2];
-    d = ctx->h[3];
-    e = ctx->h[4];
-    f = ctx->h[5];
-    g = ctx->h[6];
-    h = ctx->h[7];
-
-    for (i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++) {
       (void)HOST_c2l(data, l);
       T1 = X[i] = l;
       T1 += h + Sigma1(e) + Ch(e, f, g) + K256[i];
@@ -424,7 +221,7 @@ static void sha256_block_data_order(SHA256::Ctx *ctx, const uint8 *data,
       a = T1 + T2;
     }
 
-    for (; i < 64; i++) {
+    for (int i = 16; i < 64; i++) {
       s0 = X[(i + 1) & 0x0f];
       s0 = sigma0(s0);
       s1 = X[(i + 14) & 0x0f];
@@ -451,7 +248,6 @@ static void sha256_block_data_order(SHA256::Ctx *ctx, const uint8 *data,
     ctx->h[5] += f;
     ctx->h[6] += g;
     ctx->h[7] += h;
-
   }
 }
 

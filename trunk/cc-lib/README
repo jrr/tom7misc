@@ -1,8 +1,8 @@
 cc-lib                             Tom 7       3 Mar 2018
 
-Like my much more impressive "sml-lib", this is my attempt to get
-all of my frequently used C++ libraries into a single place so that
-different copies don't accumulate different changes.
+Like my more-involved "sml-lib", this is my attempt to get all of my
+frequently used C++ libraries into a single place so that different
+copies don't accumulate different changes.
 
 I try to use portable style where possible to make compiling against
 this easy. I hate complicated makefiles, actually basically all build
@@ -12,9 +12,8 @@ it's kind of complicated, you know?
 I'm pretty much on C++11 everywhere now, so these libraries may assume
 C++11 features and semantics. It's worth it. GCC 4.8 and later have
 pretty complete support. As of 2016 I've started using C++14 too. On
-Windows, I'm using TDM-GCC, although this unfortunately appears to be
-abandoned, so maybe it's back to x86_64-w64-mingw32-g++. On linux,
-just get the newest GCC.
+Windows, I'm using x86_64-w64-mingw32-g++ again. On linux, just get
+the newest GCC.
 
 Some of what's here is google "base" libraries, since those are quite
 useful and I know them well. They have been released multiple times
@@ -77,6 +76,11 @@ lines         - Draw lines using Bresenham's algorithm.
 base64        - Very simple base64 encoding and decoding.
 md5           - Simple interface to MD5 hash algorithm. Note that MD5 should
                 no longer be considered safe for cryptography, so you should
-                probably avoid it for new applications.
+                probably avoid it for new applications. (SHA256 in crypt/ is
+                still considered good.)
 bounds        - Simple bounding box implementation, typically used for
                 generating plots of data
+crypt/        - Simple implementations of cryptographic algorithms like AES
+                and SHA256. Perhaps arcfour and MD5 should be in here too.
+pi/           - Some code for working on the raspberry pi, particularly
+                for doing GPIO.
