@@ -50,7 +50,7 @@ static string ResultAsString(SHA256::Ctx *ctx) {
 }
 */
 
-static std::vector<uint8> ResultAsVector(SHA256::Ctx *ctx) {
+std::vector<uint8> SHA256::FinalVector(SHA256::Ctx *ctx) {
   std::vector<uint8> result(32);
   SHA256::Finalize(ctx, result.data());
   return result;
@@ -59,8 +59,12 @@ static std::vector<uint8> ResultAsVector(SHA256::Ctx *ctx) {
 std::vector<uint8> SHA256::HashString(const string &s) {
   SHA256::Ctx c;
   SHA256::Init(&c);
-  SHA256::Update(&c, (const uint8 *)s.data(), s.size());
-  return ResultAsVector(&c);
+  SHA256::UpdateString(&c, s);
+  return FinalVector(&c);
+}
+
+void SHA256::UpdateString(Ctx *c, const string &s) {
+  SHA256::Update(c, (const uint8 *)s.data(), s.size());
 }
 
 static void sha256_block_data_order(
