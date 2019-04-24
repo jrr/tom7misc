@@ -29,7 +29,7 @@
     (if (null f) () (select-frame f))
     (menu-bar-mode -1)
     ;; doesn't exist on raspberry pi when emacs-nox is installed?
-    (if (fboundp tool-bar-mode) (tool-bar-mode -1))
+    (if (fboundp 'tool-bar-mode) (tool-bar-mode -1))
     (blink-cursor-mode -1)
     (set-background-color "grey15")
     (set-foreground-color "grey80")

@@ -11,6 +11,8 @@ LFLAGS=-static
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 	@echo -n "."
 
+pass.exe : pass.o ../cc-lib/crypt/sha256.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o
+	$(CXX) $^ -o $@ $(LFLAGS)
 
 decode-monika.exe : decode-monika.o ../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/image.o ../cc-lib/base/stringprintf.o ../cc-lib/base/logging.o
 	$(CXX) $^ -o $@ $(LFLAGS)
