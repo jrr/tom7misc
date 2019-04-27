@@ -39,22 +39,20 @@ struct AES {
 			const uint8_t *key, const uint8_t *iv);
   static void Ctx_set_iv(struct Ctx *ctx, const uint8_t *iv);
 
-  // Buffer size is exactly AES_BLOCKLEN bytes.
+  // Buffer size is exactly BLOCKLEN bytes.
   // You need only InitCtx as IV is not used in ECB 
   // Note: ECB is considered insecure for most uses
-  static void AES_ECB_encrypt(const struct Ctx *ctx, uint8_t *buf);
-  static void AES_ECB_decrypt(const struct Ctx *ctx, uint8_t *buf);
+  static void EncryptECB(const struct Ctx *ctx, uint8_t *buf);
+  static void DecryptECB(const struct Ctx *ctx, uint8_t *buf);
 
 
-  // buffer size MUST be mutile of AES_BLOCKLEN;
+  // buffer size MUST be mutile of BLOCKLEN;
   // Suggest https://en.wikipedia.org/wiki/Padding_(cryptography)#PKCS7
   //   for padding scheme.
   // NOTES: you need to set IV in ctx via InitCtxIV() or Ctx_set_iv()
   //        no IV should ever be reused with the same key 
-  static void AES_CBC_encrypt_buffer(struct Ctx *ctx,
-				     uint8_t *buf, uint32_t length);
-  static void AES_CBC_decrypt_buffer(struct Ctx *ctx,
-				     uint8_t *buf, uint32_t length);
+  static void EncryptCBC(struct Ctx *ctx, uint8_t *buf, uint32_t length);
+  static void DecryptCBC(struct Ctx *ctx, uint8_t *buf, uint32_t length);
 
 
   // Same function for encrypting as for decrypting. 
@@ -64,8 +62,7 @@ struct AES {
   //   for padding scheme.
   // NOTES: you need to set IV in ctx with InitCtxIV() or Ctx_set_iv()
   //        no IV should ever be reused with the same key 
-  static void AES_CTR_xcrypt_buffer(struct Ctx *ctx,
-				    uint8_t *buf, uint32_t length);
+  static void XcryptCTR(struct Ctx *ctx, uint8_t *buf, uint32_t length);
 };
 
 using AES128 = AES<128>;

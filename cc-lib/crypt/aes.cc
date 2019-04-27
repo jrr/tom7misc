@@ -151,7 +151,7 @@ static const uint8 Rcon[11] = {
 // This function produces Nb(NUM_ROUNDS+1) round keys. The round keys are used
 // in each round to decrypt the states.
 template<int KEY_WORDS, int NUM_ROUNDS>
-static void KeyExpansion(uint8* round_key, const uint8* Key) {
+static void KeyExpansion(uint8 *round_key, const uint8 *Key) {
   unsigned i, j, k;
   uint8 tempa[4]; // Used for the column/row operations
   
@@ -221,26 +221,26 @@ static void KeyExpansion(uint8* round_key, const uint8* Key) {
 }
 
 template<int KEYBITS>
-void AES<KEYBITS>::InitCtx(struct Ctx* ctx, const uint8* key) {
+void AES<KEYBITS>::InitCtx(struct Ctx *ctx, const uint8 *key) {
   KeyExpansion<KEY_WORDS, NUM_ROUNDS>(ctx->round_key, key);
 }
 
 template<int KEYBITS>
-void AES<KEYBITS>::InitCtxIV(struct Ctx* ctx,
-		    const uint8* key, const uint8* iv) {
+void AES<KEYBITS>::InitCtxIV(struct Ctx *ctx,
+			     const uint8 *key, const uint8 *iv) {
   KeyExpansion<KEY_WORDS, NUM_ROUNDS>(ctx->round_key, key);
   memcpy(ctx->iv, iv, BLOCKLEN);
 }
 
 template<int KEYBITS>
-void AES<KEYBITS>::Ctx_set_iv(struct Ctx* ctx, const uint8* iv) {
+void AES<KEYBITS>::Ctx_set_iv(struct Ctx *ctx, const uint8 *iv) {
   memcpy(ctx->iv, iv, BLOCKLEN);
 }
 
 // This function adds the round key to state.
 // The round key is added to the state by an XOR function.
-static void AddRoundKey(uint8 round, state_t* state,
-			const uint8* round_key) {
+static void AddRoundKey(uint8 round, state_t *state,
+			const uint8 *round_key) {
   for (uint8 i = 0; i < 4; ++i) {
     for (uint8 j = 0; j < 4; ++j) {
       (*state)[i][j] ^= round_key[(round * Nb * 4) + (i * Nb) + j];
@@ -250,7 +250,7 @@ static void AddRoundKey(uint8 round, state_t* state,
 
 // The SubBytes Function Substitutes the values in the
 // state matrix with values in an S-box.
-static void SubBytes(state_t* state) {
+static void SubBytes(state_t *state) {
   for (uint8 i = 0; i < 4; ++i) {
     for (uint8 j = 0; j < 4; ++j) {
       (*state)[j][i] = getSBoxValue((*state)[j][i]);
@@ -261,7 +261,7 @@ static void SubBytes(state_t* state) {
 // The ShiftRows() function shifts the rows in the state to the left.
 // Each row is shifted with different offset.
 // Offset = Row number. So the first row is not shifted.
-static void ShiftRows(state_t* state) {
+static void ShiftRows(state_t *state) {
   // Rotate first row 1 columns to left  
   uint8 temp     = (*state)[0][1];
   (*state)[0][1] = (*state)[1][1];
@@ -291,7 +291,7 @@ static constexpr uint8 xtime(uint8 x) {
 }
 
 // MixColumns function mixes the columns of the state matrix
-static void MixColumns(state_t* state) {
+static void MixColumns(state_t *state) {
   for (uint8 i = 0; i < 4; ++i) {  
     uint8 t = (*state)[i][0];
     uint8 Tmp =
@@ -327,7 +327,7 @@ static constexpr uint8 Mul(uint8 x, uint8 y) {
 // MixColumns function mixes the columns of the state matrix. The
 // method used to multiply may be difficult to understand for the
 // inexperienced. Please use the references to gain more information.
-static void InvMixColumns(state_t* state) {
+static void InvMixColumns(state_t *state) {
   for (int i = 0; i < 4; ++i) { 
     const uint8 a = (*state)[i][0];
     const uint8 b = (*state)[i][1];
@@ -344,7 +344,7 @@ static void InvMixColumns(state_t* state) {
 
 // The SubBytes Function Substitutes the values in the
 // state matrix with values in an S-box.
-static void InvSubBytes(state_t* state) {
+static void InvSubBytes(state_t *state) {
   for (uint8 i = 0; i < 4; ++i) {
     for (uint8 j = 0; j < 4; ++j) {
       (*state)[j][i] = getSBoxInvert((*state)[j][i]);
@@ -352,7 +352,7 @@ static void InvSubBytes(state_t* state) {
   }
 }
 
-static void InvShiftRows(state_t* state) {
+static void InvShiftRows(state_t *state) {
   // Rotate first row 1 columns to right  
   uint8 temp = (*state)[3][1];
   (*state)[3][1] = (*state)[2][1];
@@ -380,7 +380,7 @@ static void InvShiftRows(state_t* state) {
 
 // Cipher is the main function that encrypts the PlainText.
 template<int NUM_ROUNDS>
-static void Cipher(state_t* state, const uint8* round_key) {
+static void Cipher(state_t *state, const uint8 *round_key) {
   // Add the First round key to the state before starting the rounds.
   AddRoundKey(0, state, round_key); 
   
@@ -402,7 +402,7 @@ static void Cipher(state_t* state, const uint8* round_key) {
 }
 
 template<int NUM_ROUNDS>
-static void InvCipher(state_t* state, const uint8* round_key) {
+static void InvCipher(state_t *state, const uint8 *round_key) {
   // Add the First round key to the state before starting the rounds.
   AddRoundKey(NUM_ROUNDS, state, round_key); 
 
@@ -429,21 +429,21 @@ static void InvCipher(state_t* state, const uint8* round_key) {
 /*****************************************************************************/
 
 template<int KEYBITS>
-void AES<KEYBITS>::AES_ECB_encrypt(const struct Ctx* ctx, uint8* buf) {
+void AES<KEYBITS>::EncryptECB(const struct Ctx *ctx, uint8 *buf) {
   // The next function call encrypts the PlainText with the Key using
   // AES algorithm.
   Cipher<NUM_ROUNDS>((state_t*)buf, ctx->round_key);
 }
 
 template<int KEYBITS>
-void AES<KEYBITS>::AES_ECB_decrypt(const struct Ctx* ctx, uint8* buf) {
+void AES<KEYBITS>::DecryptECB(const struct Ctx *ctx, uint8 *buf) {
   // The next function call decrypts the PlainText with the Key using
   // AES algorithm.
   InvCipher<NUM_ROUNDS>((state_t*)buf, ctx->round_key);
 }
 
 template<int BYTES>
-static void XorWithIv(uint8* buf, const uint8* iv) {
+static void XorWithIv(uint8 *buf, const uint8 *iv) {
   for (uint8 i = 0; i < BYTES; ++i) {
     // The block in AES is always 128bit no matter the key size
     buf[i] ^= iv[i];
@@ -451,8 +451,7 @@ static void XorWithIv(uint8* buf, const uint8* iv) {
 }
 
 template<int KEYBITS>
-void AES<KEYBITS>::AES_CBC_encrypt_buffer(struct Ctx *ctx,
-					  uint8* buf, uint32 length) {
+void AES<KEYBITS>::EncryptCBC(struct Ctx *ctx, uint8 *buf, uint32 length) {
   uint8 *iv = ctx->iv;
   for (uintptr_t i = 0; i < length; i += BLOCKLEN) {
     XorWithIv<BLOCKLEN>(buf, iv);
@@ -465,8 +464,7 @@ void AES<KEYBITS>::AES_CBC_encrypt_buffer(struct Ctx *ctx,
 }
 
 template<int KEYBITS>
-void AES<KEYBITS>::AES_CBC_decrypt_buffer(struct Ctx* ctx,
-					  uint8* buf,  uint32 length) {
+void AES<KEYBITS>::DecryptCBC(struct Ctx *ctx, uint8 *buf, uint32 length) {
   uint8 storeNextIv[BLOCKLEN];
   for (uintptr_t i = 0; i < length; i += BLOCKLEN) {
     memcpy(storeNextIv, buf, BLOCKLEN);
@@ -482,12 +480,11 @@ void AES<KEYBITS>::AES_CBC_decrypt_buffer(struct Ctx* ctx,
    decrypting. Note any IV/nonce should never be reused with the same
    key */
 template<int KEYBITS>
-void AES<KEYBITS>::AES_CTR_xcrypt_buffer(struct Ctx* ctx, uint8* buf,
-					 uint32 length) {
+void AES<KEYBITS>::XcryptCTR(struct Ctx *ctx, uint8 *buf, uint32 length) {
   uint8 buffer[BLOCKLEN];
-  
-  int bi;
-  for (uint32 i = 0, bi = BLOCKLEN; i < length; ++i, ++bi) {
+
+  int bi = BLOCKLEN;
+  for (uint32 i = 0; i < length; ++i, ++bi) {
     if (bi == BLOCKLEN) {
       /* we need to regen xor compliment in buffer */
       memcpy(buffer, ctx->iv, BLOCKLEN);
