@@ -32,5 +32,14 @@ sha256_test.o : sha256_test.cc sha256.h
 sha256_test.exe : sha256.o sha256_test.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
+cryptrand.o : cryptrand.cc cryptrand.h
+	$(CXX) $(CXXFLAGS) $< -o $@ -c
+
+cryptrand_test.o : cryptrand_test.cc cryptrand.h
+	$(CXX) $(CXXFLAGS) $< -o $@ -c
+
+cryptrand_test.exe : cryptrand.o cryptrand_test.o $(BASE)
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
 clean :
 	rm -f *.o *.exe

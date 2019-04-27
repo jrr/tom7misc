@@ -9,7 +9,7 @@ using uint8 = uint8_t;
 
 // prints string as hex
 template<int KEYBITS>
-static void phex(uint8_t* str) {
+static void phex(uint8_t *str) {
   const uint8_t len = KEYBITS == 256 ? 32 : KEYBITS == 102 ? 24 : 16;
   for (uint8 i = 0; i < len; ++i)
     printf("%.2x", str[i]);
@@ -27,7 +27,7 @@ static void phex(uint8_t* str) {
       return false;					\
     }							\
   } while (false)
-  
+
 
 static void test_encrypt_ecb_verbose128() {
   // Example of more verbose verification
@@ -61,12 +61,12 @@ static void test_encrypt_ecb_verbose128() {
 
   // print the resulting cipher as 4 x 16 byte strings
   printf("ciphertext:\n");
-    
+
   AES<128>::Ctx ctx;
   AES<128>::InitCtx(&ctx, key);
 
   for (int i = 0; i < 4; ++i) {
-    AES<128>::AES_ECB_encrypt(&ctx, plain_text + (i * 16));
+    AES<128>::EncryptECB(&ctx, plain_text + (i * 16));
     phex<128>(plain_text + (i * 16));
   }
   printf("\n");
@@ -89,7 +89,7 @@ static int test_encrypt_ecb256() {
   AES<256>::Ctx ctx;
 
   AES<256>::InitCtx(&ctx, key);
-  AES<256>::AES_ECB_encrypt(&ctx, in);
+  AES<256>::EncryptECB(&ctx, in);
 
   COMPARE("ECB encrypt 256", 16);
 }
@@ -110,7 +110,7 @@ static int test_encrypt_ecb192() {
   AES<192>::Ctx ctx;
 
   AES<192>::InitCtx(&ctx, key);
-  AES<192>::AES_ECB_encrypt(&ctx, in);
+  AES<192>::EncryptECB(&ctx, in);
 
   COMPARE("ECB encrypt 192", 16);
 }
@@ -130,7 +130,7 @@ static int test_encrypt_ecb128() {
   AES<128>::Ctx ctx;
 
   AES<128>::InitCtx(&ctx, key);
-  AES<128>::AES_ECB_encrypt(&ctx, in);
+  AES<128>::EncryptECB(&ctx, in);
 
   COMPARE("ECB encrypt 128", 16);
 }
@@ -167,7 +167,7 @@ static int test_decrypt_cbc256() {
   AES<256>::Ctx ctx;
 
   AES<256>::InitCtxIV(&ctx, key, iv);
-  AES<256>::AES_CBC_decrypt_buffer(&ctx, in, 64);
+  AES<256>::DecryptCBC(&ctx, in, 64);
 
   COMPARE("CBC decrypt 256", 64);
 }
@@ -203,7 +203,7 @@ static int test_decrypt_cbc192() {
   AES<192>::Ctx ctx;
 
   AES<192>::InitCtxIV(&ctx, key, iv);
-  AES<192>::AES_CBC_decrypt_buffer(&ctx, in, 64);
+  AES<192>::DecryptCBC(&ctx, in, 64);
 
   COMPARE("CBC decrypt 192", 64);
 }
@@ -239,7 +239,7 @@ static int test_decrypt_cbc128() {
   AES<128>::Ctx ctx;
 
   AES<128>::InitCtxIV(&ctx, key, iv);
-  AES<128>::AES_CBC_decrypt_buffer(&ctx, in, 64);
+  AES<128>::DecryptCBC(&ctx, in, 64);
 
   COMPARE("CBC decrypt 128", 64);
 }
@@ -276,7 +276,7 @@ static int test_encrypt_cbc256() {
   AES<256>::Ctx ctx;
 
   AES<256>::InitCtxIV(&ctx, key, iv);
-  AES<256>::AES_CBC_encrypt_buffer(&ctx, in, 64);
+  AES<256>::EncryptCBC(&ctx, in, 64);
 
   COMPARE("CBC encrypt 256", 64);
 }
@@ -311,7 +311,7 @@ static int test_encrypt_cbc192() {
   AES<192>::Ctx ctx;
 
   AES<192>::InitCtxIV(&ctx, key, iv);
-  AES<192>::AES_CBC_encrypt_buffer(&ctx, in, 64);
+  AES<192>::EncryptCBC(&ctx, in, 64);
 
   COMPARE("CBC encrypt 192", 64);
 }
@@ -345,13 +345,13 @@ static int test_encrypt_cbc128() {
   AES<128>::Ctx ctx;
 
   AES<128>::InitCtxIV(&ctx, key, iv);
-  AES<128>::AES_CBC_encrypt_buffer(&ctx, in, 64);
+  AES<128>::EncryptCBC(&ctx, in, 64);
 
   COMPARE("CBC encrypt 128", 64);
 }
 
 
-static int test_xcrypt_ctr256(const char* xcrypt) {
+static int test_xcrypt_ctr256(const char *xcrypt) {
   uint8_t key[32] = {
     0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe,
     0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
@@ -359,11 +359,11 @@ static int test_xcrypt_ctr256(const char* xcrypt) {
     0x2d, 0x98, 0x10, 0xa3, 0x09, 0x14, 0xdf, 0xf4 };
   uint8_t in[64]  = {
     0x60, 0x1e, 0xc3, 0x13, 0x77, 0x57, 0x89, 0xa5,
-    0xb7, 0xa7, 0xf5, 0x04, 0xbb, 0xf3, 0xd2, 0x28, 
+    0xb7, 0xa7, 0xf5, 0x04, 0xbb, 0xf3, 0xd2, 0x28,
     0xf4, 0x43, 0xe3, 0xca, 0x4d, 0x62, 0xb5, 0x9a,
-    0xca, 0x84, 0xe9, 0x90, 0xca, 0xca, 0xf5, 0xc5, 
+    0xca, 0x84, 0xe9, 0x90, 0xca, 0xca, 0xf5, 0xc5,
     0x2b, 0x09, 0x30, 0xda, 0xa2, 0x3d, 0xe9, 0x4c,
-    0xe8, 0x70, 0x17, 0xba, 0x2d, 0x84, 0x98, 0x8d, 
+    0xe8, 0x70, 0x17, 0xba, 0x2d, 0x84, 0x98, 0x8d,
     0xdf, 0xc9, 0xc5, 0x8d, 0xb6, 0x7a, 0xad, 0xa6,
     0x13, 0xc2, 0xdd, 0x08, 0x45, 0x79, 0x41, 0xa6 };
 
@@ -380,26 +380,26 @@ static int test_xcrypt_ctr256(const char* xcrypt) {
     0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17,
     0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10 };
   AES<256>::Ctx ctx;
-    
+
   AES<256>::InitCtxIV(&ctx, key, iv);
-  AES<256>::AES_CTR_xcrypt_buffer(&ctx, in, 64);
-  
+  AES<256>::XcryptCTR(&ctx, in, 64);
+
   printf("CTR %s ", xcrypt);
   COMPARE("256", 64);
 }
 
-static int test_xcrypt_ctr192(const char* xcrypt) {
+static int test_xcrypt_ctr192(const char *xcrypt) {
   uint8_t key[24] = {
     0x8e, 0x73, 0xb0, 0xf7, 0xda, 0x0e, 0x64, 0x52,
-    0xc8, 0x10, 0xf3, 0x2b, 0x80, 0x90, 0x79, 0xe5, 
+    0xc8, 0x10, 0xf3, 0x2b, 0x80, 0x90, 0x79, 0xe5,
     0x62, 0xf8, 0xea, 0xd2, 0x52, 0x2c, 0x6b, 0x7b };
   uint8_t in[64]  = {
     0x1a, 0xbc, 0x93, 0x24, 0x17, 0x52, 0x1c, 0xa2,
-    0x4f, 0x2b, 0x04, 0x59, 0xfe, 0x7e, 0x6e, 0x0b, 
+    0x4f, 0x2b, 0x04, 0x59, 0xfe, 0x7e, 0x6e, 0x0b,
     0x09, 0x03, 0x39, 0xec, 0x0a, 0xa6, 0xfa, 0xef,
-    0xd5, 0xcc, 0xc2, 0xc6, 0xf4, 0xce, 0x8e, 0x94, 
+    0xd5, 0xcc, 0xc2, 0xc6, 0xf4, 0xce, 0x8e, 0x94,
     0x1e, 0x36, 0xb2, 0x6b, 0xd1, 0xeb, 0xc6, 0x70,
-    0xd1, 0xbd, 0x1d, 0x66, 0x56, 0x20, 0xab, 0xf7, 
+    0xd1, 0xbd, 0x1d, 0x66, 0x56, 0x20, 0xab, 0xf7,
     0x4f, 0x78, 0xa7, 0xf6, 0xd2, 0x98, 0x09, 0x58,
     0x5a, 0x97, 0xda, 0xec, 0x58, 0xc6, 0xb0, 0x50 };
 
@@ -416,15 +416,15 @@ static int test_xcrypt_ctr192(const char* xcrypt) {
     0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17,
     0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10 };
   AES<192>::Ctx ctx;
-    
+
   AES<192>::InitCtxIV(&ctx, key, iv);
-  AES<192>::AES_CTR_xcrypt_buffer(&ctx, in, 64);
-  
+  AES<192>::XcryptCTR(&ctx, in, 64);
+
   printf("CTR %s ", xcrypt);
   COMPARE("192", 64);
 }
 
-static int test_xcrypt_ctr128(const char* xcrypt) {
+static int test_xcrypt_ctr128(const char *xcrypt) {
   uint8_t key[16] = {
     0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
     0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c };
@@ -451,10 +451,10 @@ static int test_xcrypt_ctr128(const char* xcrypt) {
     0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17,
     0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10 };
   AES<128>::Ctx ctx;
-    
+
   AES<128>::InitCtxIV(&ctx, key, iv);
-  AES<128>::AES_CTR_xcrypt_buffer(&ctx, in, 64);
-  
+  AES<128>::XcryptCTR(&ctx, in, 64);
+
   printf("CTR %s ", xcrypt);
   COMPARE("128", 64);
 }
@@ -473,9 +473,9 @@ static int test_decrypt_ecb256(void) {
     0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
     0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a };
   AES<256>::Ctx ctx;
-    
+
   AES<256>::InitCtx(&ctx, key);
-  AES<256>::AES_ECB_decrypt(&ctx, in);
+  AES<256>::DecryptECB(&ctx, in);
 
   COMPARE("ECB decrypt 256", 16);
 }
@@ -493,9 +493,9 @@ static int test_decrypt_ecb192(void) {
     0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
     0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a };
   AES<192>::Ctx ctx;
-    
+
   AES<192>::InitCtx(&ctx, key);
-  AES<192>::AES_ECB_decrypt(&ctx, in);
+  AES<192>::DecryptECB(&ctx, in);
 
   COMPARE("ECB decrypt 192", 16);
 }
@@ -512,9 +512,9 @@ static int test_decrypt_ecb128(void) {
     0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
     0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a };
   AES<128>::Ctx ctx;
-    
+
   AES<128>::InitCtx(&ctx, key);
-  AES<128>::AES_ECB_decrypt(&ctx, in);
+  AES<128>::DecryptECB(&ctx, in);
 
   COMPARE("ECB decrypt 128", 16);
 }

@@ -12,7 +12,7 @@ using namespace std;
 
 using uint8 = uint8_t;
 
-string Base64::Encode(const string &in) {
+static string EncodePtr(const uint8 *in, unsigned int length) {
   int i, hiteof = 0;
 
   uint8 dtable[256] = {};
@@ -21,20 +21,20 @@ string Base64::Encode(const string &in) {
   for (i = 0; i < 256; i++) dtable[i] = 0;
 
   for (i = 0; i < 9; i++) {
-    dtable[i] = 'A'+i;
-    dtable[i+9] = 'J'+i;
+    dtable[i] = 'A' + i;
+    dtable[i + 9] = 'J' + i;
     
-    dtable[26+i] = 'a'+i;
-    dtable[26+i+9] = 'j'+i;
+    dtable[26 + i] = 'a' + i;
+    dtable[26 + i + 9] = 'j' + i;
   }
 
   for (i = 0; i < 8; i++) {
-    dtable[i+18] = 'S'+i;
-    dtable[26+i+18] = 's'+i;
+    dtable[i + 18] = 'S' + i;
+    dtable[26 + i + 18] = 's' + i;
   }
 
   for (i = 0; i < 10; i++) {
-    dtable[52+i] = '0'+i;
+    dtable[52 + i] = '0' + i;
   }
 
   dtable[62] = '+';
@@ -52,7 +52,7 @@ string Base64::Encode(const string &in) {
     igroup[0] = igroup[1] = igroup[2] = 0;
     for (n = 0; n < 3; n++) {
       
-      if (idx >= in.length()) { hiteof = 1; break; }
+      if (idx >= length) { hiteof = 1; break; }
       else igroup[n] = (uint8) in[idx++];
 
     }
@@ -80,7 +80,16 @@ string Base64::Encode(const string &in) {
   return ou;
 }
 
-string Base64::Decode(const string &in) {
+string Base64::Encode(const string &in) {
+  return EncodePtr((const uint8 *)in.data(), in.size());
+}
+
+string Base64::EncodeV(const std::vector<uint8> &in) {
+  return EncodePtr((const uint8 *)in.data(), in.size());
+}
+
+template<class C>
+static C DecodeC(const string &in) {
   uint8 dtable[256];
 
   /* strange magic for EBCDIC. I'm not touching it! */
@@ -97,7 +106,7 @@ string Base64::Decode(const string &in) {
   dtable[(unsigned char)'='] = 0;
 
   unsigned int idx = 0;
-  string ou;
+  C ou;
 
   for (;;) {
     uint8 a[4], b[4], o[3];
@@ -113,7 +122,7 @@ string Base64::Decode(const string &in) {
       if (idx >= in.length()) {
 	if (i > 0) {
 	  fprintf(stderr, "Unexpected end of file.\n");
-	  return "";
+	  return C{};
 	} else return ou; /* done */
       }
 
@@ -121,7 +130,7 @@ string Base64::Decode(const string &in) {
 
       if (dtable[c] & 0x80){
 	fprintf(stderr, "Illegal character '%c' in input file.\n", c);
-	return "";
+	return C{};
       }
 
       a[i] = (uint8)c;
@@ -134,8 +143,24 @@ string Base64::Decode(const string &in) {
     int c = a[2] == '=' ? 1 : (a[3] == '=' ? 2 : 3);
 
     for (int m = 0; m < c; m++)
-      ou += (char)o[m];
+      ou.push_back(o[m]);
 
     if (c < 3) return ou;
   }
+}
+
+string Base64::Decode(const string &in) {
+  return DecodeC<string>(in);
+}
+
+std::vector<uint8> Base64::DecodeV(const string &in) {
+  return DecodeC<std::vector<uint8>>(in);
+}
+
+bool Base64::IsBase64Char(char c) {
+  if (c >= 'a' && c <= 'z') return true;
+  if (c >= 'A' && c <= 'Z') return true;
+  if (c >= '0' && c <= '9') return true;
+  if (c == '+' || c == '/' || c == '=') return true;
+  return false;
 }
