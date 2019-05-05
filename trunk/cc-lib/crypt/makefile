@@ -1,5 +1,5 @@
 
-default : aes_test.exe sha256_test.exe
+default : aes_test.exe sha256_test.exe cryptrand_test.exe
 
 BASE=../base/logging.o ../base/stringprintf.o
 
