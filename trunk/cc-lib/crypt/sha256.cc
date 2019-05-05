@@ -63,6 +63,13 @@ std::vector<uint8> SHA256::HashString(const string &s) {
   return FinalVector(&c);
 }
 
+std::vector<uint8> SHA256::HashVector(const vector<uint8> &v) {
+  SHA256::Ctx c;
+  SHA256::Init(&c);
+  SHA256::Update(&c, (const uint8 *)v.data(), v.size());
+  return FinalVector(&c);
+}
+
 void SHA256::UpdateString(Ctx *c, const string &s) {
   SHA256::Update(c, (const uint8 *)s.data(), s.size());
 }
