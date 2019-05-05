@@ -15,7 +15,7 @@ LFLAGS=-static
 pass.s : pass.cc
 	$(CXX) -g -m64 --std=c++14 -I ../cc-lib/ -O2 -Wa,-aslh $^ -c > $@
 
-pass.exe : pass.o ../cc-lib/base64.o ../cc-lib/util.o ../cc-lib/crypt/cryptrand.o ../cc-lib/crypt/aes.o ../cc-lib/crypt/sha256.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o
+pass.exe : pass.o ../cc-lib/base64.o ../cc-lib/util.o ../cc-lib/crypt/cryptrand.o ../cc-lib/crypt/aes.o ../cc-lib/crypt/sha256.o ../cc-lib/arcfour.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 decode-monika.exe : decode-monika.o ../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/image.o ../cc-lib/base/stringprintf.o ../cc-lib/base/logging.o
