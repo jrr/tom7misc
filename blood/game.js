@@ -22,12 +22,6 @@ const resources = new Resources(
   ['font.png',
    'title.png',
    'background.png',
-   'player1.png',
-   'player2.png',
-   'player3.png',
-   'player4.png',
-   'player5.png',
-   'player6.png',
   ],
   [], null);
 
@@ -38,15 +32,7 @@ function Init() {
                          FONTW, FONTH, FONTOVERLAP, FONTCHARS);
   window.titleframes = Static('title.png');
   window.background = Static('background.png');
-  window.playerl = EzFrames(['player1', 1])
-  window.playerl_run = EzFrames(['player1', 2,
-				 'player2', 2,
-				 'player3', 2,
-				 'player4', 2,
-				 'player5', 2]);
-  window.playerr = FlipFramesHoriz(window.playerl);
-  window.playerr_run = FlipFramesHoriz(window.playerl_run);
-  
+
   // Audio tweaks.
   // song_theme.multiply = 1.5;
   // song_power.multiply = 1.35;
@@ -73,14 +59,77 @@ function InitGame() {
       window.playerdy -= 1;
     }
   };
+
+  // Dense grid for the whole screen, representing all the particles.
+  // We get constant-time tests for particles by location, and particles cannot
+  // overlap by definition, but otherwise rather expensive. Still, the screen
+  // is only 320x200,* so 64k is pretty manageable.
+  //
+  // For each pixel-sized cell, we know if it's occupied with some blood, and
+  // its current velocity. 
+  // Type of thing present. 0 = empty, 1 = blood
+  window.grid_t = [];
+
+  window.grid_dx = [];
+  window.grid_dy = [];
+
+  for (let y = 0; y < HEIGHT; y++) {
+    let cy = (y - (HEIGHT / 2));
+    for (let x = 0; x < WIDTH; x++) {
+      let cx = (x - (WIDTH / 2));
+      if ((cy * cy + cx * cx) < 20 * 20) {
+	grid_t.push(1);
+	grid_dx.push(0.1);
+	grid_dy.push(0.15);
+      } else {
+	grid_t.push(0);
+	grid_dx.push(0.0);
+	grid_dy.push(0.0);
+      }
+    }
+  }
+  
+  // *I think we want this pinball game to kind of scroll, so this might not
+  // be a safe assumption?
   
   console.log('initialized game');
+}
+
+
+function DrawPixel(x, y, c32) {
 }
 
 function DrawGame() {
   // ClearScreen();
   DrawFrame(window.background, 0, 0);
 
+  // DrawLine(10, 10, window.playerx, window.playery, '#FF0');
+  for (let i = 0; i < boundaries.length; i++) {
+    let line = boundaries[i];
+    // draw normal?
+    DrawLine(line.p0.x, line.p0.y,
+	     line.p1.x, line.p1.y,
+	     '#FF0');
+  }
+
+  // Copy image data for pixel-level work
+  let oldid = ctx.getImageData(0, 0, WIDTH, HEIGHT);
+  let oldid32 = new Uint32Array(oldid.data.buffer);
+  
+  for (let y = 0; y < HEIGHT; y++) {
+    for (let x = 0; x < WIDTH; x++) {
+      let idx = y * WIDTH + x;
+      if (window.grid_t[idx] > 0) {
+	// BGRA
+	oldid32[idx] = 0xFF0000FF;
+      }
+    }
+  }
+
+  // And write it back.
+  ctx.putImageData(oldid, 0, 0);
+  
+  /*
   const running = Math.abs(window.playerdx) > 1;
   if (window.facingleft) {
     DrawFrame(running ? window.playerl_run : window.playerl,
@@ -89,6 +138,7 @@ function DrawGame() {
     DrawFrame(running ? window.playerr_run : window.playerr,
 	      window.playerx, window.playery);
   }
+*/
 }
 
 function Draw() {
@@ -103,6 +153,34 @@ function Draw() {
     DrawGame();
     break;
   }
+}
+
+function xy(x, y) {
+  return {x,y};
+}
+
+// Each boundary is just a line with an "inward" normal direction.
+// The line is described as p0->p1 (each a pair of coordinates)
+// with whatever hand of rule makes the normal point to the left
+// if you drive from p0 towards p1.
+let boundaries = [
+  // interior of test table
+  {p0: xy(306, 9), p1: xy(9, 9)},
+  {p0: xy(9, 9), p1: xy(19, 146)},
+  {p0: xy(19, 146), p1: xy(128, 186)},
+  {p0: xy(128, 186), p1: xy(176, 187)},
+  {p0: xy(176, 187), p1: xy(261, 169)},
+  {p0: xy(261, 169), p1: xy(306, 9)}
+];
+
+
+function DrawLine(x0, y0, x1, y1, color) {
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
 }
 
 last = 0;
@@ -126,9 +204,9 @@ function Step(time) {
 
   frames++;
   if (frames > 1000000) frames = 0;
-  
+
   UpdateGamepadControls();
-  
+
   if (controls.holding_right)
     window.playerdx += 0.1;
   else if (controls.holding_left)
@@ -138,7 +216,7 @@ function Step(time) {
 
   if (window.playerdx > 2.0) window.playerdx = 2.0;
   else if (window.playerdx < -2.0) window.playerdx = -2.0;
-  
+
   window.playerx += window.playerdx;
   window.playery += window.playerdy;
   if (window.playerx < 6) window.playerx = 6;
@@ -154,8 +232,23 @@ function Step(time) {
     window.facingleft = true;
   else if (window.playerdx > 0.5)
     window.facingleft = false;
-  
-  
+
+
+  // "Physics"
+  for (let y = 0; y < HEIGHT; y++) {
+    for (let x = 0; x < WIDTH; x++) {
+      let idx = y * WIDTH + x;
+      if (window.grid_t[idx] > 0) {
+	
+
+	// BGRA
+	oldid32[idx] = 0xFF0000FF;
+      }
+    }
+  }
+
+
+
   // UpdateSong();
 
   Draw();
@@ -206,7 +299,7 @@ let old_gp_a = false;
 function UpdateGamepadControls() {
   if (the_gamepad == null) return;
   let gp = navigator.getGamepads()[the_gamepad];
-  
+
   // D-pad up down left right: 12, 13, 14, 15
   // buttons: 3 0 2 1, aka y a x b
 
@@ -231,6 +324,15 @@ function UpdateGamepadControls() {
   }
 }
 
+function CanvasMousedown(event) {
+  event = event || window.event;
+  var bcx = bigcanvas.canvas.offsetLeft;
+  var bcy = bigcanvas.canvas.offsetTop;
+  var x = Math.floor((event.pageX - bcx) / PX);
+  var y = Math.floor((event.pageY - bcy) / PX);
+  console.log('click at ' + x + ', ' + y);
+}
+
 function Start() {
   Init();
   InitGame();
@@ -240,12 +342,12 @@ function Start() {
 
   // For mouse control.
   // bigcanvas.canvas.onmousemove = CanvasMove;
-  // bigcanvas.canvas.onmousedown = CanvasMousedown;
+  bigcanvas.canvas.onmousedown = CanvasMousedown;
   // bigcanvas.canvas.onmouseup = CanvasMouseup;
 
-  window.addEventListener("gamepadconnected", 
+  window.addEventListener("gamepadconnected",
 			  GamepadConnected);
-  
+
   start_time = (new Date()).getTime();
   window.requestAnimationFrame(Step);
 }
@@ -297,7 +399,7 @@ document.onkeydown = function(event) {
   case 90:  // z
   case 88:  // x
     break;
-    
+
     /*
     case 49: window.phase = PHASE_PUZZLE; Level1(); break;
     case 50: window.phase = PHASE_PUZZLE; Level2(); break;

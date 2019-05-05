@@ -377,21 +377,26 @@ static string ReadPass() {
 int main(int argc, char **argv) {
   CHECK(argc >= 3);
 
-  string pass = ReadPass();
   string cmd = argv[1];
   string file = argv[2];
   if (cmd == "enc") {
+    const string pass = ReadPass();
+
     string plaintext = Util::ReadFile(file);
     string enctext = Encrypt(pass, plaintext);
     printf("%s", enctext.c_str());
     
   } else if (cmd == "dec") {
+    const string pass = ReadPass();
+	
     string enctext = Util::ReadFile(file);
     string plaintext;
     CHECK(Decrypt(pass, enctext, &plaintext)) << "Failed to decrypt: " << file;
     printf("%s", plaintext.c_str());
     
   } else if (cmd == "emacs") {
+    const string pass = ReadPass();
+    
     CryptRand cr;
     const string tmpname = StringPrintf("deleteme-%llx.txt", cr.Word64());
     const string enctext = Util::ReadFile(file);
@@ -416,7 +421,8 @@ int main(int argc, char **argv) {
     CHECK(Util::remove(tmpname));
 
   } else if (cmd == "new") {
-
+    const string pass = ReadPass();
+    
     // Generate a random salt preimage, and then a random salt from it.
     std::vector<uint8> preimage = CryptRandom(32);
     std::vector<uint8> salt = SHA256::HashVector(preimage);
@@ -429,6 +435,10 @@ int main(int argc, char **argv) {
 				   salt64.c_str(), preimage64.c_str());
     string enc = Encrypt(pass, contents);
     Util::WriteFile(file, enc);
+
+  } else if (cmd == "wipe") {
+
+    CHECK(WipeFile(file)) << file;
     
   } else {
     LOG(FATAL) << "Unknown command " << cmd;

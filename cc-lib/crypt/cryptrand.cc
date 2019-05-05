@@ -17,16 +17,12 @@ BOOLEAN RtlGenRandom(
 );
 
 // TODO: Other platforms may need to keep state, in which case this
-// maybe needs Create() and private implementation.
+// maybe needs Create() and private implementation. (Even on Windows
+// it's dumb for us to keep creating crypto contexts.)
 CryptRand::CryptRand() {}
 
 uint64_t CryptRand::Word64() {
-  
-  HCRYPTPROV   hCryptProv;
-  //  HCRYPTKEY    hOriginalKey;
-  //  HCRYPTKEY    hDuplicateKey;
-  //  DWORD        dwMode;
-  //  BYTE         pbData[16];
+  HCRYPTPROV hCryptProv;
 
   CHECK(CryptAcquireContext(    
 	    &hCryptProv,

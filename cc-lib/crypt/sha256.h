@@ -41,7 +41,8 @@ struct SHA256 {
 
   // Convenience methods.
   static std::vector<uint8_t> HashString(const std::string &s);
-
+  static std::vector<uint8_t> HashVector(const std::vector<uint8_t> &v);
+  
 };
   
 #endif
