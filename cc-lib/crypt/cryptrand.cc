@@ -51,13 +51,27 @@ uint64_t CryptRand::Word64() {
   */
 }
 
-uint8_t CryptRand::Byte() {
-  return Word64() & 0xFF;
-}
-
 #else
 
-# error TODO: Implement this for other platforms (e.g. with /dev/random)
+CryptRand::CryptRand() {}
+
+uint64_t CryptRand::Word64() {
+  FILE *f = fopen("/dev/urandom", "rb");
+  CHECK(f) << "/dev/urandom not available?";
+  uint64_t data = 0ULL;
+  for (int i = 0; i < 8; i++) {
+    int c = fgetc(f);
+    CHECK(c != EOF);
+    data <<= 8;
+    data |= (c & 0xFF);
+  }
+  
+  fclose(f);
+  return data;
+}
 
 #endif
 
+uint8_t CryptRand::Byte() {
+  return Word64() & 0xFF;
+}
