@@ -15,8 +15,8 @@
 #include "../bigchess.h"
 #include "timer.h"
 
-#include "unblinder.h"
-#include "unblinder-mk0.h"
+// #include "unblinder.h"
+// #include "unblinder-mk0.h"
 
 #include "SDL.h"
 #include "SDL_main.h"
@@ -32,9 +32,9 @@ using int64 = int64_t;
 
 #define FONTWIDTH 9
 #define FONTHEIGHT 16
-static Font *font = nullptr, *chessfont = nullptr;
+static Font *font = nullptr, *chessfont = nullptr, *chessfont3x = nullptr;
 #define SCREENW 1920
-#define SCREENH 1280
+#define SCREENH 1080
 static SDL_Surface *screen = nullptr;
 
 enum class Mode {
@@ -44,11 +44,9 @@ enum class Mode {
 
 namespace {
 struct UI {
-  Mode mode = Mode::BITMAP;
+  // Mode mode = Mode::BITMAP;
   bool ui_dirty = true, output_dirty = true;
   
-  std::unique_ptr<Unblinder> unblinder;
-
   UI();
   void Loop();
   void Draw();
@@ -57,18 +55,14 @@ struct UI {
   Position current_prediction;
   // Position current_position;
 
-  static constexpr int BITX = 260, BITY = 64, BITSCALE = 32;
-  static constexpr int OUTX = 560, OUTY = 64, OUTSCALE = 32;
+  static constexpr int BITX = 260, BITY = 64, BITSCALE = 32 * 3;
+  static constexpr int OUTX = 560, OUTY = 64, OUTSCALE = 32 * 3;
 };
 }  // namespace
 
 UI::UI() {
-  Timer model_timer;
-  unblinder.reset(UnblinderMk0::LoadFromFile("net.val"));
-  CHECK(unblinder.get() != nullptr);
-  fprintf(stderr, "Loaded model in %.2fs\n",
-	  model_timer.MS() / 1000.0);
-  fflush(stderr);
+  Position::ParseFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+		     &current_prediction);
 }
 
 void UI::Loop() {
@@ -106,31 +100,13 @@ void UI::Loop() {
 
       case SDL_MOUSEBUTTONDOWN: {
 	// LMB/RMB, drag, etc.
-	if (mode == Mode::BITMAP) {
-	  int c = (mousex - BITX) / BITSCALE;
-	  int r = (mousey - BITY) / BITSCALE;
-	  if (c >= 0 && r >= 0 && c < 8 && r < 8) {
-	    current_bitmap ^= (1ULL << (63 - (r * 8 + c)));
-	    ui_dirty = true;
-	    output_dirty = true;
-	    printf("Bitmap: %llx\n", current_bitmap);
-	    fflush(stdout);
-	  }
-	}
 	break;
       }
 
       default:;
       }
     }
-    if (output_dirty) {
-      current_prediction = unblinder->Unblind(true, current_bitmap);
-      // Could avoid this if the prediction didn't actually
-      // change, but why?
-      ui_dirty = true;
-      output_dirty = false;
-    }
-
+    
     if (ui_dirty) {
       sdlutil::clearsurface(screen, 0xFFFFFFFF);
       Draw();
@@ -142,47 +118,6 @@ void UI::Loop() {
 }
 
 void UI::Draw() {
-  font->draw(2, 2,
-	     StringPrintf("Info: ^1%s", unblinder->ModelInfo().c_str()));
-
-  switch (mode) {
-  case Mode::BITMAP:
-
-    for (int r = 0; r < 8; r++) {
-      int yy = BITY + r * BITSCALE;
-      for (int c = 0; c < 8; c++) {
-	int xx = BITX + c * BITSCALE;
-		  
-	bool has = !!(current_bitmap & (1ULL << (63 - (r * 8 + c))));
-	bool black = (r + c) & 1;
-	// uint8 rr = black ? 134 : 255;
-	// uint8 gg = black ? 166 : 255;
-	// uint8 bb = black ? 102 : 221;
-	uint8 rr = black ? 194 : 255;
-	uint8 gg = black ? 226 : 255;
-	uint8 bb = black ? 162 : 231;
-
-	sdlutil::FillRectRGB(screen, xx, yy, BITSCALE, BITSCALE, rr, gg, bb);
-	if (has) {
-	  sdlutil::FillRectRGB(screen, xx + 3, yy + 3,
-			       BITSCALE - 6, BITSCALE - 6, 22, 22, 22);
-	  printf("* ");
-	} else {
-	  printf(". ");
-	}
-	
-      }
-      printf("\n");
-    }
-    fflush(stdout);
-    break;
-
-  case Mode::CHESSBOARD:
-    font->draw(10, 10, "[Unimplemented]");
-    break;
-  }
-
-  // Always draw output...
   
   for (int r = 0; r < 8; r++) {
     int yy = OUTY + r * OUTSCALE;
@@ -211,49 +146,13 @@ void UI::Draw() {
 	  str[0] = "?PNBRQK"[typ];
 	}
       }
-      chessfont->draw(xx, yy, str);
-
-      if (mode == Mode::CHESSBOARD) {
-	// TODO: Highlight mistakes when we have input board, not bits.
-      }      
+      chessfont3x->draw(xx, yy + 8, str);
     }
   }
-
-  // TODO: Show predicted move, castling...
-  #if 0
-  // Castling flags.
-  for (int c = 0; c < 4; c++) {
-    const uint8 v = FloatByte(stim.values[l][64 * NUM_CONTENTS + c]);
-    sdlutil::FillRectRGB(screen, xstart + c * 32 + (c >= 2 ? 130 : 0),
-			 ystart + 32 * 8, 30, 8, v, v, v);
-    if (v < 127)
-      sdlutil::drawbox(screen, xstart + c * 32 + (c >= 2 ? 130 : 0),
-		       ystart + 32 * 8, 30, 8, 0xFF, 0xFF, 0xFF);
-		
-  }
-	      
-  // Whose move is it? 1.0 means black, so subtract from 255.
-  const uint8 v = 255 - FloatByte(stim.values[l][64 * NUM_CONTENTS + 4]);
-  sdlutil::FillRectRGB(screen, xstart, ystart + 32 * 8 + 8, 32 * 8, 8, v, v, v);
-  if (v < 127)
-    sdlutil::drawbox(screen, xstart, ystart + 32 * 8 + 8, 32 * 8, 8,
-		     0xFF, 0xFF, 0xFF);
-#endif
 }
 
       
 int main(int argc, char **argv) {
-
-  // XXX This is specific to my machine. You probably want to remove it.
-  // Assumes that processors 0-16 are available.
-  // CHECK(SetProcessAffinityMask(GetCurrentProcess(), 0xF));
-
-  /*
-  if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
-    LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
-  }
-  */
-
   /* Initialize SDL and network, if we're using it. */
   CHECK(SDL_Init(SDL_INIT_VIDEO |
 		 SDL_INIT_TIMER |
@@ -265,7 +164,7 @@ int main(int argc, char **argv) {
 
   SDL_EnableUNICODE(1);
 
-  SDL_Surface *icon = SDL_LoadBMP("unblind-icon.bmp");
+  SDL_Surface *icon = SDL_LoadBMP("../blind/unblind-icon.bmp");
   if (icon != nullptr) {
     SDL_WM_SetIcon(icon, nullptr);
   }
@@ -274,16 +173,23 @@ int main(int argc, char **argv) {
   CHECK(screen);
 
   font = Font::create(screen,
-		      "font.png",
+		      "../blind/font.png",
 		      FONTCHARS,
 		      FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font != nullptr) << "Couldn't load font.";
 
   chessfont = Font::create(screen,
-			   "chessfont.png",
+			   "../blind/chessfont.png",
 			   " PNBRQKpnbrqk",
 			   32, 32, 1, 0, 1);
   CHECK(chessfont != nullptr) << "Couldn't load chessfont.";
+
+  chessfont3x = Font::CreateX(3,
+			      screen,
+			      "../blind/chessfont.png",
+			      " PNBRQKpnbrqk",
+			      32, 32, 1, 0, 1);
+  CHECK(chessfont3x != nullptr) << "Couldn't load chessfont3x.";
 
   UI ui;
   ui.Loop();

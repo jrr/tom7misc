@@ -61,24 +61,6 @@ struct FontReal final : public Font {
 
   unsigned char chars[255];
 
-  static FontReal *create(SDL_Surface *screen,
-			  const string &file,
-			  const string &charmap,
-			  int width,
-			  int height,
-			  int styles = 1,
-			  int overlap = 0,
-			  int ndim = 2);
-
-  static FontReal *create_from_surface(SDL_Surface *screen,
-				       SDL_Surface *font_surface,
-				       const string &charmap,
-				       int width,
-				       int height,
-				       int styles = 1,
-				       int overlap = 0,
-				       int ndim = 2);
-
   virtual int sizex(const string &);
   virtual int sizex_plain(const string &);
 
@@ -109,25 +91,14 @@ struct FontReal final : public Font {
 
 Font::~Font() {}
 
-Font *Font::create(SDL_Surface *sc, const string &f, const string &c,
-		   int w, int h, int s, int o, int d) {
-  return FontReal::create(sc, f, c, w, h, s, o, d);
-}
-
-Font *Font::create_from_surface(SDL_Surface *sc, SDL_Surface *fs, const string &c,
-				int w, int h, int s, int o, int d) {
-  return FontReal::create_from_surface(sc, fs, c, w, h, s, o, d);
-}
-
-
-FontReal *FontReal::create_from_surface(SDL_Surface *screen,
-					SDL_Surface *font_surface,
-					const string &charmap,
-					int width,
-					int height,
-					int styles,
-					int overlap,
-					int ndim) {
+Font *Font::create_from_surface(SDL_Surface *screen,
+				SDL_Surface *font_surface,
+				const string &charmap,
+				int width,
+				int height,
+				int styles,
+				int overlap,
+				int ndim) {
   std::unique_ptr<FontReal> f{new FontReal};
   f->screen = screen;
   f->width = width;
@@ -164,19 +135,37 @@ FontReal *FontReal::create_from_surface(SDL_Surface *screen,
   return f.release();
 }
 
-FontReal *FontReal::create(SDL_Surface *screen,
-			   const string &file,
-			   const string &charmap,
-			   int width,
-			   int height,
-			   int styles,
-			   int overlap,
-			   int ndim) {
+Font *Font::create(SDL_Surface *screen,
+		   const string &file,
+		   const string &charmap,
+		   int width,
+		   int height,
+		   int styles,
+		   int overlap,
+		   int ndim) {
   SDL_Surface *fon = sdlutil::LoadImage(file);
   if (fon == nullptr) return nullptr;
-  return create_from_surface(screen, fon, charmap, 
-			     width, height, styles, overlap, ndim);
+  return Font::create_from_surface(screen, fon, charmap, 
+				   width, height, styles, overlap, ndim);
 }
+
+Font *Font::CreateX(int px,
+		    SDL_Surface *screen,
+		    const string &file,
+		    const string &charmap,
+		    int width,
+		    int height,
+		    int styles,
+		    int overlap,
+		    int ndim) {
+  SDL_Surface *fon_orig = sdlutil::LoadImage(file);
+  if (fon_orig == nullptr) return nullptr;
+  SDL_Surface *fonx = sdlutil::GrowX(fon_orig, px);
+  SDL_FreeSurface(fon_orig);
+  if (fonx == nullptr) return nullptr;
+  return Font::create_from_surface(screen, fonx, charmap,
+				   width * px, height * px, styles, overlap * px, ndim);
+}			    
 
 void FontReal::draw(int x, int y, const string &s) {
   drawto(screen, x, y, s);

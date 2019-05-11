@@ -107,7 +107,9 @@ struct sdlutil {
 
   /* Grow to 2x its original size, returning a new surface. */
   static SDL_Surface *grow2x(SDL_Surface *src);
-
+  /* For 3x, 4x, etc. */
+  static SDL_Surface *GrowX(SDL_Surface *src, int px);
+  
   /* create a mipmap array (of nmips successively half-sized images)
      in the array surfs. The first entry of surfs should be filled
      with a surface, so for nmips==1 this does nothing. */

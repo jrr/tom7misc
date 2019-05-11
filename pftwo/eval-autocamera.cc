@@ -1,4 +1,5 @@
-// Evaluates autocamera against a set of known good memory locations.
+// Evaluates autocamera (and autolives, autotimer) against a set of
+// known good memory locations.
 
 #include <algorithm>
 #include <vector>
