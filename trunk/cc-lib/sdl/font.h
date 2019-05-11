@@ -23,6 +23,19 @@ struct Font {
 		      int overlap = 0,
 		      int dims = 2);
 
+  // Same as create, but enlarge the pixels in the font to be size px x px.
+  // All of the other parameters should be given in the original font size,
+  // (as though calling create()).
+  static Font *CreateX(int px,
+		       SDL_Surface *screen,
+		       const std::string &file,
+		       const std::string &charmap,
+		       int width,
+		       int height,
+		       int styles = 1,
+		       int overlap = 0,
+		       int dims = 2);
+  
   // Takes ownership of the font surface.
   static Font *create_from_surface(SDL_Surface *screen,
 				   SDL_Surface *font_surface,

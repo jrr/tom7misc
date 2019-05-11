@@ -120,7 +120,7 @@ struct Line {
 SDL_Surface *sdlutil::resize_canvas(SDL_Surface *s,
 				    int w, int h, Uint32 color) {
   SDL_Surface *m = makesurface(w, h);
-  if (!m) return 0;
+  if (!m) return nullptr;
 
   for (int y = 0; y < h; y++)
     for (int x = 0; x < w; x++) {
@@ -218,7 +218,7 @@ SDL_Surface *sdlutil::LoadImage(const string &filename) {
   int width, height, bpp;
   Uint8 *stb_rgba = stbi_load(filename.c_str(),
 			      &width, &height, &bpp, 4);
-  if (!stb_rgba) return 0;
+  if (!stb_rgba) return nullptr;
   
   vector<Uint8> rgba;
   rgba.reserve(width * height * 4);
@@ -229,7 +229,7 @@ SDL_Surface *sdlutil::LoadImage(const string &filename) {
 
   SDL_Surface *surf = makesurface(width, height, true);
   if (!surf) {
-    return 0;
+    return nullptr;
   }
   CopyRGBA(rgba, surf);
 
@@ -510,13 +510,13 @@ Uint32 sdlutil::hsv(SDL_Surface *sur, float h, float s, float v, float a) {
 
 SDL_Surface *sdlutil::alphadim(SDL_Surface *src) {
   /* must be 32 bpp */
-  if (src->format->BytesPerPixel != 4) return 0;
+  if (src->format->BytesPerPixel != 4) return nullptr;
 
   int ww = src->w, hh = src->h;
   
   SDL_Surface *ret = makesurface(ww, hh);
 
-  if (!ret) return 0;
+  if (!ret) return nullptr;
 
   slock(ret);
   slock(src);
@@ -544,7 +544,7 @@ SDL_Surface *sdlutil::alphadim(SDL_Surface *src) {
 
 SDL_Surface *sdlutil::shrink50(SDL_Surface *src) {
   /* must be 32 bpp */
-  if (src->format->BytesPerPixel != 4) return 0;
+  if (src->format->BytesPerPixel != 4) return nullptr;
 
   int ww = src->w, hh = src->h;
   
@@ -554,12 +554,12 @@ SDL_Surface *sdlutil::shrink50(SDL_Surface *src) {
   if (ww & 1) ww -= 1;
   if (hh & 1) hh -= 1;
 
-  if (ww <= 0) return 0;
-  if (hh <= 0) return 0;
+  if (ww <= 0) return nullptr;
+  if (hh <= 0) return nullptr;
 
   SDL_Surface *ret = makesurface(ww / 2, hh / 2);
 
-  if (!ret) return 0;
+  if (!ret) return nullptr;
 
   slock(ret);
   slock(src);
@@ -586,13 +586,13 @@ SDL_Surface *sdlutil::shrink50(SDL_Surface *src) {
 
 SDL_Surface *sdlutil::grow2x(SDL_Surface *src) {
   /* must be 32 bpp */
-  if (src->format->BytesPerPixel != 4) return 0;
+  if (src->format->BytesPerPixel != 4) return nullptr;
 
   int ww = src->w, hh = src->h;
   
 
   SDL_Surface *ret = makesurface(ww << 1, hh << 1);
-  if (!ret) return 0;
+  if (!ret) return nullptr;
 
   slock(ret);
   slock(src);
@@ -620,6 +620,47 @@ SDL_Surface *sdlutil::grow2x(SDL_Surface *src) {
 
   return ret;
 }
+
+SDL_Surface *sdlutil::GrowX(SDL_Surface *src, int px) {
+  /* must be 32 bpp */
+  if (src->format->BytesPerPixel != 4) {
+    return nullptr;
+  }
+
+  int ww = src->w, hh = src->h;
+  SDL_Surface *ret = makesurface(ww * px, hh * px);
+  if (!ret) {
+    return nullptr;
+  }
+  
+  slock(ret);
+  slock(src);
+
+  Uint8 *p = (Uint8*)src->pixels;
+  Uint8 *pdest = (Uint8*)ret->pixels;
+
+  int ww2 = ww * px;
+  for (int y = 0; y < hh; y++) {
+    for (int x = 0; x < ww; x++) {
+      const Uint32 rgba = *(Uint32*)(p + 4 * (y * ww + x));
+      
+      // Write px * px pixels.
+      for (int yu = 0; yu < px; yu++) {
+	const int y2 = y * px + yu;
+	for (int xu = 0; xu < px; xu++) {
+	  const int x2 = x * px + xu;
+	  *(Uint32*)(pdest + 4 * (y2 * ww2 + x2)) = rgba;
+	}
+      }
+    }
+  }
+  
+  sulock(src);
+  sulock(ret);
+
+  return ret;
+}
+
 
 /* try to make a hardware surface, and, failing that,
    make a software surface */
@@ -651,7 +692,7 @@ SDL_Surface *sdlutil::makesurface(int w, int h, bool alpha) {
     else rr = SDL_DisplayFormat(ss);
     SDL_FreeSurface(ss);
     return rr;
-  } else return 0;
+  } else return nullptr;
 # else
   return ss;
 # endif
@@ -660,7 +701,7 @@ SDL_Surface *sdlutil::makesurface(int w, int h, bool alpha) {
 SDL_Surface *sdlutil::makealpharect(int w, int h, int r, int g, int b, int a) {
   SDL_Surface *ret = makesurface(w, h);
 
-  if (!ret) return 0;
+  if (!ret) return nullptr;
 
   Uint32 color = SDL_MapRGBA(ret->format, r, g, b, a);
 
@@ -675,7 +716,7 @@ SDL_Surface *sdlutil::makealpharectgrad(int w, int h,
 					float bias) {
   SDL_Surface *ret = makesurface(w, h);
 
-  if (!ret) return 0;
+  if (!ret) return nullptr;
 
   /* draws each line as a separate rectangle. */
   for (int i = 0; i < h; i++) {
@@ -1112,7 +1153,7 @@ void sdlutil::printsurfaceinfo(SDL_Surface *surf) {
 
 SDL_Surface *sdlutil::fliphoriz(SDL_Surface *src) {
   SDL_Surface *dst = makesurface(src->w, src->h);
-  if (!dst) return 0;
+  if (!dst) return nullptr;
 
   slock(src);
   slock(dst);
