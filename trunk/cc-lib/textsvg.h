@@ -22,6 +22,14 @@ struct TextSVG {
       const std::string &face,
       double size,
       const std::vector<std::pair<std::string, std::string>> &text);
+
+  // When outputting a series of points from some data source, it is
+  // common to have many colinear subsequences. This eliminates such
+  // points so that the SVG can be more efficient. max_error is the
+  // distance (from the line) threshold to apply.
+  static std::vector<std::pair<double, double>> RemoveColinear(
+      const std::vector<std::pair<double, double>> &points,
+      double max_error);
 };
 
 #endif

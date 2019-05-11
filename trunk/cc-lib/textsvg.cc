@@ -145,3 +145,99 @@ string TextSVG::Text(
   ret += "</text>";
   return ret;
 }
+
+struct ColinearRemover {
+  explicit ColinearRemover(double max_error) :
+    max_error(max_error),
+    sq_max_error(max_error * max_error) {}
+  
+  enum State {
+    EMPTY,
+    ONE_POINT,
+    LINE,
+  };
+
+  static inline double SqDist(pair<double, double> pt1,
+			      pair<double, double> pt2) {
+    double dx = pt2.first - pt1.first;
+    double dy = pt2.second - pt1.second;
+    return dx * dx + dy * dy;
+  }
+  
+  void Push(pair<double, double> pt,
+	    vector<pair<double, double>> *out) {
+    switch (state) {
+    case EMPTY:
+      // Always take a starting point.
+      a = pt;
+      state = ONE_POINT;
+      return;
+    case ONE_POINT: {
+      const double sqdist = SqDist(a, pt);
+      if (sqdist > max_error) {
+	b = pt;
+	state = LINE;
+	// PERF precompute some info about line here?
+	return;
+      }
+      return;
+    }
+
+    case LINE: {
+      const double x0 = pt.first, y0 = pt.second;
+      const double x1 = a.first, y1 = a.second;
+      const double x2 = b.first, y2 = b.second;
+      const double numer =
+	abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1);
+      const double line_length = sqrt(SqDist(a, b));
+      const double dist = numer / line_length;
+      if (dist < max_error) {
+	// Drop the interior point.
+	// XXX: This is actually wrong if the third point is between
+	// the first two. Should test for this, and shift in this case.
+	b = pt;
+	return;
+      } else {
+	// Shift.
+	out->push_back(a);
+	a = b;
+	b = pt;
+	return;
+      }
+    }
+    }
+  }
+  
+  void Flush(vector<pair<double, double>> *out) {
+    switch (state) {
+    case EMPTY: return;
+    case ONE_POINT:
+      out->push_back(a);
+      break;
+    case LINE:
+      out->push_back(a);
+      out->push_back(b);
+    }
+  }
+
+  const double max_error = 0.0, sq_max_error = 0.0;
+  State state = EMPTY;
+  pair<double, double> a{0.0, 0.0};
+  pair<double, double> b{0.0, 0.0};
+};
+
+
+vector<pair<double, double>> TextSVG::RemoveColinear(
+    const vector<pair<double, double>> &points,
+    double max_error) {
+  vector<pair<double, double>> out;
+  // Not reserving space, because we may make very dramatic reductions.
+
+  ColinearRemover remover{max_error};
+  
+  for (const auto &p : points)
+    remover.Push(p, &out);
+
+  remover.Flush(&out);
+  return out;  
+}
