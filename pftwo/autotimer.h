@@ -13,8 +13,6 @@
 // TODO: Game timers are often represented as multibyte quantities,
 // usually using BCD (but usually in adjacent bytes or nybbles).
 
-// XXX IMPLEMENT! it's just a copy of autolives right now.
-
 #ifndef __AUTOTIMER_H
 #define __AUTOTIMER_H
 

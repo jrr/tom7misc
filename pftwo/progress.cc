@@ -160,10 +160,21 @@ static void DrawPlots(const vector<Plots> &plotses,
 	      "fill=\"none\" stroke=\"%s\" stroke-opacity=\"0.75\" "
 	      "stroke-width=\"1.5\" points=\"",
 	      color.c_str());
+
+      // Put all scaled points in new vector so we can simplify.
+      vector<pair<double, double>> pts;
+      pts.reserve(series.points.size());
       for (const std::pair<double, double> pt : series.points) {
 	double x, y;
 	std::tie(x, y) = scaler.Scale(pt);
-	fprintf(f, "%s,%s ", Rtos(x).c_str(), Rtos(y).c_str());
+	pts.emplace_back(x, y);
+      }
+      
+      vector<pair<double, double>> simplified = TextSVG::RemoveColinear(pts,
+									0.00001);
+      
+      for (const std::pair<double, double> pt : simplified) {
+	fprintf(f, "%s,%s ", Rtos(pt.first).c_str(), Rtos(pt.second).c_str());
       }
       fprintf(f, "\"/>\n");
     }
