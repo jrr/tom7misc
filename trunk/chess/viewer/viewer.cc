@@ -3,6 +3,7 @@
 #include <vector>
 #include <shared_mutex>
 #include <cstdint>
+#include <deque>
 
 #include "../../cc-lib/threadutil.h"
 #include "../../cc-lib/randutil.h"
@@ -22,6 +23,7 @@
 #include "SDL_main.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/sdl/font.h"
+#include "../cc-lib/lines.h"
 
 #define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" /* removed icons */
 #define FONTSTYLES 7
@@ -37,36 +39,80 @@ static Font *font = nullptr, *chessfont = nullptr, *chessfont3x = nullptr;
 #define SCREENH 1080
 static SDL_Surface *screen = nullptr;
 
+// Mode basically controls what happens when we use the mouse.
 enum class Mode {
-  BITMAP,
-  CHESSBOARD,
+  DRAWING,
+  CHESS,
 };
 
 namespace {
 struct UI {
   // Mode mode = Mode::BITMAP;
-  bool ui_dirty = true, output_dirty = true;
+  bool ui_dirty = true;
   
   UI();
   void Loop();
   void Draw();
   
   uint64 current_bitmap = 0xFFFF00000000FFFFULL;
-  Position current_prediction;
-  // Position current_position;
+  Position position;
 
-  static constexpr int BITX = 260, BITY = 64, BITSCALE = 32 * 3;
-  static constexpr int OUTX = 560, OUTY = 64, OUTSCALE = 32 * 3;
+  uint32 current_color = 0x77AA0000;
+  
+  SDL_Surface *drawing = nullptr;
+  bool dragging = false;
+  static constexpr int CHESSX = 64, CHESSY = 64, CHESSSCALE = 32 * 3;
+
+  static constexpr int MAX_UNDO = 32;
+  deque<SDL_Surface *> undo_buffer;
+  deque<SDL_Surface *> redo_buffer;
 };
 }  // namespace
 
 UI::UI() {
+  drawing = sdlutil::makesurface(SCREENW, SCREENH, true);
+  sdlutil::ClearSurface(drawing, 0, 0, 0, 0);
+  CHECK(drawing != nullptr);
   Position::ParseFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-		     &current_prediction);
+		     &position);
 }
 
+static void DrawThick(SDL_Surface *surf, int x0, int y0,
+		      int x1, int y1, 
+		      Uint32 color) {  
+  Line<int> l{x0, y0, x1, y1};
+
+  const int w = surf->w, h = surf->h;
+  
+  Uint32 *bufp = (Uint32 *)surf->pixels;
+  int stride = surf->pitch >> 2;
+  auto SetPixel = [color, w, h, bufp, stride](int x, int y) {
+      if (x >= 0 && y >= 0 &&
+	  x < w && y < h) {
+	bufp[y * stride + x] = color;
+      }
+    };
+
+  {
+    fflush(stdout);
+    SetPixel(x0, y0);
+    SetPixel(x0 + 1, y0);
+    SetPixel(x0, y0 + 1);
+    SetPixel(x0 + 1, y0 + 1);
+  }
+  
+  for (const std::pair<int, int> point : Line<int>{x0, y0, x1, y1}) {
+    const int x = point.first, y = point.second;
+    SetPixel(x, y);
+    SetPixel(x + 1, y);
+    SetPixel(x, y + 1);
+    SetPixel(x + 1, y + 1);
+  }
+}
+
+
 void UI::Loop() {
-  Mode mode = Mode::BITMAP;
+  Mode mode = Mode::DRAWING;
   
   int mousex = 0, mousey = 0;
   (void)mousex; (void)mousey;
@@ -82,10 +128,17 @@ void UI::Loop() {
       case SDL_MOUSEMOTION: {
 	SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
 
+	const int oldx = mousex, oldy = mousey;
+	
 	mousex = e->x;
 	mousey = e->y;
 
-	// If dragging piece, do it...
+	if (dragging) {
+	  if (mode == Mode::DRAWING) {
+	    DrawThick(drawing, oldx, oldy, mousex, mousey, current_color);
+	  }
+	  ui_dirty = true;
+	}
 	break;
       }
 
@@ -94,15 +147,79 @@ void UI::Loop() {
 	case SDLK_ESCAPE:
 	  printf("ESCAPE.\n");
 	  return;
+	  
+	case SDLK_c:
+	  sdlutil::clearsurface(drawing, 0x0);
+	  ui_dirty = true;
+	  break;
+
+	case SDLK_z: {
+	  // XXX check ctrl?
+	  if (!undo_buffer.empty()) {
+	    redo_buffer.push_front(drawing);
+	    drawing = undo_buffer.back();
+	    undo_buffer.pop_back();
+	    ui_dirty = true;
+	    printf("Undo size %d\n", undo_buffer.size());
+	    fflush(stdout);
+	  }
+	  break;
+	}
+
+	case SDLK_y: {
+	  // XXX check ctrl?
+	  if (!redo_buffer.empty()) {
+	    undo_buffer.push_back(drawing);
+	    drawing = redo_buffer.front();
+	    redo_buffer.pop_front();
+	    ui_dirty = true;
+	  }
+	  break;
+	}
+	  
 	default:;
 	}
+	break;
       }
 
       case SDL_MOUSEBUTTONDOWN: {
 	// LMB/RMB, drag, etc.
+	dragging = true;
+	if (mode == Mode::DRAWING) {
+	  undo_buffer.push_back(sdlutil::duplicate(drawing));
+	  while (undo_buffer.size() > MAX_UNDO) {
+	    SDL_FreeSurface(undo_buffer.front());
+	    undo_buffer.pop_front();
+	  }
+
+	  while (!redo_buffer.empty()) {
+	    SDL_FreeSurface(redo_buffer.front());
+	    redo_buffer.pop_front();
+	  }
+
+	  fflush(stdout);
+	}
+
+	if (mode == Mode::DRAWING) {
+	  // Make sure that a click also makes a pixel.
+	  SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
+	  
+	  mousex = e->x;
+	  mousey = e->y;
+
+	  DrawThick(drawing, mousex, mousey, mousex, mousey, current_color);
+	  ui_dirty = true;
+	}
+	
 	break;
       }
 
+      case SDL_MOUSEBUTTONUP: {
+	// LMB/RMB, drag, etc.
+	dragging = false;	
+	break;
+      }
+	
       default:;
       }
     }
@@ -120,11 +237,11 @@ void UI::Loop() {
 void UI::Draw() {
   
   for (int r = 0; r < 8; r++) {
-    int yy = OUTY + r * OUTSCALE;
+    int yy = CHESSY + r * CHESSSCALE;
     for (int c = 0; c < 8; c++) {
-      int xx = OUTX + c * OUTSCALE;
+      int xx = CHESSX + c * CHESSSCALE;
 
-      uint8 piece = current_prediction.PieceAt(r, c);
+      uint8 piece = position.PieceAt(r, c);
       
       bool black = (r + c) & 1;
       // Background
@@ -132,7 +249,7 @@ void UI::Draw() {
       uint8 gg = black ? 166 : 255;
       uint8 bb = black ? 102 : 221;
 
-      sdlutil::FillRectRGB(screen, xx, yy, OUTSCALE, OUTSCALE, rr, gg, bb);
+      sdlutil::FillRectRGB(screen, xx, yy, CHESSSCALE, CHESSSCALE, rr, gg, bb);
       string str = " ";
       if ((piece & Position::TYPE_MASK) == Position::EMPTY) {
 	// already space
@@ -149,6 +266,8 @@ void UI::Draw() {
       chessfont3x->draw(xx, yy + 8, str);
     }
   }
+
+  sdlutil::blitall(drawing, screen, 0, 0);
 }
 
       

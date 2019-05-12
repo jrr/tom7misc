@@ -967,6 +967,44 @@ void sdlutil::drawline(SDL_Surface *screen, int x0, int y0,
   sulock(screen);
 }
 
+void sdlutil::DrawClipLine32(SDL_Surface *screen, int x0, int y0,
+			     int x1, int y1, 
+			     Uint32 color) {
+  // Only 32-bit!
+  if (screen->format->BytesPerPixel != 4) return;
+
+  // However, if a line completely misses the screen, we can
+  // just draw nothing.
+  if (x0 < 0 && x1 < 0)
+    return;
+  if (x0 >= screen->w && x1 >= screen->w)
+    return;
+  if (y0 < 0 && y1 < 0)
+    return;
+  if (y0 >= screen->h && y1 >= screen->h)
+    return;
+  
+  Line l{x0, y0, x1, y1};
+
+  Uint32 *bufp = (Uint32 *)screen->pixels;
+  int stride = screen->pitch >> 2;
+  auto SetPixel = [color, bufp, stride](int x, int y) {
+      bufp[y * stride + x] = color;
+    };
+  
+  /* direct pixel access */
+  slock(screen);
+  int x, y;
+  if (x0 >= 0 && y0 >= 0 && x0 < screen->w && y0 < screen->h)
+    SetPixel(x0, y0);
+  while (l.Next(x, y)) {
+    if (x >= 0 && y >= 0 && x < screen->w && y < screen->h) {
+      SetPixel(x, y);
+    }
+  }
+  sulock(screen);
+}
+
 void sdlutil::drawclipline(SDL_Surface *screen, int x0, int y0,
 			   int x1, int y1, 
 			   Uint8 R, Uint8 G, Uint8 B) {
