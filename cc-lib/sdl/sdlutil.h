@@ -35,6 +35,7 @@ struct sdlutil {
   // or a similar tool can usually improve it quite a bit.
   static bool SavePNG(const std::string &filename, SDL_Surface *surf);
 
+  // Clone the surface. The copy will need to be freed with SDL_FreeSurface.
   static SDL_Surface *duplicate(SDL_Surface *surf);
 
   // Unchecked--don't draw outside the surface!
@@ -43,6 +44,7 @@ struct sdlutil {
 
   static void drawclipline(SDL_Surface *, int x1, int y1, int x2, int y2,
 			   Uint8 R, Uint8 G, Uint8 B);
+  // Doesn't 
   static void DrawClipLine32(SDL_Surface *, int x1, int y1, int x2, int y2,
 			     Uint32 color);
   
