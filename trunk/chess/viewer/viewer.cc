@@ -23,6 +23,7 @@
 #include "SDL_main.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/sdl/font.h"
+#include "../cc-lib/sdl/cursor.h"
 #include "../cc-lib/lines.h"
 
 #define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" /* removed icons */
@@ -34,9 +35,15 @@ using int64 = int64_t;
 
 #define FONTWIDTH 9
 #define FONTHEIGHT 16
-static Font *font = nullptr, *chessfont = nullptr, *chessfont3x = nullptr;
+static Font *font = nullptr, *font2x = nullptr;
+static Font *chessfont = nullptr, *chessfont3x = nullptr;
+
+static SDL_Cursor *cursor_arrow = nullptr, *cursor_bucket = nullptr;
+#define VIDEOH 1080
+#define STATUSH 128
 #define SCREENW 1920
-#define SCREENH 1080
+#define SCREENH (VIDEOH + STATUSH)
+
 static SDL_Surface *screen = nullptr;
 
 // Mode basically controls what happens when we use the mouse.
@@ -47,13 +54,27 @@ enum class Mode {
 
 namespace {
 struct UI {
-  // Mode mode = Mode::BITMAP;
+  Mode mode = Mode::DRAWING;
   bool ui_dirty = true;
   
   UI();
   void Loop();
+  void DrawStatus();
   void Draw();
   
+  void SaveUndo() {
+    undo_buffer.push_back(sdlutil::duplicate(drawing));
+    while (undo_buffer.size() > MAX_UNDO) {
+      SDL_FreeSurface(undo_buffer.front());
+      undo_buffer.pop_front();
+    }
+
+    while (!redo_buffer.empty()) {
+      SDL_FreeSurface(redo_buffer.front());
+      redo_buffer.pop_front();
+    }
+  }
+
   uint64 current_bitmap = 0xFFFF00000000FFFFULL;
   Position position;
 
@@ -112,8 +133,6 @@ static void DrawThick(SDL_Surface *surf, int x0, int y0,
 
 
 void UI::Loop() {
-  Mode mode = Mode::DRAWING;
-  
   int mousex = 0, mousey = 0;
   (void)mousex; (void)mousey;
   for (;;) {
@@ -147,11 +166,25 @@ void UI::Loop() {
 	case SDLK_ESCAPE:
 	  printf("ESCAPE.\n");
 	  return;
+
+	case SDLK_d: {
+	  mode = Mode::DRAWING;
+	  ui_dirty = true;
+	  break;
+	}
 	  
-	case SDLK_c:
+	case SDLK_c: {
+	  mode = Mode::CHESS;
+	  ui_dirty = true;
+	  break;
+	}
+
+	case SDLK_q: {
+	  SaveUndo();
 	  sdlutil::clearsurface(drawing, 0x0);
 	  ui_dirty = true;
 	  break;
+	}
 
 	case SDLK_z: {
 	  // XXX check ctrl?
@@ -186,21 +219,8 @@ void UI::Loop() {
 	// LMB/RMB, drag, etc.
 	dragging = true;
 	if (mode == Mode::DRAWING) {
-	  undo_buffer.push_back(sdlutil::duplicate(drawing));
-	  while (undo_buffer.size() > MAX_UNDO) {
-	    SDL_FreeSurface(undo_buffer.front());
-	    undo_buffer.pop_front();
-	  }
+	  SaveUndo();
 
-	  while (!redo_buffer.empty()) {
-	    SDL_FreeSurface(redo_buffer.front());
-	    redo_buffer.pop_front();
-	  }
-
-	  fflush(stdout);
-	}
-
-	if (mode == Mode::DRAWING) {
 	  // Make sure that a click also makes a pixel.
 	  SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
 	  
@@ -234,12 +254,38 @@ void UI::Loop() {
   
 }
 
+void UI::DrawStatus() {
+  int drawcolor = 1;
+  int chesscolor = 1;
+
+  switch (mode) {
+  case Mode::DRAWING:
+    drawcolor = 2;
+    break;
+
+  case Mode::CHESS:
+    chesscolor = 2;
+    break;
+  }
+  string modestring =
+    StringPrintf("[^3D^<]^%draw^<  [^3C^<]^%dhess^<  ...",
+		 drawcolor, chesscolor);
+  font2x->draw(5, SCREENH - (FONTHEIGHT * 2) - 1, modestring);
+
+
+  
+}
+
 void UI::Draw() {
+  // Status stuff
+  DrawStatus();
+  
+  // On-screen stuff
   
   for (int r = 0; r < 8; r++) {
-    int yy = CHESSY + r * CHESSSCALE;
+    const int yy = CHESSY + r * CHESSSCALE;
     for (int c = 0; c < 8; c++) {
-      int xx = CHESSX + c * CHESSSCALE;
+      const int xx = CHESSX + c * CHESSSCALE;
 
       uint8 piece = position.PieceAt(r, c);
       
@@ -250,10 +296,11 @@ void UI::Draw() {
       uint8 bb = black ? 102 : 221;
 
       sdlutil::FillRectRGB(screen, xx, yy, CHESSSCALE, CHESSSCALE, rr, gg, bb);
-      string str = " ";
       if ((piece & Position::TYPE_MASK) == Position::EMPTY) {
 	// already space
       } else {
+	string str = " ";
+
 	uint8 typ = piece & Position::TYPE_MASK;
 	if (typ == Position::C_ROOK) typ = Position::ROOK;
 	
@@ -262,8 +309,8 @@ void UI::Draw() {
 	} else {
 	  str[0] = "?PNBRQK"[typ];
 	}
+	chessfont3x->draw(xx, yy + 8, str);
       }
-      chessfont3x->draw(xx, yy + 8, str);
     }
   }
 
@@ -297,6 +344,13 @@ int main(int argc, char **argv) {
 		      FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font != nullptr) << "Couldn't load font.";
 
+  font2x = Font::CreateX(2,
+			 screen,
+			 "../blind/font.png",
+			 FONTCHARS,
+			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
+  CHECK(font2x != nullptr) << "Couldn't load font.";
+  
   chessfont = Font::create(screen,
 			   "../blind/chessfont.png",
 			   " PNBRQKpnbrqk",
@@ -310,6 +364,12 @@ int main(int argc, char **argv) {
 			      32, 32, 1, 0, 1);
   CHECK(chessfont3x != nullptr) << "Couldn't load chessfont3x.";
 
+  CHECK((cursor_arrow = Cursor::MakeArrow()));
+  CHECK((cursor_bucket = Cursor::MakeBucket()));
+
+  SDL_SetCursor(cursor_bucket);
+  SDL_ShowCursor(SDL_ENABLE);
+  
   UI ui;
   ui.Loop();
   
