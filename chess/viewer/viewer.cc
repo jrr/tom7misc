@@ -49,6 +49,7 @@ static SDL_Surface *screen = nullptr;
 // Mode basically controls what happens when we use the mouse.
 enum class Mode {
   DRAWING,
+  FILLING,
   CHESS,
 };
 
@@ -131,6 +132,51 @@ static void DrawThick(SDL_Surface *surf, int x0, int y0,
   }
 }
 
+static void FloodFill(SDL_Surface *surf, int x, int y,
+		      Uint32 color) {
+  const int w = surf->w, h = surf->h;
+  
+  Uint32 *bufp = (Uint32 *)surf->pixels;
+  int stride = surf->pitch >> 2;
+
+  const Uint32 replace_color = bufp[y * stride + x];
+  
+  auto GetPixel = [w, h, bufp, stride, replace_color](int x, int y) {
+      if (x >= 0 && y >= 0 &&
+	  x < w && y < h) {
+	return bufp[y * stride + x];
+      } else {
+	return ~replace_color;
+      }
+    };
+
+  auto SetPixel = [color, w, h, bufp, stride](int x, int y) {
+      if (x >= 0 && y >= 0 &&
+	  x < w && y < h) {
+	bufp[y * stride + x] = color;
+      }
+    };
+
+  std::vector<std::pair<int, int>> todo;
+  if (color != replace_color)
+    todo.emplace_back(x, y);
+
+  while (!todo.empty()) {
+    int xx, yy;
+    std::tie(xx, yy) = todo.back();
+    todo.pop_back();
+
+    Uint32 c = GetPixel(xx, yy);
+    if (c == replace_color) {
+      SetPixel(xx, yy);
+      todo.emplace_back(xx - 1, yy);
+      todo.emplace_back(xx + 1, yy);
+      todo.emplace_back(xx, yy - 1);
+      todo.emplace_back(xx, yy + 1);
+    }
+  }
+}
+
 
 void UI::Loop() {
   int mousex = 0, mousey = 0;
@@ -169,12 +215,21 @@ void UI::Loop() {
 
 	case SDLK_d: {
 	  mode = Mode::DRAWING;
+	  SDL_SetCursor(cursor_arrow);
+	  ui_dirty = true;
+	  break;
+	}
+
+	case SDLK_f: {
+	  mode = Mode::FILLING;
+	  SDL_SetCursor(cursor_bucket);
 	  ui_dirty = true;
 	  break;
 	}
 	  
 	case SDLK_c: {
 	  mode = Mode::CHESS;
+	  SDL_SetCursor(cursor_arrow); // XXX hand
 	  ui_dirty = true;
 	  break;
 	}
@@ -229,6 +284,18 @@ void UI::Loop() {
 
 	  DrawThick(drawing, mousex, mousey, mousex, mousey, current_color);
 	  ui_dirty = true;
+	} else if (mode == Mode::FILLING) {
+	  SaveUndo();
+
+	  // Make sure that a click also makes a pixel.
+	  SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
+	  
+	  mousex = e->x;
+	  mousey = e->y;
+
+	  FloodFill(drawing, mousex, mousey, current_color);
+	  
+	  ui_dirty = true;
 	}
 	
 	break;
@@ -257,19 +324,25 @@ void UI::Loop() {
 void UI::DrawStatus() {
   int drawcolor = 1;
   int chesscolor = 1;
-
+  int fillcolor = 1;
+  
   switch (mode) {
   case Mode::DRAWING:
     drawcolor = 2;
     break;
 
+  case Mode::FILLING:
+    fillcolor = 2;
+    break;
+    
   case Mode::CHESS:
     chesscolor = 2;
     break;
+    
   }
   string modestring =
-    StringPrintf("[^3D^<]^%draw^<  [^3C^<]^%dhess^<  ...",
-		 drawcolor, chesscolor);
+    StringPrintf("[^3D^<]^%draw^<  [^3F^<]^%dill^<  [^3C^<]^%dhess^<  ...",
+		 drawcolor, fillcolor, chesscolor);
   font2x->draw(5, SCREENH - (FONTHEIGHT * 2) - 1, modestring);
 
 
@@ -367,7 +440,7 @@ int main(int argc, char **argv) {
   CHECK((cursor_arrow = Cursor::MakeArrow()));
   CHECK((cursor_bucket = Cursor::MakeBucket()));
 
-  SDL_SetCursor(cursor_bucket);
+  SDL_SetCursor(cursor_arrow);
   SDL_ShowCursor(SDL_ENABLE);
   
   UI ui;
