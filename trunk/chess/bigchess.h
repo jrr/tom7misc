@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "../cc-lib/base/logging.h"
-
+#include "../cc-lib/threadutil.h"
 
 using int64 = int64_t;
 using uint8 = uint8_t;
@@ -20,6 +20,7 @@ inline bool ContainsKey(const C &container, const K &key) {
   return container.find(key) != container.end();
 }
 
+#if 0
 // TODO: To threadutil, but note that this is C++17.
 struct ReadMutexLock {
   explicit ReadMutexLock(std::shared_mutex *m) : m(m) { m->lock_shared(); }
@@ -48,6 +49,7 @@ void SharedWriteWithLock(std::shared_mutex *m, T *t, const T &val) {
   WriteMutexLock ml(m);
   *t = val;
 }
+#endif
 
 
 // TODO: This does not parallelize enough. Only one of the numa nodes

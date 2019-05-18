@@ -4,6 +4,8 @@
 #include <shared_mutex>
 #include <cstdint>
 #include <deque>
+#include <unordered_map>
+#include <unistd.h>
 
 #include "../../cc-lib/threadutil.h"
 #include "../../cc-lib/randutil.h"
@@ -14,6 +16,9 @@
 #include "../chess.h"
 #include "../pgn.h"
 #include "../bigchess.h"
+#include "../subprocess.h"
+#include "../stockfish.h"
+#include "../player-util.h"
 #include "timer.h"
 
 // #include "unblinder.h"
@@ -33,12 +38,19 @@ using namespace std;
 
 using int64 = int64_t;
 
+template<class T>
+using PositionMap = std::unordered_map<Position, T, PositionHash, PositionEq>;
+using Move = Position::Move;
+#define EVALUATION_THREADS 8
+// #define EVALUATION_THREADS 1
+
 #define FONTWIDTH 9
 #define FONTHEIGHT 16
 static Font *font = nullptr, *font2x = nullptr;
 static Font *chessfont = nullptr, *chessfont3x = nullptr;
 
 static SDL_Cursor *cursor_arrow = nullptr, *cursor_bucket = nullptr;
+static SDL_Cursor *cursor_hand = nullptr, *cursor_hand_closed = nullptr;
 #define VIDEOH 1080
 #define STATUSH 128
 #define SCREENW 1920
@@ -54,6 +66,142 @@ enum class Mode {
 };
 
 namespace {
+struct Evaluator {
+  enum Status {
+    CHECKMATE,
+    DRAW,
+    PLAYING,
+  };
+  
+  struct Evaluation {
+    Status status;
+    // Best move, if not game over.
+    Move move;
+    Stockfish::Score score;
+  };
+  
+  Evaluator() {}
+
+  void Enqueue(const Position &position, bool at_front = false) {
+    WriteMutexLock ml(&m);
+
+    // PERF: Could move to front if at_front is true, and already
+    // added but not yet running.
+    bool &b = added[position];
+    if (b)
+      return;
+    b = true;
+
+    fprintf(stderr, "Enqueue %s first\n", position.ToFEN(1, 1).c_str());
+    fflush(stderr);
+    
+    if (at_front) {
+      todo.push_front(position);
+    } else {
+      todo.push_back(position);
+    }
+  };
+
+  int64 QueueSize() {
+    ReadMutexLock ml(&m);
+    return todo.size();
+  }
+
+  void AddThread() {
+    WriteMutexLock ml(&m);
+    threads.emplace_back([this]() { WorkThread(); });
+  }
+
+  const Evaluation *GetEval(const Position &pos) {
+    ReadMutexLock ml(&m);
+    auto it = cache.find(pos);
+    if (it == cache.end()) return nullptr;
+    return it->second;
+  }
+  
+  ~Evaluator() {
+    fprintf(stderr, "Waiting for evaluators to die...\n");
+    fflush(stderr);
+    WriteWithLock(&m, &should_die, true);
+    
+    for (std::thread &t : threads)
+      t.join();
+    fprintf(stderr, "Done.\n");
+    fflush(stderr);
+  }
+  
+private:
+  // OK to have many of these. Each creates its own private stockfish
+  // process.
+  void WorkThread() {
+    std::unique_ptr<Stockfish> stockfish{new Stockfish(20, 500'000 /* ' */)};
+    CHECK(stockfish.get() != nullptr);
+    
+    for (;;) {
+      /*
+      {
+	ReadMutexLock ml(&m);
+	if (should_die)
+	  return;
+
+	if (!todo.empty())
+	  break;
+      }
+      */
+
+      Position p;
+      {
+	WriteMutexLock ml(&m);
+	if (should_die)
+	  return;
+	
+	// Lost race?
+	if (todo.empty()) {
+	  usleep(1);
+	  continue;
+	}
+
+	p = std::move(todo.front());
+	todo.pop_front();
+      }
+
+      fprintf(stderr, "process: %s\n", p.BoardString().c_str());
+      
+      // Do work, not holding lock.
+      Evaluation *evaluation = new Evaluation;
+      if (p.HasLegalMoves()) {
+	string fen = p.ToFEN(1, 1);
+	fprintf(stderr, "FEN: %s\n", fen.c_str());
+	fflush(stderr);
+	string movestring;
+	stockfish->GetMove(fen, &movestring, &evaluation->score);
+	CHECK(PlayerUtil::ParseLongMove(movestring,
+					p.BlackMove(),
+					&evaluation->move)) <<
+	  movestring << "\n" << p.BoardString();
+	fprintf(stderr, "Move: %s\n", movestring.c_str());
+	fflush(stderr);
+	evaluation->status = PLAYING;
+      } else {
+	evaluation->status = p.IsInCheck() ? CHECKMATE : DRAW;
+      }
+
+      {
+	WriteMutexLock ml(&m);
+	cache[p] = evaluation;
+      }
+    }
+  }
+  
+  std::shared_mutex m;
+  bool should_die = false;
+  std::deque<Position> todo;
+  PositionMap<bool> added;
+  PositionMap<const Evaluation *> cache;
+
+  std::vector<thread> threads;
+};
+
 struct UI {
   Mode mode = Mode::DRAWING;
   bool ui_dirty = true;
@@ -62,6 +210,7 @@ struct UI {
   void Loop();
   void DrawStatus();
   void Draw();
+  bool InSquare(int screenx, int screeny, std::pair<int, int> *square);
   
   void SaveUndo() {
     undo_buffer.push_back(sdlutil::duplicate(drawing));
@@ -82,12 +231,39 @@ struct UI {
   uint32 current_color = 0x77AA0000;
   
   SDL_Surface *drawing = nullptr;
+  int mousex = 0, mousey = 0;
   bool dragging = false;
+  // If both are non-negative, represents a currently grabbed piece on
+  // the board. As row, col.
+  std::pair<int, int> drag_source = {-1, -1};
   static constexpr int CHESSX = 64, CHESSY = 64, CHESSSCALE = 32 * 3;
 
   static constexpr int MAX_UNDO = 32;
   deque<SDL_Surface *> undo_buffer;
   deque<SDL_Surface *> redo_buffer;
+
+  bool UpdateEval() {
+    if (!PositionEq()(position, current_eval_position)) {
+      current_eval = nullptr;
+      current_eval_position = position;
+    }
+    
+    if (current_eval == nullptr) {
+      current_eval = evaluator->GetEval(current_eval_position);
+      if (current_eval == nullptr) {
+	evaluator->Enqueue(current_eval_position, true);
+      }
+
+      return !!current_eval;
+    }
+
+    return false;
+  }
+  
+  Position current_eval_position;
+  const Evaluator::Evaluation *current_eval = nullptr;
+  
+  std::unique_ptr<Evaluator> evaluator;
 };
 }  // namespace
 
@@ -95,8 +271,14 @@ UI::UI() {
   drawing = sdlutil::makesurface(SCREENW, SCREENH, true);
   sdlutil::ClearSurface(drawing, 0, 0, 0, 0);
   CHECK(drawing != nullptr);
-  Position::ParseFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-		     &position);
+  Position::ParseFEN(
+      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      &position);
+
+  evaluator.reset(new Evaluator);
+  for (int i = 0; i < EVALUATION_THREADS; i++) {
+    evaluator->AddThread();
+  }
 }
 
 static void DrawThick(SDL_Surface *surf, int x0, int y0,
@@ -177,10 +359,21 @@ static void FloodFill(SDL_Surface *surf, int x, int y,
   }
 }
 
+// x, y in screen space
+bool UI::InSquare(int x, int y, std::pair<int, int> *square) {
+  if (x >= CHESSX && y >= CHESSY) {
+    int bx = (x - CHESSX) / CHESSSCALE;
+    int by = (y - CHESSY) / CHESSSCALE;
+    if (bx < 8 && by < 8) {
+      // Note: row, col is y, x
+      *square = {by, bx};
+      return true;
+    }
+  }
+  return false;
+}
 
 void UI::Loop() {
-  int mousex = 0, mousey = 0;
-  (void)mousex; (void)mousey;
   for (;;) {
 
     SDL_Event event;
@@ -229,7 +422,7 @@ void UI::Loop() {
 	  
 	case SDLK_c: {
 	  mode = Mode::CHESS;
-	  SDL_SetCursor(cursor_arrow); // XXX hand
+	  SDL_SetCursor(cursor_hand);
 	  ui_dirty = true;
 	  break;
 	}
@@ -296,6 +489,27 @@ void UI::Loop() {
 	  FloodFill(drawing, mousex, mousey, current_color);
 	  
 	  ui_dirty = true;
+	} else if (mode == Mode::CHESS) {
+	  SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
+	  
+	  mousex = e->x;
+	  mousey = e->y;
+
+	  SDL_SetCursor(cursor_hand_closed);
+	  ui_dirty = true;
+	  
+	  // Get indicated square.
+	  std::pair<int, int> square;
+	  if (InSquare(mousex, mousey, &square)) {
+	    uint8 p = position.PieceAt(square.first, square.second);
+	    if (p != Position::EMPTY &&
+		(p & Position::COLOR_MASK) ==
+		(position.BlackMove() ? Position::BLACK : Position::WHITE)) {
+	      drag_source = square;
+	      break;
+	    }
+	  }
+	  drag_source = {-1, -1};
 	}
 	
 	break;
@@ -304,12 +518,52 @@ void UI::Loop() {
       case SDL_MOUSEBUTTONUP: {
 	// LMB/RMB, drag, etc.
 	dragging = false;	
+
+	if (mode == Mode::CHESS) {
+	  std::pair<int, int> square;
+	  if (InSquare(mousex, mousey, &square)) {
+	    Move m;
+	    m.src_row = drag_source.first;
+	    m.src_col = drag_source.second;
+
+	    m.dst_row = square.first;
+	    m.dst_col = square.second;
+
+	    // (No way to pick this, currently, but it must be filled
+	    // in correctly!);
+	    m.promote_to = 0;
+	    if ((position.PieceAt(m.src_row, m.src_col) &
+		 Position::TYPE_MASK) ==
+		Position::PAWN) {
+	      if (m.dst_row == 0)
+		m.promote_to = Position::WHITE | Position::QUEEN;
+	      else if (m.dst_row == 7)
+		m.promote_to = Position::BLACK | Position::QUEEN;
+	    }
+
+	    if (position.IsLegal(m)) {
+	      position.ApplyMove(m);
+	    } else {
+	      // visual feedback?
+	      fprintf(stderr, "Illegal move %s.\n",
+		      Position::DebugMoveString(m).c_str());
+	      fflush(stderr);
+	    }
+	  }
+
+	  ui_dirty = true;
+	  drag_source = {-1, -1};
+	  SDL_SetCursor(cursor_hand);
+	}
 	break;
       }
 	
       default:;
       }
     }
+
+    if (UpdateEval())
+      ui_dirty = true;
     
     if (ui_dirty) {
       sdlutil::clearsurface(screen, 0xFFFFFFFF);
@@ -340,13 +594,10 @@ void UI::DrawStatus() {
     break;
     
   }
-  string modestring =
+  const string modestring =
     StringPrintf("[^3D^<]^%draw^<  [^3F^<]^%dill^<  [^3C^<]^%dhess^<  ...",
 		 drawcolor, fillcolor, chesscolor);
   font2x->draw(5, SCREENH - (FONTHEIGHT * 2) - 1, modestring);
-
-
-  
 }
 
 void UI::Draw() {
@@ -354,39 +605,81 @@ void UI::Draw() {
   DrawStatus();
   
   // On-screen stuff
-  
+
+  // Board first.
   for (int r = 0; r < 8; r++) {
     const int yy = CHESSY + r * CHESSSCALE;
     for (int c = 0; c < 8; c++) {
       const int xx = CHESSX + c * CHESSSCALE;
-
-      uint8 piece = position.PieceAt(r, c);
-      
-      bool black = (r + c) & 1;
+      const bool black = (r + c) & 1;
       // Background
-      uint8 rr = black ? 134 : 255;
-      uint8 gg = black ? 166 : 255;
-      uint8 bb = black ? 102 : 221;
-
+      const uint8 rr = black ? 134 : 255;
+      const uint8 gg = black ? 166 : 255;
+      const uint8 bb = black ? 102 : 221;
       sdlutil::FillRectRGB(screen, xx, yy, CHESSSCALE, CHESSSCALE, rr, gg, bb);
-      if ((piece & Position::TYPE_MASK) == Position::EMPTY) {
-	// already space
-      } else {
-	string str = " ";
-
-	uint8 typ = piece & Position::TYPE_MASK;
-	if (typ == Position::C_ROOK) typ = Position::ROOK;
-	
-	if ((piece & Position::COLOR_MASK) == Position::BLACK) {
-	  str[0] = "?pnbrqk"[typ];
-	} else {
-	  str[0] = "?PNBRQK"[typ];
-	}
-	chessfont3x->draw(xx, yy + 8, str);
-      }
     }
   }
 
+  // Draw evaluation.
+  if (current_eval != nullptr) {
+    switch (current_eval->status) {
+    case Evaluator::CHECKMATE:
+      font2x->draw(5, 16, "CHECKMATE.");
+      break;
+    case Evaluator::DRAW:
+      font2x->draw(5, 16, "DRAW.");
+      break;
+    case Evaluator::PLAYING: {
+      Move m = current_eval->move;
+      DrawThick(screen,
+		CHESSX + m.src_col * CHESSSCALE + (CHESSSCALE >> 1),
+		CHESSY + m.src_row * CHESSSCALE + (CHESSSCALE >> 1),
+		CHESSX + m.dst_col * CHESSSCALE + (CHESSSCALE >> 1),
+		CHESSY + m.dst_row * CHESSSCALE + (CHESSSCALE >> 1),
+		0x449900CC);
+      font2x->draw(100, 16, Position::DebugMoveString(m));
+      font2x->draw(5, 16,
+		   StringPrintf("%s%d",
+				(current_eval->score.is_mate ? "#" : ""),
+				current_eval->score.value));
+      break;
+    }
+    }
+  } else {
+    font2x->draw(5, 16, "current_eval = null");
+  }
+
+  auto DrawPieceAt = [this](int x, int y, uint8 piece) {
+      uint8 typ = piece & Position::TYPE_MASK;
+      if (typ == Position::C_ROOK) typ = Position::ROOK;
+      string str = " ";
+      if ((piece & Position::COLOR_MASK) == Position::BLACK) {
+	str[0] = "?pnbrqk"[typ];
+      } else {
+	str[0] = "?PNBRQK"[typ];
+      }
+      chessfont3x->draw(x, y, str);
+    };
+
+  for (int r = 0; r < 8; r++) {
+    const int yy = CHESSY + r * CHESSSCALE;
+    for (int c = 0; c < 8; c++) {
+      const int xx = CHESSX + c * CHESSSCALE;
+      uint8 piece = position.PieceAt(r, c);
+      if ((piece & Position::TYPE_MASK) != Position::EMPTY) {
+	if (drag_source.first != r || drag_source.second != c) {
+	  DrawPieceAt(xx, yy + 8, piece);
+	}
+      }
+    }
+  }
+  
+  if (drag_source.first >= 0 && drag_source.second >= 0) {
+    uint8 p = position.PieceAt(drag_source.first, drag_source.second);
+    CHECK((p & Position::TYPE_MASK) != Position::EMPTY);
+    DrawPieceAt(mousex, mousey, p);
+  }
+  
   sdlutil::blitall(drawing, screen, 0, 0);
 }
 
@@ -399,7 +692,7 @@ int main(int argc, char **argv) {
   fprintf(stderr, "SDL initialized OK.\n");
 
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,
-                      SDL_DEFAULT_REPEAT_INTERVAL);
+		      SDL_DEFAULT_REPEAT_INTERVAL);
 
   SDL_EnableUNICODE(1);
 
@@ -439,11 +732,14 @@ int main(int argc, char **argv) {
 
   CHECK((cursor_arrow = Cursor::MakeArrow()));
   CHECK((cursor_bucket = Cursor::MakeBucket()));
+  CHECK((cursor_hand = Cursor::MakeHand()));
+  CHECK((cursor_hand_closed = Cursor::MakeHandClosed()));
 
   SDL_SetCursor(cursor_arrow);
   SDL_ShowCursor(SDL_ENABLE);
   
   UI ui;
+  
   ui.Loop();
   
   SDL_Quit();

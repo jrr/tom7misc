@@ -1385,6 +1385,19 @@ string Position::ShortMoveString(Move m) {
   }
 }
 
+string Position::DebugMoveString(Move m) {
+  string s = "xx->xx";
+  s[0] = m.src_col + 'a';
+  s[1] = '0' + (8 - m.src_row);
+  s[4] = m.dst_col + 'a';
+  s[5] = '0' + (8 - m.dst_row);
+  if (m.promote_to) {
+    s.push_back('=');
+    s.push_back(DebugPieceChar(m.promote_to));
+  }
+  return s;
+}
+
 namespace {
 // Various ways of collecting moves, used in the template below.
 // If Push returns true, we should stop collecting.

@@ -7,6 +7,12 @@
 #include <mutex>
 #include <cstdint>
 
+#if __cplusplus >= 201703L
+// shared_mutex only available in C++17 and later.
+# include <shared_mutex>
+#endif
+
+
 struct MutexLock {
   explicit MutexLock(std::mutex *m) : m(m) { m->lock(); }
   ~MutexLock() { m->unlock(); }
@@ -27,6 +33,37 @@ void WriteWithLock(std::mutex *m, T *t, const T &val) {
   MutexLock ml(m);
   *t = val;
 }
+
+#if __cplusplus >= 201703L
+// Overloads for shared_mutex, if available.
+struct ReadMutexLock {
+  explicit ReadMutexLock(std::shared_mutex *m) : m(m) { m->lock_shared(); }
+  ~ReadMutexLock() { m->unlock_shared(); }
+  std::shared_mutex *m;
+};
+// Possible to template this over shared_mutex and mutex without
+// requiring an argument?
+struct WriteMutexLock {
+  explicit WriteMutexLock(std::shared_mutex *m) : m(m) { m->lock(); }
+  ~WriteMutexLock() { m->unlock(); }
+  std::shared_mutex *m;
+};
+
+// Read with the mutex that protects it. T must be copyable,
+// obviously!
+template<class T>
+T ReadWithLock(std::shared_mutex *m, const T *t) {
+  ReadMutexLock ml(m);
+  return *t;
+}
+
+// Write with the mutex that protects it. T must be copyable.
+template<class T>
+void WriteWithLock(std::shared_mutex *m, T *t, const T &val) {
+  WriteMutexLock ml(m);
+  *t = val;
+}
+#endif
 
 // TODO: A thing that comes up often is where we want to accumulate a
 // sum (maybe on many variables) over an array in parallel. The
