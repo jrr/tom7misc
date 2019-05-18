@@ -23,6 +23,9 @@ struct Cursor {
   static SDL_Cursor *MakeArrow();
   // "fill" bucket 
   static SDL_Cursor *MakeBucket();
+  // Matching hand pointing, and hand gripping
+  static SDL_Cursor *MakeHand();
+  static SDL_Cursor *MakeHandClosed();
 private:
   Cursor() = delete;
 };

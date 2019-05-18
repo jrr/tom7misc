@@ -30,8 +30,8 @@ void Stockfish::InitEngine() {
   if (subprocess.get() != nullptr)
     return;
   subprocess.reset(
-      Subprocess::Create(
-	  "..\\..\\stockfish\\src\\stockfish.exe"));
+      Subprocess::Create("stockfish.exe"));
+	  // "..\\..\\stockfish\\src\\stockfish.exe"));
   CHECK(subprocess.get());
 
   subprocess->Write("uci\n");
