@@ -1111,6 +1111,20 @@ void sdlutil::drawbox(SDL_Surface *s, int x, int y, int w, int h,
   drawclipline(s, x, y + h - 1, x + w - 1, y + h - 1, r, g, b);
 }
 
+void sdlutil::DrawBox32(SDL_Surface *s, int x, int y, int w, int h,
+			Uint32 rgba) {
+  // PERF: Same as above.
+  // Top
+  DrawClipLine32(s, x, y, x + w - 1, y, rgba);
+  // Left
+  DrawClipLine32(s, x, y, x, y + h - 1, rgba);
+  // Right
+  DrawClipLine32(s, x + w - 1, y, x + w - 1, y + h - 1, rgba);
+  // Bottom
+  DrawClipLine32(s, x, y + h - 1, x + w - 1, y + h - 1, rgba);
+}
+
+
 /* XXX change to use function pointer? */
 /* lock before calling */
 void sdlutil::drawpixel(SDL_Surface *screen, int x, int y,

@@ -26,7 +26,10 @@ struct Cursor {
   // Matching hand pointing, and hand gripping
   static SDL_Cursor *MakeHand();
   static SDL_Cursor *MakeHandClosed();
-private:
+
+  static SDL_Cursor *MakeEraser();
+
+ private:
   Cursor() = delete;
 };
 
