@@ -73,11 +73,13 @@ struct Font {
   static std::string truncate(const std::string &s, int n);
 
 
-  /* return the size in pixels of the string.
-     this ignores formatting characters.
+  /* return the size in pixels of the string. 
+     formatting characters do not count towards width.
      sizey is always font.height.
   */
   virtual int sizex(const std::string &) = 0;
+  /* Same, but not interpreting formatting characters as special,
+     for draw_plain. */
   virtual int sizex_plain(const std::string &) = 0;
 
   /* returns the number of lines in the string,
