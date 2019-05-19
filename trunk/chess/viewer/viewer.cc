@@ -30,9 +30,11 @@
 #include "../cc-lib/sdl/font.h"
 #include "../cc-lib/sdl/cursor.h"
 #include "../cc-lib/lines.h"
+#include "../cc-lib/util.h"
 
 #define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" /* removed icons */
 #define FONTSTYLES 7
+
 
 using namespace std;
 
@@ -63,6 +65,7 @@ enum class Mode {
   DRAWING,
   FILLING,
   CHESS,
+  // PLAYBACK,
 };
 
 namespace {
@@ -203,14 +206,17 @@ private:
 };
 
 struct UI {
-  Mode mode = Mode::DRAWING;
+  Mode mode = Mode::CHESS;
   bool ui_dirty = true;
   
   UI();
+  void LoadMoves(const string &movedata);
   void Loop();
   void DrawStatus();
   void Draw();
   bool InSquare(int screenx, int screeny, std::pair<int, int> *square);
+
+  bool MakeMove(Move m);
   
   void SaveUndo() {
     undo_buffer.push_back(sdlutil::duplicate(drawing));
@@ -227,7 +233,12 @@ struct UI {
 
   uint64 current_bitmap = 0xFFFF00000000FFFFULL;
   Position position;
-
+  // Position is after the move. String is short move name.
+  vector<std::tuple<Position, Move, string>> movie;
+  // Invariant is that all moves up to this point are reflected
+  // in the position.
+  int movie_idx = 0;
+  
   uint32 current_color = 0x77AA0000;
   
   SDL_Surface *drawing = nullptr;
@@ -236,6 +247,7 @@ struct UI {
   // If both are non-negative, represents a currently grabbed piece on
   // the board. As row, col.
   std::pair<int, int> drag_source = {-1, -1};
+  int drag_handlex = 0, drag_handley = 0;
   static constexpr int CHESSX = 64, CHESSY = 64, CHESSSCALE = 32 * 3;
 
   static constexpr int MAX_UNDO = 32;
@@ -278,6 +290,20 @@ UI::UI() {
   evaluator.reset(new Evaluator);
   for (int i = 0; i < EVALUATION_THREADS; i++) {
     evaluator->AddThread();
+  }
+}
+
+void UI::LoadMoves(const string &movestring) {
+  std::vector<PGN::Move> moves;
+  CHECK(PGN::ParseMoves(movestring, &moves)) << movestring;
+  position = Position();
+  movie_idx = 0;
+  movie.clear();
+  for (const PGN::Move move : moves) {
+    Position::Move m;
+    position.ParseMove(move.move.c_str(), &m);
+    CHECK(MakeMove(m));
+    evaluator->Enqueue(position);
   }
 }
 
@@ -406,6 +432,28 @@ void UI::Loop() {
 	  printf("ESCAPE.\n");
 	  return;
 
+	case SDLK_LEFT: {
+	  if (movie_idx > 0) {
+	    movie_idx--;
+	    if (movie_idx > 0) {
+	      position = std::get<0>(movie[movie_idx - 1]);
+	    } else {
+	      position = Position();
+	    }
+	    ui_dirty = true;
+	  }
+	  break;
+	}
+
+	case SDLK_RIGHT: {
+	  if (movie_idx < movie.size()) {
+	    MakeMove(std::get<1>(movie[movie_idx]));
+	    ui_dirty = true;
+	  }
+	  break;
+	}
+
+	  
 	case SDLK_d: {
 	  mode = Mode::DRAWING;
 	  SDL_SetCursor(cursor_arrow);
@@ -506,6 +554,8 @@ void UI::Loop() {
 		(p & Position::COLOR_MASK) ==
 		(position.BlackMove() ? Position::BLACK : Position::WHITE)) {
 	      drag_source = square;
+	      drag_handlex = mousex - (CHESSX + square.second * CHESSSCALE);
+	      drag_handley = mousey - (CHESSY + square.first * CHESSSCALE);
 	      break;
 	    }
 	  }
@@ -541,9 +591,7 @@ void UI::Loop() {
 		m.promote_to = Position::BLACK | Position::QUEEN;
 	    }
 
-	    if (position.IsLegal(m)) {
-	      position.ApplyMove(m);
-	    } else {
+	    if (!MakeMove(m)) {
 	      // visual feedback?
 	      fprintf(stderr, "Illegal move %s.\n",
 		      Position::DebugMoveString(m).c_str());
@@ -575,10 +623,35 @@ void UI::Loop() {
   
 }
 
+bool UI::MakeMove(Move m) {
+  if (!position.IsLegal(m))
+    return false;
+
+  string s = position.ShortMoveString(m);
+
+  // Position orig_pos = position;
+  position.ApplyMove(m);
+  // Could add check, checkmate here.
+
+  CHECK(movie_idx <= movie.size()) << movie_idx << " " << movie.size();
+  if (movie_idx == movie.size()) {
+    movie.emplace_back(position, m, s);
+    movie_idx++;
+  } else if (Position::MoveEq(std::get<1>(movie[movie_idx]), m)) {
+    movie_idx++;
+  } else {
+    movie.resize(movie_idx);
+    movie.emplace_back(position, m, s);
+    movie_idx++;
+  }
+  return true;
+}
+
 void UI::DrawStatus() {
   int drawcolor = 1;
-  int chesscolor = 1;
   int fillcolor = 1;
+  int chesscolor = 1;
+  int playbackcolor = 1; (void)playbackcolor;
   
   switch (mode) {
   case Mode::DRAWING:
@@ -592,13 +665,47 @@ void UI::DrawStatus() {
   case Mode::CHESS:
     chesscolor = 2;
     break;
+
+    /*
+  case Mode::PLAYBACK:
+    playbackcolor = 2;
+    break;
+    */
     
   }
   const string modestring =
-    StringPrintf("[^3D^<]^%draw^<  [^3F^<]^%dill^<  [^3C^<]^%dhess^<  ...",
-		 drawcolor, fillcolor, chesscolor);
+    StringPrintf("[^3D^<]^%draw^<  [^3F^<]^%dill^<  [^3C^<]^%dhess^<  "
+		 // "[^3P^<]^%dlayback^<  ..."
+		 ,
+		 drawcolor, fillcolor, chesscolor /*, playbackcolor */);
   font2x->draw(5, SCREENH - (FONTHEIGHT * 2) - 1, modestring);
 }
+
+struct Typewriter {
+  Typewriter(Font *fon, int x, int y, int w, int h) :
+    fon(fon),
+    startx(x), starty(y),
+    width(w), height(h) { }
+
+  // Assumes 
+  void Write(const string &s) {
+    int w = fon->sizex(s);
+    if (current_line_width > 0 &&
+	current_line_width + w > width) {
+      current_line++;
+      current_line_width = 0;
+    }
+    fon->draw(startx + current_line_width,
+	      current_line * fon->height,
+	      s);
+    current_line_width += w;
+  }
+  
+  int current_line = 0;
+  int current_line_width = 0;
+  Font *fon = nullptr;
+  const int startx = 0, starty = 0, width = 0, height = 0;
+};
 
 void UI::Draw() {
   // Status stuff
@@ -607,6 +714,7 @@ void UI::Draw() {
   // On-screen stuff
 
   // Board first.
+  // TODO: When dragging, draw legal destinations
   for (int r = 0; r < 8; r++) {
     const int yy = CHESSY + r * CHESSSCALE;
     for (int c = 0; c < 8; c++) {
@@ -677,7 +785,30 @@ void UI::Draw() {
   if (drag_source.first >= 0 && drag_source.second >= 0) {
     uint8 p = position.PieceAt(drag_source.first, drag_source.second);
     CHECK((p & Position::TYPE_MASK) != Position::EMPTY);
-    DrawPieceAt(mousex, mousey, p);
+    DrawPieceAt(mousex - drag_handlex, mousey - drag_handley, p);
+  }
+
+  {
+    Typewriter t{font2x, 900, 16, 1900 - 900, 1000 - 16};
+    // t.Write(StringPrintf("^3Move %d. ", movie_idx));
+
+    /*
+    for (int i = 0; i < movie.size(); i++) {
+      t.Write(StringPrintf("[%d] ^2%s ", i, std::get<2>(movie[i]).c_str()));
+    }
+    */
+    
+    for (int i = 0; i < movie.size(); i++) {
+      int color = i < movie_idx ? (i == movie_idx - 1 ? 6 : 0) : 4;
+      const string &ms = std::get<2>(movie[i]);
+      if (i & 1) {
+	// Black's move.
+	t.Write(StringPrintf("^%d%s  ", color, ms.c_str()));
+      } else {
+	t.Write(StringPrintf("^%d%d. %s ", color, (i >> 1) + 1,
+			     ms.c_str()));
+      }
+    }
   }
   
   sdlutil::blitall(drawing, screen, 0, 0);
@@ -739,7 +870,9 @@ int main(int argc, char **argv) {
   SDL_ShowCursor(SDL_ENABLE);
   
   UI ui;
-  
+  if (argc > 1) {
+    ui.LoadMoves(argv[1]);
+  }
   ui.Loop();
   
   SDL_Quit();
