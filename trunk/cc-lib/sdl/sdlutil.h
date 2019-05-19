@@ -59,7 +59,9 @@ struct sdlutil {
   // With clipping.
   static void drawbox(SDL_Surface *, int x1, int y1, int w, int h,
 		      Uint8 r, Uint8 g, Uint8 b);
-
+  static void DrawBox32(SDL_Surface *s, int x, int y, int w, int h,
+			Uint32 rgba);
+  
   // Note: uint32 must be in the correct byte order for the surface.
   static void clearsurface(SDL_Surface *, Uint32);
   // Correctly maps color to the surface's byte order.

@@ -39,6 +39,7 @@
 using namespace std;
 
 using int64 = int64_t;
+using uint32 = uint32_t;
 
 template<class T>
 using PositionMap = std::unordered_map<Position, T, PositionHash, PositionEq>;
@@ -53,6 +54,7 @@ static Font *chessfont = nullptr, *chessfont3x = nullptr;
 
 static SDL_Cursor *cursor_arrow = nullptr, *cursor_bucket = nullptr;
 static SDL_Cursor *cursor_hand = nullptr, *cursor_hand_closed = nullptr;
+static SDL_Cursor *cursor_eraser = nullptr;
 #define VIDEOH 1080
 #define STATUSH 128
 #define SCREENW 1920
@@ -60,12 +62,30 @@ static SDL_Cursor *cursor_hand = nullptr, *cursor_hand_closed = nullptr;
 
 static SDL_Surface *screen = nullptr;
 
+static constexpr uint32 COLORS[] = {
+  // black, white
+  /* 1 */ 0xFF000000,
+  /* 2 */ 0xFFFFFFFF,
+  // 'nice' RGB
+  /* 3 */ 0xFFbd3838, // R
+  /* 4 */ 0xFF0ba112, // G
+  /* 5 */ 0xFF1664CE, // B
+  // intense
+  /* 6 */ 0xFFf943ea, // magenta
+  /* 7 */ 0xFFeef943, // yellow
+  /* 8 */ 0xFF29edef, // cyan
+  // misc
+  /* 9 */ 0xFFc77e00, // orange/brown
+  // Note zero is actually like "10"
+  /* 0 */ 0xFF7500c7, // purple
+};
+
 // Mode basically controls what happens when we use the mouse.
 enum class Mode {
+  ERASING,
   DRAWING,
   FILLING,
   CHESS,
-  // PLAYBACK,
 };
 
 namespace {
@@ -95,8 +115,8 @@ struct Evaluator {
       return;
     b = true;
 
-    fprintf(stderr, "Enqueue %s first\n", position.ToFEN(1, 1).c_str());
-    fflush(stderr);
+    // fprintf(stderr, "Enqueue %s first\n", position.ToFEN(1, 1).c_str());
+    // fflush(stderr);
     
     if (at_front) {
       todo.push_front(position);
@@ -168,22 +188,22 @@ private:
 	todo.pop_front();
       }
 
-      fprintf(stderr, "process: %s\n", p.BoardString().c_str());
+      // fprintf(stderr, "process: %s\n", p.BoardString().c_str());
       
       // Do work, not holding lock.
       Evaluation *evaluation = new Evaluation;
       if (p.HasLegalMoves()) {
 	string fen = p.ToFEN(1, 1);
-	fprintf(stderr, "FEN: %s\n", fen.c_str());
-	fflush(stderr);
+	// fprintf(stderr, "FEN: %s\n", fen.c_str());
+	// fflush(stderr);
 	string movestring;
 	stockfish->GetMove(fen, &movestring, &evaluation->score);
 	CHECK(PlayerUtil::ParseLongMove(movestring,
 					p.BlackMove(),
 					&evaluation->move)) <<
 	  movestring << "\n" << p.BoardString();
-	fprintf(stderr, "Move: %s\n", movestring.c_str());
-	fflush(stderr);
+	// fprintf(stderr, "Move: %s\n", movestring.c_str());
+	// fflush(stderr);
 	evaluation->status = PLAYING;
       } else {
 	evaluation->status = p.IsInCheck() ? CHECKMATE : DRAW;
@@ -324,7 +344,6 @@ static void DrawThick(SDL_Surface *surf, int x0, int y0,
     };
 
   {
-    fflush(stdout);
     SetPixel(x0, y0);
     SetPixel(x0 + 1, y0);
     SetPixel(x0, y0 + 1);
@@ -418,8 +437,14 @@ void UI::Loop() {
 	mousey = e->y;
 
 	if (dragging) {
-	  if (mode == Mode::DRAWING) {
+	  switch (mode) {
+	  case Mode::DRAWING:
 	    DrawThick(drawing, oldx, oldy, mousex, mousey, current_color);
+	    break;
+	  case Mode::ERASING:
+	    DrawThick(drawing, oldx, oldy, mousex, mousey, 0x00000000);
+	    break;
+	  default:;
 	  }
 	  ui_dirty = true;
 	}
@@ -432,6 +457,13 @@ void UI::Loop() {
 	  printf("ESCAPE.\n");
 	  return;
 
+	case SDLK_HOME: {
+	  movie_idx = 0;
+	  position = Position();
+	  ui_dirty = true;
+	  break;
+	}
+	  
 	case SDLK_LEFT: {
 	  if (movie_idx > 0) {
 	    movie_idx--;
@@ -453,6 +485,12 @@ void UI::Loop() {
 	  break;
 	}
 
+	case SDLK_e: {
+	  mode = Mode::ERASING;
+	  SDL_SetCursor(cursor_eraser);
+	  ui_dirty = true;
+	  break;
+	}
 	  
 	case SDLK_d: {
 	  mode = Mode::DRAWING;
@@ -505,6 +543,24 @@ void UI::Loop() {
 	  }
 	  break;
 	}
+
+	case SDLK_0:
+	case SDLK_1:
+	case SDLK_2:
+	case SDLK_3:
+	case SDLK_4:
+	case SDLK_5:
+	case SDLK_6:
+	case SDLK_7:
+	case SDLK_8:
+	case SDLK_9: {
+	  // Not only are these in order, but they map to their
+	  // ASCII Values!
+	  const int n = ((event.key.keysym.sym - SDLK_0) + 9) % 10;
+	  current_color = COLORS[n];
+	  ui_dirty = true;
+	  break;
+	}
 	  
 	default:;
 	}
@@ -513,35 +569,28 @@ void UI::Loop() {
 
       case SDL_MOUSEBUTTONDOWN: {
 	// LMB/RMB, drag, etc.
+	SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
+	mousex = e->x;
+	mousey = e->y;
+	  
 	dragging = true;
 	if (mode == Mode::DRAWING) {
 	  SaveUndo();
-
 	  // Make sure that a click also makes a pixel.
-	  SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
-	  
-	  mousex = e->x;
-	  mousey = e->y;
-
 	  DrawThick(drawing, mousex, mousey, mousex, mousey, current_color);
 	  ui_dirty = true;
+	} else if (mode == Mode::ERASING) {
+	  SaveUndo();
+	  DrawThick(drawing, mousex, mousey, mousex, mousey, 0x00000000);
+	  ui_dirty = true;
+	  
 	} else if (mode == Mode::FILLING) {
 	  SaveUndo();
-
-	  // Make sure that a click also makes a pixel.
-	  SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
-	  
-	  mousex = e->x;
-	  mousey = e->y;
 
 	  FloodFill(drawing, mousex, mousey, current_color);
 	  
 	  ui_dirty = true;
 	} else if (mode == Mode::CHESS) {
-	  SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
-	  
-	  mousex = e->x;
-	  mousey = e->y;
 
 	  SDL_SetCursor(cursor_hand_closed);
 	  ui_dirty = true;
@@ -648,12 +697,16 @@ bool UI::MakeMove(Move m) {
 }
 
 void UI::DrawStatus() {
+  int erasecolor = 1;
   int drawcolor = 1;
   int fillcolor = 1;
   int chesscolor = 1;
-  int playbackcolor = 1; (void)playbackcolor;
   
   switch (mode) {
+  case Mode::ERASING:
+    erasecolor = 2;
+    break;
+
   case Mode::DRAWING:
     drawcolor = 2;
     break;
@@ -665,20 +718,54 @@ void UI::DrawStatus() {
   case Mode::CHESS:
     chesscolor = 2;
     break;
-
-    /*
-  case Mode::PLAYBACK:
-    playbackcolor = 2;
-    break;
-    */
-    
   }
   const string modestring =
-    StringPrintf("[^3D^<]^%draw^<  [^3F^<]^%dill^<  [^3C^<]^%dhess^<  "
-		 // "[^3P^<]^%dlayback^<  ..."
-		 ,
-		 drawcolor, fillcolor, chesscolor /*, playbackcolor */);
+    StringPrintf("[^3E^<]^%drase^<  "
+		 "[^3D^<]^%draw^<  "
+		 "[^3F^<]^%dill^<  "
+		 "[^3C^<]^%dhess^<  ",
+		 erasecolor,
+		 drawcolor, fillcolor, chesscolor);
   font2x->draw(5, SCREENH - (FONTHEIGHT * 2) - 1, modestring);
+
+  // Color swatches.
+  switch (mode) {
+  case Mode::ERASING:
+  case Mode::DRAWING:
+  case Mode::FILLING: {
+    const int yy = SCREENH - (FONTHEIGHT * 4) - 1;
+    for (int i = 0; i < 10; i++) {
+      static constexpr int SWATCHWIDTH = 64;
+      sdlutil::fillrect(screen, COLORS[i],
+			SWATCHWIDTH * i, yy,
+			SWATCHWIDTH, FONTHEIGHT * 2);
+      font2x->draw(SWATCHWIDTH * i + (SWATCHWIDTH >> 1) - FONTWIDTH, yy + 1,
+		   StringPrintf("%d", (i + 1) % 10));
+      if ((COLORS[i] & 0x00FFFFFF) ==
+	  (current_color & 0x00FFFFFF)) {
+	uint32 fake_brightness = (current_color & 0xFF) +
+	  ((current_color >> 8) & 0xFF) +
+	  ((current_color >> 16) & 0xFF);
+
+	uint32 outline = fake_brightness > 0x77 ? 0xFF000000 : 0xFFFFFF00;
+
+	for (int w = 0; w < 3; w++) {
+	  sdlutil::DrawBox32(screen,
+			     SWATCHWIDTH * i + w, yy + w,
+			     SWATCHWIDTH - w * 2, FONTHEIGHT * 2 - w * 2,
+			     outline);
+	}
+      }
+    }
+    break;
+  }
+
+  case Mode::CHESS:
+    font2x->draw(5, SCREENH - (FONTHEIGHT * 4) - 1,
+		 "[<-] [->] navigate movie, ...");
+    break;
+  }
+  
 }
 
 struct Typewriter {
@@ -865,7 +952,8 @@ int main(int argc, char **argv) {
   CHECK((cursor_bucket = Cursor::MakeBucket()));
   CHECK((cursor_hand = Cursor::MakeHand()));
   CHECK((cursor_hand_closed = Cursor::MakeHandClosed()));
-
+  CHECK((cursor_eraser = Cursor::MakeEraser()));
+  
   SDL_SetCursor(cursor_arrow);
   SDL_ShowCursor(SDL_ENABLE);
   
