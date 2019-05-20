@@ -32,7 +32,37 @@
 #include "../cc-lib/lines.h"
 #include "../cc-lib/util.h"
 
-#define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" /* removed icons */
+/* there are some non-ascii symbols in the font */
+#define CHECKMARK "\xF2"
+#define ESC "\xF3"
+#define HEART "\xF4"
+/* here L means "long" */
+#define LCMARK1 "\xF5"
+#define LCMARK2 "\xF6"
+#define LCHECKMARK LCMARK1 LCMARK2
+#define LRARROW1 "\xF7"
+#define LRARROW2 "\xF8"
+#define LRARROW LRARROW1 LRARROW2
+#define LLARROW1 "\xF9"
+#define LLARROW2 "\xFA"
+#define LLARROW LLARROW1 LLARROW2
+
+/* BAR_0 ... BAR_10 are guaranteed to be consecutive */
+#define BAR_0 "\xE0"
+#define BAR_1 "\xE1"
+#define BAR_2 "\xE2"
+#define BAR_3 "\xE3"
+#define BAR_4 "\xE4"
+#define BAR_5 "\xE5"
+#define BAR_6 "\xE6"
+#define BAR_7 "\xE7"
+#define BAR_8 "\xE8"
+#define BAR_9 "\xE9"
+#define BAR_10 "\xEA"
+#define BARSTART "\xEB"
+
+#define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" CHECKMARK ESC HEART LCMARK1 LCMARK2 BAR_0 BAR_1 BAR_2 BAR_3 BAR_4 BAR_5 BAR_6 BAR_7 BAR_8 BAR_9 BAR_10 BARSTART LRARROW LLARROW
+
 #define FONTSTYLES 7
 
 
@@ -49,7 +79,7 @@ using Move = Position::Move;
 
 #define FONTWIDTH 9
 #define FONTHEIGHT 16
-static Font *font = nullptr, *font2x = nullptr;
+static Font *font = nullptr, *font2x = nullptr, *font4x = nullptr;
 static Font *chessfont = nullptr, *chessfont3x = nullptr;
 
 static SDL_Cursor *cursor_arrow = nullptr, *cursor_bucket = nullptr;
@@ -260,6 +290,9 @@ struct UI {
   int movie_idx = 0;
   
   uint32 current_color = 0x77AA0000;
+
+  bool draw_only_bits = false;
+  bool draw_stockfish = true;
   
   SDL_Surface *drawing = nullptr;
   int mousex = 0, mousey = 0;
@@ -291,6 +324,8 @@ struct UI {
 
     return false;
   }
+
+  uint64 PositionBits() const;
   
   Position current_eval_position;
   const Evaluator::Evaluation *current_eval = nullptr;
@@ -330,6 +365,7 @@ void UI::LoadMoves(const string &movestring) {
 static void DrawThick(SDL_Surface *surf, int x0, int y0,
 		      int x1, int y1, 
 		      Uint32 color) {  
+  static constexpr int THICKNESS = 3;
   Line<int> l{x0, y0, x1, y1};
 
   const int w = surf->w, h = surf->h;
@@ -343,19 +379,22 @@ static void DrawThick(SDL_Surface *surf, int x0, int y0,
       }
     };
 
-  {
-    SetPixel(x0, y0);
-    SetPixel(x0 + 1, y0);
-    SetPixel(x0, y0 + 1);
-    SetPixel(x0 + 1, y0 + 1);
-  }
+  auto ThickPixel = [&SetPixel](int x, int y) {
+      static constexpr int LO = THICKNESS >> 1;
+      // static constexpr int RO = THICKNESS - LO;
+
+      for (int xx = x - LO; xx < x - LO + THICKNESS; xx++) {
+	for (int yy = y - LO; yy < y - LO + THICKNESS; yy++) {
+	  SetPixel(xx, yy);
+	}
+      }
+    };
+
+  ThickPixel(x0, y0);
   
   for (const std::pair<int, int> point : Line<int>{x0, y0, x1, y1}) {
     const int x = point.first, y = point.second;
-    SetPixel(x, y);
-    SetPixel(x + 1, y);
-    SetPixel(x, y + 1);
-    SetPixel(x + 1, y + 1);
+    ThickPixel(x, y);
   }
 }
 
@@ -544,6 +583,18 @@ void UI::Loop() {
 	  break;
 	}
 
+	case SDLK_b: {
+	  draw_only_bits = !draw_only_bits;
+	  ui_dirty = true;
+	  break;
+	}
+
+	case SDLK_s: {
+	  draw_stockfish = !draw_stockfish;
+	  ui_dirty = true;
+	  break;
+	}
+	  
 	case SDLK_0:
 	case SDLK_1:
 	case SDLK_2:
@@ -762,7 +813,7 @@ void UI::DrawStatus() {
 
   case Mode::CHESS:
     font2x->draw(5, SCREENH - (FONTHEIGHT * 4) - 1,
-		 "[<-] [->] navigate movie, ...");
+		 "[home] [<-] [->] navigate movie, ...");
     break;
   }
   
@@ -794,6 +845,17 @@ struct Typewriter {
   const int startx = 0, starty = 0, width = 0, height = 0;
 };
 
+// XXX note no support for legal
+static uint32 SquareColor(bool black, bool inmove, bool legal) {
+  if (black) {
+    if (inmove) return 0xFF8fb43c;
+    else return 0xFF86a666;
+  } else {
+    if (inmove) return 0xFFd6e882;
+    else return 0xFFffffdd;
+  }
+}
+
 void UI::Draw() {
   // Status stuff
   DrawStatus();
@@ -802,21 +864,30 @@ void UI::Draw() {
 
   // Board first.
   // TODO: When dragging, draw legal destinations
+  bool have_move = false;
+  Move last_move;
+  if (movie_idx - 1 >= 0) {
+    last_move = std::get<1>(movie[movie_idx - 1]);
+    have_move = true;
+  }
+  
   for (int r = 0; r < 8; r++) {
     const int yy = CHESSY + r * CHESSSCALE;
     for (int c = 0; c < 8; c++) {
       const int xx = CHESSX + c * CHESSSCALE;
       const bool black = (r + c) & 1;
-      // Background
-      const uint8 rr = black ? 134 : 255;
-      const uint8 gg = black ? 166 : 255;
-      const uint8 bb = black ? 102 : 221;
-      sdlutil::FillRectRGB(screen, xx, yy, CHESSSCALE, CHESSSCALE, rr, gg, bb);
+      const bool inmove =
+	have_move && ((r == last_move.src_row &&
+		       c == last_move.src_col) ||
+		      (r == last_move.dst_row &&
+		       c == last_move.dst_col));
+      const uint32 color = SquareColor(black, inmove, false);
+      sdlutil::fillrect(screen, color, xx, yy, CHESSSCALE, CHESSSCALE);
     }
   }
 
   // Draw evaluation.
-  if (current_eval != nullptr) {
+  if (draw_stockfish && current_eval != nullptr) {
     switch (current_eval->status) {
     case Evaluator::CHECKMATE:
       font2x->draw(5, 16, "CHECKMATE.");
@@ -845,15 +916,20 @@ void UI::Draw() {
   }
 
   auto DrawPieceAt = [this](int x, int y, uint8 piece) {
-      uint8 typ = piece & Position::TYPE_MASK;
-      if (typ == Position::C_ROOK) typ = Position::ROOK;
-      string str = " ";
-      if ((piece & Position::COLOR_MASK) == Position::BLACK) {
-	str[0] = "?pnbrqk"[typ];
+      if (draw_only_bits) {
+	font4x->draw(x, y + 8, "^9" BARSTART BAR_10);
       } else {
-	str[0] = "?PNBRQK"[typ];
-      }
-      chessfont3x->draw(x, y, str);
+	uint8 typ = piece & Position::TYPE_MASK;
+	if (typ == Position::C_ROOK) typ = Position::ROOK;
+	string str = " ";
+	if ((piece & Position::COLOR_MASK) == Position::BLACK) {
+	  str[0] = "?pnbrqk"[typ];
+	} else {
+	  str[0] = "?PNBRQK"[typ];
+	}
+
+	chessfont3x->draw(x, y, str);
+      } 
     };
 
   for (int r = 0; r < 8; r++) {
@@ -875,6 +951,11 @@ void UI::Draw() {
     DrawPieceAt(mousex - drag_handlex, mousey - drag_handley, p);
   }
 
+  if (draw_only_bits) {
+    font2x->draw(CHESSX, CHESSY + 8 * CHESSSCALE + 8,
+		 StringPrintf("0x%llx", PositionBits()));
+  }
+  
   {
     Typewriter t{font2x, 900, 16, 1900 - 900, 1000 - 16};
     // t.Write(StringPrintf("^3Move %d. ", movie_idx));
@@ -901,6 +982,18 @@ void UI::Draw() {
   sdlutil::blitall(drawing, screen, 0, 0);
 }
 
+uint64 UI::PositionBits() const {
+  uint64 out = 0ULL;
+  for (int r = 0; r < 8; r++) {
+    for (int c = 0; c < 8; c++) {
+      out <<= 1;
+      if (position.PieceAt(r, c) != Position::EMPTY) {
+	out |= 1ULL;
+      }
+    }
+  }
+  return out;
+}
       
 int main(int argc, char **argv) {
   /* Initialize SDL and network, if we're using it. */
@@ -934,7 +1027,14 @@ int main(int argc, char **argv) {
 			 FONTCHARS,
 			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font2x != nullptr) << "Couldn't load font.";
-  
+
+  font4x = Font::CreateX(4,
+			 screen,
+			 "../blind/font.png",
+			 FONTCHARS,
+			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
+  CHECK(font4x != nullptr) << "Couldn't load font.";
+
   chessfont = Font::create(screen,
 			   "../blind/chessfont.png",
 			   " PNBRQKpnbrqk",
