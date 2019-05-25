@@ -3,6 +3,7 @@
 #include "sdlutil.h"
 #include <string>
 #include <vector>
+#include <utility>
 
 #include "../stb_image.h"
 #include "../stb_image_write.h"
@@ -785,7 +786,54 @@ void sdlutil::outline(SDL_Surface *s, int n, int r, int g, int b, int a) {
   dst.w = s->w;
   dst.h = n;
   SDL_FillRect(s, &dst, color);
+}
 
+void sdlutil::DrawCircle32(SDL_Surface *surf,
+			   int x0, int y0, int radius, Uint32 color) {
+  // Only 32-bit!
+  if (surf->format->BytesPerPixel != 4) return;
+
+  Uint32 *bufp = (Uint32 *)surf->pixels;
+  const int stride = surf->pitch >> 2;
+  const int width = surf->w, height = surf->h;
+  auto SetPixel = [color, bufp, stride, width, height](int x, int y) {
+      if (x < 0 || y < 0 || x >= width || y >= height)
+	return;
+      bufp[y * stride + x] = color;
+    };
+
+  SetPixel(x0, y0 + radius);
+  SetPixel(x0, y0 - radius);
+  SetPixel(x0 + radius, y0);
+  SetPixel(x0 - radius, y0);
+
+  int f = 1 - radius;
+  int ddF_x = 1;
+  int ddF_y = -2 * radius;
+  int x = 0;
+  int y = radius;
+
+  while (x < y) {
+    // fun loop (x, y, f, ddF_x, ddF_y) =
+    if (f >= 0) {
+      y--;
+      f += 2 + ddF_y;
+      ddF_y += 2;
+    }
+
+    x++;
+    ddF_x += 2;
+    f += ddF_x;
+
+    SetPixel(x0 + x, y0 + y);
+    SetPixel(x0 - x, y0 + y);
+    SetPixel(x0 + x, y0 - y);
+    SetPixel(x0 - x, y0 - y);
+    SetPixel(x0 + y, y0 + x);
+    SetPixel(x0 - y, y0 + x);
+    SetPixel(x0 + y, y0 - x);
+    SetPixel(x0 - y, y0 - x);
+  }
 }
 
 SDL_Surface *sdlutil::makescreen(int w, int h) {
@@ -1220,4 +1268,146 @@ SDL_Surface *sdlutil::fliphoriz(SDL_Surface *src) {
   slock(dst);
   sulock(src);
   return dst;
+}
+
+// Fills a flat triangle (vertices 2 and 3 have the same y coordinate, given once as y23)
+// with the given color. Works by drawing the edges from v1 to v2 and v1 to v3 using
+// Bresenham's algorithm, then drawing a horizontal line between the generated x coordinates
+// when they advance. ASSUMES bpp = 4.
+static void BresenhamTriangle32(SDL_Surface *surf,
+				int x1, int y1, int x2, int y23, int x3, Uint32 color) {
+  Uint32 *bufp = (Uint32 *)surf->pixels;
+  const int height = surf->h;
+  const int width = surf->w;
+  const int stride = surf->pitch >> 2;
+  auto DrawHorizLine = [color, bufp, height, width, stride](int x1, int y, int x2) {
+      if (y < 0 || y >= height)
+	return;
+
+      if (x2 < x1) std::swap(x1, x2);
+
+      x1 = std::max(x1, 0);
+      x2 = std::min(x2, width - 1);
+
+      Uint32 *p = &bufp[y * stride + x1];
+      for (int i = 0; i < (x2 - x1); i++) {
+	*p = color;
+	p++;
+      }
+    };
+
+  const int y2 = y23, y3 = y23;
+  int tmpx1 = x1, tmpy1 = y1;
+  int tmpx2 = x1, tmpy2 = y1;
+
+  bool changed1 = false, changed2 = false;
+        
+  int dx1 = std::abs(x2 - x1);
+  int dy1 = std::abs(y2 - y1);
+        
+  int dx2 = std::abs(x3 - x1);
+  int dy2 = std::abs(y3 - y1);
+
+  // Like copysign for ints. -1, 0, or 1
+  auto Sign = [](int i) { return (i > 0) - (i < 0); };
+  
+  int signx1 = Sign(x2 - x1);
+  int signx2 = Sign(x3 - x1);
+        
+  int signy1 = Sign(y2 - y1);
+  int signy2 = Sign(y3 - y1);
+
+  // Canonicalize the order. PERF: Maybe caller can ensure this; it's bad
+  // that we branch in the loop below.
+  if (dy1 > dx1) {
+    std::swap(dy1, dx1);
+    changed1 = true;
+  }
+        
+  if (dy2 > dx2) {
+    std::swap(dx2, dy2);
+    changed2 = true;
+  }
+        
+  int e1 = 2 * dy1 - dx1;
+  int e2 = 2 * dy2 - dx2;
+
+  // PERF: Can exit loop early if y value is offscreen.
+  for (int i = 0; i <= dx1; i++) {
+    DrawHorizLine(tmpx1, tmpy1, tmpx2);
+
+    // This is like the merge step in merge sort now; generate points
+    // from each line until it catches up with the other one.
+    while (e1 >= 0) {
+      if (changed1)
+	tmpx1 += signx1;
+      else
+	tmpy1 += signy1;
+      e1 -= 2 * dx1;
+    }
+            
+    if (changed1)
+      tmpy1 += signy1;
+    else
+      tmpx1 += signx1;  
+    
+    e1 += 2 * dy1;
+
+    while (tmpy2 != tmpy1) {
+      while (e2 >= 0) {
+	if (changed2)
+	  tmpx2 += signx2;
+	else
+	  tmpy2 += signy2;
+	e2 -= 2 * dx2;
+      }
+
+      if (changed2)
+	tmpy2 += signy2;
+      else
+	tmpx2 += signx2;
+      
+      e2 += 2 * dy2;
+    }
+  }
+}
+
+void sdlutil::FillTriangle32(SDL_Surface *surf,
+			     int x1, int y1, int x2, int y2, int x3, int y3,
+			     Uint32 color) {
+  // Only 32-bit!
+  if (surf->format->BytesPerPixel != 4) return;
+
+# define SWAP(a, b) do { std::swap(x ## a, x ## b); std::swap(y ## a, y ## b); } while (0)
+  // Strategy is to draw two triangles with a horizontal edge, using
+  // BresenhamTriangle32. To figure out what case we're in, sort the
+  // three vertices such that y1 <= y2 <= y3.
+
+  // PERF: This is "sort all but the last, sort all but the first, and then sort all
+  // but the last" which is decent here (max 3 comparisons), although in some branches
+  // we can know that we don't need to execute other ones.
+  if (y1 > y2) {
+    SWAP(1, 2);
+  }
+  if (y2 > y3) {
+    SWAP(2, 3);
+  }
+  if (y1 > y2) {
+    SWAP(1, 2);
+  }
+# undef SWAP
+
+  // Degenerate cases where one edge is already flat.
+  if (y2 == y3) {
+    BresenhamTriangle32(surf, x1, y1, x2, y2, x3, color);
+  } else if (y1 == y2) {
+    BresenhamTriangle32(surf, x3, y3, x1, y1, x2, color);
+  } else {
+    // Split into two triangles; need to calculate the projection of v2 onto the
+    // line from v1 to v3.
+    // Note some loss of precision here, and use of floating point. :/
+    const int x = x1 + ((float)(y2 - y1) / (float)(y3 - y1)) * (x3 - x1);
+    BresenhamTriangle32(surf, x1, y1, x2, y2, x, color);
+    BresenhamTriangle32(surf, x3, y3, x2, y2, x, ~color);
+  }
 }
