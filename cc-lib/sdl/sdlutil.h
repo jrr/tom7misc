@@ -83,6 +83,18 @@ struct sdlutil {
 			  int x, int y, int w, int h,
 			  Uint8 r, Uint8 g, Uint8 b);
 
+  // Draw a circle (outline only) centered at the point with the given
+  // integer radius. Sets pixels (no alpha blending). Clipped. Only
+  // supports 32-bit surfaces.
+  static void DrawCircle32(SDL_Surface *,
+			   int x0, int y0, int radius, Uint32 color);
+
+  // Draw a filled triangle of the given color (no alpha blending). Clipped.
+  // Only supports 32-bit surfaces.
+  static void FillTriangle32(SDL_Surface *,
+			     int x1, int y1, int x2, int y2, int x3, int y3,
+			     Uint32 color);
+  
   /* create a rectangle of the specified size, filled with a color
      at a certain alpha value. This can then be blit to the screen. */
   static SDL_Surface *makealpharect(int w, int h, int r,

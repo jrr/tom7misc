@@ -65,6 +65,7 @@
 
 #define FONTSTYLES 7
 
+#define STOCKFISH_COLOR 0x339900CC
 
 using namespace std;
 
@@ -291,6 +292,9 @@ struct UI {
   
   uint32 current_color = 0x77AA0000;
 
+  // XXXXXX
+  deque<pair<int, int>> recent_clicks;
+  
   bool draw_only_bits = false;
   bool draw_stockfish = true;
   
@@ -623,7 +627,12 @@ void UI::Loop() {
 	SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
 	mousex = e->x;
 	mousey = e->y;
-	  
+
+	// XXX
+	recent_clicks.emplace_back(mousex, mousey);
+	while (recent_clicks.size() > 3) recent_clicks.pop_front();
+	ui_dirty = true;
+	
 	dragging = true;
 	if (mode == Mode::DRAWING) {
 	  SaveUndo();
@@ -856,6 +865,14 @@ static uint32 SquareColor(bool black, bool inmove, bool legal) {
   }
 }
 
+static void DrawArrow(SDL_Surface *surf,
+		      int x0, int y0, int x1, int y1,
+		      Uint32 color) {
+  // Main stem.
+  DrawThick(surf, x0, y0, x1, y1, color);
+  sdlutil::DrawCircle32(surf, x1, y1, 6, color);
+}
+
 void UI::Draw() {
   // Status stuff
   DrawStatus();
@@ -897,12 +914,13 @@ void UI::Draw() {
       break;
     case Evaluator::PLAYING: {
       Move m = current_eval->move;
-      DrawThick(screen,
+      DrawArrow(screen,
 		CHESSX + m.src_col * CHESSSCALE + (CHESSSCALE >> 1),
 		CHESSY + m.src_row * CHESSSCALE + (CHESSSCALE >> 1),
 		CHESSX + m.dst_col * CHESSSCALE + (CHESSSCALE >> 1),
 		CHESSY + m.dst_row * CHESSSCALE + (CHESSSCALE >> 1),
-		0x449900CC);
+		STOCKFISH_COLOR);
+      
       font2x->draw(100, 16, Position::DebugMoveString(m));
       font2x->draw(5, 16,
 		   StringPrintf("%s%d",
@@ -977,6 +995,15 @@ void UI::Draw() {
 			     ms.c_str()));
       }
     }
+  }
+
+  // XXX
+  if (recent_clicks.size() >= 3) {
+    int x1, y1, x2, y2, x3, y3;
+    std::tie(x1, y1) = recent_clicks[0];
+    std::tie(x2, y2) = recent_clicks[1];
+    std::tie(x3, y3) = recent_clicks[2];
+    sdlutil::FillTriangle32(screen, x1, y1, x2, y2, x3, y3, 0x7722FF22);
   }
   
   sdlutil::blitall(drawing, screen, 0, 0);
