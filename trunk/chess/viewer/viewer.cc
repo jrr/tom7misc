@@ -6,6 +6,7 @@
 #include <deque>
 #include <unordered_map>
 #include <unistd.h>
+#include <cmath>
 
 #include "../../cc-lib/threadutil.h"
 #include "../../cc-lib/randutil.h"
@@ -259,6 +260,12 @@ private:
 struct UI {
   Mode mode = Mode::CHESS;
   bool ui_dirty = true;
+
+  // If interp_frames > 0, then count is
+  // some value in [0, frames), and incremented
+  // each frame until then.
+  int interp_frames = 0;
+  int interp_count = 0;
   
   UI();
   void LoadMoves(const string &movedata);
@@ -291,12 +298,12 @@ struct UI {
   int movie_idx = 0;
   
   uint32 current_color = 0x77AA0000;
-
-  // XXXXXX
-  deque<pair<int, int>> recent_clicks;
   
   bool draw_only_bits = false;
   bool draw_stockfish = true;
+  bool draw_meter = true;
+
+  float old_meter_value = 0.0f / 0.0f;
   
   SDL_Surface *drawing = nullptr;
   int mousex = 0, mousey = 0;
@@ -310,7 +317,15 @@ struct UI {
   static constexpr int MAX_UNDO = 32;
   deque<SDL_Surface *> undo_buffer;
   deque<SDL_Surface *> redo_buffer;
-
+  
+  void Interpolate(int frames) {
+    // If already in progress, piggy back on the current interpolation.
+    if (interp_frames > 0)
+      return;
+    interp_frames = frames;
+    interp_count = 0;
+  }
+  
   bool UpdateEval() {
     if (!PositionEq()(position, current_eval_position)) {
       current_eval = nullptr;
@@ -627,11 +642,6 @@ void UI::Loop() {
 	SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
 	mousex = e->x;
 	mousey = e->y;
-
-	// XXX
-	recent_clicks.emplace_back(mousex, mousey);
-	while (recent_clicks.size() > 3) recent_clicks.pop_front();
-	ui_dirty = true;
 	
 	dragging = true;
 	if (mode == Mode::DRAWING) {
@@ -719,12 +729,25 @@ void UI::Loop() {
       }
     }
 
-    if (UpdateEval())
+    if (UpdateEval()) {
+      Interpolate(15);
       ui_dirty = true;
+    }
+
+    if (interp_frames > 0) {
+      // If in interpolation, always draw.
+      ui_dirty = true;
+      interp_count++;
+      if (interp_count == interp_frames) {
+	// Interpolation is over.
+	interp_frames = interp_count = 0;
+      }
+    }
     
     if (ui_dirty) {
       sdlutil::clearsurface(screen, 0xFFFFFFFF);
       Draw();
+      // font->draw(180, 5, StringPrintf("%d/%d", interp_count, interp_frames));
       SDL_Flip(screen);
       ui_dirty = false;
     }
@@ -922,17 +945,77 @@ void UI::Draw() {
 		STOCKFISH_COLOR);
       
       font2x->draw(100, 16, Position::DebugMoveString(m));
+      int value = current_eval->score.value;
+      // Evaluation is always from engine perspective, but since we
+      // are evaluating both sides, negate for black to instead always
+      // make it white's perspective.
+      if (position.BlackMove()) value = -value;
       font2x->draw(5, 16,
 		   StringPrintf("%s%d",
 				(current_eval->score.is_mate ? "#" : ""),
-				current_eval->score.value));
+				value));
+	
       break;
     }
     }
-  } else {
-    font2x->draw(5, 16, "current_eval = null");
   }
 
+  // Can draw meter if we have an up to date evaluation or
+  // the old one hasn't been invalidated (nan).
+  if (draw_meter &&
+      (current_eval != nullptr ||
+       !std::isnan(old_meter_value))) {
+    
+      // Draw "meter"
+      const float new_meter_value = [&]{
+	  if (current_eval == nullptr)
+	    return old_meter_value;
+
+	  int value = current_eval->score.value;
+	  if (position.BlackMove()) value = -value;
+	  
+	  if (current_eval->score.is_mate)
+	    return value < 0 ? 0.0f : 1.0f;
+	  // Otherwise, sigmoid
+	  static constexpr float stretch = -1.0f / 500.0f;
+	  return 1.0f / (1.0f + expf(value * stretch));
+	}();
+
+      const float interp = interp_count / (float)interp_frames;
+      const float f =
+	interp_frames > 0 ? 
+	((1.0f - interp) * old_meter_value) +
+	(interp * new_meter_value) :
+	new_meter_value;
+
+      if (interp_frames == 0)
+	old_meter_value = new_meter_value;
+
+      constexpr int xx = CHESSX + CHESSSCALE * 8 + 3;
+      constexpr int yy = CHESSY + 1;
+      constexpr int ww = 6;
+      constexpr int hh = CHESSSCALE * 8 - 2;
+      // White is on bottom, so bigger f advantages white
+      const int botheight = f * hh;
+      const int topheight = hh - botheight;
+
+      sdlutil::fillrect(screen, 0xFF000033,
+			xx,
+			yy,
+			ww, topheight);
+      sdlutil::fillrect(screen, 0xFFFFFFCC,
+			xx,
+			yy + topheight,
+			ww, botheight);
+
+      sdlutil::DrawBox32(screen,
+			 xx - 1,
+			 yy - 1,
+			 ww + 2,
+			 hh + 2,
+			 0xFF444444);
+  };
+      
   auto DrawPieceAt = [this](int x, int y, uint8 piece) {
       if (draw_only_bits) {
 	font4x->draw(x, y + 8, "^9" BARSTART BAR_10);
@@ -996,15 +1079,6 @@ void UI::Draw() {
       }
     }
   }
-
-  // XXX
-  if (recent_clicks.size() >= 3) {
-    int x1, y1, x2, y2, x3, y3;
-    std::tie(x1, y1) = recent_clicks[0];
-    std::tie(x2, y2) = recent_clicks[1];
-    std::tie(x3, y3) = recent_clicks[2];
-    sdlutil::FillTriangle32(screen, x1, y1, x2, y2, x3, y3, 0x7722FF22);
-  }
   
   sdlutil::blitall(drawing, screen, 0, 0);
 }
@@ -1062,15 +1136,18 @@ int main(int argc, char **argv) {
 			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font4x != nullptr) << "Couldn't load font.";
 
+  //# define CHESSFONT "../blind/chessfont.png"
+# define CHESSFONT "chessfont-cylon.png"
+  
   chessfont = Font::create(screen,
-			   "../blind/chessfont.png",
+			   CHESSFONT,
 			   " PNBRQKpnbrqk",
 			   32, 32, 1, 0, 1);
   CHECK(chessfont != nullptr) << "Couldn't load chessfont.";
 
   chessfont3x = Font::CreateX(3,
 			      screen,
-			      "../blind/chessfont.png",
+			      CHESSFONT,
 			      " PNBRQKpnbrqk",
 			      32, 32, 1, 0, 1);
   CHECK(chessfont3x != nullptr) << "Couldn't load chessfont3x.";
