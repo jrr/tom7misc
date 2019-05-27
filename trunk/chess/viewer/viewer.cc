@@ -257,15 +257,43 @@ private:
   std::vector<thread> threads;
 };
 
-struct UI {
-  Mode mode = Mode::CHESS;
-  bool ui_dirty = true;
+struct Interpolation {
+  bool Update() { 
+    if (frames > 0) {
+      // If in interpolation, always draw.
+      count++;
+      if (count == frames) {
+	// Interpolation is over.
+	frames = count = 0;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  void Interpolate(int n) {
+    // If already in progress, piggy back on the current interpolation.
+    if (frames > 0)
+      return;
+    frames = n;
+    count = 0;
+  }
+  
+  bool On() const { return frames > 0; }
+  float Frac() const { return (float)count / frames; }
 
   // If interp_frames > 0, then count is
   // some value in [0, frames), and incremented
   // each frame until then.
-  int interp_frames = 0;
-  int interp_count = 0;
+  int frames = 0, count = 0;
+};
+
+struct UI {
+  Mode mode = Mode::CHESS;
+  bool ui_dirty = true;
+
+  Interpolation interp_meter;
+  Interpolation interp_piece;
   
   UI();
   void LoadMoves(const string &movedata);
@@ -275,6 +303,7 @@ struct UI {
   bool InSquare(int screenx, int screeny, std::pair<int, int> *square);
 
   bool MakeMove(Move m);
+  bool AnimateMove(Move m);
   
   void SaveUndo() {
     undo_buffer.push_back(sdlutil::duplicate(drawing));
@@ -317,14 +346,6 @@ struct UI {
   static constexpr int MAX_UNDO = 32;
   deque<SDL_Surface *> undo_buffer;
   deque<SDL_Surface *> redo_buffer;
-  
-  void Interpolate(int frames) {
-    // If already in progress, piggy back on the current interpolation.
-    if (interp_frames > 0)
-      return;
-    interp_frames = frames;
-    interp_count = 0;
-  }
   
   bool UpdateEval() {
     if (!PositionEq()(position, current_eval_position)) {
@@ -537,7 +558,7 @@ void UI::Loop() {
 
 	case SDLK_RIGHT: {
 	  if (movie_idx < movie.size()) {
-	    MakeMove(std::get<1>(movie[movie_idx]));
+	    AnimateMove(std::get<1>(movie[movie_idx]));
 	    ui_dirty = true;
 	  }
 	  break;
@@ -730,29 +751,31 @@ void UI::Loop() {
     }
 
     if (UpdateEval()) {
-      Interpolate(15);
+      interp_meter.Interpolate(15);
       ui_dirty = true;
     }
 
-    if (interp_frames > 0) {
-      // If in interpolation, always draw.
-      ui_dirty = true;
-      interp_count++;
-      if (interp_count == interp_frames) {
-	// Interpolation is over.
-	interp_frames = interp_count = 0;
-      }
-    }
+    if (interp_meter.Update()) ui_dirty = true;
+    if (interp_piece.Update()) ui_dirty = true;
     
     if (ui_dirty) {
       sdlutil::clearsurface(screen, 0xFFFFFFFF);
       Draw();
-      // font->draw(180, 5, StringPrintf("%d/%d", interp_count, interp_frames));
       SDL_Flip(screen);
       ui_dirty = false;
     }
   }
   
+}
+
+bool UI::AnimateMove(Move m) {
+  if (!MakeMove(m))
+    return false;
+
+  interp_piece.Interpolate(10);
+  ui_dirty = true;
+  
+  return true;
 }
 
 bool UI::MakeMove(Move m) {
@@ -906,10 +929,15 @@ void UI::Draw() {
   // TODO: When dragging, draw legal destinations
   bool have_move = false;
   Move last_move;
+  Position last_position;
   if (movie_idx - 1 >= 0) {
     last_move = std::get<1>(movie[movie_idx - 1]);
+    last_position = movie_idx - 2 >= 0 ?
+      std::get<0>(movie[movie_idx - 2]) : Position();
     have_move = true;
   }
+
+  const bool interpolating_piece = have_move && interp_piece.On();
   
   for (int r = 0; r < 8; r++) {
     const int yy = CHESSY + r * CHESSSCALE;
@@ -981,14 +1009,14 @@ void UI::Draw() {
 	  return 1.0f / (1.0f + expf(value * stretch));
 	}();
 
-      const float interp = interp_count / (float)interp_frames;
+      const float interp = interp_meter.Frac();
       const float f =
-	interp_frames > 0 ? 
+	interp_meter.On() ? 
 	((1.0f - interp) * old_meter_value) +
 	(interp * new_meter_value) :
 	new_meter_value;
 
-      if (interp_frames == 0)
+      if (!interp_meter.On())
 	old_meter_value = new_meter_value;
 
       constexpr int xx = CHESSX + CHESSSCALE * 8 + 3;
@@ -1037,9 +1065,26 @@ void UI::Draw() {
     const int yy = CHESSY + r * CHESSSCALE;
     for (int c = 0; c < 8; c++) {
       const int xx = CHESSX + c * CHESSSCALE;
-      uint8 piece = position.PieceAt(r, c);
-      if ((piece & Position::TYPE_MASK) != Position::EMPTY) {
-	if (drag_source.first != r || drag_source.second != c) {
+      // We'll skip drawing the piece if it's the one we're
+      // dragging, or if we are currently interpolating a move
+      // and it's the interpolated piece.
+      if (drag_source.first == r && drag_source.second == c)
+	continue;
+
+      if (interpolating_piece) {
+	// When interpolating, we draw the old board state, but
+	// skip the piece that's moving.
+	if (r == last_move.src_row && c == last_move.src_col)
+	  continue;
+	uint8 old_piece = last_position.PieceAt(r, c);
+	if ((old_piece & Position::TYPE_MASK) != Position::EMPTY) {
+	  DrawPieceAt(xx, yy + 8, old_piece);
+	}
+	// But DON'T draw the piece that's moving; we do it below.	  
+      } else {
+	// Normal case.
+	uint8 piece = position.PieceAt(r, c);
+	if ((piece & Position::TYPE_MASK) != Position::EMPTY) {
 	  DrawPieceAt(xx, yy + 8, piece);
 	}
       }
@@ -1052,6 +1097,26 @@ void UI::Draw() {
     DrawPieceAt(mousex - drag_handlex, mousey - drag_handley, p);
   }
 
+  if (interpolating_piece) {
+    const float interp = interp_piece.Frac();
+    // In the case of promotion, show us as moving a pawn, not a queen.
+    uint8 p = last_position.PieceAt(last_move.src_row,
+				    last_move.src_col);
+    CHECK((p & Position::TYPE_MASK) != Position::EMPTY);
+
+    // XXX sigma
+    const float f = interp;
+    float oldx = CHESSX + last_move.src_col * CHESSSCALE;
+    float oldy = CHESSY + last_move.src_row * CHESSSCALE;
+    float newx = CHESSX + last_move.dst_col * CHESSSCALE;
+    float newy = CHESSY + last_move.dst_row * CHESSSCALE;
+
+    int xx = ((1.0f - f) * oldx) + (f * newx);
+    int yy = ((1.0f - f) * oldy) + (f * newy);
+    
+    DrawPieceAt(xx, yy + 8, p);
+  }
+  
   if (draw_only_bits) {
     font2x->draw(CHESSX, CHESSY + 8 * CHESSSCALE + 8,
 		 StringPrintf("0x%llx", PositionBits()));
