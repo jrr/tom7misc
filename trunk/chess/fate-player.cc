@@ -37,7 +37,8 @@ struct FatePlayer : public Player {
     }
     
     // Get a move for the current player in the current position.
-    Position::Move GetMove(const Position &orig_pos) override {
+    Position::Move GetMove(const Position &orig_pos,
+			   Explainer *explainer) override {
       Position pos = orig_pos;
       std::vector<LabeledMove> labeled;
       double min_score = 99999.0, max_score = 0.0;
@@ -313,7 +314,8 @@ struct EqualizerPlayer : public Player {
       gamestats.Update(pos, m);
     }
 
-    Position::Move GetMove(const Position &orig_pos) override {
+    Position::Move GetMove(const Position &orig_pos,
+			   Explainer *explainer) override {
       Position pos = orig_pos;
       std::vector<LabeledMove> labeled;
       const bool black = pos.BlackMove();

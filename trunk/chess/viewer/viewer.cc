@@ -326,12 +326,28 @@ struct UI {
   // in the position.
   int movie_idx = 0;
   
-  uint32 current_color = 0x77AA0000;
+  uint32 current_color = COLORS[2];
+  // Single nybble in [1, 15]. 0 is disallowed.
+  int current_alpha = 15;
+  inline uint32 GetColor() const {
+    uint8 aa = current_alpha | (current_alpha << 4);
+    return (current_color & 0xFFFFFF) | (aa << 24);
+  }
   
   bool draw_only_bits = false;
   bool draw_stockfish = true;
   bool draw_meter = true;
 
+  // Computer always plays black.
+  // If true, make the computer move without interaction.
+  bool autoplay_computer = false;
+  std::unique_ptr<Player> computer_player;
+  // This should always match the state in 'position.'
+  // Moving backwards in the movie requires us to play
+  // back the sequence of moves from the starting position.
+  std::unique_ptr<PlayerGame> computer_game;
+  // XXX HERE: Asynchronously generate move/explanation.
+  
   float old_meter_value = 0.0f / 0.0f;
   
   SDL_Surface *drawing = nullptr;
@@ -518,7 +534,7 @@ void UI::Loop() {
 	if (dragging) {
 	  switch (mode) {
 	  case Mode::DRAWING:
-	    DrawThick(drawing, oldx, oldy, mousex, mousey, current_color);
+	    DrawThick(drawing, oldx, oldy, mousex, mousey, GetColor());
 	    break;
 	  case Mode::ERASING:
 	    DrawThick(drawing, oldx, oldy, mousex, mousey, 0x00000000);
@@ -542,14 +558,26 @@ void UI::Loop() {
 	  ui_dirty = true;
 	  break;
 	}
-	  
+
 	case SDLK_LEFT: {
 	  if (movie_idx > 0) {
 	    movie_idx--;
+	    computer_game.reset(computer_player->CreateGame());
+	    /*
 	    if (movie_idx > 0) {
 	      position = std::get<0>(movie[movie_idx - 1]);
 	    } else {
 	      position = Position();
+	    }
+	    */
+
+	    // Replay from start so we can track computer player.
+	    position = Position();
+	    for (int i = 0; i < movie_idx; i++) {
+	      Position::Move m = std::get<1>(movie[i]);
+	      computer_game->ForceMove(position, m);
+	      CHECK(position.IsLegal(m)) << Position::DebugMoveString(m);
+	      position.ApplyMove(m);
 	    }
 	    ui_dirty = true;
 	  }
@@ -623,6 +651,21 @@ void UI::Loop() {
 	  break;
 	}
 
+	case SDLK_KP_PLUS:
+	case SDLK_EQUALS:
+	case SDLK_PLUS:
+	  current_alpha++;
+	  if (current_alpha > 15) current_alpha = 15;
+	  ui_dirty = true;
+	  break;
+
+	case SDLK_KP_MINUS:
+	case SDLK_MINUS:
+	  current_alpha--;
+	  if (current_alpha < 1) current_alpha = 1;
+	  ui_dirty = true;
+	  break;
+
 	case SDLK_b: {
 	  draw_only_bits = !draw_only_bits;
 	  ui_dirty = true;
@@ -668,7 +711,7 @@ void UI::Loop() {
 	if (mode == Mode::DRAWING) {
 	  SaveUndo();
 	  // Make sure that a click also makes a pixel.
-	  DrawThick(drawing, mousex, mousey, mousex, mousey, current_color);
+	  DrawThick(drawing, mousex, mousey, mousex, mousey, GetColor());
 	  ui_dirty = true;
 	} else if (mode == Mode::ERASING) {
 	  SaveUndo();
@@ -678,7 +721,7 @@ void UI::Loop() {
 	} else if (mode == Mode::FILLING) {
 	  SaveUndo();
 
-	  FloodFill(drawing, mousex, mousey, current_color);
+	  FloodFill(drawing, mousex, mousey, GetColor());
 	  
 	  ui_dirty = true;
 	} else if (mode == Mode::CHESS) {
@@ -784,6 +827,8 @@ bool UI::MakeMove(Move m) {
 
   string s = position.ShortMoveString(m);
 
+  computer_game->ForceMove(position, m);
+  
   // Position orig_pos = position;
   position.ApplyMove(m);
   // Could add check, checkmate here.
@@ -840,8 +885,8 @@ void UI::DrawStatus() {
   case Mode::DRAWING:
   case Mode::FILLING: {
     const int yy = SCREENH - (FONTHEIGHT * 4) - 1;
+    static constexpr int SWATCHWIDTH = 64;
     for (int i = 0; i < 10; i++) {
-      static constexpr int SWATCHWIDTH = 64;
       sdlutil::fillrect(screen, COLORS[i],
 			SWATCHWIDTH * i, yy,
 			SWATCHWIDTH, FONTHEIGHT * 2);
@@ -863,6 +908,9 @@ void UI::DrawStatus() {
 	}
       }
     }
+
+    const char a = "0123456789ABCDEF"[current_alpha];
+    font2x->draw(SWATCHWIDTH * 11, yy + 1, StringPrintf("0x%c%c", a, a));
     break;
   }
 
@@ -1227,6 +1275,10 @@ int main(int argc, char **argv) {
   SDL_ShowCursor(SDL_ENABLE);
   
   UI ui;
+
+  ui.computer_player.reset(MinOpponentMoves());
+  ui.computer_game.reset(ui.computer_player->CreateGame());
+
   if (argc > 1) {
     ui.LoadMoves(argv[1]);
   }

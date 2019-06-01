@@ -3,8 +3,19 @@
 #define __PLAYER_H
 
 #include <string>
+#include <cstdint>
 
 #include "chess.h"
+
+// Abstract "visualization" of the player's internal state.
+struct Explainer {
+  // All the moves must be legal, but it can be any subset of them.
+  // int64 is the penalty (negative means better move), string is
+  // arbitrary.
+  virtual void SetScoredMoves(
+      const std::vector<
+          std::tuple<Position::Move, int64_t, std::string>> &v) = 0;
+};
 
 // Interface for a stateless chess-playing algorithm. Can be
 // wrapped into a Player.
@@ -15,7 +26,8 @@ struct StatelessPlayer {
   // This position need not correspond to any previous positions
   // invoked on, but it is okay for it to keep some state (like a
   // random number generator).
-  virtual Position::Move MakeMove(const Position &pos) = 0;
+  virtual Position::Move MakeMove(const Position &pos,
+				  Explainer *explainer = nullptr) = 0;
 
   // Return the name of the algorithm. Should be distinct
   // across all implementations of the interface.
@@ -37,7 +49,8 @@ struct PlayerGame {
   // applied, in case the object does not want to track this.
   // The move should not be applied; ForceMove will typically be
   // called on it.
-  virtual Position::Move GetMove(const Position &pos) = 0;
+  virtual Position::Move GetMove(const Position &pos,
+				 Explainer *explainer = nullptr) = 0;
 
   virtual ~PlayerGame() {}
 };

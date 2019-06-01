@@ -71,7 +71,8 @@ EvalResultPlayer::EvalResultPlayer() : rc(PlayerUtil::GetSeed()) {
 }
 
 
-Move EvalResultPlayer::MakeMove(const Position &orig_pos) {
+Move EvalResultPlayer::MakeMove(const Position &orig_pos,
+				Explainer *explainer) {
   Position pos = orig_pos;
   std::vector<LabeledMove> labeled;
   for (const Move &m : pos.GetLegalMoves()) {
@@ -87,6 +88,15 @@ Move EvalResultPlayer::MakeMove(const Position &orig_pos) {
   }
   CHECK(!labeled.empty());
 
+  if (explainer) {
+    vector<tuple<Position::Move, int64, string>> v;
+    v.reserve(labeled.size());
+    for (const auto &p : labeled) {
+      v.emplace_back(p.m, p.penalty, "");
+    }
+    explainer->SetScoredMoves(v);
+  }
+  
   return PlayerUtil::GetBest(
       labeled,
       [](const LabeledMove &a,

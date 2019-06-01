@@ -45,7 +45,8 @@ struct EvalResultPlayer : public StatelessPlayer {
   // With smaller scores being better.
   virtual int64_t PositionPenalty(Position *p) = 0;
 
-  Position::Move MakeMove(const Position &orig_pos) override;
+  Position::Move MakeMove(const Position &orig_pos,
+			  Explainer *explainer) override;
   
   struct LabeledMove {
     Position::Move m;
@@ -66,8 +67,9 @@ struct MakeStateless : public Player {
 
     void ForceMove(const Position &pos, Position::Move move) override { }
     // Get a move for the current player in the current position.
-    Position::Move GetMove(const Position &pos) override {
-      return player->MakeMove(pos);
+    Position::Move GetMove(const Position &pos,
+			   Explainer *explainer) override {
+      return player->MakeMove(pos, explainer);
     }
 
     // Owned by parent object.
@@ -96,7 +98,8 @@ struct BlendRandom : public Player {
       pgame->ForceMove(pos, move);
     }
 
-    Position::Move GetMove(const Position &orig_pos) override {
+    Position::Move GetMove(const Position &orig_pos,
+			   Explainer *explainer) override {
       const uint16 r = Rand16(rc);
       if (r < THRESH) {
 	// Random move.

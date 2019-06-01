@@ -393,7 +393,7 @@ struct ChessmasterPlayer : public StatelessPlayer {
     return StringPrintf("Emulated Chessmaster (NES; 1990). Level %d", level);
   }
 
-  Position::Move MakeMove(const Position &pos) override {
+  Position::Move MakeMove(const Position &pos, Explainer *explainer) override {
     Position::Move move = master.GetMove(pos);
     if (move.src_row == 0 &&
 	move.src_col == 0 &&
