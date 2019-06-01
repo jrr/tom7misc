@@ -1,5 +1,6 @@
 
 default: chess_test.exe rungames.exe
+all: chess_test.exe rungames.exe tournament.exe elo.exe longest.exe pairs.exe chessmaster.exe makeperm.exe maketable.exe chessreduce.exe testplayer.exe
 
 # Over all games.
 ALL2013= stats-all/stats-2013-01.txt stats-all/stats-2013-02.txt stats-all/stats-2013-03.txt stats-all/stats-2013-04.txt stats-all/stats-2013-05.txt stats-all/stats-2013-06.txt stats-all/stats-2013-07.txt stats-all/stats-2013-08.txt stats-all/stats-2013-09.txt stats-all/stats-2013-10.txt stats-all/stats-2013-11.txt stats-all/stats-2013-12.txt
@@ -180,6 +181,7 @@ testplayer.exe : chess.o player.o player-util.o fate-player.o all-fate-data.o ch
 pairs.exe : chess.o pairs.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+# XXX should not delete stockfish.exe
 clean :
 	rm -f *.o *.exe $(CCLIB_OBJECTS)
 

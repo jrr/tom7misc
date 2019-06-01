@@ -52,7 +52,8 @@ using namespace std;
 
 // This used to be round-robin style, but since the work grows
 // quadratically, it got to the point that running even a single
-// round would take hours. New version picks cells that are 
+// round would take hours. New version picks cells that have
+// the fewest number of games, and runs those in parallel.
 static constexpr int THREADS = 56;
 static constexpr int RUN_FOR_SECONDS = 60 * 20;
 
@@ -227,7 +228,7 @@ Result PlayGame(Player *white_player, Player *black_player,
     if (TESTING) { CHECK(!pos.BlackMove()); }
 
     {
-      Move m = white->GetMove(pos);
+      Move m = white->GetMove(pos, nullptr);
       if (TESTING) { CHECK(pos.IsLegal(m)); }
       if (pos.IsCapturing(m) ||
 	  pos.IsPawnMove(m)) {
@@ -264,7 +265,7 @@ Result PlayGame(Player *white_player, Player *black_player,
     if (TESTING) { CHECK(pos.BlackMove()); }
     
     {
-      Move m = black->GetMove(pos);
+      Move m = black->GetMove(pos, nullptr);
       if (TESTING) { CHECK(pos.IsLegal(m)); }
       if (pos.IsCapturing(m) ||
 	  pos.IsPawnMove(m)) {

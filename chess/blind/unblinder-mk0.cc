@@ -540,6 +540,7 @@ static Network *ReadNetworkBinary(const string &filename) {
   return net.release();
 }
 
+#if 0
 static void SaveNetworkBinary(const Network &net, const string &filename) {
   // Not portable, obviously.
   FILE *file = fopen(filename.c_str(), "wb");
@@ -581,6 +582,7 @@ static void SaveNetworkBinary(const Network &net, const string &filename) {
   printf("Wrote %s.\n", filename.c_str());
   fclose(file);
 }
+#endif
 
 // A stimulation is an evaluation (perhaps an in-progress one) of a
 // network on a particular input; when it's complete we have the

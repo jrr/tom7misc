@@ -102,7 +102,7 @@ struct BlindPlayer : public StatelessPlayer {
     return true;
   }
   
-  Move MakeMove(const Position &orig_pos) override {
+  Move MakeMove(const Position &orig_pos, Explainer *explainer) override {
     Position pos = orig_pos;    
     // We only need this on some code paths. Empty means that
     // we haven't computed it.
@@ -111,10 +111,10 @@ struct BlindPlayer : public StatelessPlayer {
     const uint64 blinded = Unblinder::Blind(orig_pos);
     Position predicted = unblinder->Unblind(single_king, blinded);
 
-    // HERE: Do spy check if enabled. Note that it would be
-    // wrong for us to do this using the correct side-to-move, because
-    // we don't actually have that information. (Below it can be seen
-    // as an optimization, equivalent to running stockfish for both
+    // Do spy check if enabled. Note that it would be wrong for us to
+    // do this using the correct side-to-move, because we don't
+    // actually have that information. (Below it can be seen as an
+    // optimization, equivalent to running stockfish for both
     // possibilities, since the potentially legal move sets would be
     // completely disjoint.)
     if (spycheck) {
@@ -153,8 +153,9 @@ struct BlindPlayer : public StatelessPlayer {
 	  sm.color_agrees = ((srcp & Position::COLOR_MASK) == Position::BLACK) ==
 	    predicted.BlackMove();
 	  const uint8 srct = srcp & Position::TYPE_MASK;
-	  // We know that we got the destination piece wrong if the move is legal,
-	  // so we don't base our decision on that at all.
+	  // We know that we got the destination piece wrong if the
+	  // move is legal, so we don't base our decision on that at
+	  // all.
 	  sm.capture_value = [srct]() {
 	    switch (srct) {
 	    case Position::QUEEN: return 7;
@@ -183,8 +184,8 @@ struct BlindPlayer : public StatelessPlayer {
 				     // with our prediction.
 				     if (a.color_agrees != b.color_agrees)
 				       return a.color_agrees;
-				     // a is better if it captures with a lower-value
-				     // piece.
+				     // a is better if it captures
+				     // with a lower-value piece.
 				     if (a.capture_value != b.capture_value)
 				       return a.capture_value < b.capture_value;
 				     // And break ties randomly.

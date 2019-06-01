@@ -26,7 +26,7 @@ struct StockfishPlayer : public StatelessPlayer {
     CHECK(fish.get());
   }
   
-  Move MakeMove(const Position &orig_pos) override {
+  Move MakeMove(const Position &orig_pos, Explainer *explainer) override {
     // XXX: In endgames, the move clock matters. Should
     // perhaps be providing this.
     string fen = orig_pos.ToFEN(10, 10);

@@ -55,7 +55,7 @@ struct FirstMovePlayer : public StatelessPlayer {
     return (src * 64 + dst) * 8 + (int)m.promote_to;
   }
   
-  Move MakeMove(const Position &orig_pos) override {
+  Move MakeMove(const Position &orig_pos, Explainer *explainer) override {
     Position pos = orig_pos;
     std::vector<Move> legal = pos.GetLegalMoves();
 
@@ -85,7 +85,7 @@ struct RandomPlayer : public StatelessPlayer {
     rc.Discard(800);
   }
     
-  Move MakeMove(const Position &orig_pos) override {
+  Move MakeMove(const Position &orig_pos, Explainer *explainer) override {
     Position pos = orig_pos;
     std::vector<Move> legal = pos.GetLegalMoves();
     CHECK(!legal.empty());
@@ -135,7 +135,7 @@ struct CCCPPlayer : public StatelessPlayer {
     return (src * 64 + dst) * 8 + (int)m.promote_to;
   }
   
-  Move MakeMove(const Position &orig_pos) override {
+  Move MakeMove(const Position &orig_pos, Explainer *explainer) override {
     Position pos = orig_pos;
     bool black = pos.BlackMove();
     std::vector<LabeledMove> labeled;
@@ -212,7 +212,7 @@ struct AlphabeticalPlayer : public StatelessPlayer {
     string move_string;
   };
   
-  Move MakeMove(const Position &orig_pos) override {
+  Move MakeMove(const Position &orig_pos, Explainer *explainer) override {
     Position pos = orig_pos;
     std::vector<LabeledMove> labeled;
     for (const Move &m : pos.GetLegalMoves()) {
@@ -743,7 +743,7 @@ struct SinglePlayerPlayer : public StatelessPlayer {
     return lowest_penalty;
   }
   
-  Move MakeMove(const Position &orig_pos) override {
+  Move MakeMove(const Position &orig_pos, Explainer *explainer) override {
     Position pos = orig_pos;
     const bool black = pos.BlackMove();
 

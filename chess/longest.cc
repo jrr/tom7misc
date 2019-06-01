@@ -84,7 +84,7 @@ using PositionMap = std::unordered_map<Position, T, PositionHash, PositionEq>;
 // is clearly insufficient material). We'll do a single queen with
 // two kings, since this is sufficient for a helpmate. The final
 // move of the game can be the queen being captured (on the 75th
-// move), or mate if we like.
+// move--but see the note at the top of this file), or mate if we like.
 
 // So we capture all 30 pieces, giving us 30*150 (half) moves,
 // plus P*150 for P pawn moves. Naively P=16*6, with each of the 16

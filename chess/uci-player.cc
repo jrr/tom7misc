@@ -33,7 +33,7 @@ struct UciPlayer : public StatelessPlayer {
 	    const string &name,
 	    const string &desc);
 
-  Move MakeMove(const Position &pos) override;
+  Move MakeMove(const Position &pos, Explainer *explainer) override;
 
   string Name() const override { return name; }
   string Desc() const override { return desc; }
@@ -77,7 +77,7 @@ void UciPlayer::InitEngine() {
 }
 
 
-Move UciPlayer::MakeMove(const Position &orig_pos) {
+Move UciPlayer::MakeMove(const Position &orig_pos, Explainer *explainer) {
   // XXX: In endgames, the move clock matters. Should
   // perhaps be providing this.
   const string fen = orig_pos.ToFEN(10, 10);
