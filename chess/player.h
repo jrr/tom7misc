@@ -15,6 +15,7 @@ struct Explainer {
   virtual void SetScoredMoves(
       const std::vector<
           std::tuple<Position::Move, int64_t, std::string>> &v) = 0;
+  virtual void SetMessage(const std::string &s) = 0;
 };
 
 // Interface for a stateless chess-playing algorithm. Can be

@@ -718,8 +718,9 @@ struct SinglePlayerPlayer : public StatelessPlayer {
     // If the opponent is in check, then it would be an illegal
     // position if we switched the side. So we just have to
     // return in such situations.
-    if (p->IsInCheck())
+    if (p->IsInCheck()) {
       return (opponent_moves == 0) ? CHECKMATE : opponent_moves;
+    }
 
     // Otherwise, temporarily set the game to be my turn again.
     p->SetBlackMove(black);
@@ -782,6 +783,130 @@ struct SinglePlayerPlayer : public StatelessPlayer {
   const int max_depth;
   ArcFour rc;
 };
+
+struct SinglePlayer2Player : public StatelessPlayer {
+  explicit SinglePlayer2Player(int max_depth) : 
+    max_depth(max_depth), 
+    rc(PlayerUtil::GetSeed()) {
+    rc.Discard(800);
+  }
+
+  struct LabeledMove {
+    Position::Move m;
+    int64_t penalty = 0.0;
+    uint32_t r = 0u;
+  };
+  
+  static constexpr int64 CHECKMATE = -1000'000'000LL;
+
+  // In the position p, playing as black (if true), search up to
+  // 'depth' moves deep for checkmate, but as though I'm the only
+  // one playing.
+  bool FindCheckmate(bool black, int depth, Position *p,
+		     vector<Position::Move> *moves_rev,
+		     Position *end_position) {
+    // Should be my move.
+    CHECK(p->BlackMove() == black);
+
+    for (const Move &m : p->GetLegalMoves()) {
+      const bool done =
+	p->MoveExcursion(
+	    m, [this, black, depth, p, end_position, moves_rev, &m]() {
+		const int num_opponent_moves = p->NumLegalMoves();
+		const bool is_in_check = p->IsInCheck();
+		if (num_opponent_moves == 0) {
+		  // Game has ended, so we found a checkmating
+		  // sequence, and we also know it's the shortest,
+		  // as it is one move!
+		  if (is_in_check) {
+		    if (end_position != nullptr) *end_position = *p;
+		    *moves_rev = {m};
+		    return true;
+		  }
+
+		  // Stalemate is no good.
+		  return false;
+		
+		} else {
+		  if (is_in_check || depth == 0) {
+		    // Can't switch sides when the opponent is in
+		    // check, as the position would be illegal.
+		    // So, avoid searching deeper.
+		    return false;
+		  } else {
+		    // Otherwise, pretend it's our move again.
+		    p->SetBlackMove(black);
+		    if (FindCheckmate(black, depth - 1, p,
+				      moves_rev, end_position)) {
+		      // XXX: This may not be the shortest sequence
+		      // that we could find. Probably need to try
+		      // them all, although we can also adjust the
+		      // depth downward?
+		      moves_rev->push_back(m);
+		      p->SetBlackMove(!black);
+		      return true;
+		    }
+		    p->SetBlackMove(!black);
+		    return false;
+		  }
+		}
+	    });
+      
+      if (done)
+	return true;
+    }
+
+    // Didn't find a checkmating sequence.
+    return false;
+  }
+  
+  Move MakeMove(const Position &orig_pos, Explainer *explainer) override {
+    Position pos = orig_pos;
+    const bool black = pos.BlackMove();
+
+    std::vector<Position::Move> moves_rev;
+    if (FindCheckmate(black, max_depth, &pos, &moves_rev, nullptr)) {
+      CHECK(moves_rev.size() > 0);
+      if (explainer) {
+	string mate;
+	Position p = orig_pos;
+	for (int i = moves_rev.size() - 1; i >= 0; i--) {
+	  CHECK(p.IsLegal(moves_rev[i])) << i << "/" << moves_rev.size()
+					 << " so far " << mate;
+	  mate.push_back(' ');
+	  string ms = p.ShortMoveString(moves_rev[i]);
+	  mate += ms;
+	  // printf("\n%s move %s\n", p.BoardString().c_str(), ms.c_str());
+	  p.ApplyMove(moves_rev[i]);
+	  p.SetBlackMove(black);
+	}
+	explainer->SetMessage(StringPrintf("Mate in %d:%s",
+					   moves_rev.size(),
+					   mate.c_str()));
+      }
+      return moves_rev[moves_rev.size() - 1];
+    } else {
+      if (explainer)
+	explainer->SetMessage(StringPrintf("(mate not found within %d)",
+					   max_depth));
+      std::vector<Position::Move> legal = pos.GetLegalMoves();
+      CHECK(!legal.empty());
+      return legal[RandTo32(&rc, legal.size())];
+    }
+  }
+  
+  string Name() const override {
+    return StringPrintf("single_player%d", max_depth); 
+  }
+  string Desc() const override {
+    return StringPrintf("Search (to depth %d), but as though the "
+			"opponent takes no turns.", max_depth);
+  }
+
+  const int max_depth;
+  ArcFour rc;
+};
+
 
 // TODO:
 //  - Maximize net control of squares
@@ -874,5 +999,5 @@ Player *Symmetry180() {
 }
 
 Player *SinglePlayer() {
-  return new MakeStateless<SinglePlayerPlayer, int>(1);
+  return new MakeStateless<SinglePlayer2Player, int>(3);
 }
