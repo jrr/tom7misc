@@ -254,7 +254,7 @@ private:
   PositionMap<bool> added;
   PositionMap<const Evaluation *> cache;
 
-  std::vector<thread> threads;
+  std::vector<std::thread> threads;
 };
 
 struct Interpolation {
@@ -288,6 +288,210 @@ struct Interpolation {
   int frames = 0, count = 0;
 };
 
+// Wrapper around Player that allows getting moves in a separate
+// thread.
+struct AsyncPlayer {
+  // Takes ownership of Player object.
+  explicit AsyncPlayer(Player *p) : player(p) {
+    Reset();
+    worker = std::make_unique<std::thread>([this]() { WorkThread(); });
+  }
+
+  struct ExplainedMove {
+    // TODO: Explainer output.
+    // If true, no moves are possible in the position (mate).
+    bool no_moves = false;
+    Position::Move move;
+  };
+  
+  // Reset to starting position.
+  void Reset() {
+    WriteMutexLock ml(&mutex);
+    switch (state) {
+    case State::SHOULD_DIE:
+      LOG(FATAL) << "Impossible";
+    case State::HAVE_MOVE:
+    case State::HAVE_RETURNED_MOVE:
+    case State::IDLE:
+      state = State::IDLE;
+      // Just reset now.
+      position = Position();
+      game.reset(player->CreateGame());
+      queued_moves.clear();
+      break;
+    case State::WAITING_FOR_MOVE:
+    case State::WAITING_TO_RESET:
+      state = State::WAITING_TO_RESET;
+      queued_moves.clear();
+      break;
+    }
+  }
+
+  void ApplyMove(Position::Move m) {
+    WriteMutexLock ml(&mutex);
+    switch (state) {
+    case State::SHOULD_DIE:
+      LOG(FATAL) << "Impossible";
+    case State::HAVE_MOVE:
+    case State::HAVE_RETURNED_MOVE:
+    case State::IDLE:
+      state = State::IDLE;
+      CHECK(queued_moves.empty());
+      CHECK(position.IsLegal(m));
+      game->ForceMove(position, m);
+      position.ApplyMove(m);
+      break;
+    case State::WAITING_FOR_MOVE:
+    case State::WAITING_TO_RESET:
+      queued_moves.push_back(m);
+      break;
+    }
+  }
+  
+  // Returns pointer to move if available.
+  // The pointer is invalidated by ApplyMove or Reset.
+  const ExplainedMove *GetMove() {
+    WriteMutexLock ml(&mutex);
+    switch (state) {
+    case State::HAVE_MOVE:
+    case State::HAVE_RETURNED_MOVE:
+      return &em;
+    case State::SHOULD_DIE:
+      LOG(FATAL) << "Impossible";
+    case State::IDLE:
+    case State::WAITING_FOR_MOVE:
+    case State::WAITING_TO_RESET:
+      return nullptr;
+    }
+    return nullptr;
+  }
+
+  // Same, but only return the move the first time
+  // it is requested.
+  const ExplainedMove *GetNewMove() {
+    WriteMutexLock ml(&mutex);
+    switch (state) {
+    case State::HAVE_MOVE:
+      state = State::HAVE_RETURNED_MOVE;
+      return &em;
+    case State::HAVE_RETURNED_MOVE:
+      return nullptr;
+    case State::SHOULD_DIE:
+      LOG(FATAL) << "Impossible";
+    case State::IDLE:
+    case State::WAITING_FOR_MOVE:
+    case State::WAITING_TO_RESET:
+      return nullptr;
+    }
+    return nullptr;
+  }
+  
+  ~AsyncPlayer() {
+    {
+      WriteMutexLock ml(&mutex);
+      state = State::SHOULD_DIE;
+    }
+    
+    worker->join();
+  }
+  
+  void WorkThread() {
+    for (;;) {
+      {
+	WriteMutexLock ml(&mutex);
+	switch (state) {
+	case State::SHOULD_DIE:
+	  return;
+	case State::HAVE_RETURNED_MOVE:
+	case State::HAVE_MOVE:
+	  usleep(1);
+	  continue;
+	case State::IDLE:
+	  CHECK(queued_moves.empty());
+	  break;
+	
+	case State::WAITING_TO_RESET:
+	case State::WAITING_FOR_MOVE:
+	  LOG(FATAL) << "Worker thread invalid state";
+	}
+
+	state = State::WAITING_FOR_MOVE;
+      }
+
+      // Now without lock, get the move in this
+      // other thread.
+      if (position.HasLegalMoves()) {
+	em.move = game->GetMove(position, nullptr);
+	em.no_moves = false;
+      } else {
+	em.no_moves = true;
+      }
+
+      {
+	WriteMutexLock ml(&mutex);
+
+	switch (state) {
+	case State::SHOULD_DIE:
+	  return;
+	case State::HAVE_RETURNED_MOVE:
+	case State::HAVE_MOVE:
+	case State::IDLE:
+	  LOG(FATAL) << "Worker thread invalid state (bot)";
+
+	case State::WAITING_TO_RESET:
+	  position = Position();
+	  game.reset(player->CreateGame());
+	  for (const Position::Move &m : queued_moves) {
+	    CHECK(position.IsLegal(m));
+	    game->ForceMove(position, m);
+	    position.ApplyMove(m);
+	  }
+	  queued_moves.clear();
+	  state = State::IDLE;	  
+	  break;
+	  
+	case State::WAITING_FOR_MOVE:
+	  // Might still be invalidated if we made moves
+	  // (without resetting...)
+	  if (queued_moves.empty()) {
+	    state = State::HAVE_MOVE;
+	  } else {
+	    for (const Position::Move &m : queued_moves) {
+	      CHECK(position.IsLegal(m));
+	      game->ForceMove(position, m);
+	      position.ApplyMove(m);
+	    }
+	    queued_moves.clear();
+	    state = State::IDLE;
+	  }
+	  break;
+	}
+      }
+    }
+  }
+
+private:
+  enum class State {
+    IDLE,
+    WAITING_FOR_MOVE,
+    WAITING_TO_RESET,
+    HAVE_MOVE,
+    HAVE_RETURNED_MOVE,
+    SHOULD_DIE,
+  };
+  
+  std::shared_mutex mutex;
+  State state = State::IDLE;
+
+  ExplainedMove em;
+  
+  Position position;
+  std::vector<Position::Move> queued_moves;
+  std::unique_ptr<Player> player;
+  std::unique_ptr<PlayerGame> game;
+  std::unique_ptr<std::thread> worker;
+};
+
 struct UI {
   Mode mode = Mode::CHESS;
   bool ui_dirty = true;
@@ -318,7 +522,6 @@ struct UI {
     }
   }
 
-  uint64 current_bitmap = 0xFFFF00000000FFFFULL;
   Position position;
   // Position is after the move. String is short move name.
   vector<std::tuple<Position, Move, string>> movie;
@@ -335,18 +538,14 @@ struct UI {
   }
   
   bool draw_only_bits = false;
-  bool draw_stockfish = true;
+  bool draw_stockfish = false;
   bool draw_meter = true;
 
   // Computer always plays black.
   // If true, make the computer move without interaction.
-  bool autoplay_computer = false;
-  std::unique_ptr<Player> computer_player;
-  // This should always match the state in 'position.'
-  // Moving backwards in the movie requires us to play
-  // back the sequence of moves from the starting position.
-  std::unique_ptr<PlayerGame> computer_game;
-  // XXX HERE: Asynchronously generate move/explanation.
+  bool autoplay_computer = true;
+  // Kept in sync with the current position.
+  std::unique_ptr<AsyncPlayer> async_player;
   
   float old_meter_value = 0.0f / 0.0f;
   
@@ -555,6 +754,7 @@ void UI::Loop() {
 	case SDLK_HOME: {
 	  movie_idx = 0;
 	  position = Position();
+	  async_player->Reset();
 	  ui_dirty = true;
 	  break;
 	}
@@ -562,22 +762,17 @@ void UI::Loop() {
 	case SDLK_LEFT: {
 	  if (movie_idx > 0) {
 	    movie_idx--;
-	    computer_game.reset(computer_player->CreateGame());
-	    /*
+
 	    if (movie_idx > 0) {
 	      position = std::get<0>(movie[movie_idx - 1]);
 	    } else {
 	      position = Position();
 	    }
-	    */
 
 	    // Replay from start so we can track computer player.
-	    position = Position();
+	    async_player->Reset();
 	    for (int i = 0; i < movie_idx; i++) {
-	      Position::Move m = std::get<1>(movie[i]);
-	      computer_game->ForceMove(position, m);
-	      CHECK(position.IsLegal(m)) << Position::DebugMoveString(m);
-	      position.ApplyMove(m);
+	      async_player->ApplyMove(std::get<1>(movie[i]));
 	    }
 	    ui_dirty = true;
 	  }
@@ -677,7 +872,13 @@ void UI::Loop() {
 	  ui_dirty = true;
 	  break;
 	}
-	  
+
+	case SDLK_a: {
+	  autoplay_computer = !autoplay_computer;
+	  ui_dirty = true;
+	  break;
+	}
+
 	case SDLK_0:
 	case SDLK_1:
 	case SDLK_2:
@@ -793,6 +994,19 @@ void UI::Loop() {
       }
     }
 
+    {
+      if (const AsyncPlayer::ExplainedMove *em =
+	  async_player->GetNewMove()) {
+	// Only play if enabled, and as black.
+	if (autoplay_computer &&
+	    position.BlackMove() &&
+	    !em->no_moves) {
+	  AnimateMove(em->move);
+	}
+	ui_dirty = true;
+      }
+    }
+    
     if (UpdateEval()) {
       interp_meter.Interpolate(15);
       ui_dirty = true;
@@ -827,9 +1041,8 @@ bool UI::MakeMove(Move m) {
 
   string s = position.ShortMoveString(m);
 
-  computer_game->ForceMove(position, m);
+  async_player->ApplyMove(m);
   
-  // Position orig_pos = position;
   position.ApplyMove(m);
   // Could add check, checkmate here.
 
@@ -937,7 +1150,7 @@ struct Typewriter {
       current_line_width = 0;
     }
     fon->draw(startx + current_line_width,
-	      current_line * fon->height,
+	      starty + current_line * fon->height,
 	      s);
     current_line_width += w;
   }
@@ -1192,6 +1405,17 @@ void UI::Draw() {
       }
     }
   }
+
+  if (const AsyncPlayer::ExplainedMove *em = async_player->GetMove()) {
+    Typewriter t{font, 900, 500, 1900 - 900, 1080 - 500};
+    if (em->no_moves) {
+      t.Write("(no moves)");
+    } else if (position.IsLegal(em->move)) {
+      t.Write(position.ShortMoveString(em->move));
+    } else {
+      t.Write("(illegal move)");
+    }
+  }
   
   sdlutil::blitall(drawing, screen, 0, 0);
 }
@@ -1276,8 +1500,7 @@ int main(int argc, char **argv) {
   
   UI ui;
 
-  ui.computer_player.reset(MinOpponentMoves());
-  ui.computer_game.reset(ui.computer_player->CreateGame());
+  ui.async_player.reset(new AsyncPlayer(MinOpponentMoves()));
 
   if (argc > 1) {
     ui.LoadMoves(argv[1]);
