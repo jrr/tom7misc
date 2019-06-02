@@ -22,18 +22,25 @@ struct TextExplainer : public Explainer {
       Position::Move move = std::get<0>(p);
       string m = "(ILLEGAL)";
       if (pos.IsLegal(move)) m = pos.ShortMoveString(move);
+      /*
       printf("  %s %lld %s\n", m.c_str(),
 	     std::get<1>(p),
 	     std::get<2>(p).c_str());
+      */
     }
     fflush(stdout);
   }
 
+  void SetMessage(const string &s) override {
+    printf("%s\n", s.c_str());
+    fflush(stdout);
+  }
+  
   Position pos;
 };
 
 int main(int argc, char **argv) {
-  std::unique_ptr<Player> white_player{BlindSpycheck()};
+  std::unique_ptr<Player> white_player{SinglePlayer()};
   std::unique_ptr<Player> black_player{MinOpponentMoves()};
 
   std::unique_ptr<PlayerGame> white{white_player->CreateGame()};
@@ -43,7 +50,7 @@ int main(int argc, char **argv) {
 
   int movenum = 1;
   bool black_turn = false;
-  for (;;) {
+  while (pos.HasLegalMoves()) {
     TextExplainer explainer{pos};
     Position::Move move =
       black_turn ?
@@ -61,5 +68,7 @@ int main(int argc, char **argv) {
     black_turn = !black_turn;
   }
 
+  printf("\nGame over:\n%s\n", pos.BoardString().c_str());
+  
   return 0;
 }
