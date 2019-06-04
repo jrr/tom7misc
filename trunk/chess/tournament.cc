@@ -109,7 +109,6 @@ static Player *Stockfish1M_64() {
   return new BlendRandom<64>(Stockfish1M());
 }
 
-// 			CreateSinglePlayer,
 const vector<Entrant> &GetEntrants() {
   static vector<Entrant> *entrants =
     new vector<Entrant>{
@@ -145,8 +144,11 @@ const vector<Entrant> &GetEntrants() {
 			ReverseStarting,
 			CCCP,
 
+			SinglePlayer,
+
 			Topple10K,
 			Topple1M,
+
 			Chessmaster1,
 			Chessmaster2,
 
@@ -229,7 +231,13 @@ Result PlayGame(Player *white_player, Player *black_player,
 
     {
       Move m = white->GetMove(pos, nullptr);
-      if (TESTING) { CHECK(pos.IsLegal(m)); }
+      if (TESTING) {
+	CHECK(pos.IsLegal(m)) << pos.BoardString()
+			      << "\n" << Position::DebugMoveString(m)
+			      << "\n" << white_player->Name() << " vs "
+			      << black_player->Name();
+
+      }
       if (pos.IsCapturing(m) ||
 	  pos.IsPawnMove(m)) {
 	white_stale_moves = 0;
@@ -266,7 +274,12 @@ Result PlayGame(Player *white_player, Player *black_player,
     
     {
       Move m = black->GetMove(pos, nullptr);
-      if (TESTING) { CHECK(pos.IsLegal(m)); }
+      if (TESTING) {
+	CHECK(pos.IsLegal(m)) << pos.BoardString()
+			      << "\n" << Position::DebugMoveString(m)
+			      << "\n" << white_player->Name() << " vs "
+			      << black_player->Name();
+      }
       if (pos.IsCapturing(m) ||
 	  pos.IsPawnMove(m)) {
 	black_stale_moves = 0;

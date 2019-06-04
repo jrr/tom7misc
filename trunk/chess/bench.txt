@@ -204,3 +204,39 @@ ugh, back to the old version, now max_parallelism=4
 with parallelism=2, finally seeing dropoff: 3m52s
 
 
+singleplayer:
+
+before dynamic search depth:
+10 games, 169 moves
+Total time: 490.26s (0.34 moves/sec)
+
+real    8m10.516s
+
+after:
+10 games, 164 moves
+Total time: 194.36s (0.84 moves/sec)
+
+real    3m14.609s
+
+with moveexcursion modifying in place:
+10 games, 257 moves
+Total time: 252.32s (1.02 moves/sec)
+
+real    4m12.545s
+
+10 games, 225 moves
+Total time: 340.80s (0.66 moves/sec)
+
+real    5m40.827s
+
+... lots of variance in this benchmark!!
+Maybe should do a new deterministic one.
+It can also test that MoveExcursion has
+the same behavior as ApplyMove and properly
+restores state.
+
+
+New benchmark.
+7.432, 7.305, 7.292 (fancy undo version)
+7.334, 7.166, 7.154 (basic copy/restore)
+7.309, 7.248, 7.229 (copy just src/dst row)

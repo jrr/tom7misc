@@ -298,10 +298,15 @@ struct AsyncPlayer {
   }
 
   struct ExplainedMove {
-    // TODO: Explainer output.
     // If true, no moves are possible in the position (mate).
     bool no_moves = false;
     Position::Move move;
+
+    // Explainer output.
+    bool has_position = false;
+    Position position;
+    string message;
+    // TODO: Moves
   };
   
   // Reset to starting position.
@@ -421,7 +426,8 @@ struct AsyncPlayer {
       // Now without lock, get the move in this
       // other thread.
       if (position.HasLegalMoves()) {
-	em.move = game->GetMove(position, nullptr);
+	CopyExplainer ce{&em};
+	em.move = game->GetMove(position, &ce);
 	em.no_moves = false;
       } else {
 	em.no_moves = true;
@@ -471,6 +477,30 @@ struct AsyncPlayer {
   }
 
 private:
+  struct CopyExplainer : public Explainer {
+    explicit CopyExplainer(ExplainedMove *em) : em(em) {
+      em->has_position = false;
+      em->message.clear();
+    }
+    
+    void SetScoredMoves(
+	const vector<tuple<Position::Move, int64_t, string>> &v) override {
+      // TODO: Implement!
+    }
+
+    void SetMessage(const string &s) override {
+      em->message = s;
+    }
+
+    void SetPosition(const Position &pos) override {
+      em->has_position = true;
+      em->position = pos;
+    }
+
+    // Writes here.
+    ExplainedMove *em = nullptr;
+  };
+
   enum class State {
     IDLE,
     WAITING_FOR_MOVE,
@@ -1154,6 +1184,11 @@ struct Typewriter {
 	      s);
     current_line_width += w;
   }
+
+  void Newline() {
+    current_line++;
+    current_line_width = 0;
+  }
   
   int current_line = 0;
   int current_line_width = 0;
@@ -1415,6 +1450,51 @@ void UI::Draw() {
     } else {
       t.Write("(illegal move)");
     }
+
+    if (!em->message.empty()) {
+      t.Newline();
+      t.Write(em->message);
+    }
+
+    if (em->has_position) {
+      const int EX = 900;
+      const int EY = 750;
+      const int ES = 32;
+      for (int r = 0; r < 8; r++) {
+	const int yy = EY + r * ES;
+	for (int c = 0; c < 8; c++) {
+	  const int xx = EX + c * ES;
+	  const bool black = (r + c) & 1;
+	  const uint32 color = SquareColor(black, false, false);
+	  sdlutil::fillrect(screen, color, xx, yy, ES, ES);
+	}
+      }
+
+      // And the pieces
+      auto ExDrawPieceAt = [this](int x, int y, uint8 piece) {
+	  uint8 typ = piece & Position::TYPE_MASK;
+	  if (typ == Position::C_ROOK) typ = Position::ROOK;
+	  string str = " ";
+	  if ((piece & Position::COLOR_MASK) == Position::BLACK) {
+	    str[0] = "?pnbrqk"[typ];
+	  } else {
+	    str[0] = "?PNBRQK"[typ];
+	  }
+	  chessfont->draw(x, y, str);
+	};
+
+      for (int r = 0; r < 8; r++) {
+	const int yy = EY + r * ES;
+	for (int c = 0; c < 8; c++) {
+	  const int xx = EX + c * ES;
+	  // Normal case.
+	  uint8 piece = em->position.PieceAt(r, c);
+	  if ((piece & Position::TYPE_MASK) != Position::EMPTY) {
+	    ExDrawPieceAt(xx, yy + 2, piece);
+	  }
+	}
+      }
+    }
   }
   
   sdlutil::blitall(drawing, screen, 0, 0);
@@ -1500,7 +1580,8 @@ int main(int argc, char **argv) {
   
   UI ui;
 
-  ui.async_player.reset(new AsyncPlayer(MinOpponentMoves()));
+  // ui.async_player.reset(new AsyncPlayer(MinOpponentMoves()));
+  ui.async_player.reset(new AsyncPlayer(SinglePlayer()));
 
   if (argc > 1) {
     ui.LoadMoves(argv[1]);
