@@ -1160,6 +1160,7 @@ void Position::ApplyMove(Move m) {
 }
 
 
+
 bool Position::NotIntoCheck(Move m) {
   // For the sake of testing for check, we can ignore promotion.
   const uint8 p = PieceAt(m.src_row, m.src_col);

@@ -784,10 +784,14 @@ struct SinglePlayerPlayer : public StatelessPlayer {
   ArcFour rc;
 };
 
+// Depth is the length of the checkmating sequence; it must be at
+// least 1.
 struct SinglePlayer2Player : public StatelessPlayer {
   explicit SinglePlayer2Player(int max_depth) : 
     max_depth(max_depth), 
     rc(PlayerUtil::GetSeed()) {
+    CHECK(max_depth > 0) << "max_depth is the length of the checkmating "
+      "sequence we find; it must be at least 1!";
     rc.Discard(800);
   }
 
@@ -797,21 +801,25 @@ struct SinglePlayer2Player : public StatelessPlayer {
     uint32_t r = 0u;
   };
   
-  static constexpr int64 CHECKMATE = -1000'000'000LL;
-
   // In the position p, playing as black (if true), search up to
   // 'depth' moves deep for checkmate, but as though I'm the only
   // one playing.
   bool FindCheckmate(bool black, int depth, Position *p,
-		     vector<Position::Move> *moves_rev,
-		     Position *end_position) {
+		     vector<Position::Move> *moves_rev) {
     // Should be my move.
     CHECK(p->BlackMove() == black);
 
+    // Temporary for recursive calls.
+    std::vector<Position::Move> moves_rev_tmp;
+    // moves_rev will contain the best sequence so far (in reverse)
+    // if have_mate is true.
+    bool have_mate = false;
+    
     for (const Move &m : p->GetLegalMoves()) {
       const bool done =
 	p->MoveExcursion(
-	    m, [this, black, depth, p, end_position, moves_rev, &m]() {
+	    m, [this, black, depth, p,
+	        moves_rev, &moves_rev_tmp, &have_mate, &m]() {
 		const int num_opponent_moves = p->NumLegalMoves();
 		const bool is_in_check = p->IsInCheck();
 		if (num_opponent_moves == 0) {
@@ -819,8 +827,8 @@ struct SinglePlayer2Player : public StatelessPlayer {
 		  // sequence, and we also know it's the shortest,
 		  // as it is one move!
 		  if (is_in_check) {
-		    if (end_position != nullptr) *end_position = *p;
 		    *moves_rev = {m};
+		    have_mate = true;
 		    return true;
 		  }
 
@@ -828,7 +836,7 @@ struct SinglePlayer2Player : public StatelessPlayer {
 		  return false;
 		
 		} else {
-		  if (is_in_check || depth == 0) {
+		  if (is_in_check || depth <= 1) {
 		    // Can't switch sides when the opponent is in
 		    // check, as the position would be illegal.
 		    // So, avoid searching deeper.
@@ -836,28 +844,42 @@ struct SinglePlayer2Player : public StatelessPlayer {
 		  } else {
 		    // Otherwise, pretend it's our move again.
 		    p->SetBlackMove(black);
-		    if (FindCheckmate(black, depth - 1, p,
-				      moves_rev, end_position)) {
-		      // XXX: This may not be the shortest sequence
-		      // that we could find. Probably need to try
-		      // them all, although we can also adjust the
-		      // depth downward?
-		      moves_rev->push_back(m);
-		      p->SetBlackMove(!black);
-		      return true;
+		    // PERF: if we have mate, we only need to search for
+		    // sequences that are shorter!
+		    int search_depth = depth - 1;
+		    if (have_mate) {
+		      // -1 because we add the current move at the end,
+		      // -1 because we only care to find a sequence that
+		      // is strictly shorter
+		      search_depth = std::min(search_depth,
+					      (int)moves_rev->size() - 2);
+		    }
+		    if (FindCheckmate(
+			    black, search_depth, p, &moves_rev_tmp)) {
+		      // Could randomly swap for ties...
+		      if (!have_mate ||
+			  (moves_rev_tmp.size() + 1 < moves_rev->size())) {
+			*moves_rev = moves_rev_tmp;
+			moves_rev->push_back(m);
+			have_mate = true;
+		      }
 		    }
 		    p->SetBlackMove(!black);
-		    return false;
 		  }
 		}
-	    });
+		return false;
+	      });
       
       if (done)
-	return true;
+	break;
     }
 
-    // Didn't find a checkmating sequence.
-    return false;
+    if (have_mate) {
+      return true;
+    } else {
+      // Didn't find a checkmating sequence.
+      return false;
+    }
   }
   
   Move MakeMove(const Position &orig_pos, Explainer *explainer) override {
@@ -865,7 +887,7 @@ struct SinglePlayer2Player : public StatelessPlayer {
     const bool black = pos.BlackMove();
 
     std::vector<Position::Move> moves_rev;
-    if (FindCheckmate(black, max_depth, &pos, &moves_rev, nullptr)) {
+    if (FindCheckmate(black, max_depth, &pos, &moves_rev)) {
       CHECK(moves_rev.size() > 0);
       if (explainer) {
 	string mate;
@@ -883,6 +905,7 @@ struct SinglePlayer2Player : public StatelessPlayer {
 	explainer->SetMessage(StringPrintf("Mate in %d:%s",
 					   moves_rev.size(),
 					   mate.c_str()));
+	explainer->SetPosition(p);
       }
       return moves_rev[moves_rev.size() - 1];
     } else {
@@ -999,5 +1022,6 @@ Player *Symmetry180() {
 }
 
 Player *SinglePlayer() {
-  return new MakeStateless<SinglePlayer2Player, int>(3);
+  // Should be 4 for tournament.
+  return new MakeStateless<SinglePlayer2Player, int>(4);
 }

@@ -35,6 +35,11 @@ struct TextExplainer : public Explainer {
     printf("%s\n", s.c_str());
     fflush(stdout);
   }
+
+  void SetPosition(const Position &pos) override {
+    printf("%s\n", pos.BoardString().c_str());
+    fflush(stdout);
+  }
   
   Position pos;
 };

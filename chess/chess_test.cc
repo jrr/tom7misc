@@ -215,8 +215,8 @@ static void Regression2Game() {
 static void Regression1() {
   Position pos;
   CHECK(Position::ParseFEN(
-	    "3K4/5p2/6q1/8/4q3/8/6k1/8 b - - 9 60"
-	    , &pos));
+	    "3K4/5p2/6q1/8/4q3/8/6k1/8 b - - 9 60",
+	    &pos));
   printf("---- Regression 1 -----\n");
   printf("Start board:\n%s\n", pos.BoardString().c_str());
   Move move;
