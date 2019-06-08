@@ -188,11 +188,11 @@ static std::vector<uint8> GetKey(const string &passphrase,
   return key;
 }
 
-// 128 bits in base64. This takes 22 characters formally, but always has two bytes
-// of padding with =. So we actually leave that off.
+// 128 bits in base64. This takes 22 characters formally, but always
+// has two bytes of padding with =. So we actually leave that off.
 static int LINE_IV_BASE64_LENGTH = 22;
-// Same for the encrypted payload, which is formally 88 characters but has two =
-// padding characters.
+// Same for the encrypted payload, which is formally 88 characters but
+// has two = padding characters.
 static int LINE_PAYLOAD_BASE64_LENGTH = 86;
 
 static bool IsBase64String(const string &s) {
@@ -253,8 +253,8 @@ static string Encrypt(const string &passphrase,
     // To simplify matters, we strip any trailing whitespace.
     line = Util::LoseWhiteR(line);
     
-    CHECK(line.size() <= 64) << "An input line must be at most 64 characters, not "
-      "including the iv| prefix. But found one of length " << line.size();
+    CHECK(line.size() <= 64) << "An input line must be at most 64 characters, "
+      "not including the iv| prefix. But found one of length " << line.size();
 
     AES256::Ctx ctx;
     AES256::InitCtxIV(&ctx, key.data(), iv.data());
@@ -281,9 +281,30 @@ static string Encrypt(const string &passphrase,
   return result;
 }
 
+static string FlattenDecrypted(
+    const string &header,
+    const std::vector<std::pair<string, string>> &lines) {
+  string result = header;
+  for (const auto &p : lines) {
+    StringAppendF(&result, "%s|%s\n", p.first.c_str(), p.second.c_str());
+  }
+  return result;
+}
+
+static string HumanOnly(const std::vector<std::pair<string, string>> &lines) {
+  string result;
+  for (const auto &p : lines) {
+    result += p.second;
+    result.push_back('\n');
+  }
+  return result;
+}
+  
 // Decrypts, returning false (or aborting) if something is wrong with
 // the file.
-static bool Decrypt(const string &passphrase, const string &contents, string *result) {
+static bool Decrypt(const string &passphrase, const string &contents,
+		    string *header,
+		    std::vector<std::pair<string, string>> *lines_out) {
   std::vector<string> lines = Util::SplitToLines(contents);
   CHECK(lines.size() > 0);
   string saltspec = lines[0];
@@ -296,17 +317,19 @@ static bool Decrypt(const string &passphrase, const string &contents, string *re
   CHECK(salt.size() == 32) << "Invalid base64 salt? " << salt.size();
 
   std::vector<uint8> key = GetKey(passphrase, salt);
-  *result = StringPrintf("salt %s\n", salt_str.c_str());
+  *header = StringPrintf("salt %s\n", salt_str.c_str());
   
-  // Decrypting is simpler because every line must have exactly the same
-  // format, which is LINE_IV_BASE64_LENGTH characters of base64-encoded IV,
-  // then |, then LINE_PAYLOAD_BASE64_LENGTH characters of base64-encoded payload.
+  // Decrypting is simpler because every line must have exactly the
+  // same format, which is LINE_IV_BASE64_LENGTH characters of
+  // base64-encoded IV, then |, then LINE_PAYLOAD_BASE64_LENGTH
+  // characters of base64-encoded payload.
   for (int lineno = 1; lineno < lines.size(); lineno++) {
     string &line = lines[lineno];
     // Allow and ignore totally blank lines.
     if (line.empty()) continue;
     
-    CHECK(line.size() == LINE_IV_BASE64_LENGTH + 1 + LINE_PAYLOAD_BASE64_LENGTH &&
+    CHECK(line.size() ==
+	  LINE_IV_BASE64_LENGTH + 1 + LINE_PAYLOAD_BASE64_LENGTH &&
 	  line[LINE_IV_BASE64_LENGTH] == '|') << "Invalid line: " << line;
 
     string iv_base64 = line.substr(0, LINE_IV_BASE64_LENGTH) + "==";
@@ -314,7 +337,8 @@ static bool Decrypt(const string &passphrase, const string &contents, string *re
     CHECK(IsBase64String(iv_base64)) << "Found apparent IV but it is not "
       "base64: " << iv_base64;
 
-    string payload_base64 = line.substr(LINE_IV_BASE64_LENGTH + 1, string::npos) + "==";
+    string payload_base64 =
+      line.substr(LINE_IV_BASE64_LENGTH + 1, string::npos) + "==";
 
     std::vector<uint8> iv = Base64::DecodeV(iv_base64);
     CHECK(iv.size() == 16);
@@ -338,7 +362,7 @@ static bool Decrypt(const string &passphrase, const string &contents, string *re
 
     // Drop == padding.
     iv_base64.resize(LINE_IV_BASE64_LENGTH);
-    StringAppendF(result, "%s|%s\n", iv_base64.c_str(), decoded.c_str());
+    lines_out->emplace_back(iv_base64, decoded);
 
     // For the first line, verify that it contains a correct preimage
     // of the salt. We use this instead of some specific known string
@@ -390,8 +414,25 @@ int main(int argc, char **argv) {
     const string pass = ReadPass();
 	
     string enctext = Util::ReadFile(file);
-    string plaintext;
-    CHECK(Decrypt(pass, enctext, &plaintext)) << "Failed to decrypt: " << file;
+    string header;
+    std::vector<std::pair<string, string>> lines;
+    CHECK(Decrypt(pass, enctext, &header, &lines)) <<
+      "Failed to decrypt: " << file;
+    string plaintext = FlattenDecrypted(header, lines);
+
+    printf("%s", plaintext.c_str());
+
+  } else if (cmd == "cat") {
+
+    const string pass = ReadPass();
+	
+    string enctext = Util::ReadFile(file);
+    string header;
+    std::vector<std::pair<string, string>> lines;
+    CHECK(Decrypt(pass, enctext, &header, &lines)) <<
+      "Failed to decrypt: " << file;
+    string plaintext = HumanOnly(lines);
+    
     printf("%s", plaintext.c_str());
     
   } else if (cmd == "emacs") {
@@ -400,19 +441,24 @@ int main(int argc, char **argv) {
     CryptRand cr;
     const string tmpname = StringPrintf("deleteme-%llx.txt", cr.Word64());
     const string enctext = Util::ReadFile(file);
-    // If we had the wrong password (typo), it's important that we detect it here,
-    // or else we'll reencrypt the gibberish with the wrong password.
-    string plaintext;
-    CHECK(Decrypt(pass, enctext, &plaintext)) << "Failed to decrypt: " << file;
+    // If we had the wrong password (typo), it's important that we
+    // detect it here, or else we'll reencrypt the gibberish with the
+    // wrong password.
+
+    string header;
+    std::vector<std::pair<string, string>> lines;
+    CHECK(Decrypt(pass, enctext, &header, &lines)) <<
+      "Failed to decrypt: " << file;
+    string plaintext = FlattenDecrypted(header, lines);
     Util::WriteFile(tmpname, plaintext);
 
     // "emacs -nw"
     std::system(StringPrintf("notepad %s", tmpname.c_str()).c_str());
 
     string newplain = Util::ReadFile(tmpname);
-    // Note we can use a version that merges IVs from old, and checks for IV reuse too.
-    // XXX if this fails, we might want to be clearer about where the data is
-    // currently stored?
+    // Note we can use a version that merges IVs from old, and checks
+    // for IV reuse too. XXX if this fails, we might want to be
+    // clearer about where the data is currently stored?
     string newenc = Encrypt(pass, newplain);
     Util::WriteFile(file, newenc);
     if (!WipeFile(tmpname))

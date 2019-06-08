@@ -570,7 +570,9 @@ struct UI {
   bool draw_only_bits = false;
   bool draw_stockfish = false;
   bool draw_meter = true;
-
+  bool draw_explainer = true;
+  bool draw_movelist = true;
+  
   // Computer always plays black.
   // If true, make the computer move without interaction.
   bool autoplay_computer = true;
@@ -791,6 +793,9 @@ void UI::Loop() {
 
 	case SDLK_LEFT: {
 	  if (movie_idx > 0) {
+	    // Turn off autoplay or it is impossible to rewind
+	    // against fast computer players.
+	    autoplay_computer = false;
 	    movie_idx--;
 
 	    if (movie_idx > 0) {
@@ -852,6 +857,18 @@ void UI::Loop() {
 	  break;
 	}
 
+	case SDLK_x: {
+	  draw_explainer = !draw_explainer;
+	  ui_dirty = true;
+	  break;
+	}
+
+	case SDLK_m: {
+	  draw_movelist = !draw_movelist;
+	  ui_dirty = true;
+	  break;
+	}
+	  
 	case SDLK_z: {
 	  // XXX check ctrl?
 	  if (!undo_buffer.empty()) {
@@ -1075,7 +1092,23 @@ bool UI::MakeMove(Move m) {
   
   position.ApplyMove(m);
   // Could add check, checkmate here.
-
+  bool has_moves = position.HasLegalMoves();
+  if (position.IsInCheck()) {
+    if (has_moves) {
+      s.push_back('+');
+    } else {
+      if (position.BlackMove()) {
+	s += "#  1-0";
+      } else {
+	s += "#  0-1";
+      }
+    }
+  } else {
+    if (!has_moves) {
+      s += "  1/2-1/2";
+    }
+  }
+  
   CHECK(movie_idx <= movie.size()) << movie_idx << " " << movie.size();
   if (movie_idx == movie.size()) {
     movie.emplace_back(position, m, s);
@@ -1117,9 +1150,22 @@ void UI::DrawStatus() {
     StringPrintf("[^3E^<]^%drase^<  "
 		 "[^3D^<]^%draw^<  "
 		 "[^3F^<]^%dill^<  "
-		 "[^3C^<]^%dhess^<  ",
+		 "[^3C^<]^%dhess^<  "
+		 
+		 "[^3A^<]utoplay %s  "
+		 "[^3B^<]its %s  "
+		 "[^3S^<]tockfish %s  "
+		 "e[^3X^<]plainer %s  "
+		 "[^3M^<]oves %s  "
+		 ,
 		 erasecolor,
-		 drawcolor, fillcolor, chesscolor);
+		 drawcolor, fillcolor, chesscolor,
+
+		 autoplay_computer ? "ON" : "OFF",
+		 draw_only_bits ? "ON" : "OFF",
+		 draw_stockfish ? "ON" : "OFF",
+		 draw_explainer ? "ON" : "OFF",
+		 draw_movelist ? "ON" : "OFF");
   font2x->draw(5, SCREENH - (FONTHEIGHT * 2) - 1, modestring);
 
   // Color swatches.
@@ -1216,7 +1262,7 @@ static void DrawArrow(SDL_Surface *surf,
 }
 
 void UI::Draw() {
-  // Status stuff
+  // Status stuff, always outside the 1920x1080 window.
   DrawStatus();
   
   // On-screen stuff
@@ -1284,19 +1330,28 @@ void UI::Draw() {
     }
   }
 
-  // Can draw meter if we have an up to date evaluation or
+  // Can draw meter if we have an up-to-date evaluation or
   // the old one hasn't been invalidated (nan).
   if (draw_meter &&
       (current_eval != nullptr ||
        !std::isnan(old_meter_value))) {
     
-      // Draw "meter"
+      // Draw "meter". Meter value is in [0, 1] where 0.5 is draw
+      // and 1.0 is white winning.
       const float new_meter_value = [&]{
 	  if (current_eval == nullptr)
 	    return old_meter_value;
 
 	  int value = current_eval->score.value;
 	  if (position.BlackMove()) value = -value;
+
+	  if (current_eval->status == Evaluator::CHECKMATE) {
+	    // It's black's "move" (none left) but white was the one
+	    // checkmating.
+	    return position.BlackMove() ? 1.0f : 0.0f;
+	  } else if (current_eval->status == Evaluator::DRAW) {
+	    return 0.5f;
+	  }
 	  
 	  if (current_eval->score.is_mate)
 	    return value < 0 ? 0.0f : 1.0f;
@@ -1418,15 +1473,9 @@ void UI::Draw() {
 		 StringPrintf("0x%llx", PositionBits()));
   }
   
-  {
+  if (draw_movelist) {
     Typewriter t{font2x, 900, 16, 1900 - 900, 1000 - 16};
     // t.Write(StringPrintf("^3Move %d. ", movie_idx));
-
-    /*
-    for (int i = 0; i < movie.size(); i++) {
-      t.Write(StringPrintf("[%d] ^2%s ", i, std::get<2>(movie[i]).c_str()));
-    }
-    */
     
     for (int i = 0; i < movie.size(); i++) {
       int color = i < movie_idx ? (i == movie_idx - 1 ? 6 : 0) : 4;
@@ -1441,62 +1490,64 @@ void UI::Draw() {
     }
   }
 
-  if (const AsyncPlayer::ExplainedMove *em = async_player->GetMove()) {
-    Typewriter t{font, 900, 500, 1900 - 900, 1080 - 500};
-    if (em->no_moves) {
-      t.Write("(no moves)");
-    } else if (position.IsLegal(em->move)) {
-      t.Write(position.ShortMoveString(em->move));
-    } else {
-      t.Write("(illegal move)");
-    }
-
-    if (!em->message.empty()) {
-      t.Newline();
-      t.Write(em->message);
-    }
-
-    if (em->has_position) {
-      const int EX = 900;
-      const int EY = 750;
-      const int ES = 32;
-      for (int r = 0; r < 8; r++) {
-	const int yy = EY + r * ES;
-	for (int c = 0; c < 8; c++) {
-	  const int xx = EX + c * ES;
-	  const bool black = (r + c) & 1;
-	  const uint32 color = SquareColor(black, false, false);
-	  sdlutil::fillrect(screen, color, xx, yy, ES, ES);
-	}
+  if (draw_explainer) {
+    if (const AsyncPlayer::ExplainedMove *em = async_player->GetMove()) {
+      Typewriter t{font, 900, 500, 1900 - 900, 1080 - 500};
+      if (em->no_moves) {
+	t.Write("(no moves)");
+      } else if (position.IsLegal(em->move)) {
+	t.Write(position.ShortMoveString(em->move));
+      } else {
+	t.Write("(illegal move)");
       }
 
-      // And the pieces
-      auto ExDrawPieceAt = [this](int x, int y, uint8 piece) {
-	  uint8 typ = piece & Position::TYPE_MASK;
-	  if (typ == Position::C_ROOK) typ = Position::ROOK;
-	  string str = " ";
-	  if ((piece & Position::COLOR_MASK) == Position::BLACK) {
-	    str[0] = "?pnbrqk"[typ];
-	  } else {
-	    str[0] = "?PNBRQK"[typ];
-	  }
-	  chessfont->draw(x, y, str);
-	};
+      if (!em->message.empty()) {
+	t.Newline();
+	t.Write(em->message);
+      }
 
-      for (int r = 0; r < 8; r++) {
-	const int yy = EY + r * ES;
-	for (int c = 0; c < 8; c++) {
-	  const int xx = EX + c * ES;
-	  // Normal case.
-	  uint8 piece = em->position.PieceAt(r, c);
-	  if ((piece & Position::TYPE_MASK) != Position::EMPTY) {
-	    ExDrawPieceAt(xx, yy + 2, piece);
+      if (em->has_position) {
+	const int EX = 900;
+	const int EY = 750;
+	const int ES = 32;
+	for (int r = 0; r < 8; r++) {
+	  const int yy = EY + r * ES;
+	  for (int c = 0; c < 8; c++) {
+	    const int xx = EX + c * ES;
+	    const bool black = (r + c) & 1;
+	    const uint32 color = SquareColor(black, false, false);
+	    sdlutil::fillrect(screen, color, xx, yy, ES, ES);
+	  }
+	}
+
+	// And the pieces
+	auto ExDrawPieceAt = [this](int x, int y, uint8 piece) {
+	    uint8 typ = piece & Position::TYPE_MASK;
+	    if (typ == Position::C_ROOK) typ = Position::ROOK;
+	    string str = " ";
+	    if ((piece & Position::COLOR_MASK) == Position::BLACK) {
+	      str[0] = "?pnbrqk"[typ];
+	    } else {
+	      str[0] = "?PNBRQK"[typ];
+	    }
+	    chessfont->draw(x, y, str);
+	  };
+
+	for (int r = 0; r < 8; r++) {
+	  const int yy = EY + r * ES;
+	  for (int c = 0; c < 8; c++) {
+	    const int xx = EX + c * ES;
+	    // Normal case.
+	    uint8 piece = em->position.PieceAt(r, c);
+	    if ((piece & Position::TYPE_MASK) != Position::EMPTY) {
+	      ExDrawPieceAt(xx, yy + 2, piece);
+	    }
 	  }
 	}
       }
     }
   }
-  
+    
   sdlutil::blitall(drawing, screen, 0, 0);
 }
 
@@ -1554,7 +1605,7 @@ int main(int argc, char **argv) {
   CHECK(font4x != nullptr) << "Couldn't load font.";
 
   //# define CHESSFONT "../blind/chessfont.png"
-# define CHESSFONT "chessfont-cylon.png"
+# define CHESSFONT "chessfont-blindfold.png"
   
   chessfont = Font::create(screen,
 			   CHESSFONT,
@@ -1580,8 +1631,8 @@ int main(int argc, char **argv) {
   
   UI ui;
 
-  // ui.async_player.reset(new AsyncPlayer(MinOpponentMoves()));
-  ui.async_player.reset(new AsyncPlayer(SinglePlayer()));
+  ui.async_player.reset(new AsyncPlayer(MinOpponentMoves()));
+  // ui.async_player.reset(new AsyncPlayer(SinglePlayer()));
 
   if (argc > 1) {
     ui.LoadMoves(argv[1]);
