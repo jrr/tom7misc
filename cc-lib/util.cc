@@ -206,8 +206,12 @@ string Util::Join(const vector<string> &v, const string &sep) {
   return out;
 }
 
-// Internal helper used by ReadFile, ReadFileMagic.
-static string ReadAndCloseFile(FILE *f, const string *magic_opt) {
+// Internal helper used by ReadFile, ReadFileMagic, ReadFileBytes.
+// T is string or vector<uint8>.
+// If magic_opt is non-null, it is copied to the start of the
+// container we return.
+template<class T>
+static T ReadAndCloseFile(FILE *f, const T *magic_opt) {
   #define READFILE_DEBUG 0
   // This is unbelievably difficult!
   // A simple loop while getc() doesn't return EOF works, but
@@ -231,7 +235,7 @@ static string ReadAndCloseFile(FILE *f, const string *magic_opt) {
   struct stat64 st;
   if (0 != fstat64(fd, &st)) {
     fclose(f);
-    return "";
+    return {};
   }
 
   #if READFILE_DEBUG
@@ -243,7 +247,7 @@ static string ReadAndCloseFile(FILE *f, const string *magic_opt) {
 	 std::is_signed<decltype (st.st_size)>::value ? "yes" : "no");
   #endif
   
-  string ret;
+  T ret;
   int64 next_pos = 0;
   int64 size_guess = st.st_size;
   if (magic_opt != nullptr) {
@@ -343,7 +347,7 @@ static string ReadAndCloseFile(FILE *f, const string *magic_opt) {
       printf("No bytes read but not EOF?\n");
       #endif
       fclose(f);
-      return "";
+      return {};
     }
   }
 }
@@ -354,7 +358,7 @@ string Util::ReadFile(const string &s) {
 
   FILE *f = fopen(s.c_str(), "rb");
   if (!f) return "";
-  return ReadAndCloseFile(f, nullptr);
+  return ReadAndCloseFile<string>(f, nullptr);
 }
 
 // PERF: Benchmark against ForEachLine approach.
@@ -420,17 +424,13 @@ string Util::PadEx(int n, string s, char c) {
   return PadWith(n, std::move(s), c);
 }
 
-// XXX use uint8.
-// PERF: ReadFile helper could be a template that works with
-// both vector and string.
-vector<unsigned char> Util::ReadFileBytes(const string &f) {
-  string s = ReadFile(f);
-  vector<unsigned char> bytes;
-  bytes.reserve(s.size());
-  for (int i = 0; i < s.size(); i++) {
-    bytes.push_back((unsigned char)s[i]);
-  }
-  return bytes;
+vector<uint8> Util::ReadFileBytes(const string &s) {
+  if (Util::isdir(s)) return {};
+  if (s == "") return {};
+
+  FILE *f = fopen(s.c_str(), "rb");
+  if (!f) return {};
+  return ReadAndCloseFile<vector<uint8>>(f, nullptr);
 }
 
 
@@ -480,7 +480,7 @@ string Util::ReadFileMagic(string s, const string &mag) {
   }
 
   // OK, now just read file.
-  return ReadAndCloseFile(f, &mag);
+  return ReadAndCloseFile<string>(f, &mag);
 }
 
 bool Util::WriteFile(const string &fn, const string &s) {

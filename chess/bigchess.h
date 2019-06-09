@@ -1,7 +1,7 @@
 // Local utilities for working with large amounts of chess data.
 
-#ifndef BIGCHESS_H
-#define BIGCHESS_H
+#ifndef __BIGCHESS_H
+#define __BIGCHESS_H
 
 #include <shared_mutex>
 #include <cstdint>
@@ -19,38 +19,6 @@ template<class K, class C>
 inline bool ContainsKey(const C &container, const K &key) {
   return container.find(key) != container.end();
 }
-
-#if 0
-// TODO: To threadutil, but note that this is C++17.
-struct ReadMutexLock {
-  explicit ReadMutexLock(std::shared_mutex *m) : m(m) { m->lock_shared(); }
-  ~ReadMutexLock() { m->unlock_shared(); }
-  std::shared_mutex *m;
-};
-// Possible to template this over shared_mutex and mutex without
-// requiring an argument?
-struct WriteMutexLock {
-  explicit WriteMutexLock(std::shared_mutex *m) : m(m) { m->lock(); }
-  ~WriteMutexLock() { m->unlock(); }
-  std::shared_mutex *m;
-};
-
-// Read with the mutex that protects it. T must be copyable,
-// obviously!
-template<class T>
-T SharedReadWithLock(std::shared_mutex *m, const T *t) {
-  ReadMutexLock ml(m);
-  return *t;
-}
-
-// Write with the mutex that protects it. T must be copyable.
-template<class T>
-void SharedWriteWithLock(std::shared_mutex *m, T *t, const T &val) {
-  WriteMutexLock ml(m);
-  *t = val;
-}
-#endif
-
 
 // TODO: This does not parallelize enough. Only one of the numa nodes
 // succeeds in getting significant work scheduled. (Maybe actually

@@ -570,12 +570,13 @@ struct UI {
   bool draw_only_bits = false;
   bool draw_stockfish = false;
   bool draw_meter = true;
-  bool draw_explainer = true;
+  bool draw_explainer = false;
   bool draw_movelist = true;
+  bool draw_board = true;
   
   // Computer always plays black.
   // If true, make the computer move without interaction.
-  bool autoplay_computer = true;
+  bool autoplay_computer = false;
   // Kept in sync with the current position.
   std::unique_ptr<AsyncPlayer> async_player;
   
@@ -868,6 +869,12 @@ void UI::Loop() {
 	  ui_dirty = true;
 	  break;
 	}
+
+	case SDLK_t: {
+	  draw_meter = !draw_meter;
+	  ui_dirty = true;
+	  break;
+	}
 	  
 	case SDLK_z: {
 	  // XXX check ctrl?
@@ -926,6 +933,13 @@ void UI::Loop() {
 	  break;
 	}
 
+	case SDLK_o: {
+	  draw_board = !draw_board;
+	  ui_dirty = true;
+	  break;
+	}
+
+	  
 	case SDLK_0:
 	case SDLK_1:
 	case SDLK_2:
@@ -1146,17 +1160,21 @@ void UI::DrawStatus() {
     chesscolor = 2;
     break;
   }
+
+#define KEY(s) "^3" s "^<"
   const string modestring =
-    StringPrintf("[^3E^<]^%drase^<  "
-		 "[^3D^<]^%draw^<  "
-		 "[^3F^<]^%dill^<  "
-		 "[^3C^<]^%dhess^<  "
+    StringPrintf(KEY("E") "^%drase^<  "
+		 KEY("D") "^%draw^<  "
+		 KEY("F") "^%dill^<  "
+		 KEY("C") "^%dhess^<  "
 		 
-		 "[^3A^<]utoplay %s  "
-		 "[^3B^<]its %s  "
-		 "[^3S^<]tockfish %s  "
-		 "e[^3X^<]plainer %s  "
-		 "[^3M^<]oves %s  "
+		 KEY("A") "utoplay %s  "
+		 KEY("B") "its %s  "
+		 KEY("S") "tockfish %s  "
+		 "e" KEY("X") "plain %s  "
+		 KEY("M") "oves %s  "
+		 "b" KEY("O") "ard %s  "
+		 "me" KEY("T") "er %s  "
 		 ,
 		 erasecolor,
 		 drawcolor, fillcolor, chesscolor,
@@ -1165,9 +1183,13 @@ void UI::DrawStatus() {
 		 draw_only_bits ? "ON" : "OFF",
 		 draw_stockfish ? "ON" : "OFF",
 		 draw_explainer ? "ON" : "OFF",
-		 draw_movelist ? "ON" : "OFF");
+		 draw_movelist ? "ON" : "OFF",
+		 draw_board ? "ON" : "OFF",
+		 draw_meter ? "ON" : "OFF"
+		 );
   font2x->draw(5, SCREENH - (FONTHEIGHT * 2) - 1, modestring);
-
+#undef KEY
+  
   // Color swatches.
   switch (mode) {
   case Mode::ERASING:
@@ -1280,22 +1302,25 @@ void UI::Draw() {
   }
 
   const bool interpolating_piece = have_move && interp_piece.On();
-  
-  for (int r = 0; r < 8; r++) {
-    const int yy = CHESSY + r * CHESSSCALE;
-    for (int c = 0; c < 8; c++) {
-      const int xx = CHESSX + c * CHESSSCALE;
-      const bool black = (r + c) & 1;
-      const bool inmove =
-	have_move && ((r == last_move.src_row &&
-		       c == last_move.src_col) ||
-		      (r == last_move.dst_row &&
-		       c == last_move.dst_col));
-      const uint32 color = SquareColor(black, inmove, false);
-      sdlutil::fillrect(screen, color, xx, yy, CHESSSCALE, CHESSSCALE);
+
+  if (draw_board) {
+    for (int r = 0; r < 8; r++) {
+      const int yy = CHESSY + r * CHESSSCALE;
+      for (int c = 0; c < 8; c++) {
+	const int xx = CHESSX + c * CHESSSCALE;
+	const bool black = (r + c) & 1;
+	const bool inmove =
+	  draw_movelist &&
+	  have_move && ((r == last_move.src_row &&
+			 c == last_move.src_col) ||
+			(r == last_move.dst_row &&
+			 c == last_move.dst_col));
+	const uint32 color = SquareColor(black, inmove, false);
+	sdlutil::fillrect(screen, color, xx, yy, CHESSSCALE, CHESSSCALE);
+      }
     }
   }
-
+    
   // Draw evaluation.
   if (draw_stockfish && current_eval != nullptr) {
     switch (current_eval->status) {
@@ -1332,7 +1357,8 @@ void UI::Draw() {
 
   // Can draw meter if we have an up-to-date evaluation or
   // the old one hasn't been invalidated (nan).
-  if (draw_meter &&
+  if (draw_board &&
+      draw_meter &&
       (current_eval != nullptr ||
        !std::isnan(old_meter_value))) {
     
@@ -1412,36 +1438,39 @@ void UI::Draw() {
       } 
     };
 
-  for (int r = 0; r < 8; r++) {
-    const int yy = CHESSY + r * CHESSSCALE;
-    for (int c = 0; c < 8; c++) {
-      const int xx = CHESSX + c * CHESSSCALE;
-      // We'll skip drawing the piece if it's the one we're
-      // dragging, or if we are currently interpolating a move
-      // and it's the interpolated piece.
-      if (drag_source.first == r && drag_source.second == c)
-	continue;
-
-      if (interpolating_piece) {
-	// When interpolating, we draw the old board state, but
-	// skip the piece that's moving.
-	if (r == last_move.src_row && c == last_move.src_col)
+  if (draw_board) {
+    for (int r = 0; r < 8; r++) {
+      const int yy = CHESSY + r * CHESSSCALE;
+      for (int c = 0; c < 8; c++) {
+	const int xx = CHESSX + c * CHESSSCALE;
+	// We'll skip drawing the piece if it's the one we're
+	// dragging, or if we are currently interpolating a move
+	// and it's the interpolated piece.
+	if (drag_source.first == r && drag_source.second == c)
 	  continue;
-	uint8 old_piece = last_position.PieceAt(r, c);
-	if ((old_piece & Position::TYPE_MASK) != Position::EMPTY) {
-	  DrawPieceAt(xx, yy + 8, old_piece);
-	}
-	// But DON'T draw the piece that's moving; we do it below.	  
-      } else {
-	// Normal case.
-	uint8 piece = position.PieceAt(r, c);
-	if ((piece & Position::TYPE_MASK) != Position::EMPTY) {
-	  DrawPieceAt(xx, yy + 8, piece);
+
+	if (interpolating_piece) {
+	  // When interpolating, we draw the old board state, but
+	  // skip the piece that's moving.
+	  if (r == last_move.src_row && c == last_move.src_col)
+	    continue;
+	  uint8 old_piece = last_position.PieceAt(r, c);
+	  if ((old_piece & Position::TYPE_MASK) != Position::EMPTY) {
+	    DrawPieceAt(xx, yy + 8, old_piece);
+	  }
+	  // But DON'T draw the piece that's moving; we do it below.	  
+	} else {
+	  // Normal case.
+	  uint8 piece = position.PieceAt(r, c);
+	  if ((piece & Position::TYPE_MASK) != Position::EMPTY) {
+	    DrawPieceAt(xx, yy + 8, piece);
+	  }
 	}
       }
     }
   }
-  
+
+  // XXX maybe makes sense to skip these if not drawing the board, but..?
   if (drag_source.first >= 0 && drag_source.second >= 0) {
     uint8 p = position.PieceAt(drag_source.first, drag_source.second);
     CHECK((p & Position::TYPE_MASK) != Position::EMPTY);
@@ -1455,7 +1484,7 @@ void UI::Draw() {
 				    last_move.src_col);
     CHECK((p & Position::TYPE_MASK) != Position::EMPTY);
 
-    // XXX sigma
+    // XXX sigmoid
     const float f = interp;
     float oldx = CHESSX + last_move.src_col * CHESSSCALE;
     float oldy = CHESSY + last_move.src_row * CHESSSCALE;
@@ -1604,8 +1633,8 @@ int main(int argc, char **argv) {
 			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font4x != nullptr) << "Couldn't load font.";
 
-  //# define CHESSFONT "../blind/chessfont.png"
-# define CHESSFONT "chessfont-blindfold.png"
+  # define CHESSFONT "../blind/chessfont.png"
+  ///# define CHESSFONT "chessfont-blindfold.png"
   
   chessfont = Font::create(screen,
 			   CHESSFONT,

@@ -5,13 +5,14 @@
 
 #include "base/logging.h"
 #include "pgn.h"
+#include "packedgame.h"
 
 using namespace std;
 
 using Move = Position::Move;
 
 
-static void ApplyMove(Position *pos, const char *pgn) {
+static Position::Move ApplyMove(Position *pos, const char *pgn) {
   Move m;
   // XXX Better if this tries to capture the full board state.
   const string old_board = pos->BoardString();
@@ -21,7 +22,15 @@ static void ApplyMove(Position *pos, const char *pgn) {
   CHECK(pos->IsLegal(m)) << pgn;
   CHECK(old_board == pos->BoardString()) << "IsLegal modified board "
     "state!";
+
+  uint16_t pm = PackedGame::PackMove(m);
+  CHECK((pm & ~0b111111111111) == 0b0) << pm << " for "
+				       << Position::DebugMoveString(m);
+  const Move m2 = PackedGame::UnpackMove(pm);
+  CHECK(Position::MoveEq(m, m2)) << Position::DebugMoveString(m) << " vs "
+				 << Position::DebugMoveString(m2);
   pos->ApplyMove(m);
+  return m;
 }
 
 static std::initializer_list<const char *> kGame1 = {
@@ -71,7 +80,7 @@ static Position MakePos(const string &s) {
   CHECK(PGN::Parse(s.c_str(), &pgn));
   Position pos;
   for (const PGN::Move &m : pgn.moves) {
-    ApplyMove(&pos, m.move.c_str());
+    (void)ApplyMove(&pos, m.move.c_str());
   }
   return pos;
 }
@@ -79,10 +88,21 @@ static Position MakePos(const string &s) {
 static void PlayGame(std::initializer_list<const char *> game) {
   Position pos;
 
+  PackedGame pgame;
   for (const char *m : game) {
-    ApplyMove(&pos, m);
+    Position::Move move = ApplyMove(&pos, m);
+    pgame.PushMove(PackedGame::PackMove(move));
     printf("%s\n", pos.BoardString().c_str());
   }
+
+  Position pos2;
+  for (int i = 0; i < pgame.NumMoves(); i++) {
+    Position::Move move = PackedGame::UnpackMove(pgame.GetMove(i));
+    CHECK(pos2.IsLegal(move));
+    pos2.ApplyMove(move);
+  }
+  CHECK(PositionEq{}(pos, pos2)) << pos.BoardString() << "\nvs\n"
+				 << pos2.BoardString();
 }
 
 static void PromotionRegression() {

@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 using namespace std;
 
@@ -44,7 +45,7 @@ struct Util {
   // key. Ignores empty lines.
   static map<string, string> ReadFileToMap(const string &f);
 
-  static vector<unsigned char> ReadFileBytes(const string &f);
+  static vector<uint8_t> ReadFileBytes(const string &f);
   static bool WriteFileBytes(const string &f, const vector<unsigned char> &b);
 
   static vector<string> ListFiles(const string &dir);
