@@ -161,6 +161,9 @@ makealmanac.exe : makealmanac.o chess.o pack.o packedgame.o pgn.o $(CCLIB_OBJECT
 validatepack.exe : validatepack.o chess.o pack.o packedgame.o pgn.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+repack.exe : repack.o chess.o pack.o packedgame.o pgn.o $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 maketable.exe : maketable.o chess.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 

@@ -89,7 +89,7 @@ PackedGame::SplitFile(const vector<uint8_t> &contents) {
     case 0b10: pg.result = Result::WHITE_WINS; break;
     case 0b01: pg.result = Result::BLACK_WINS; break;
     case 0b00: pg.result = Result::DRAW; break;
-    default: LOG(FATAL) << "Bad result byte " << result_byte;
+    default: LOG(FATAL) << "Bad result byte " << (int)result_byte;
     }
     pg.num_moves = num_moves;
     pg.packed_moves.resize(packed_size);

@@ -45,8 +45,6 @@ static void ValidateOne(
     pos.ApplyMove(move);
   }
 
-  // XXX Check termination!
-
   CHECK(hc == actual_hc) << hc << " vs " << actual_hc;
 }
 

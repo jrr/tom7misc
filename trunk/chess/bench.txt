@@ -240,3 +240,37 @@ New benchmark.
 7.432, 7.305, 7.292 (fancy undo version)
 7.334, 7.166, 7.154 (basic copy/restore)
 7.309, 7.248, 7.229 (copy just src/dst row)
+
+--------------------------------------------------
+
+benchmarking "packed" in memory.
+for all of 2015:
+PageFaultCount: 2009947
+PeakWorkingSetSize: 4009447424
+WorkingSetSize: 3750903808
+QuotaPeakPagedPoolUsage: 208496
+QuotaPagedPoolUsage: 208400
+QuotaPeakNonPagedPoolUsage: 47592
+QuotaNonPagedPoolUsage: 37528
+PagefileUsage: 3838070784
+PeakPagefileUsage: 4160258048
+
+WorkingSetSize is 3.7 GB, which sounds about right
+
+All of 2017:
+PageFaultCount: 9990660
+PeakWorkingSetSize: 21361381376
+WorkingSetSize: 18458726400
+QuotaPeakPagedPoolUsage: 208496
+QuotaPagedPoolUsage: 208400
+QuotaPeakNonPagedPoolUsage: 162240
+QuotaNonPagedPoolUsage: 154488
+PagefileUsage: 18943934464
+PeakPagefileUsage: 22202245120
+
+18'458'726'400
+18 GB for 98'681'301 games, ~187 bytes per game
+
+wow it takes FOREVER (like, minutes) to run the destructor
+for this thing.
+

@@ -37,7 +37,7 @@
 #include <windows.h> // XXX
 #include <psapi.h> // XXX
 
-constexpr int MAX_PARALLELISM = 16;
+constexpr int MAX_PARALLELISM = 12;
 
 using namespace std;
 using int64 = int64_t;
