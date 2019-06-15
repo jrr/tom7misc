@@ -26,6 +26,13 @@
 // Well, it turns out that the distribution is so long-tailed (90%+ of
 // distinct positions are singleton; 76% of instances are singletons)
 // that we don't get any help there.
+//
+// So here we split the problem in two. For commonly occurring
+// positions, we tally a histogram of the moves taken and just store
+// that in memory. there are ~millions of these. We define a "common"
+// position as one that occurred more than 10 times in the single
+// month of January 2018. This program outputs the hashes
+// (PositionHash) of such "common" positions.
 
 #include "chess.h"
 
@@ -53,6 +60,7 @@
 #include <psapi.h>
 
 constexpr int MAX_PARALLELISM = 60;
+constexpr int MIN_COMMON = 2;
 
 using namespace std;
 using int64 = int64_t;
@@ -79,6 +87,12 @@ struct PosHisto {
 };
 
 static PosHisto *pos_histo = nullptr;
+
+static int64 MemUsage() {
+  PROCESS_MEMORY_COUNTERS pmc;
+  CHECK(GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof pmc));
+  return (int64)pmc.WorkingSetSize;
+}
 
 static void PrintMemoryUsage() {
   PROCESS_MEMORY_COUNTERS pmc;
@@ -139,12 +153,13 @@ static void AddPackFile(const string &filename) {
   
   int64 secs = time(nullptr) - start;
   int64 insert_time = pos_histo->MergeHisto(lpc);
-  fprintf(stderr, "Inserted %lld games from %s. (%llds total, %llds insert)\n",
+  double mem = MemUsage();
+  fprintf(stderr, "Inserted %lld games from %s. "
+	  "(%llds total, %llds insert) [%.2f G mem]\n",
 	  num_games, filename.c_str(),
-	  secs, insert_time);
+	  secs, insert_time,
+	  (double)mem / 1000000000.0);
   fflush(stderr);
-
-  PrintMemoryUsage();
 }
 
 static void AddPackFiles(const std::vector<string> &filenames) {
@@ -164,9 +179,31 @@ static void AddPackFiles(const std::vector<string> &filenames) {
 
   PrintMemoryUsage();
 
+  // Get common positions.
+  vector<uint64> common;
+  fprintf(stderr, "Get common...\n");
+  fflush(stderr);
+  for (const auto &p : pos_histo->position_count) {
+    if (p.second >= MIN_COMMON) {
+      common.push_back(p.first);
+    }
+  }
+
+  fprintf(stderr, "[Elapsed %lld] There are %lld 'common' positions. Sort...\n",
+	  time(nullptr) - start,
+	  common.size());
+  fflush(stderr);
+
+  std::sort(common.begin(), common.end());
+  fprintf(stderr, "[Elapsed %lld] Write %lld positions...\n",
+	  time(nullptr) - start,
+	  common.size());
+  fflush(stderr);
+  CHECK(Util::WriteUint64File("common.u64", common));
+  
   // Now, invert the histo.
   std::unordered_map<int32, int64> inverted;
-  fprintf(stderr, "Invert...\n");
+  fprintf(stderr, "[Elapsed %lld] Invert...\n", time(nullptr) - start);
   fflush(stderr);
   for (const auto &p : pos_histo->position_count) {
     // How many positions have been seen e.g. exactly twice?
@@ -190,8 +227,8 @@ static void AddPackFiles(const std::vector<string> &filenames) {
 
   string csv;
   for (const auto &p : sorted) {
-    printf("%lld position(s) appeared %lld time(s)\n",
-	   p.second, p.first);
+    // printf("%lld position(s) appeared %lld time(s)\n",
+    // p.second, p.first);
     csv += StringPrintf("%lld,%lld\n", p.second, p.first);
   }
   fflush(stdout);

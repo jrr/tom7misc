@@ -29,6 +29,7 @@
 #include "tournament-db.h"
 #include "player-util.h"
 #include "blind-player.h"
+#include "almanac-player.h"
 
 #define TESTING true
 
@@ -145,6 +146,7 @@ const vector<Entrant> &GetEntrants() {
 			CCCP,
 
 			SinglePlayer,
+			AlmanacPopular,
 
 			Topple10K,
 			Topple1M,

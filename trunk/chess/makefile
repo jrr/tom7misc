@@ -167,6 +167,9 @@ repack.exe : repack.o chess.o pack.o packedgame.o pgn.o $(CCLIB_OBJECTS)
 packhisto.exe : packhisto.o chess.o pack.o packedgame.o pgn.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+makecommonbook.exe : makecommonbook.o common.o chess.o pack.o packedgame.o $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 maketable.exe : maketable.o chess.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
@@ -188,7 +191,7 @@ bench.exe : chess.o player.o bench.o player-util.o $(CCLIB_OBJECTS)
 chessmaster.exe : chess.o player.o player-util.o chessmaster.o chessmaster-main.o headless-graphics.o $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-testplayer.exe : chess.o player.o player-util.o fate-player.o all-fate-data.o chessmaster.o testplayer.o headless-graphics.o blind-player.o stockfish.o subprocess.o blind/unblinder.o blind/unblinder-mk0.o $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS)
+testplayer.exe : chess.o player.o player-util.o fate-player.o almanac-player.o pack.o packedgame.o common.o all-fate-data.o chessmaster.o testplayer.o headless-graphics.o blind-player.o stockfish.o subprocess.o blind/unblinder.o blind/unblinder-mk0.o $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 pairs.exe : chess.o pairs.o $(CCLIB_OBJECTS)
