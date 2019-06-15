@@ -274,3 +274,66 @@ PeakPagefileUsage: 22202245120
 wow it takes FOREVER (like, minutes) to run the destructor
 for this thing.
 
+All games:
+Total 336531703 games in 434s.
+PageFaultCount: 34324214
+PeakWorkingSetSize: 65094045696
+WorkingSetSize: 63324225536
+QuotaPeakPagedPoolUsage: 208496
+QuotaPagedPoolUsage: 208400
+QuotaPeakNonPagedPoolUsage: 513528
+QuotaNonPagedPoolUsage: 505504
+PagefileUsage: 64986484736
+PeakPagefileUsage: 67029585920
+
+Not that bad to just load everything into ram; peaks at
+about 61 GB memory usage for 336 million games.
+
+Would also need a separate data structure to index the
+positions; there are 21'553'382'902 of these
+(not unique positions, but total positions reached across
+all games, not counting the starting one)
+
+
+even just trying to histogram over all positions, we run out of
+memory; page file usage is 147'914'911'744 (147 GB) plus 100 GB+ of
+actual ram usage, apparently only getting through like 1/4 of the
+data. :/
+
+with 22 billion position instances, we very likely need at least
+32-bit keys to avoid substantial collisions. Maybe 32 would basically
+suffice? After all we can check for an exact match when iterating
+through games...
+
+
+Well I was able to get through all of 2017, at least.
+This was 633'594'211 positions, with a large number appearing only
+a few times:
+
+582'337'984 position(s) appeared 1 time(s)
+8'515'373 position(s) appeared 2 time(s)
+2'511'193 position(s) appeared 3 time(s)
+1'128'413 position(s) appeared 4 time(s)
+664'225 position(s) appeared 5 time(s)
+
+This is actually 92% appearing once!
+(Of course if it appears 5 times it should count 5x; with this
+method we get a singleton rate of 76%).
+
+Then there's a long middle section, and some positions that
+appear extremely often (starting pos is not counted btw):
+
+1 position(s) appeared 1'145'496 time(s)
+1 position(s) appeared 1'292'079 time(s)
+1 position(s) appeared 1'334'304 time(s)
+1 position(s) appeared 1'843'320 time(s)
+1 position(s) appeared 2'978'414 time(s)
+1 position(s) appeared 2'979'230 time(s)
+1 position(s) appeared 7'031'209 time(s)
+
+(these are like 1.e4, I presume.) But even that largest one is only 1%
+of all positions.
+
+But the "positive" thing is that if we can figure out how to efficiently
+store the singletons, then we have essentially solved the problem.
+

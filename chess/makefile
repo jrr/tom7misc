@@ -164,6 +164,9 @@ validatepack.exe : validatepack.o chess.o pack.o packedgame.o pgn.o $(CCLIB_OBJE
 repack.exe : repack.o chess.o pack.o packedgame.o pgn.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+packhisto.exe : packhisto.o chess.o pack.o packedgame.o pgn.o $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 maketable.exe : maketable.o chess.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
