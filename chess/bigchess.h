@@ -13,6 +13,7 @@
 #include "../cc-lib/threadutil.h"
 
 using int64 = int64_t;
+using uint64 = uint64_t;
 using uint8 = uint8_t;
 
 template<class K, class C>

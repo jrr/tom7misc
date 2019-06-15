@@ -20,6 +20,7 @@
 #include "../subprocess.h"
 #include "../stockfish.h"
 #include "../player-util.h"
+#include "../almanac-player.h"
 #include "timer.h"
 
 // #include "unblinder.h"
@@ -1660,7 +1661,8 @@ int main(int argc, char **argv) {
   
   UI ui;
 
-  ui.async_player.reset(new AsyncPlayer(MinOpponentMoves()));
+  // ui.async_player.reset(new AsyncPlayer(MinOpponentMoves()));
+  ui.async_player.reset(new AsyncPlayer(AlmanacPopular()));
   // ui.async_player.reset(new AsyncPlayer(SinglePlayer()));
 
   if (argc > 1) {
