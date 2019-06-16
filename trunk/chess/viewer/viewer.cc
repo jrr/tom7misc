@@ -307,7 +307,8 @@ struct AsyncPlayer {
     bool has_position = false;
     Position position;
     string message;
-    // TODO: Moves
+    // Pre-formatted.
+    vector<string> moves;
   };
   
   // Reset to starting position.
@@ -391,6 +392,14 @@ struct AsyncPlayer {
     }
     return nullptr;
   }
+
+  // If we already returned a new move with GetNewMove, then reset
+  // such that it looks new again. Used when turning autoplay back on
+  // after turning it off.
+  void TreatMoveAsNew() {
+    WriteMutexLock ml(&mutex);
+    if (state == State::HAVE_RETURNED_MOVE) state = State::HAVE_MOVE;
+  }
   
   ~AsyncPlayer() {
     {
@@ -427,7 +436,7 @@ struct AsyncPlayer {
       // Now without lock, get the move in this
       // other thread.
       if (position.HasLegalMoves()) {
-	CopyExplainer ce{&em};
+	CopyExplainer ce{position, &em};
 	em.move = game->GetMove(position, &ce);
 	em.no_moves = false;
       } else {
@@ -479,14 +488,26 @@ struct AsyncPlayer {
 
 private:
   struct CopyExplainer : public Explainer {
-    explicit CopyExplainer(ExplainedMove *em) : em(em) {
+    explicit CopyExplainer(const Position &position,
+			   ExplainedMove *em) : em(em), position(position) {
       em->has_position = false;
       em->message.clear();
+      em->moves.clear();
     }
     
     void SetScoredMoves(
 	const vector<tuple<Position::Move, int64_t, string>> &v) override {
-      // TODO: Implement!
+      em->moves.clear();
+      for (const auto &t : v) {
+	const Position::Move &m = std::get<0>(t);
+	string ms = position.IsLegal(m) ?
+	  position.ShortMoveString(m) :
+	  (string)"??" + Position::DebugMoveString(m);
+	em->moves.push_back(
+	    StringPrintf(
+		"^3%s ^1%lld ^4%s",
+		ms.c_str(), std::get<1>(t), std::get<2>(t).c_str()));
+      }
     }
 
     void SetMessage(const string &s) override {
@@ -500,6 +521,11 @@ private:
 
     // Writes here.
     ExplainedMove *em = nullptr;
+    
+   private:
+    // The actual position that the move is being explained for.
+    // Morally const.
+    Position position;
   };
 
   enum class State {
@@ -515,7 +541,7 @@ private:
   State state = State::IDLE;
 
   ExplainedMove em;
-  
+
   Position position;
   std::vector<Position::Move> queued_moves;
   std::unique_ptr<Player> player;
@@ -929,6 +955,7 @@ void UI::Loop() {
 	}
 
 	case SDLK_a: {
+	  async_player->TreatMoveAsNew();
 	  autoplay_computer = !autoplay_computer;
 	  ui_dirty = true;
 	  break;
@@ -1536,7 +1563,16 @@ void UI::Draw() {
 	t.Write(em->message);
       }
 
+      if (!em->moves.empty()) {
+	const auto &moves = em->moves;
+	for (int i = 0; i < moves.size(); i++) {
+	  t.Newline();
+	  t.Write(moves[i]);
+	}
+      }
+      
       if (em->has_position) {
+	// XXX maybe get position from typewriter.
 	const int EX = 900;
 	const int EY = 750;
 	const int ES = 32;
