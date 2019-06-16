@@ -196,29 +196,29 @@ private:
     for (;;) {
       /*
       {
-	ReadMutexLock ml(&m);
-	if (should_die)
-	  return;
+        ReadMutexLock ml(&m);
+        if (should_die)
+          return;
 
-	if (!todo.empty())
-	  break;
+        if (!todo.empty())
+          break;
       }
       */
 
       Position p;
       {
-	WriteMutexLock ml(&m);
-	if (should_die)
-	  return;
-	
-	// Lost race?
-	if (todo.empty()) {
-	  usleep(1);
-	  continue;
-	}
+        WriteMutexLock ml(&m);
+        if (should_die)
+          return;
+        
+        // Lost race?
+        if (todo.empty()) {
+          usleep(1);
+          continue;
+        }
 
-	p = std::move(todo.front());
-	todo.pop_front();
+        p = std::move(todo.front());
+        todo.pop_front();
       }
 
       // fprintf(stderr, "process: %s\n", p.BoardString().c_str());
@@ -226,25 +226,25 @@ private:
       // Do work, not holding lock.
       Evaluation *evaluation = new Evaluation;
       if (p.HasLegalMoves()) {
-	string fen = p.ToFEN(1, 1);
-	// fprintf(stderr, "FEN: %s\n", fen.c_str());
-	// fflush(stderr);
-	string movestring;
-	stockfish->GetMove(fen, &movestring, &evaluation->score);
-	CHECK(PlayerUtil::ParseLongMove(movestring,
-					p.BlackMove(),
-					&evaluation->move)) <<
-	  movestring << "\n" << p.BoardString();
-	// fprintf(stderr, "Move: %s\n", movestring.c_str());
-	// fflush(stderr);
-	evaluation->status = PLAYING;
+        string fen = p.ToFEN(1, 1);
+        // fprintf(stderr, "FEN: %s\n", fen.c_str());
+        // fflush(stderr);
+        string movestring;
+        stockfish->GetMove(fen, &movestring, &evaluation->score);
+        CHECK(PlayerUtil::ParseLongMove(movestring,
+                                        p.BlackMove(),
+                                        &evaluation->move)) <<
+          movestring << "\n" << p.BoardString();
+        // fprintf(stderr, "Move: %s\n", movestring.c_str());
+        // fflush(stderr);
+        evaluation->status = PLAYING;
       } else {
-	evaluation->status = p.IsInCheck() ? CHECKMATE : DRAW;
+        evaluation->status = p.IsInCheck() ? CHECKMATE : DRAW;
       }
 
       {
-	WriteMutexLock ml(&m);
-	cache[p] = evaluation;
+        WriteMutexLock ml(&m);
+        cache[p] = evaluation;
       }
     }
   }
@@ -264,8 +264,8 @@ struct Interpolation {
       // If in interpolation, always draw.
       count++;
       if (count == frames) {
-	// Interpolation is over.
-	frames = count = 0;
+        // Interpolation is over.
+        frames = count = 0;
       }
       return true;
     }
@@ -289,6 +289,23 @@ struct Interpolation {
   int frames = 0, count = 0;
 };
 
+struct ExplainedMove {
+  ExplainedMove() {}
+  explicit ExplainedMove(Position::Move move) : move(move) {}
+  // If true, no moves are possible in the position (mate).
+  bool no_moves = false;
+  Position::Move move;
+
+  // Explainer output.
+  bool has_position = false;
+  // Some arbitrary position, not necessarily related to the actual
+  // position or move made.
+  Position position;
+  string message;
+  // Pre-formatted.
+  vector<string> moves;
+};
+
 // Wrapper around Player that allows getting moves in a separate
 // thread.
 struct AsyncPlayer {
@@ -297,19 +314,6 @@ struct AsyncPlayer {
     Reset();
     worker = std::make_unique<std::thread>([this]() { WorkThread(); });
   }
-
-  struct ExplainedMove {
-    // If true, no moves are possible in the position (mate).
-    bool no_moves = false;
-    Position::Move move;
-
-    // Explainer output.
-    bool has_position = false;
-    Position position;
-    string message;
-    // Pre-formatted.
-    vector<string> moves;
-  };
   
   // Reset to starting position.
   void Reset() {
@@ -413,75 +417,75 @@ struct AsyncPlayer {
   void WorkThread() {
     for (;;) {
       {
-	WriteMutexLock ml(&mutex);
-	switch (state) {
-	case State::SHOULD_DIE:
-	  return;
-	case State::HAVE_RETURNED_MOVE:
-	case State::HAVE_MOVE:
-	  usleep(1);
-	  continue;
-	case State::IDLE:
-	  CHECK(queued_moves.empty());
-	  break;
-	
-	case State::WAITING_TO_RESET:
-	case State::WAITING_FOR_MOVE:
-	  LOG(FATAL) << "Worker thread invalid state";
-	}
+        WriteMutexLock ml(&mutex);
+        switch (state) {
+        case State::SHOULD_DIE:
+          return;
+        case State::HAVE_RETURNED_MOVE:
+        case State::HAVE_MOVE:
+          usleep(1);
+          continue;
+        case State::IDLE:
+          CHECK(queued_moves.empty());
+          break;
+        
+        case State::WAITING_TO_RESET:
+        case State::WAITING_FOR_MOVE:
+          LOG(FATAL) << "Worker thread invalid state";
+        }
 
-	state = State::WAITING_FOR_MOVE;
+        state = State::WAITING_FOR_MOVE;
       }
 
       // Now without lock, get the move in this
       // other thread.
       if (position.HasLegalMoves()) {
-	CopyExplainer ce{position, &em};
-	em.move = game->GetMove(position, &ce);
-	em.no_moves = false;
+        CopyExplainer ce{position, &em};
+        em.move = game->GetMove(position, &ce);
+        em.no_moves = false;
       } else {
-	em.no_moves = true;
+        em.no_moves = true;
       }
 
       {
-	WriteMutexLock ml(&mutex);
+        WriteMutexLock ml(&mutex);
 
-	switch (state) {
-	case State::SHOULD_DIE:
-	  return;
-	case State::HAVE_RETURNED_MOVE:
-	case State::HAVE_MOVE:
-	case State::IDLE:
-	  LOG(FATAL) << "Worker thread invalid state (bot)";
+        switch (state) {
+        case State::SHOULD_DIE:
+          return;
+        case State::HAVE_RETURNED_MOVE:
+        case State::HAVE_MOVE:
+        case State::IDLE:
+          LOG(FATAL) << "Worker thread invalid state (bot)";
 
-	case State::WAITING_TO_RESET:
-	  position = Position();
-	  game.reset(player->CreateGame());
-	  for (const Position::Move &m : queued_moves) {
-	    CHECK(position.IsLegal(m));
-	    game->ForceMove(position, m);
-	    position.ApplyMove(m);
-	  }
-	  queued_moves.clear();
-	  state = State::IDLE;	  
-	  break;
-	  
-	case State::WAITING_FOR_MOVE:
-	  // Might still be invalidated if we made moves
-	  // (without resetting...)
-	  if (queued_moves.empty()) {
-	    state = State::HAVE_MOVE;
-	  } else {
-	    for (const Position::Move &m : queued_moves) {
-	      CHECK(position.IsLegal(m));
-	      game->ForceMove(position, m);
-	      position.ApplyMove(m);
-	    }
-	    queued_moves.clear();
-	    state = State::IDLE;
-	  }
-	  break;
-	}
+        case State::WAITING_TO_RESET:
+          position = Position();
+          game.reset(player->CreateGame());
+          for (const Position::Move &m : queued_moves) {
+            CHECK(position.IsLegal(m));
+            game->ForceMove(position, m);
+            position.ApplyMove(m);
+          }
+          queued_moves.clear();
+          state = State::IDLE;    
+          break;
+          
+        case State::WAITING_FOR_MOVE:
+          // Might still be invalidated if we made moves
+          // (without resetting...)
+          if (queued_moves.empty()) {
+            state = State::HAVE_MOVE;
+          } else {
+            for (const Position::Move &m : queued_moves) {
+              CHECK(position.IsLegal(m));
+              game->ForceMove(position, m);
+              position.ApplyMove(m);
+            }
+            queued_moves.clear();
+            state = State::IDLE;
+          }
+          break;
+        }
       }
     }
   }
@@ -489,24 +493,24 @@ struct AsyncPlayer {
 private:
   struct CopyExplainer : public Explainer {
     explicit CopyExplainer(const Position &position,
-			   ExplainedMove *em) : em(em), position(position) {
+                           ExplainedMove *em) : em(em), position(position) {
       em->has_position = false;
       em->message.clear();
       em->moves.clear();
     }
     
     void SetScoredMoves(
-	const vector<tuple<Position::Move, int64_t, string>> &v) override {
+        const vector<tuple<Position::Move, int64_t, string>> &v) override {
       em->moves.clear();
       for (const auto &t : v) {
-	const Position::Move &m = std::get<0>(t);
-	string ms = position.IsLegal(m) ?
-	  position.ShortMoveString(m) :
-	  (string)"??" + Position::DebugMoveString(m);
-	em->moves.push_back(
-	    StringPrintf(
-		"^3%s ^1%lld ^4%s",
-		ms.c_str(), std::get<1>(t), std::get<2>(t).c_str()));
+        const Position::Move &m = std::get<0>(t);
+        string ms = position.IsLegal(m) ?
+          position.ShortMoveString(m) :
+          (string)"??" + Position::DebugMoveString(m);
+        em->moves.push_back(
+            StringPrintf(
+                "^3%s ^1%lld ^4%s",
+                ms.c_str(), std::get<1>(t), std::get<2>(t).c_str()));
       }
     }
 
@@ -563,8 +567,8 @@ struct UI {
   void Draw();
   bool InSquare(int screenx, int screeny, std::pair<int, int> *square);
 
-  bool MakeMove(Move m);
-  bool AnimateMove(Move m);
+  bool MakeMove(const ExplainedMove &m);
+  bool AnimateMove(const ExplainedMove &m);
   
   void SaveUndo() {
     undo_buffer.push_back(sdlutil::duplicate(drawing));
@@ -581,7 +585,8 @@ struct UI {
 
   Position position;
   // Position is after the move. String is short move name.
-  vector<std::tuple<Position, Move, string>> movie;
+  // The ExplainedMove must have a move, but is often otherwise empty.
+  vector<std::tuple<Position, ExplainedMove, string>> movie;
   // Invariant is that all moves up to this point are reflected
   // in the position.
   int movie_idx = 0;
@@ -606,6 +611,8 @@ struct UI {
   bool autoplay_computer = false;
   // Kept in sync with the current position.
   std::unique_ptr<AsyncPlayer> async_player;
+
+  
   
   float old_meter_value = 0.0f / 0.0f;
   
@@ -631,7 +638,7 @@ struct UI {
     if (current_eval == nullptr) {
       current_eval = evaluator->GetEval(current_eval_position);
       if (current_eval == nullptr) {
-	evaluator->Enqueue(current_eval_position, true);
+        evaluator->Enqueue(current_eval_position, true);
       }
 
       return !!current_eval;
@@ -672,14 +679,14 @@ void UI::LoadMoves(const string &movestring) {
   for (const PGN::Move move : moves) {
     Position::Move m;
     position.ParseMove(move.move.c_str(), &m);
-    CHECK(MakeMove(m));
+    CHECK(MakeMove(ExplainedMove{m}));
     evaluator->Enqueue(position);
   }
 }
 
 static void DrawThick(SDL_Surface *surf, int x0, int y0,
-		      int x1, int y1, 
-		      Uint32 color) {  
+                      int x1, int y1, 
+                      Uint32 color) {  
   static constexpr int THICKNESS = 3;
   Line<int> l{x0, y0, x1, y1};
 
@@ -689,8 +696,8 @@ static void DrawThick(SDL_Surface *surf, int x0, int y0,
   int stride = surf->pitch >> 2;
   auto SetPixel = [color, w, h, bufp, stride](int x, int y) {
       if (x >= 0 && y >= 0 &&
-	  x < w && y < h) {
-	bufp[y * stride + x] = color;
+          x < w && y < h) {
+        bufp[y * stride + x] = color;
       }
     };
 
@@ -699,9 +706,9 @@ static void DrawThick(SDL_Surface *surf, int x0, int y0,
       // static constexpr int RO = THICKNESS - LO;
 
       for (int xx = x - LO; xx < x - LO + THICKNESS; xx++) {
-	for (int yy = y - LO; yy < y - LO + THICKNESS; yy++) {
-	  SetPixel(xx, yy);
-	}
+        for (int yy = y - LO; yy < y - LO + THICKNESS; yy++) {
+          SetPixel(xx, yy);
+        }
       }
     };
 
@@ -714,7 +721,7 @@ static void DrawThick(SDL_Surface *surf, int x0, int y0,
 }
 
 static void FloodFill(SDL_Surface *surf, int x, int y,
-		      Uint32 color) {
+                      Uint32 color) {
   const int w = surf->w, h = surf->h;
   
   Uint32 *bufp = (Uint32 *)surf->pixels;
@@ -724,17 +731,17 @@ static void FloodFill(SDL_Surface *surf, int x, int y,
   
   auto GetPixel = [w, h, bufp, stride, replace_color](int x, int y) {
       if (x >= 0 && y >= 0 &&
-	  x < w && y < h) {
-	return bufp[y * stride + x];
+          x < w && y < h) {
+        return bufp[y * stride + x];
       } else {
-	return ~replace_color;
+        return ~replace_color;
       }
     };
 
   auto SetPixel = [color, w, h, bufp, stride](int x, int y) {
       if (x >= 0 && y >= 0 &&
-	  x < w && y < h) {
-	bufp[y * stride + x] = color;
+          x < w && y < h) {
+        bufp[y * stride + x] = color;
       }
     };
 
@@ -779,320 +786,323 @@ void UI::Loop() {
     if (SDL_PollEvent(&event)) {
       switch (event.type) {
       case SDL_QUIT:
-	printf("QUIT.\n");
-	return;
+        printf("QUIT.\n");
+        return;
 
       case SDL_MOUSEMOTION: {
-	SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
+        SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
 
-	const int oldx = mousex, oldy = mousey;
-	
-	mousex = e->x;
-	mousey = e->y;
+        const int oldx = mousex, oldy = mousey;
+        
+        mousex = e->x;
+        mousey = e->y;
 
-	if (dragging) {
-	  switch (mode) {
-	  case Mode::DRAWING:
-	    DrawThick(drawing, oldx, oldy, mousex, mousey, GetColor());
-	    break;
-	  case Mode::ERASING:
-	    DrawThick(drawing, oldx, oldy, mousex, mousey, 0x00000000);
-	    break;
-	  default:;
-	  }
-	  ui_dirty = true;
-	}
-	break;
+        if (dragging) {
+          switch (mode) {
+          case Mode::DRAWING:
+            DrawThick(drawing, oldx, oldy, mousex, mousey, GetColor());
+            break;
+          case Mode::ERASING:
+            DrawThick(drawing, oldx, oldy, mousex, mousey, 0x00000000);
+            break;
+          default:;
+          }
+          ui_dirty = true;
+        }
+        break;
       }
 
       case SDL_KEYDOWN: {
-	switch (event.key.keysym.sym) {
-	case SDLK_ESCAPE:
-	  printf("ESCAPE.\n");
-	  return;
+        switch (event.key.keysym.sym) {
+        case SDLK_ESCAPE:
+          printf("ESCAPE.\n");
+          return;
 
-	case SDLK_HOME: {
-	  movie_idx = 0;
-	  position = Position();
-	  async_player->Reset();
-	  ui_dirty = true;
-	  break;
-	}
+        case SDLK_HOME: {
+          movie_idx = 0;
+          position = Position();
+          async_player->Reset();
+          ui_dirty = true;
+          break;
+        }
 
-	case SDLK_LEFT: {
-	  if (movie_idx > 0) {
-	    // Turn off autoplay or it is impossible to rewind
-	    // against fast computer players.
-	    autoplay_computer = false;
-	    movie_idx--;
+        case SDLK_LEFT: {
+          if (movie_idx > 0) {
+            // Turn off autoplay or it is impossible to rewind
+            // against fast computer players.
+            autoplay_computer = false;
+            movie_idx--;
 
-	    if (movie_idx > 0) {
-	      position = std::get<0>(movie[movie_idx - 1]);
-	    } else {
-	      position = Position();
-	    }
+            if (movie_idx > 0) {
+              position = std::get<0>(movie[movie_idx - 1]);
+            } else {
+              position = Position();
+            }
 
-	    // Replay from start so we can track computer player.
-	    async_player->Reset();
-	    for (int i = 0; i < movie_idx; i++) {
-	      async_player->ApplyMove(std::get<1>(movie[i]));
-	    }
-	    ui_dirty = true;
-	  }
-	  break;
-	}
+            // Replay from start so we can track computer player.
+            async_player->Reset();
+            for (int i = 0; i < movie_idx; i++) {
+              async_player->ApplyMove(std::get<1>(movie[i]).move);
+            }
+            ui_dirty = true;
+          }
+          break;
+        }
 
-	case SDLK_RIGHT: {
-	  if (movie_idx < movie.size()) {
-	    AnimateMove(std::get<1>(movie[movie_idx]));
-	    ui_dirty = true;
-	  }
-	  break;
-	}
+        case SDLK_RIGHT: {
+          if (movie_idx < movie.size()) {
+            AnimateMove(std::get<1>(movie[movie_idx]));
+            ui_dirty = true;
+          }
+          break;
+        }
 
-	case SDLK_e: {
-	  mode = Mode::ERASING;
-	  SDL_SetCursor(cursor_eraser);
-	  ui_dirty = true;
-	  break;
-	}
-	  
-	case SDLK_d: {
-	  mode = Mode::DRAWING;
-	  SDL_SetCursor(cursor_arrow);
-	  ui_dirty = true;
-	  break;
-	}
+        case SDLK_e: {
+          mode = Mode::ERASING;
+          SDL_SetCursor(cursor_eraser);
+          ui_dirty = true;
+          break;
+        }
+          
+        case SDLK_d: {
+          mode = Mode::DRAWING;
+          SDL_SetCursor(cursor_arrow);
+          ui_dirty = true;
+          break;
+        }
 
-	case SDLK_f: {
-	  mode = Mode::FILLING;
-	  SDL_SetCursor(cursor_bucket);
-	  ui_dirty = true;
-	  break;
-	}
-	  
-	case SDLK_c: {
-	  mode = Mode::CHESS;
-	  SDL_SetCursor(cursor_hand);
-	  ui_dirty = true;
-	  break;
-	}
+        case SDLK_f: {
+          mode = Mode::FILLING;
+          SDL_SetCursor(cursor_bucket);
+          ui_dirty = true;
+          break;
+        }
+          
+        case SDLK_c: {
+          mode = Mode::CHESS;
+          SDL_SetCursor(cursor_hand);
+          ui_dirty = true;
+          break;
+        }
 
-	case SDLK_q: {
-	  SaveUndo();
-	  sdlutil::clearsurface(drawing, 0x0);
-	  ui_dirty = true;
-	  break;
-	}
+        case SDLK_q: {
+          SaveUndo();
+          sdlutil::clearsurface(drawing, 0x0);
+          ui_dirty = true;
+          break;
+        }
 
-	case SDLK_x: {
-	  draw_explainer = !draw_explainer;
-	  ui_dirty = true;
-	  break;
-	}
+        case SDLK_x: {
+          draw_explainer = !draw_explainer;
+          ui_dirty = true;
+          break;
+        }
 
-	case SDLK_m: {
-	  draw_movelist = !draw_movelist;
-	  ui_dirty = true;
-	  break;
-	}
+        case SDLK_m: {
+          draw_movelist = !draw_movelist;
+          ui_dirty = true;
+          break;
+        }
 
-	case SDLK_t: {
-	  draw_meter = !draw_meter;
-	  ui_dirty = true;
-	  break;
-	}
-	  
-	case SDLK_z: {
-	  // XXX check ctrl?
-	  if (!undo_buffer.empty()) {
-	    redo_buffer.push_front(drawing);
-	    drawing = undo_buffer.back();
-	    undo_buffer.pop_back();
-	    ui_dirty = true;
-	    printf("Undo size %d\n", undo_buffer.size());
-	    fflush(stdout);
-	  }
-	  break;
-	}
+        case SDLK_t: {
+          draw_meter = !draw_meter;
+          ui_dirty = true;
+          break;
+        }
+          
+        case SDLK_z: {
+          // XXX check ctrl?
+          if (!undo_buffer.empty()) {
+            redo_buffer.push_front(drawing);
+            drawing = undo_buffer.back();
+            undo_buffer.pop_back();
+            ui_dirty = true;
+            printf("Undo size %d\n", undo_buffer.size());
+            fflush(stdout);
+          }
+          break;
+        }
 
-	case SDLK_y: {
-	  // XXX check ctrl?
-	  if (!redo_buffer.empty()) {
-	    undo_buffer.push_back(drawing);
-	    drawing = redo_buffer.front();
-	    redo_buffer.pop_front();
-	    ui_dirty = true;
-	  }
-	  break;
-	}
+        case SDLK_y: {
+          // XXX check ctrl?
+          if (!redo_buffer.empty()) {
+            undo_buffer.push_back(drawing);
+            drawing = redo_buffer.front();
+            redo_buffer.pop_front();
+            ui_dirty = true;
+          }
+          break;
+        }
 
-	case SDLK_KP_PLUS:
-	case SDLK_EQUALS:
-	case SDLK_PLUS:
-	  current_alpha++;
-	  if (current_alpha > 15) current_alpha = 15;
-	  ui_dirty = true;
-	  break;
+        case SDLK_KP_PLUS:
+        case SDLK_EQUALS:
+        case SDLK_PLUS:
+          current_alpha++;
+          if (current_alpha > 15) current_alpha = 15;
+          ui_dirty = true;
+          break;
 
-	case SDLK_KP_MINUS:
-	case SDLK_MINUS:
-	  current_alpha--;
-	  if (current_alpha < 1) current_alpha = 1;
-	  ui_dirty = true;
-	  break;
+        case SDLK_KP_MINUS:
+        case SDLK_MINUS:
+          current_alpha--;
+          if (current_alpha < 1) current_alpha = 1;
+          ui_dirty = true;
+          break;
 
-	case SDLK_b: {
-	  draw_only_bits = !draw_only_bits;
-	  ui_dirty = true;
-	  break;
-	}
+        case SDLK_b: {
+          draw_only_bits = !draw_only_bits;
+          ui_dirty = true;
+          break;
+        }
 
-	case SDLK_s: {
-	  draw_stockfish = !draw_stockfish;
-	  ui_dirty = true;
-	  break;
-	}
+        case SDLK_s: {
+          draw_stockfish = !draw_stockfish;
+          ui_dirty = true;
+          break;
+        }
 
-	case SDLK_a: {
-	  async_player->TreatMoveAsNew();
-	  autoplay_computer = !autoplay_computer;
-	  ui_dirty = true;
-	  break;
-	}
+        case SDLK_a: {
+          async_player->TreatMoveAsNew();
+          autoplay_computer = !autoplay_computer;
+          ui_dirty = true;
+          break;
+        }
 
-	case SDLK_o: {
-	  draw_board = !draw_board;
-	  ui_dirty = true;
-	  break;
-	}
+        case SDLK_o: {
+          draw_board = !draw_board;
+          ui_dirty = true;
+          break;
+        }
 
-	  
-	case SDLK_0:
-	case SDLK_1:
-	case SDLK_2:
-	case SDLK_3:
-	case SDLK_4:
-	case SDLK_5:
-	case SDLK_6:
-	case SDLK_7:
-	case SDLK_8:
-	case SDLK_9: {
-	  // Not only are these in order, but they map to their
-	  // ASCII Values!
-	  const int n = ((event.key.keysym.sym - SDLK_0) + 9) % 10;
-	  current_color = COLORS[n];
-	  ui_dirty = true;
-	  break;
-	}
-	  
-	default:;
-	}
-	break;
+          
+        case SDLK_0:
+        case SDLK_1:
+        case SDLK_2:
+        case SDLK_3:
+        case SDLK_4:
+        case SDLK_5:
+        case SDLK_6:
+        case SDLK_7:
+        case SDLK_8:
+        case SDLK_9: {
+          // Not only are these in order, but they map to their
+          // ASCII Values!
+          const int n = ((event.key.keysym.sym - SDLK_0) + 9) % 10;
+          current_color = COLORS[n];
+          ui_dirty = true;
+          break;
+        }
+          
+        default:;
+        }
+        break;
       }
 
       case SDL_MOUSEBUTTONDOWN: {
-	// LMB/RMB, drag, etc.
-	SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
-	mousex = e->x;
-	mousey = e->y;
-	
-	dragging = true;
-	if (mode == Mode::DRAWING) {
-	  SaveUndo();
-	  // Make sure that a click also makes a pixel.
-	  DrawThick(drawing, mousex, mousey, mousex, mousey, GetColor());
-	  ui_dirty = true;
-	} else if (mode == Mode::ERASING) {
-	  SaveUndo();
-	  DrawThick(drawing, mousex, mousey, mousex, mousey, 0x00000000);
-	  ui_dirty = true;
-	  
-	} else if (mode == Mode::FILLING) {
-	  SaveUndo();
+        // LMB/RMB, drag, etc.
+        SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
+        mousex = e->x;
+        mousey = e->y;
+        
+        dragging = true;
+        if (mode == Mode::DRAWING) {
+          SaveUndo();
+          // Make sure that a click also makes a pixel.
+          DrawThick(drawing, mousex, mousey, mousex, mousey, GetColor());
+          ui_dirty = true;
+        } else if (mode == Mode::ERASING) {
+          SaveUndo();
+          DrawThick(drawing, mousex, mousey, mousex, mousey, 0x00000000);
+          ui_dirty = true;
+          
+        } else if (mode == Mode::FILLING) {
+          SaveUndo();
 
-	  FloodFill(drawing, mousex, mousey, GetColor());
-	  
-	  ui_dirty = true;
-	} else if (mode == Mode::CHESS) {
+          FloodFill(drawing, mousex, mousey, GetColor());
+          
+          ui_dirty = true;
+        } else if (mode == Mode::CHESS) {
 
-	  SDL_SetCursor(cursor_hand_closed);
-	  ui_dirty = true;
-	  
-	  // Get indicated square.
-	  std::pair<int, int> square;
-	  if (InSquare(mousex, mousey, &square)) {
-	    uint8 p = position.PieceAt(square.first, square.second);
-	    if (p != Position::EMPTY &&
-		(p & Position::COLOR_MASK) ==
-		(position.BlackMove() ? Position::BLACK : Position::WHITE)) {
-	      drag_source = square;
-	      drag_handlex = mousex - (CHESSX + square.second * CHESSSCALE);
-	      drag_handley = mousey - (CHESSY + square.first * CHESSSCALE);
-	      break;
-	    }
-	  }
-	  drag_source = {-1, -1};
-	}
-	
-	break;
+          SDL_SetCursor(cursor_hand_closed);
+          ui_dirty = true;
+          
+          // Get indicated square.
+          std::pair<int, int> square;
+          if (InSquare(mousex, mousey, &square)) {
+            uint8 p = position.PieceAt(square.first, square.second);
+            if (p != Position::EMPTY &&
+                (p & Position::COLOR_MASK) ==
+                (position.BlackMove() ? Position::BLACK : Position::WHITE)) {
+              drag_source = square;
+              drag_handlex = mousex - (CHESSX + square.second * CHESSSCALE);
+              drag_handley = mousey - (CHESSY + square.first * CHESSSCALE);
+              break;
+            }
+          }
+          drag_source = {-1, -1};
+        }
+        
+        break;
       }
 
       case SDL_MOUSEBUTTONUP: {
-	// LMB/RMB, drag, etc.
-	dragging = false;	
+        // LMB/RMB, drag, etc.
+        dragging = false;       
 
-	if (mode == Mode::CHESS) {
-	  std::pair<int, int> square;
-	  if (InSquare(mousex, mousey, &square)) {
-	    Move m;
-	    m.src_row = drag_source.first;
-	    m.src_col = drag_source.second;
+        if (mode == Mode::CHESS) {
+          std::pair<int, int> square;
+          if (InSquare(mousex, mousey, &square)) {
+            Move m;
+            m.src_row = drag_source.first;
+            m.src_col = drag_source.second;
 
-	    m.dst_row = square.first;
-	    m.dst_col = square.second;
+            m.dst_row = square.first;
+            m.dst_col = square.second;
 
-	    // (No way to pick this, currently, but it must be filled
-	    // in correctly!);
-	    m.promote_to = 0;
-	    if ((position.PieceAt(m.src_row, m.src_col) &
-		 Position::TYPE_MASK) ==
-		Position::PAWN) {
-	      if (m.dst_row == 0)
-		m.promote_to = Position::WHITE | Position::QUEEN;
-	      else if (m.dst_row == 7)
-		m.promote_to = Position::BLACK | Position::QUEEN;
-	    }
+            // (No way to pick this, currently, but it must be filled
+            // in correctly!);
+            m.promote_to = 0;
+            if ((position.PieceAt(m.src_row, m.src_col) &
+                 Position::TYPE_MASK) ==
+                Position::PAWN) {
+              if (m.dst_row == 0)
+                m.promote_to = Position::WHITE | Position::QUEEN;
+              else if (m.dst_row == 7)
+                m.promote_to = Position::BLACK | Position::QUEEN;
+            }
 
-	    if (!MakeMove(m)) {
-	      // visual feedback?
-	      fprintf(stderr, "Illegal move %s.\n",
-		      Position::DebugMoveString(m).c_str());
-	      fflush(stderr);
-	    }
-	  }
+            if (!MakeMove(ExplainedMove{m})) {
+              // visual feedback?
+              fprintf(stderr, "Illegal move %s.\n",
+                      Position::DebugMoveString(m).c_str());
+              fflush(stderr);
+            }
+          }
 
-	  ui_dirty = true;
-	  drag_source = {-1, -1};
-	  SDL_SetCursor(cursor_hand);
-	}
-	break;
+          ui_dirty = true;
+          drag_source = {-1, -1};
+          SDL_SetCursor(cursor_hand);
+        }
+        break;
       }
-	
+        
       default:;
       }
     }
 
     {
-      if (const AsyncPlayer::ExplainedMove *em =
-	  async_player->GetNewMove()) {
-	// Only play if enabled, and as black.
-	if (autoplay_computer &&
-	    position.BlackMove() &&
-	    !em->no_moves) {
-	  AnimateMove(em->move);
-	}
-	ui_dirty = true;
+      if (const ExplainedMove *em =
+          async_player->GetNewMove()) {
+        // Only play if enabled, and as black.
+        if (autoplay_computer &&
+            position.BlackMove() &&
+            !em->no_moves) {
+	  // AnimateMove causes async_player to start running in the
+	  // background.
+	  ExplainedMove em_copy = *em;
+          AnimateMove(em_copy);
+        }
+        ui_dirty = true;
       }
     }
     
@@ -1114,8 +1124,8 @@ void UI::Loop() {
   
 }
 
-bool UI::AnimateMove(Move m) {
-  if (!MakeMove(m))
+bool UI::AnimateMove(const ExplainedMove &em) {
+  if (!MakeMove(em))
     return false;
 
   interp_piece.Interpolate(10);
@@ -1124,15 +1134,15 @@ bool UI::AnimateMove(Move m) {
   return true;
 }
 
-bool UI::MakeMove(Move m) {
-  if (!position.IsLegal(m))
+bool UI::MakeMove(const ExplainedMove &em) {
+  if (!position.IsLegal(em.move))
     return false;
 
-  string s = position.ShortMoveString(m);
+  string s = position.ShortMoveString(em.move);
 
-  async_player->ApplyMove(m);
+  async_player->ApplyMove(em.move);
   
-  position.ApplyMove(m);
+  position.ApplyMove(em.move);
   // Could add check, checkmate here.
   bool has_moves = position.HasLegalMoves();
   if (position.IsInCheck()) {
@@ -1140,9 +1150,9 @@ bool UI::MakeMove(Move m) {
       s.push_back('+');
     } else {
       if (position.BlackMove()) {
-	s += "#  1-0";
+        s += "#  1-0";
       } else {
-	s += "#  0-1";
+        s += "#  0-1";
       }
     }
   } else {
@@ -1153,13 +1163,15 @@ bool UI::MakeMove(Move m) {
   
   CHECK(movie_idx <= movie.size()) << movie_idx << " " << movie.size();
   if (movie_idx == movie.size()) {
-    movie.emplace_back(position, m, s);
+    movie.emplace_back(position, em, s);
     movie_idx++;
-  } else if (Position::MoveEq(std::get<1>(movie[movie_idx]), m)) {
+  } else if (Position::MoveEq(std::get<1>(movie[movie_idx]).move, em.move)) {
+    // (Note it is not possible to make the same move with a new
+    // explanation.)
     movie_idx++;
   } else {
     movie.resize(movie_idx);
-    movie.emplace_back(position, m, s);
+    movie.emplace_back(position, em, s);
     movie_idx++;
   }
   return true;
@@ -1192,29 +1204,29 @@ void UI::DrawStatus() {
 #define KEY(s) "^3" s "^<"
   const string modestring =
     StringPrintf(KEY("E") "^%drase^<  "
-		 KEY("D") "^%draw^<  "
-		 KEY("F") "^%dill^<  "
-		 KEY("C") "^%dhess^<  "
-		 
-		 KEY("A") "utoplay %s  "
-		 KEY("B") "its %s  "
-		 KEY("S") "tockfish %s  "
-		 "e" KEY("X") "plain %s  "
-		 KEY("M") "oves %s  "
-		 "b" KEY("O") "ard %s  "
-		 "me" KEY("T") "er %s  "
-		 ,
-		 erasecolor,
-		 drawcolor, fillcolor, chesscolor,
+                 KEY("D") "^%draw^<  "
+                 KEY("F") "^%dill^<  "
+                 KEY("C") "^%dhess^<  "
+                 
+                 KEY("A") "utoplay %s  "
+                 KEY("B") "its %s  "
+                 KEY("S") "tockfish %s  "
+                 "e" KEY("X") "plain %s  "
+                 KEY("M") "oves %s  "
+                 "b" KEY("O") "ard %s  "
+                 "me" KEY("T") "er %s  "
+                 ,
+                 erasecolor,
+                 drawcolor, fillcolor, chesscolor,
 
-		 autoplay_computer ? "ON" : "OFF",
-		 draw_only_bits ? "ON" : "OFF",
-		 draw_stockfish ? "ON" : "OFF",
-		 draw_explainer ? "ON" : "OFF",
-		 draw_movelist ? "ON" : "OFF",
-		 draw_board ? "ON" : "OFF",
-		 draw_meter ? "ON" : "OFF"
-		 );
+                 autoplay_computer ? "ON" : "OFF",
+                 draw_only_bits ? "ON" : "OFF",
+                 draw_stockfish ? "ON" : "OFF",
+                 draw_explainer ? "ON" : "OFF",
+                 draw_movelist ? "ON" : "OFF",
+                 draw_board ? "ON" : "OFF",
+                 draw_meter ? "ON" : "OFF"
+                 );
   font2x->draw(5, SCREENH - (FONTHEIGHT * 2) - 1, modestring);
 #undef KEY
   
@@ -1227,24 +1239,24 @@ void UI::DrawStatus() {
     static constexpr int SWATCHWIDTH = 64;
     for (int i = 0; i < 10; i++) {
       sdlutil::fillrect(screen, COLORS[i],
-			SWATCHWIDTH * i, yy,
-			SWATCHWIDTH, FONTHEIGHT * 2);
+                        SWATCHWIDTH * i, yy,
+                        SWATCHWIDTH, FONTHEIGHT * 2);
       font2x->draw(SWATCHWIDTH * i + (SWATCHWIDTH >> 1) - FONTWIDTH, yy + 1,
-		   StringPrintf("%d", (i + 1) % 10));
+                   StringPrintf("%d", (i + 1) % 10));
       if ((COLORS[i] & 0x00FFFFFF) ==
-	  (current_color & 0x00FFFFFF)) {
-	uint32 fake_brightness = (current_color & 0xFF) +
-	  ((current_color >> 8) & 0xFF) +
-	  ((current_color >> 16) & 0xFF);
+          (current_color & 0x00FFFFFF)) {
+        uint32 fake_brightness = (current_color & 0xFF) +
+          ((current_color >> 8) & 0xFF) +
+          ((current_color >> 16) & 0xFF);
 
-	uint32 outline = fake_brightness > 0x77 ? 0xFF000000 : 0xFFFFFF00;
+        uint32 outline = fake_brightness > 0x77 ? 0xFF000000 : 0xFFFFFF00;
 
-	for (int w = 0; w < 3; w++) {
-	  sdlutil::DrawBox32(screen,
-			     SWATCHWIDTH * i + w, yy + w,
-			     SWATCHWIDTH - w * 2, FONTHEIGHT * 2 - w * 2,
-			     outline);
-	}
+        for (int w = 0; w < 3; w++) {
+          sdlutil::DrawBox32(screen,
+                             SWATCHWIDTH * i + w, yy + w,
+                             SWATCHWIDTH - w * 2, FONTHEIGHT * 2 - w * 2,
+                             outline);
+        }
       }
     }
 
@@ -1255,7 +1267,7 @@ void UI::DrawStatus() {
 
   case Mode::CHESS:
     font2x->draw(5, SCREENH - (FONTHEIGHT * 4) - 1,
-		 "[home] [<-] [->] navigate movie, ...");
+                 "[home] [<-] [->] navigate movie, ...");
     break;
   }
   
@@ -1271,13 +1283,13 @@ struct Typewriter {
   void Write(const string &s) {
     int w = fon->sizex(s);
     if (current_line_width > 0 &&
-	current_line_width + w > width) {
+        current_line_width + w > width) {
       current_line++;
       current_line_width = 0;
     }
     fon->draw(startx + current_line_width,
-	      starty + current_line * fon->height,
-	      s);
+              starty + current_line * fon->height,
+              s);
     current_line_width += w;
   }
 
@@ -1323,7 +1335,7 @@ void UI::Draw() {
   Move last_move;
   Position last_position;
   if (movie_idx - 1 >= 0) {
-    last_move = std::get<1>(movie[movie_idx - 1]);
+    last_move = std::get<1>(movie[movie_idx - 1]).move;
     last_position = movie_idx - 2 >= 0 ?
       std::get<0>(movie[movie_idx - 2]) : Position();
     have_move = true;
@@ -1537,25 +1549,34 @@ void UI::Draw() {
     for (int i = 0; i < movie.size(); i++) {
       int color = i < movie_idx ? (i == movie_idx - 1 ? 6 : 0) : 4;
       const string &ms = std::get<2>(movie[i]);
+      const ExplainedMove &em = std::get<1>(movie[i]);
+      const bool has_explanation =
+		      em.has_position ||
+		      !em.message.empty() ||
+		      !em.moves.empty();
+      const char *ann = has_explanation ? "^4" HEART : "";
       if (i & 1) {
 	// Black's move.
-	t.Write(StringPrintf("^%d%s  ", color, ms.c_str()));
+	t.Write(StringPrintf("^%d%s%s  ", color, ms.c_str(), ann));
       } else {
-	t.Write(StringPrintf("^%d%d. %s ", color, (i >> 1) + 1,
-			     ms.c_str()));
+	t.Write(StringPrintf("^%d%d. %s%s ", color, (i >> 1) + 1,
+			     ms.c_str(), ann));
       }
     }
   }
 
   if (draw_explainer) {
-    if (const AsyncPlayer::ExplainedMove *em = async_player->GetMove()) {
+    const ExplainedMove *em = nullptr;
+    if (movie_idx - 1 >= 0) {
+      em = &std::get<1>(movie[movie_idx - 1]);
+    }
+    
+    // const ExplainedMove *em = async_player->GetMove();
+    
+    if (em != nullptr) {
       Typewriter t{font, 900, 500, 1900 - 900, 1080 - 500};
       if (em->no_moves) {
 	t.Write("(no moves)");
-      } else if (position.IsLegal(em->move)) {
-	t.Write(position.ShortMoveString(em->move));
-      } else {
-	t.Write("(illegal move)");
       }
 
       if (!em->message.empty()) {

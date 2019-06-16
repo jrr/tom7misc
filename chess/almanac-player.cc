@@ -32,6 +32,7 @@ struct AlmanacPopularPlayer : public StatelessPlayer {
     Position pos = orig_pos;
 
     uint64 hc = PositionHash{}(pos);
+
     auto it = cm.positions.find(hc);
 
     auto RandomMove = [this, explainer, &pos, hc]() {
@@ -81,9 +82,20 @@ struct AlmanacPopularPlayer : public StatelessPlayer {
 	  illegal += Position::DebugMoveString(move) + " ";
 	}
       }
-      explainer->SetScoredMoves(scored_moves);
-      if (!illegal.empty()) explainer->SetMessage(
-	  (string)"Illegal: " + illegal);
+      std::sort(scored_moves.begin(), scored_moves.end(),
+		[](const tuple<Position::Move, int64_t, string> &a,
+		   const tuple<Position::Move, int64_t, string> &b) {
+		  return std::get<1>(b) < std::get<1>(a);
+		});
+
+      if (scored_moves.empty()) {
+	// This should be impossible given that we got here...!
+	explainer->SetMessage("no legal moves?! (Illegal: " + illegal + ")");
+      } else {
+	explainer->SetScoredMoves(scored_moves);
+	if (!illegal.empty()) explainer->SetMessage(
+	    (string)"Illegal: " + illegal);
+      }
     }
 
     return chosen_move;
