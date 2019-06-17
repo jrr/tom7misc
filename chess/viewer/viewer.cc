@@ -21,6 +21,7 @@
 #include "../stockfish.h"
 #include "../player-util.h"
 #include "../almanac-player.h"
+#include "../blind-player.h"
 #include "timer.h"
 
 // #include "unblinder.h"
@@ -1691,8 +1692,9 @@ int main(int argc, char **argv) {
 			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font4x != nullptr) << "Couldn't load font.";
 
-  # define CHESSFONT "../blind/chessfont.png"
-  ///# define CHESSFONT "chessfont-blindfold.png"
+  //# define CHESSFONT "../blind/chessfont.png"
+  # define CHESSFONT "chessfont-blindfold.png"
+  // # define CHESSFONT "chessfont-cards.png"
   
   chessfont = Font::create(screen,
 			   CHESSFONT,
@@ -1719,7 +1721,8 @@ int main(int argc, char **argv) {
   UI ui;
 
   // ui.async_player.reset(new AsyncPlayer(MinOpponentMoves()));
-  ui.async_player.reset(new AsyncPlayer(AlmanacPopular()));
+  // ui.async_player.reset(new AsyncPlayer(AlmanacPopular()));
+  ui.async_player.reset(new AsyncPlayer(BlindYolo()));
   // ui.async_player.reset(new AsyncPlayer(SinglePlayer()));
 
   if (argc > 1) {
