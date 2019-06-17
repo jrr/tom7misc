@@ -835,6 +835,8 @@ struct UnblinderMk0Impl : public Unblinder {
 
 Unblinder *UnblinderMk0::LoadFromFile(const string &filename) {
   UnblinderMk0Impl *ub = new UnblinderMk0Impl;
-  ub->net.reset(ReadNetworkBinary(filename));
+  Network *net = ReadNetworkBinary(filename);
+  CHECK(net != nullptr) << filename;
+  ub->net.reset(net);
   return ub;
 }

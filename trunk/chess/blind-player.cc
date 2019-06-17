@@ -39,6 +39,7 @@ struct BlindPlayer : public StatelessPlayer {
     fish.reset(new Stockfish(20, 1'000'000));
     CHECK(fish.get());
     unblinder = GetUnblinder();
+    CHECK(unblinder != nullptr);
   }
 
   static bool OK(Position *predicted) {
@@ -111,6 +112,12 @@ struct BlindPlayer : public StatelessPlayer {
     const uint64 blinded = Unblinder::Blind(orig_pos);
     Position predicted = unblinder->Unblind(single_king, blinded);
 
+    if (explainer) {
+      // Note: Sometimes sets illegal positions!
+      // if (OK(&predicted))
+      explainer->SetPosition(predicted);
+    }
+    
     // Do spy check if enabled. Note that it would be wrong for us to
     // do this using the correct side-to-move, because we don't
     // actually have that information. (Below it can be seen as an
@@ -177,6 +184,9 @@ struct BlindPlayer : public StatelessPlayer {
 
       // Now, if we had any spycheck moves, play the best one.
       if (!spymoves.empty()) {
+	if (explainer) {
+	  explainer->SetMessage("Spycheck!");
+	}
 	return PlayerUtil::GetBest(spymoves,
 				   [](const SpycheckMove &a,
 				      const SpycheckMove &b) {
@@ -212,12 +222,19 @@ struct BlindPlayer : public StatelessPlayer {
       if (pos.IsLegal(m))
 	return m;
 
+      if (explainer)
+	explainer->SetMessage("Move on predicted board was not legal");
+      
       if (VERBOSE)
 	printf("\nMove %s not legal. Predicted:\n%sActual:\n%s",
 	       predicted.ShortMoveString(m).c_str(),
 	       predicted.BoardString().c_str(),
 	       orig_pos.BoardString().c_str());
     } else {
+
+      if (explainer)
+	explainer->SetMessage("Predicted board not ok");
+
       if (VERBOSE)
 	printf("\nPredicted board not OK:\n%sActual:\n%s",
 	       predicted.BoardString().c_str(),
