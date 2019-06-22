@@ -22,6 +22,7 @@
 #include "../player-util.h"
 #include "../almanac-player.h"
 #include "../blind-player.h"
+#include "../gamestats.h"
 #include "timer.h"
 
 // #include "unblinder.h"
@@ -585,9 +586,11 @@ struct UI {
   }
 
   Position position;
+  Fates current_fates;
   // Position is after the move. String is short move name.
   // The ExplainedMove must have a move, but is often otherwise empty.
-  vector<std::tuple<Position, ExplainedMove, string>> movie;
+  // Fates is the fate of each piece at that position.
+  vector<std::tuple<Position, ExplainedMove, string, Fates>> movie;
   // Invariant is that all moves up to this point are reflected
   // in the position.
   int movie_idx = 0;
@@ -606,6 +609,8 @@ struct UI {
   bool draw_explainer = false;
   bool draw_movelist = true;
   bool draw_board = true;
+
+  int draw_fates = 2;
   
   // Computer always plays black.
   // If true, make the computer move without interaction.
@@ -675,6 +680,7 @@ void UI::LoadMoves(const string &movestring) {
   std::vector<PGN::Move> moves;
   CHECK(PGN::ParseMoves(movestring, &moves)) << movestring;
   position = Position();
+  current_fates = Fates();
   movie_idx = 0;
   movie.clear();
   for (const PGN::Move move : moves) {
@@ -822,6 +828,7 @@ void UI::Loop() {
         case SDLK_HOME: {
           movie_idx = 0;
           position = Position();
+	  current_fates = Fates();
           async_player->Reset();
           ui_dirty = true;
           break;
@@ -836,8 +843,10 @@ void UI::Loop() {
 
             if (movie_idx > 0) {
               position = std::get<0>(movie[movie_idx - 1]);
+	      current_fates = std::get<3>(movie[movie_idx - 1]);
             } else {
               position = Position();
+	      current_fates = Fates();
             }
 
             // Replay from start so we can track computer player.
@@ -864,7 +873,13 @@ void UI::Loop() {
           ui_dirty = true;
           break;
         }
-          
+
+	case SDLK_j: {
+	  draw_fates = !draw_fates;
+	  ui_dirty = true;
+	  break;
+	}
+	  
         case SDLK_d: {
           mode = Mode::DRAWING;
           SDL_SetCursor(cursor_arrow);
@@ -1142,8 +1157,10 @@ bool UI::MakeMove(const ExplainedMove &em) {
   string s = position.ShortMoveString(em.move);
 
   async_player->ApplyMove(em.move);
-  
+
+  current_fates.Update(position, em.move);
   position.ApplyMove(em.move);
+
   // Could add check, checkmate here.
   bool has_moves = position.HasLegalMoves();
   if (position.IsInCheck()) {
@@ -1164,7 +1181,7 @@ bool UI::MakeMove(const ExplainedMove &em) {
   
   CHECK(movie_idx <= movie.size()) << movie_idx << " " << movie.size();
   if (movie_idx == movie.size()) {
-    movie.emplace_back(position, em, s);
+    movie.emplace_back(position, em, s, current_fates);
     movie_idx++;
   } else if (Position::MoveEq(std::get<1>(movie[movie_idx]).move, em.move)) {
     // (Note it is not possible to make the same move with a new
@@ -1172,7 +1189,7 @@ bool UI::MakeMove(const ExplainedMove &em) {
     movie_idx++;
   } else {
     movie.resize(movie_idx);
-    movie.emplace_back(position, em, s);
+    movie.emplace_back(position, em, s, current_fates);
     movie_idx++;
   }
   return true;
@@ -1202,6 +1219,13 @@ void UI::DrawStatus() {
     break;
   }
 
+  static constexpr const char* FATESTATES[3] =
+    {
+      "OFF",
+      "ON",
+      "PATH",
+    };
+  
 #define KEY(s) "^3" s "^<"
   const string modestring =
     StringPrintf(KEY("E") "^%drase^<  "
@@ -1216,6 +1240,7 @@ void UI::DrawStatus() {
                  KEY("M") "oves %s  "
                  "b" KEY("O") "ard %s  "
                  "me" KEY("T") "er %s  "
+		 "fa" KEY("J") "es %s  "
                  ,
                  erasecolor,
                  drawcolor, fillcolor, chesscolor,
@@ -1226,7 +1251,8 @@ void UI::DrawStatus() {
                  draw_explainer ? "ON" : "OFF",
                  draw_movelist ? "ON" : "OFF",
                  draw_board ? "ON" : "OFF",
-                 draw_meter ? "ON" : "OFF"
+                 draw_meter ? "ON" : "OFF",
+		 FATESTATES[draw_fates]
                  );
   font2x->draw(5, SCREENH - (FONTHEIGHT * 2) - 1, modestring);
 #undef KEY
@@ -1479,6 +1505,94 @@ void UI::Draw() {
       } 
     };
 
+  // fate paths for whole movie. Under the pieces.
+  if (draw_fates == 2) {
+    // TODO: 32 distinct colors here?
+    static constexpr uint32 FATE_COLORS[32] = {
+      0xFFcd0022,
+      0xFFcd00a4,
+      0xFF9100cd,
+      0xFF000000,
+      0xFFFFFFFF,
+      0xFF2b00cd,
+      0xFF7234c7,
+      0xFF0096cd,
+
+      0xFF00cd91,
+      0xFF00cd18,
+      0xFF3acd00,
+      0xFF87cd00,
+      0xFFcdc600,
+      0xFFcd8700,
+      0xFFcd5700,
+      0xFFcd1d00,
+
+      0xFF00cd91,
+      0xFF00cd18,
+      0xFF3acd00,
+      0xFF87cd00,
+      0xFFcdc600,
+      0xFFcd8700,
+      0xFFcd5700,
+      0xFFcd1d00,
+
+      0xFFcd0022,
+      0xFFcd00a4,
+      0xFF9100cd,
+      0xFF000000,
+      0xFFFFFFFF,
+      0xFF2b00cd,
+      0xFF7234c7,
+      0xFF0096cd,
+    };
+
+    static_assert(FATE_COLORS[Fates::WHITE_QUEEN] == 0xFF000000);
+    
+    int visited[64] = {};
+    for (int i = 0; i < 16; i++) visited[i] = visited[48 + i] = 1;
+    Fates prev_fate;
+    for (int m = 0; m < movie.size() && m < movie_idx; m++) {
+      const Fates &fate = std::get<3>(movie[m]);
+      for (int i = 0; i < 32; i++) {
+	int op = prev_fate.fates[i] & Fates::POS_MASK;
+	int np = fate.fates[i] & Fates::POS_MASK;
+	if (op != np) {
+	  auto Ulam = [](int n) -> std::pair<int, int> {
+	      int k = ceilf((sqrtf(n) - 1.0f) * 0.5f);
+	      int t = 2 * k + 1;
+	      int m = t * t;
+	      t--;
+	      if (n >= m - t)
+		return {k - (m - n), -k};
+	      m -= t;
+	      if (n >= m - t)
+		return {-k, -k + (m - n)};
+	      m -= t;
+	      if (n >= m - t)
+		return {-k + (m - n), k};
+	      return {k, k - (m - n - t)};
+	    };
+	  
+	  auto GetXY = [&visited, &Ulam](int p) -> std::pair<int, int> {
+	      int x = CHESSSCALE * (p % 8) + CHESSX + CHESSSCALE / 2;
+	      int y = CHESSSCALE * (p / 8) + CHESSY + CHESSSCALE / 2;
+	      // Now add Ulam spiral.
+	      int ux, uy;
+	      std::tie(ux, uy) = Ulam(visited[p]);
+	      return {x + 8 * ux, y + 8 * uy};
+	  };
+
+	  int oldx, oldy, newx, newy;
+	  std::tie(oldx, oldy) = GetXY(op);
+	  visited[np]++;
+	  std::tie(newx, newy) = GetXY(np);
+	  DrawThick(screen, oldx, oldy, newx, newy, FATE_COLORS[i]);
+	}
+      }
+      prev_fate = fate;
+    }
+  }
+  
   if (draw_board) {
     for (int r = 0; r < 8; r++) {
       const int yy = CHESSY + r * CHESSSCALE;
@@ -1541,6 +1655,51 @@ void UI::Draw() {
   if (draw_only_bits) {
     font2x->draw(CHESSX, CHESSY + 8 * CHESSSCALE + 8,
 		 StringPrintf("0x%llx", PositionBits()));
+  }
+
+  if (draw_fates > 0) {
+    static constexpr const char *piece_names[] {
+	"a rook",
+	"b knight",
+	"c bishop",
+	"queen",
+	"king",
+	"f bishop",
+	"g knight",
+	"h rook",
+	"a pawn", "b pawn", "c pawn", "d pawn",
+	"e pawn", "f pawn", "g pawn", "h pawn",
+	// white
+	"a pawn", "b pawn", "c pawn", "d pawn",
+	"e pawn", "f pawn", "g pawn", "h pawn",
+	"a rook",
+	"b knight",
+	"c bishop",
+	"queen",
+	"king",
+	"f bishop",
+	"g knight",
+	"h rook", };
+    uint8 count[64] = {};
+    for (int i = 0; i < 32; i++) {
+      uint8 fate = current_fates.fates[i];
+      uint8 pos = fate & Fates::POS_MASK;
+      uint8 r = pos / 8;
+      uint8 c = pos % 8;
+      int fcolor = i < 16 ? 1 : 0;
+      if (fate & Fates::DIED) {
+	font->draw(CHESSX + c * CHESSSCALE + 8,
+		   CHESSY + r * CHESSSCALE + (CHESSSCALE - FONTHEIGHT - 2) -
+		   FONTHEIGHT * count[pos],
+		   StringPrintf("^2x ^%d%s", fcolor, piece_names[i]));
+      } else {
+	font->draw(CHESSX + c * CHESSSCALE + 8,
+		   CHESSY + r * CHESSSCALE + (CHESSSCALE - FONTHEIGHT - 2) -
+		   FONTHEIGHT * count[pos],
+		   StringPrintf("^%d%s", fcolor, piece_names[i]));
+      }
+      count[pos]++;
+    }
   }
   
   if (draw_movelist) {
@@ -1722,7 +1881,7 @@ int main(int argc, char **argv) {
 
   // ui.async_player.reset(new AsyncPlayer(MinOpponentMoves()));
   // ui.async_player.reset(new AsyncPlayer(AlmanacPopular()));
-  ui.async_player.reset(new AsyncPlayer(BlindYolo()));
+  ui.async_player.reset(new AsyncPlayer(BlindSpycheck()));
   // ui.async_player.reset(new AsyncPlayer(SinglePlayer()));
 
   if (argc > 1) {
