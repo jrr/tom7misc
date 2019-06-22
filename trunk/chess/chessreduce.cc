@@ -17,6 +17,7 @@
 
 #include "pgn.h"
 #include "gamestats.h"
+#include "fates.h"
 #include "bigchess.h"
 #include "fate-data.h"
 
@@ -39,15 +40,15 @@ static constexpr int64 MAX_GAMES = 0LL;
 
 // How likely are these fates for the pieces? A number between
 // 0 and 1, with 1 meaning most likely.
-static double FateScore(const GameStats &result) {
+static double FateScore(const Fates &result) {
   // Product would probably be more justifiable (like this would
   // be the joint probability of the final state), but that
   // results in extremely small values. TODO: Maybe could add logs,
   // or whatever...
   double sum = 0.0;
   for (int i = 0; i < 32; i++) {
-    const int square = result.fates[i] & GameStats::POS_MASK;
-    if (result.fates[i] & GameStats::DIED) {
+    const int square = result.fates[i] & Fates::POS_MASK;
+    if (result.fates[i] & Fates::DIED) {
       sum += fate_data[i][square].died;
     } else {
       sum += fate_data[i][square].lived;
@@ -136,7 +137,7 @@ struct Processor {
     int black_consec_forced = 0, white_consec_forced = 0;
     
     Position pos;
-    GameStats gs;
+    Fates game_fates;
     for (int i = 0; i < pgn.moves.size(); i++) {
       const PGN::Move &m = pgn.moves[i];
       Move move;
@@ -160,8 +161,8 @@ struct Processor {
       // Note: There used to be a bug where BLACK_QUEEN was way
       // out of bounds (chessboard index, not piece index), so
       // when I ran this code it was wrong!
-      if (!!(gs.fates[GameStats::BLACK_QUEEN] & GameStats::DIED) ||
-	  !!(gs.fates[GameStats::WHITE_QUEEN] & GameStats::DIED))
+      if (!!(game_fates.fates[Fates::BLACK_QUEEN] & Fates::DIED) ||
+	  !!(game_fates.fates[Fates::WHITE_QUEEN] & Fates::DIED))
 	break;
 
       const bool blackmove = pos.BlackMove();
@@ -181,7 +182,7 @@ struct Processor {
       // const bool enpassant_move = pos.IsEnPassant(move);
       pos.ApplyMove(move);
 
-      gs.Update(pos, move);
+      game_fates.Update(pos, move);
       
       #if 0
       if (enpassant_move) {
@@ -221,7 +222,7 @@ struct Processor {
     // End of the game. How weird is the final position?
     // weirdnesss .979933 to .973182 in top 10,
     // but go down to almost .800 in bottom.
-    double weirdness = 1.0 - FateScore(gs);
+    double weirdness = 1.0 - FateScore(game_fates);
     int64 game_score = weirdness * 1000000LL;    
     if (game_score > 950000LL) {
 

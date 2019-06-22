@@ -40,7 +40,14 @@ struct TextExplainer : public Explainer {
     printf("%s\n", pos.BoardString().c_str());
     fflush(stdout);
   }
-  
+
+  void SetGraphic(int w, int h,
+		  const std::vector<uint8> &rgba) override {
+    CHECK(rgba.size() == w * h * 4);
+    printf("(got %dx%d graphic)\n", w, h);
+    fflush(stdout);
+  }
+
   Position pos;
 };
 

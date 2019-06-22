@@ -28,6 +28,9 @@ struct sdlutil {
   static void   setpixel(SDL_Surface *, int x, int y,
                          Uint32 color);
 
+  // Assumes 32-bit surface, no bounds checking, inlined.
+  inline static void SetPixel32(SDL_Surface *, int x, int y, Uint32 color);
+  
   // Load supported files using stb_image.
   static SDL_Surface *LoadImage(const std::string &filename);
   // Save using stb_image_write. Might only work for 32-bit RGBA.
@@ -174,5 +177,14 @@ struct sdlutil {
   enum class ByteOrder { ARGB, RGBA, ABGR, BGRA, };
   static ByteOrder GetByteOrder(SDL_Surface *surf);
 };
+
+// Inline functions follow.
+
+inline void sdlutil::SetPixel32(SDL_Surface *surf, int x, int y,
+				Uint32 color) {
+  Uint32 *bufp = (Uint32 *)surf->pixels;
+  bufp[y * (surf->pitch >> 2) + x] = color;
+}
+
 
 #endif

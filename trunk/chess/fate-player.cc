@@ -4,7 +4,7 @@
 #include <string>
 
 #include "all-fate-data.h"
-#include "gamestats.h"
+#include "fates.h"
 #include "player-util.h"
 #include "../cc-lib/arcfour.h"
 #include "../cc-lib/randutil.h"
@@ -33,7 +33,7 @@ struct FatePlayer : public Player {
     };
     
     void ForceMove(const Position &pos, Position::Move move) override {
-      gamestats.Update(pos, move);
+      fates.Update(pos, move);
     }
     
     // Get a move for the current player in the current position.
@@ -46,11 +46,10 @@ struct FatePlayer : public Player {
       for (const Move &m : pos.GetLegalMoves()) {
 	LabeledMove lm;
 	lm.m = m;
-	GameStats gs_copy = gamestats;
-	gs_copy.Update(pos, m);
+	Fates fates_copy = fates.Apply(pos, m);
 	pos.MoveExcursion(m,
-			  [this, &pos, &lm, &gs_copy]() {
-			    lm.score = parent->Eval(&pos, gs_copy);
+			  [this, &pos, &lm, &fates_copy]() {
+			    lm.score = parent->Eval(&pos, fates_copy);
 			    return 0;
 			  });
 
@@ -110,13 +109,13 @@ struct FatePlayer : public Player {
     // Owned by parent object.
     FatePlayer *parent;
     // Locations of the 32 players.
-    GameStats gamestats;
+    Fates fates;
   };
 
   // Return a higher score for a more preferable move.
   // Note that the position represents the state after the move,
   // so it is the opponent's turn now.
-  virtual double Eval(Position *pos, const GameStats &gs) = 0;
+  virtual double Eval(Position *pos, const Fates &gs) = 0;
   
   FGame *CreateGame() override {
     return new FGame(this);
@@ -132,14 +131,14 @@ struct SafePlayer : public FatePlayer<true> {
       "to survive (according to statistics computed for all games "
       "in the lichess database through Nov 2018).";
   }
-  double Eval(Position *pos, const GameStats &gs) override {
+  double Eval(Position *pos, const Fates &gs) override {
     double score = 1.0;
     const bool black = !pos->BlackMove();
     // Sum over all of my own living pieces.
     for (int i = black ? 0 : 16; i < (black ? 16 : 32); i++) {
-      if ((gs.fates[i] & GameStats::DIED) == 0) {
+      if ((gs.fates[i] & Fates::DIED) == 0) {
 	const LivedDied &ld =
-	  all_fate_data[i][gs.fates[i] & GameStats::POS_MASK];
+	  all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
 	score += ld.lived;
       }
     }
@@ -154,13 +153,13 @@ struct DangerousPlayer : public FatePlayer<true> {
       "to die (according to statistics computed for all games "
       "in the lichess database through Nov 2018).";
   }
-  double Eval(Position *pos, const GameStats &gs) override {
+  double Eval(Position *pos, const Fates &gs) override {
     double score = 0.0;
     const bool black = !pos->BlackMove();
     for (int i = black ? 0 : 16; i < (black ? 16 : 32); i++) {
-      if ((gs.fates[i] & GameStats::DIED) == 0) {
+      if ((gs.fates[i] & Fates::DIED) == 0) {
 	const LivedDied &ld =
-	  all_fate_data[i][gs.fates[i] & GameStats::POS_MASK];
+	  all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
 	score += ld.died;
       }
     }
@@ -174,13 +173,13 @@ struct PopularPlayer : public FatePlayer<true> {
     return "Move pieces towards squares where they are more likely "
       "to be at the end of the game.";
   }
-  double Eval(Position *pos, const GameStats &gs) override {
+  double Eval(Position *pos, const Fates &gs) override {
     double score = 0.0;
     const bool black = !pos->BlackMove();
     for (int i = black ? 0 : 16; i < (black ? 16 : 32); i++) {
-      if ((gs.fates[i] & GameStats::DIED) == 0) {
+      if ((gs.fates[i] & Fates::DIED) == 0) {
 	const LivedDied &ld =
-	  all_fate_data[i][gs.fates[i] & GameStats::POS_MASK];
+	  all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
 	score += ld.died + ld.lived;
       }
     }
@@ -194,13 +193,13 @@ struct RarePlayer : public FatePlayer<true> {
     return "Move pieces towards squares where they are less likely "
       "to be at the end of the game.";
   }
-  double Eval(Position *pos, const GameStats &gs) override {
+  double Eval(Position *pos, const Fates &gs) override {
     double score = 0.0;
     const bool black = !pos->BlackMove();
     for (int i = black ? 0 : 16; i < (black ? 16 : 32); i++) {
-      if ((gs.fates[i] & GameStats::DIED) == 0) {
+      if ((gs.fates[i] & Fates::DIED) == 0) {
 	const LivedDied &ld =
-	  all_fate_data[i][gs.fates[i] & GameStats::POS_MASK];
+	  all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
 	score += 1.0 - (ld.died + ld.lived);
       }
     }
@@ -214,13 +213,13 @@ struct SurvivalistPlayer : public FatePlayer<false> {
     return "Move pieces towards squares with higher survival:death "
       "ratios.";
   }
-  double Eval(Position *pos, const GameStats &gs) override {
+  double Eval(Position *pos, const Fates &gs) override {
     double score = 0.0;
     const bool black = !pos->BlackMove();
     for (int i = black ? 0 : 16; i < (black ? 16 : 32); i++) {
-      if ((gs.fates[i] & GameStats::DIED) == 0) {
+      if ((gs.fates[i] & Fates::DIED) == 0) {
 	const LivedDied &ld =
-	  all_fate_data[i][gs.fates[i] & GameStats::POS_MASK];
+	  all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
 	if (ld.died > 0.0) {
 	  score += (ld.lived / ld.died);
 	} else {
@@ -239,13 +238,13 @@ struct FatalistPlayer : public FatePlayer<false> {
     return "Move pieces towards squares with higher death:survival "
       "ratios.";
   }
-  double Eval(Position *pos, const GameStats &gs) override {
+  double Eval(Position *pos, const Fates &gs) override {
     double score = 0.0;
     const bool black = !pos->BlackMove();
     for (int i = black ? 0 : 16; i < (black ? 16 : 32); i++) {
-      if ((gs.fates[i] & GameStats::DIED) == 0) {
+      if ((gs.fates[i] & Fates::DIED) == 0) {
 	const LivedDied &ld =
-	  all_fate_data[i][gs.fates[i] & GameStats::POS_MASK];
+	  all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
 	if (ld.lived > 0.0) {
 	  score += (ld.died / ld.lived);
 	} else {
@@ -280,7 +279,7 @@ struct EqualizerPlayer : public Player {
     };
     
     void ForceMove(const Position &pos, Position::Move m) override {
-      const int srcidx = gamestats.PieceIndexAt(m.src_row, m.src_col);
+      const int srcidx = fates.PieceIndexAt(m.src_row, m.src_col);
       CHECK(srcidx >= 0) << srcidx;
       moved[srcidx]++;
       const bool black = pos.BlackMove();
@@ -311,7 +310,7 @@ struct EqualizerPlayer : public Player {
 	}
       }
 	  
-      gamestats.Update(pos, m);
+      fates.Update(pos, m);
     }
 
     Position::Move GetMove(const Position &orig_pos,
@@ -325,7 +324,7 @@ struct EqualizerPlayer : public Player {
 	lm.m = m;
 	lm.r = Rand32(&parent->rc);
 	// a piece index
-	const int srcidx = gamestats.PieceIndexAt(m.src_row, m.src_col);
+	const int srcidx = fates.PieceIndexAt(m.src_row, m.src_col);
 	CHECK(srcidx >= 0) << srcidx;
 	lm.piece_moved = moved[srcidx];
 	// a board index
@@ -352,7 +351,7 @@ struct EqualizerPlayer : public Player {
 	  }).m;
     }
     
-    GameStats gamestats;
+    Fates fates;
     // Number of times the piece has moved.
     int moved[32] = {};
     // Number of times the square was visited by white, black.

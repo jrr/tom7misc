@@ -496,7 +496,7 @@ bool Util::WriteFile(const string &fn, const string &s) {
 }
 
 bool Util::WriteFileBytes(const string &fn,
-			  const vector<unsigned char> &bytes) {
+			  const vector<uint8> &bytes) {
   FILE *f = fopen(fn.c_str(), "wb");
   if (!f) return false;
 
@@ -507,6 +507,41 @@ bool Util::WriteFileBytes(const string &fn,
 
   return true;
 }
+
+vector<uint64> Util::ReadUint64File(const string &filename) {
+  vector<uint8> bytes = ReadFileBytes(filename);
+  if (bytes.size() & 7) return {};
+  vector<uint64> ret;
+  ret.reserve(bytes.size() / 8);
+  uint64 w = 0ULL;
+  for (int i = 0; i < bytes.size(); i++) {
+    w <<= 8;
+    w |= bytes[i];
+    if ((i & 7) == 7) {
+      ret.push_back(w);
+      w = 0ULL;
+    }
+  }
+  return ret;
+}
+
+bool Util::WriteUint64File(const string &filename,
+			   const std::vector<uint64> &contents) {
+  vector<uint8> bytes;
+  bytes.reserve(contents.size() * 8);
+  for (uint64 w : contents) {
+    bytes.push_back(0xFF & (w >> 56));
+    bytes.push_back(0xFF & (w >> 48));
+    bytes.push_back(0xFF & (w >> 40));
+    bytes.push_back(0xFF & (w >> 32));
+    bytes.push_back(0xFF & (w >> 24));
+    bytes.push_back(0xFF & (w >> 16));
+    bytes.push_back(0xFF & (w >> 8));
+    bytes.push_back(0xFF & (w));
+  }
+  return WriteFileBytes(filename, bytes);
+}
+
 
 string Util::sizes(int i) {
   string s = "    ";
