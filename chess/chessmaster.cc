@@ -123,6 +123,11 @@ void Chessmaster::Screenshot(const string &filename) {
   printf("Wrote screenshot %s\n", filename.c_str());
 }
 
+std::vector<uint8> Chessmaster::GetScreenshot() {
+  emu->StepFull(0, 0);
+  return emu->GetImageARGB();
+}
+
 void Chessmaster::InitEngine() {
   if (emu.get() != nullptr)
     return;
@@ -384,21 +389,29 @@ Move Chessmaster::GetMove(const Position &pos) {
 
 namespace {
 struct ChessmasterPlayer : public StatelessPlayer {
-  explicit ChessmasterPlayer(int level) : level(level), master(level), rc(PlayerUtil::GetSeed()) {
+  explicit ChessmasterPlayer(int level) : level(level), master(level),
+					  rc(PlayerUtil::GetSeed()) {
     rc.Discard(800);
   }
-  // XXX level
-  string Name() const override { return StringPrintf("chessmaster.nes_lv%d", level); }
+
+  string Name() const override {
+    return StringPrintf("chessmaster.nes_lv%d", level);
+  }
   string Desc() const override {
     return StringPrintf("Emulated Chessmaster (NES; 1990). Level %d", level);
   }
 
   Position::Move MakeMove(const Position &pos, Explainer *explainer) override {
     Position::Move move = master.GetMove(pos);
+    if (explainer != nullptr) {
+      explainer->SetGraphic(256, 256, master.GetScreenshot());
+    }
     if (move.src_row == 0 &&
 	move.src_col == 0 &&
 	move.dst_row == 0 &&
 	move.dst_col == 0) {
+      if (explainer)
+	explainer->SetMessage("No move from emulator?");
       Position pcopy = pos;
       std::vector<Move> legal = pcopy.GetLegalMoves();
       CHECK(!legal.empty());

@@ -16,9 +16,7 @@
 struct Emulator;
 
 struct Chessmaster {
-  // Level in [0, 20] with 20 being strongest.
-  // TODO: (Levels not yet used.)
-  
+  // Only level=1 or level=2 is supported.
   // Note that engine loading is lazy; errors like missing chessmaster.nes
   // won't occur until the first call to GetMove.
   Chessmaster(int level);
@@ -27,6 +25,9 @@ struct Chessmaster {
   // If something goes wrong, returns a move from 0,0 to 0,0.
   Position::Move GetMove(const Position &pos);
 
+  // 256x256 screenshot, rgba. (Note: Advances one frame.)
+  std::vector<uint8> GetScreenshot();
+  
   ~Chessmaster();
   
 private:

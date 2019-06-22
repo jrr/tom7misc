@@ -23,6 +23,7 @@
 #include "../almanac-player.h"
 #include "../blind-player.h"
 #include "../gamestats.h"
+#include "../chessmaster.h"
 #include "timer.h"
 
 // #include "unblinder.h"
@@ -306,6 +307,9 @@ struct ExplainedMove {
   string message;
   // Pre-formatted.
   vector<string> moves;
+
+  int graphic_width = 0, graphic_height = 0;
+  vector<uint8> rgba;
 };
 
 // Wrapper around Player that allows getting moves in a separate
@@ -499,6 +503,9 @@ private:
       em->has_position = false;
       em->message.clear();
       em->moves.clear();
+      em->rgba.clear();
+      em->graphic_width = 0;
+      em->graphic_height = 0;
     }
     
     void SetScoredMoves(
@@ -525,6 +532,13 @@ private:
       em->position = pos;
     }
 
+    void SetGraphic(int w, int h, const std::vector<uint8> &rgba) {
+      CHECK(rgba.size() == w * h * 4) << rgba.size();
+      em->graphic_width = w;
+      em->graphic_height = h;
+      em->rgba = rgba;
+    }
+    
     // Writes here.
     ExplainedMove *em = nullptr;
     
@@ -606,15 +620,15 @@ struct UI {
   bool draw_only_bits = false;
   bool draw_stockfish = false;
   bool draw_meter = true;
-  bool draw_explainer = false;
+  bool draw_explainer = true;
   bool draw_movelist = true;
   bool draw_board = true;
 
-  int draw_fates = 2;
+  int draw_fates = 0;
   
   // Computer always plays black.
   // If true, make the computer move without interaction.
-  bool autoplay_computer = false;
+  bool autoplay_computer = true;
   // Kept in sync with the current position.
   std::unique_ptr<AsyncPlayer> async_player;
 
@@ -1546,8 +1560,6 @@ void UI::Draw() {
       0xFF0096cd,
     };
 
-    static_assert(FATE_COLORS[Fates::WHITE_QUEEN] == 0xFF000000);
-    
     int visited[64] = {};
     for (int i = 0; i < 16; i++) visited[i] = visited[48 + i] = 1;
     Fates prev_fate;
@@ -1751,6 +1763,32 @@ void UI::Draw() {
 	  t.Write(moves[i]);
 	}
       }
+
+      if (em->graphic_width > 0) {
+	const int PX = 2;
+	const int EX = 900;
+	const int EY = 550;
+	const int w = em->graphic_width;
+	const int h = em->graphic_height;	
+	const vector<uint8> &rgba = em->rgba;
+	CHECK(rgba.size() == w * h * 4);
+	for (int y = 0; y < h; y++) {
+	  int yy = EY + (y * PX);
+	  for (int x = 0; x < w; x++) {
+	    int xx = EX + (x * PX);
+	    uint8 r = rgba[(y * w + x) * 4 + 0];
+	    uint8 g = rgba[(y * w + x) * 4 + 1];
+	    uint8 b = rgba[(y * w + x) * 4 + 2];
+	    Uint32 color = SDL_MapRGB(screen->format, r, g, b);
+	    // printf("Set %d %d = %d %d %d\n", xx, yy, r, g, b);
+	    // sdlutil::drawclippixel(screen, xx, yy, r, g, b);
+	    sdlutil::SetPixel32(screen, xx, yy, color);
+	    sdlutil::SetPixel32(screen, xx + 1, yy, color);
+	    sdlutil::SetPixel32(screen, xx, yy + 1, color);
+	    sdlutil::SetPixel32(screen, xx + 1, yy + 1, color);
+	  }
+	}
+      }
       
       if (em->has_position) {
 	// XXX maybe get position from typewriter.
@@ -1852,8 +1890,12 @@ int main(int argc, char **argv) {
   CHECK(font4x != nullptr) << "Couldn't load font.";
 
   //# define CHESSFONT "../blind/chessfont.png"
-  # define CHESSFONT "chessfont-blindfold.png"
+  // # define CHESSFONT "chessfont-blindfold.png"
   // # define CHESSFONT "chessfont-cards.png"
+  //# define CHESSFONT "chessfont-halos.png"
+  
+  // Note, chessfont-nes might be missing; it is non-free.
+# define CHESSFONT "chessfont-nes.png"
   
   chessfont = Font::create(screen,
 			   CHESSFONT,
@@ -1881,7 +1923,8 @@ int main(int argc, char **argv) {
 
   // ui.async_player.reset(new AsyncPlayer(MinOpponentMoves()));
   // ui.async_player.reset(new AsyncPlayer(AlmanacPopular()));
-  ui.async_player.reset(new AsyncPlayer(BlindSpycheck()));
+  // ui.async_player.reset(new AsyncPlayer(BlindSpycheck()));
+  ui.async_player.reset(new AsyncPlayer(Chessmaster1()));
   // ui.async_player.reset(new AsyncPlayer(SinglePlayer()));
 
   if (argc > 1) {

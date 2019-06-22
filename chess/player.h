@@ -17,6 +17,8 @@ struct Explainer {
           std::tuple<Position::Move, int64_t, std::string>> &v) = 0;
   virtual void SetMessage(const std::string &s) = 0;
   virtual void SetPosition(const Position &pos) = 0;
+  virtual void SetGraphic(int width, int height,
+			  const std::vector<uint8> &rgba) = 0;
 };
 
 // Interface for a stateless chess-playing algorithm. Can be

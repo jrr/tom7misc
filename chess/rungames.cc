@@ -16,6 +16,7 @@
 
 #include "pgn.h"
 #include "gamestats.h"
+#include "fates.h"
 #include "bigchess.h"
 
 using namespace std;
@@ -176,7 +177,7 @@ struct Processor {
     }
 
     Position pos;
-    GameStats gs;
+    Fates fates;
     for (int i = 0; i < pgn.moves.size(); i++) {
       const PGN::Move &m = pgn.moves[i];
 #ifdef SELF_CHECK
@@ -216,7 +217,7 @@ struct Processor {
 #endif
 
       // Use the move to update the fates of pieces.
-      gs.Update(pos, move);
+      fates.Update(pos, move);
 	  
       pos.ApplyMove(move);
     }
@@ -224,10 +225,10 @@ struct Processor {
     // Need to kill the king if checkmated.
     switch (pgn.result) {
     case PGN::Result::WHITE_WINS:
-      gs.fates[4] |= GameStats::DIED;
+      fates.fates[4] |= Fates::DIED;
       break;
     case PGN::Result::BLACK_WINS:
-      gs.fates[28] |= GameStats::DIED;
+      fates.fates[28] |= Fates::DIED;
       break;
     default:
       // For draws, both kings survive.
@@ -240,15 +241,15 @@ struct Processor {
       for (int i = 0; i < 32; i++) {
 	fprintf(stderr, "%d (%s). %s on %c%c.\n",
 		i, PIECE_NAME[i],
-		(GameStats::DIED & gs.fates[i]) ? "DIED" : "Survived",
-		'a' + (gs.fates[i] & 7),
-		'1' + (7 - ((gs.fates[i] & GameStats::POS_MASK) >> 3)));
+		(Fates::DIED & fates.fates[i]) ? "DIED" : "Survived",
+		'a' + (fates.fates[i] & 7),
+		'1' + (7 - ((fates.fates[i] & Fates::POS_MASK) >> 3)));
       }
     }
     
     for (int crit = 0; crit < NUM_CRITERIA; crit++) {
       if (0 != ((1 << crit) & has_crit_set)) {
-	stat_buckets[crit * NUM_BUCKETS + bucket].AddGame(gs);
+	stat_buckets[crit * NUM_BUCKETS + bucket].AddGame(fates);
       }
     }
   }

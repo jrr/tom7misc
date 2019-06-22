@@ -29,7 +29,7 @@ string dtos(double d);
 struct Util {
   static string ReadFile(const string &filename);
   static bool WriteFile(const string &filename, const string &contents);
-
+  
   // Reads the lines in the file to the vector. Ignores all
   // carriage returns, including ones not followed by newline.
   static vector<string> ReadFileToLines(const string &f);
@@ -46,8 +46,13 @@ struct Util {
   static map<string, string> ReadFileToMap(const string &f);
 
   static vector<uint8_t> ReadFileBytes(const string &f);
-  static bool WriteFileBytes(const string &f, const vector<unsigned char> &b);
+  static bool WriteFileBytes(const string &f, const vector<uint8_t> &b);
 
+  // Read/write a vector of uint64s in big-endian byte order.
+  static vector<uint64_t> ReadUint64File(const string &filename);
+  static bool WriteUint64File(const string &filename,
+			      const std::vector<uint64_t> &contents);
+  
   static vector<string> ListFiles(const string &dir);
 
   // For v = ["a", "b", "cde"] and sep = "YY", returns "aYYbYYcde".
