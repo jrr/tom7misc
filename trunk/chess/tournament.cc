@@ -30,6 +30,7 @@
 #include "player-util.h"
 #include "blind-player.h"
 #include "almanac-player.h"
+#include "numeric-player.h"
 
 #define TESTING true
 
@@ -120,13 +121,16 @@ const vector<Entrant> &GetEntrants() {
 			Survivalist,
 			Fatalist,
 			Equalizer,
-
+			/*
 			BlindYolo,
 			BlindSingleKings,
 			BlindSpycheck,
 			
 			Worstfish,
 
+			NumericPi,
+			NumericE,
+			
 			MinOpponentMoves,
 			MirrorYSymmetry,
 			MirrorXSymmetry,
@@ -177,6 +181,7 @@ const vector<Entrant> &GetEntrants() {
 			Stockfish1M_256,
 			Stockfish1M_128,
 			Stockfish1M_64,
+			*/
   };
   return *entrants;
 }
@@ -215,9 +220,9 @@ Result PlayGame(Player *white_player, Player *black_player,
   std::unordered_map<Position, int, PositionHash, PositionEq>
     position_counts;
   
-  // TODO: Draw by insufficient material. (But we can be guaranteed
+  // TODO: Draw by insufficient material. But we can be guaranteed
   // that these eventually end in draws by the 75-move rule (or
-  // perhaps some other draw rule earlier).)
+  // perhaps some other draw rule) earlier.
   
   auto DrawByRule75 =
     [&white_stale_moves,

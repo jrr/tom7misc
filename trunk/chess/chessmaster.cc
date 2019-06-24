@@ -328,7 +328,8 @@ Move Chessmaster::GetMove(const Position &pos) {
 	    } else if ((np & Position::COLOR_MASK) == my_mask) {
 	      
 	      if ((dr == -1 && dc == -1) || !dest_king) {
-		if (VERBOSE) printf("Update dest %d,%d to %d,%d\n", dr, dc, r, c);
+		if (VERBOSE)
+		  printf("Update dest %d,%d to %d,%d\n", dr, dc, r, c);
 		dr = r;
 		dc = c;
 		dest_king = (np & Position::TYPE_MASK) == Position::KING;

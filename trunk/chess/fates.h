@@ -3,6 +3,7 @@
 
 #include <shared_mutex>
 #include <cstdint>
+#include <string>
 
 #include "base/logging.h"
 #include "chess.h"
@@ -31,7 +32,7 @@ struct Fates {
   }
 
   Fates Apply(const Position &pos, const Position::Move &move) const {
-    Fates fates_copy;
+    Fates fates_copy = *this;
     fates_copy.Update(pos, move);
     return fates_copy;
   }
@@ -88,11 +89,18 @@ struct Fates {
 	  return;
 	}
       }
+
+      std::string err;
+      for (int i = 0; i < 32; i++) {
+	err += std::to_string(fates[i]);
+	err += " ";
+      }
+      
       CHECK(false) << "Apparent en passant capture, but no piece "
-	"was at " << cap_pos << " to be captured.\n" <<
+	"was at " << (int)cap_pos << " to be captured.\n" <<
 	pos.BoardString() << "\nwith move: " <<
-	move.src_row << " " << move.src_col << " -> " <<
-	move.dst_row << " " << move.dst_col;
+	(int)move.src_row << " " << (int)move.src_col << " -> " <<
+	(int)move.dst_row << " " << (int)move.dst_col << "\nfates: " << err;
     }
   }
 };
