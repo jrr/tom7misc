@@ -24,6 +24,7 @@
 #include "../blind-player.h"
 #include "../gamestats.h"
 #include "../chessmaster.h"
+#include "../numeric-player.h"
 #include "timer.h"
 
 // #include "unblinder.h"
@@ -1896,6 +1897,79 @@ int main(int argc, char **argv) {
   
   // Note, chessfont-nes might be missing; it is non-free.
 # define CHESSFONT "chessfont-nes.png"
+
+  /*
+    This one probably comes first, so maybe just uses regular
+    pieces: Random,
+
+    Why does a mirror reflect horizontally instead of vertically?
+    the answer is polarization. lakes DO reflect vertically.
+    MirrorXSymmetry,
+    MirrorYSymmetry,
+    Symmetry180,
+
+    Fate players use piece names:
+    Safe, Dangerous, Popular, Rare, Survivalist, Fatalist, Equalizer,
+
+    Blind use blindfolds:
+    BlindYolo, BlindSingleKings, BlindSpycheck,
+
+    SinglePlayer, ... introduce game tree search ...
+                      (before worstfish)
+			
+    TODO: Worstfish,
+
+    halo: Pacifist, Generous, NoIInsist,
+
+    TODO: 'pi' and 'e' players
+
+    letter: Alphabetical
+	(FirstMove - number?)
+
+			MinOpponentMoves,
+
+			SameColor,
+			OppositeColor,
+			Huddle,
+			Swarm,
+			SuicideKing,
+			ReverseStarting,
+			CCCP,
+
+			AlmanacPopular,
+
+			Topple10K,
+			Topple1M,
+
+   chessfont-nes: Chessmaster1, Chessmaster2,
+
+   cylon font:
+			Stockfish0,
+			Stockfish5,
+			Stockfish10,
+			Stockfish15,
+			Stockfish20,
+			
+			Stockfish1M,
+
+   perhaps we can have programmatically randomized
+   versions of these? would we even show them?
+			Stockfish1M_64512,
+			Stockfish1M_63488,
+			Stockfish1M_61440,
+			Stockfish1M_57344,
+			Stockfish1M_49152,
+			Stockfish1M_32768,
+			Stockfish1M_16384,
+			Stockfish1M_8192,
+			Stockfish1M_4096,
+			Stockfish1M_2048,
+			Stockfish1M_1024,
+			Stockfish1M_512,
+			Stockfish1M_256,
+			Stockfish1M_128,
+			Stockfish1M_64,
+  */
   
   chessfont = Font::create(screen,
 			   CHESSFONT,
@@ -1924,7 +1998,8 @@ int main(int argc, char **argv) {
   // ui.async_player.reset(new AsyncPlayer(MinOpponentMoves()));
   // ui.async_player.reset(new AsyncPlayer(AlmanacPopular()));
   // ui.async_player.reset(new AsyncPlayer(BlindSpycheck()));
-  ui.async_player.reset(new AsyncPlayer(Chessmaster1()));
+  // ui.async_player.reset(new AsyncPlayer(Chessmaster1()));
+  ui.async_player.reset(new AsyncPlayer(NumericE()));
   // ui.async_player.reset(new AsyncPlayer(SinglePlayer()));
 
   if (argc > 1) {

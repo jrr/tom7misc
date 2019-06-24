@@ -176,7 +176,7 @@ maketable.exe : maketable.o chess.o $(CCLIB_OBJECTS)
 makeperm.exe : makeperm.o chess.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-tournament.exe : tournament-db.o tournament.o chess.o player.o almanac-player.o  packedgame.o pack.o common.o stockfish-player.o player-util.o uci-player.o stockfish.o subprocess.o chessmaster.o headless-graphics.o all-fate-data.o fate-player.o blind-player.o blind/unblinder.o blind/unblinder-mk0.o $(CCLIB_OBJECTS) $(FCEULIB_OBJECTS)
+tournament.exe : tournament-db.o tournament.o chess.o player.o almanac-player.o  packedgame.o pack.o common.o stockfish-player.o player-util.o uci-player.o stockfish.o subprocess.o chessmaster.o headless-graphics.o all-fate-data.o fate-player.o blind-player.o blind/unblinder.o blind/unblinder-mk0.o numeric-player.o $(CCLIB_OBJECTS) $(FCEULIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 elo.exe : elo.o tournament-db.o chess.o headless-graphics.o $(CCLIB_OBJECTS)
@@ -191,7 +191,7 @@ bench.exe : chess.o player.o bench.o player-util.o $(CCLIB_OBJECTS)
 chessmaster.exe : chess.o player.o player-util.o chessmaster.o chessmaster-main.o headless-graphics.o $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-testplayer.exe : chess.o player.o player-util.o fate-player.o almanac-player.o pack.o packedgame.o common.o all-fate-data.o chessmaster.o testplayer.o headless-graphics.o blind-player.o stockfish.o subprocess.o blind/unblinder.o blind/unblinder-mk0.o $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS)
+testplayer.exe : chess.o player.o player-util.o fate-player.o almanac-player.o pack.o packedgame.o common.o all-fate-data.o chessmaster.o testplayer.o headless-graphics.o blind-player.o stockfish.o subprocess.o blind/unblinder.o blind/unblinder-mk0.o numeric-player.o $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 pairs.exe : chess.o pairs.o $(CCLIB_OBJECTS)

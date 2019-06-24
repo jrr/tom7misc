@@ -6,21 +6,21 @@
 #include "base/logging.h"
 #include "pgn.h"
 #include "packedgame.h"
+#include "fates.h"
 
 using namespace std;
 
 using Move = Position::Move;
 
 
-static Position::Move ApplyMove(Position *pos, const char *pgn) {
+static Position::Move ApplyMove(Position *pos, const char *pgn, Fates *fates) {
   Move m;
-  // XXX Better if this tries to capture the full board state.
-  const string old_board = pos->BoardString();
+  const Position old_position = *pos;
   CHECK(pos->ParseMove(pgn, &m)) << pgn;
-  CHECK(old_board == pos->BoardString()) << "ParseMove modified board "
+  CHECK(PositionEq{}(old_position, *pos)) << "ParseMove modified board "
     "state!";
   CHECK(pos->IsLegal(m)) << pgn;
-  CHECK(old_board == pos->BoardString()) << "IsLegal modified board "
+  CHECK(PositionEq{}(old_position, *pos)) << "IsLegal modified board "
     "state!";
 
   uint16_t pm = PackedGame::PackMove(m);
@@ -29,6 +29,10 @@ static Position::Move ApplyMove(Position *pos, const char *pgn) {
   const Move m2 = PackedGame::UnpackMove(pm);
   CHECK(Position::MoveEq(m, m2)) << Position::DebugMoveString(m) << " vs "
 				 << Position::DebugMoveString(m2);
+
+  if (fates != nullptr) {
+    fates->Update(*pos, m);
+  }
   pos->ApplyMove(m);
   return m;
 }
@@ -80,7 +84,7 @@ static Position MakePos(const string &s) {
   CHECK(PGN::Parse(s.c_str(), &pgn));
   Position pos;
   for (const PGN::Move &m : pgn.moves) {
-    (void)ApplyMove(&pos, m.move.c_str());
+    (void)ApplyMove(&pos, m.move.c_str(), nullptr);
   }
   return pos;
 }
@@ -89,8 +93,9 @@ static void PlayGame(std::initializer_list<const char *> game) {
   Position pos;
 
   PackedGame pgame;
+  Fates fates;
   for (const char *m : game) {
-    Position::Move move = ApplyMove(&pos, m);
+    Position::Move move = ApplyMove(&pos, m, &fates);
     pgame.PushMove(PackedGame::PackMove(move));
     printf("%s\n", pos.BoardString().c_str());
   }
@@ -173,8 +178,9 @@ static void ReadPGN() {
   
   Position pos;
 
+  Fates fates;
   for (const PGN::Move &m : pgn.moves) {
-    ApplyMove(&pos, m.move.c_str());
+    ApplyMove(&pos, m.move.c_str(), &fates);
     printf("%s\n", pos.BoardString().c_str());
   }
 }
@@ -224,9 +230,10 @@ static void Regression2Game() {
   
   Position pos;
 
+  Fates fates;
   for (const PGN::Move &m : pgn.moves) {
     printf("== %s ==\n", m.move.c_str());
-    ApplyMove(&pos, m.move.c_str());
+    ApplyMove(&pos, m.move.c_str(), &fates);
     printf("%s\n", pos.BoardString().c_str());
   }
 }
@@ -279,10 +286,11 @@ static void ValidMoves1() {
   
   Position pos;
 
+  Fates fates;
   for (const PGN::Move &m : pgn.moves) {
     CHECK(pos.HasLegalMoves());
     CHECK(!pos.GetLegalMoves().empty());
-    ApplyMove(&pos, m.move.c_str());
+    ApplyMove(&pos, m.move.c_str(), &fates);
   }
   printf("%s\n", pos.BoardString().c_str());
 
@@ -366,7 +374,7 @@ static void ValidMoves2() {
     // None of these in the above game.
     CHECK(!pos.IsCastling(move));
     CHECK(!pos.IsEnPassant(move));
-    ApplyMove(&pos, m.move.c_str());
+    ApplyMove(&pos, m.move.c_str(), nullptr);
   }
   printf("%s\n", pos.BoardString().c_str());
   CHECK(pos.IsMated());
