@@ -695,99 +695,10 @@ struct Symmetry180Player : public SymmetryPlayer {
   }
 };
 
-struct SinglePlayerPlayer : public StatelessPlayer {
-  explicit SinglePlayerPlayer(int max_depth) : 
-    max_depth(max_depth), 
-    rc(PlayerUtil::GetSeed()) {
-    rc.Discard(800);
-  }
-
-  struct LabeledMove {
-    Position::Move m;
-    int64_t penalty = 0.0;
-    uint32_t r = 0u;
-  };
-  
-  static constexpr int64 CHECKMATE = -1000'000'000LL;
-  
-  int64 GetLowestPenalty(bool black, int depth, Position *p) {
-    // Position should have the opponent's move.
-    CHECK(p->BlackMove() != black);
-
-    const int opponent_moves = p->NumLegalMoves();
-    // If the opponent is in check, then it would be an illegal
-    // position if we switched the side. So we just have to
-    // return in such situations.
-    if (p->IsInCheck()) {
-      return (opponent_moves == 0) ? CHECKMATE : opponent_moves;
-    }
-
-    // Otherwise, temporarily set the game to be my turn again.
-    p->SetBlackMove(black);
-    int64 lowest_penalty = 1000'000'000LL;
-    for (const Move &m : p->GetLegalMoves()) {
-      p->MoveExcursion(
-	  m, [this, black, depth, p, &lowest_penalty]() {
-	       if (depth == 0) {
-		 lowest_penalty =
-		   std::min(lowest_penalty,
-			    (int64)p->NumLegalMoves());
-	       } else {
-		 lowest_penalty =
-		   std::min(lowest_penalty,
-			    GetLowestPenalty(black, depth - 1, p));
-	       }
-	       return 0;
-	     });
-    }
-    p->SetBlackMove(!black);
-    return lowest_penalty;
-  }
-  
-  Move MakeMove(const Position &orig_pos, Explainer *explainer) override {
-    Position pos = orig_pos;
-    const bool black = pos.BlackMove();
-
-    std::vector<LabeledMove> labeled;
-    for (const Move &m : pos.GetLegalMoves()) {
-      LabeledMove lm;
-      lm.m = m;
-      pos.MoveExcursion(m,
-			[this, black, &pos, &lm]() {
-			  lm.penalty = GetLowestPenalty(black, max_depth, &pos);
-			  return 0;
-			});
-      labeled.push_back(lm);
-    }
-    CHECK(!labeled.empty());
-
-    return PlayerUtil::GetBest(
-      labeled,
-      [](const LabeledMove &a,
-	 const LabeledMove &b) {
-	if (a.penalty != b.penalty)
-	  return a.penalty < b.penalty;
-	
-	return a.r < b.r;
-      }).m;
-  }
-  
-  string Name() const override {
-    return StringPrintf("single_player%d", max_depth); 
-  }
-  string Desc() const override {
-    return StringPrintf("Search (to depth %d), but as though the "
-			"opponent takes no turns.", max_depth);
-  }
-
-  const int max_depth;
-  ArcFour rc;
-};
-
 // Depth is the length of the checkmating sequence; it must be at
 // least 1.
-struct SinglePlayer2Player : public StatelessPlayer {
-  explicit SinglePlayer2Player(int max_depth) : 
+struct SinglePlayerPlayer : public StatelessPlayer {
+  explicit SinglePlayerPlayer(int max_depth) : 
     max_depth(max_depth), 
     rc(PlayerUtil::GetSeed()) {
     CHECK(max_depth > 0) << "max_depth is the length of the checkmating "
@@ -1023,5 +934,5 @@ Player *Symmetry180() {
 
 Player *SinglePlayer() {
   // Should be 4 for tournament.
-  return new MakeStateless<SinglePlayer2Player, int>(4);
+  return new MakeStateless<SinglePlayerPlayer, int>(4);
 }

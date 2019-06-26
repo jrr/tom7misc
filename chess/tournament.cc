@@ -121,7 +121,7 @@ const vector<Entrant> &GetEntrants() {
 			Survivalist,
 			Fatalist,
 			Equalizer,
-			/*
+
 			BlindYolo,
 			BlindSingleKings,
 			BlindSpycheck,
@@ -181,7 +181,6 @@ const vector<Entrant> &GetEntrants() {
 			Stockfish1M_256,
 			Stockfish1M_128,
 			Stockfish1M_64,
-			*/
   };
   return *entrants;
 }
