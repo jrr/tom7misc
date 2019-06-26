@@ -1,6 +1,6 @@
 
 default: chess_test.exe tournament.exe
-all: chess_test.exe rungames.exe tournament.exe elo.exe longest.exe pairs.exe chessmaster.exe makeperm.exe maketable.exe chessreduce.exe testplayer.exe elo.exe makecommonbook.exe packhisto.exe repack.exe validatepack.exe makealmanac.exe
+all: chess_test.exe rungames.exe tournament.exe elo.exe longest.exe pairs.exe chessmaster.exe makeperm.exe maketable.exe chessreduce.exe testplayer.exe elo.exe makecommonbook.exe packhisto.exe repack.exe validatepack.exe makealmanac.exe bigrat_test.exe
 
 # Over all games.
 ALL2013= stats-all/stats-2013-01.txt stats-all/stats-2013-02.txt stats-all/stats-2013-03.txt stats-all/stats-2013-04.txt stats-all/stats-2013-05.txt stats-all/stats-2013-06.txt stats-all/stats-2013-07.txt stats-all/stats-2013-08.txt stats-all/stats-2013-09.txt stats-all/stats-2013-10.txt stats-all/stats-2013-11.txt stats-all/stats-2013-12.txt
@@ -189,6 +189,9 @@ bench.exe : chess.o player.o bench.o player-util.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 chessmaster.exe : chess.o player.o player-util.o chessmaster.o chessmaster-main.o headless-graphics.o $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+bigrat_test.exe : bigrat.o bigrat_test.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 testplayer.exe : chess.o player.o player-util.o fate-player.o almanac-player.o pack.o packedgame.o common.o all-fate-data.o chessmaster.o testplayer.o headless-graphics.o blind-player.o stockfish.o subprocess.o blind/unblinder.o blind/unblinder-mk0.o numeric-player.o $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS)
