@@ -52,21 +52,35 @@ int main(int argc, char **argv) {
   }
 
   BigRat sum;
-  for (int i = 0; i < 1000; i++) {
-    printf("====== %d =====\n", i); fflush(stdout);
+  for (int i = 0; i < 10000; i++) {
     // + 1/1, - 1/3, + 1/5
     BigRat term{(i & 1) ? -1 : 1,
 	i * 2 + 1};
-    printf("%s + %s\n", sum.ToString().c_str(), term.ToString().c_str());
-    fflush(stdout);
     sum = BigRat::Plus(sum, term);
-    printf("= %s\n", sum.ToString().c_str());
-    fflush(stdout);
-    BigRat tpi = BigRat::Times(sum, BigRat{4,1});
-    printf("Approx pi: %s = %f\n",
-	   tpi.ToString().c_str(),
-	   tpi.ToDouble());
-    fflush(stdout);
+    if (i < 50) {
+      BigRat tpi = BigRat::Times(sum, BigRat{4,1});
+      printf("Approx pi: %s = %f\n",
+	     tpi.ToString().c_str(),
+	     tpi.ToDouble());
+      fflush(stdout);
+    } else if (i % 1000 == 0) {
+      printf("%d...\n", i);
+      fflush(stdout);
+    }
+    
   }
-  
+
+  BigRat res = BigRat::Times(sum, BigRat(4, 1));
+  printf("Final approx pi: %s\n",
+	 res.ToString().c_str());
+  fflush(stdout);
+
+
+  // This sequence converges REALLY slow!
+  BigRat pi_lb(314, 100);
+  BigRat pi_ub(315, 100);
+
+  CHECK(BigRat::Compare(pi_lb, pi_ub) == -1);
+  CHECK(BigRat::Compare(pi_lb, res) == -1);
+  CHECK(BigRat::Compare(res, pi_ub) == -1);
 }

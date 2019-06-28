@@ -31,7 +31,7 @@
 /*
  *      bign.c : the kernel written in pure C (it uses no C library)
  *
- *      $Id: bign.c,v 1.58 2019/06/28 12:11:22 tom7 Exp $
+ *      $Id: bign.c,v 1.60 2019/06/28 13:02:42 tom7 Exp $
  */
 
 /*
@@ -60,8 +60,6 @@
  */
 
 #include "bign.h"
-
-#include <stdio.h> // XXX
 
 static void
 BnnDivideHelper(BigNum nn, BigNumLength nl, BigNum dd, BigNumLength dl);
@@ -124,27 +122,21 @@ BnnGetDigit(const BigNum nn) {
 
 BigNumLength
 BnnNumDigits(const BigNum nn, BigNumLength nl) {
-        /*
-         * Returns the number of digits of N, not counting leading zeros
-         */
+  /*
+   * Returns the number of digits of N, not counting leading zeros.
+   * Loop starting from most significant digit
+   */
 
-        int     d;
+  for (int d = (int)(nl - 1); d >= 0; --d) {
+    if (nn[d] != BN_ZERO) {
+      /*
+       * length = d+1
+       */
+      return ((BigNumLength)(d + 1));
+    }
+  }
 
-        /*
-         * loop starting from most significant digit
-         */
-
-        for (d = (int)(nl - 1); d >= 0; --d) {
-	  printf("%p[%d] (len %d)...\n", nn, d, nl); fflush(stdout); // XXX
-                if (nn[d] != BN_ZERO) {
-                        /*
-                         * length = d+1
-                         */
-                        return ((BigNumLength)(d + 1));
-                }
-        }
-
-        return ((BigNumLength)1);
+  return ((BigNumLength)1);
 }
 
 BigNumLength

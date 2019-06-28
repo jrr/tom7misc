@@ -5,7 +5,7 @@
 #include <vector>
 #include <thread>
 #include <mutex>
-#include <cstdint>
+#include <functional>
 
 #if __cplusplus >= 201703L
 // shared_mutex only available in C++17 and later.

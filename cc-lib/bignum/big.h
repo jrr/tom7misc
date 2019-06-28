@@ -70,7 +70,8 @@ struct BigRat {
 
   // In base 10.
   std::string ToString() const;
-  // Approximate!
+  // Only works when the numerator and denominator are small;
+  // readily returns nan!
   double ToDouble() const;
 
   static int Compare(const BigRat &a, const BigRat &b);
@@ -92,10 +93,6 @@ private:
   // Takes ownership.
   explicit BigRat(BigQ q) : bigq(q) {
     CHECK(bigq != nullptr);
-    printf("Created from bigq %p\n", bigq);
-    fflush(stdout);
-    printf(" .. %s\n", ToString().c_str());
-    fflush(stdout);
   }
   // TODO: This is a pointer to a struct with two BigZs (pointers),
   // so it would probably be much better to just unpack it here.
@@ -215,9 +212,6 @@ BigRat &BigRat::operator =(const BigRat &other) {
   Validate();
   other.Validate();
 
-  printf("assignent %p = %p\n", this, &other);
-  fflush(stdout);
-
   // Self-assignment does nothing.
   if (this == &other) return *this;
   BqDelete(bigq);
@@ -228,8 +222,6 @@ BigRat &BigRat::operator =(const BigRat &other) {
 BigRat &BigRat::operator =(BigRat &&other) {
   Validate();
   other.Validate();
-  printf("Move-assigned %p = %p\n", this, &other);
-  fflush(stdout);
   Swap(&other);
   return *this;
 }
@@ -237,8 +229,6 @@ BigRat &BigRat::operator =(BigRat &&other) {
 void BigRat::Swap(BigRat *other) {
   Validate();
   other->Validate();
-  printf("Swap %s %s\n", ToString().c_str(), other->ToString().c_str());
-  fflush(stdout);
   std::swap(bigq, other->bigq);
 }
 
