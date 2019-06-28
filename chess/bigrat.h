@@ -6,6 +6,9 @@
 
 #include <deque>
 #include <string>
+#include <cstdint>
+
+#include <gmp.h>
 
 #include "../../cc-lib/base/logging.h"
 
@@ -14,57 +17,61 @@
 // in reverse order.
 struct BigRat {
   // Zero.
-  explicit BigRat(int base) : denom_exp(1), base(base) {}
-  BigRat(int base, int num, int denom_exp) : denom_exp(denom_exp),
-					     base(base) {
-    CHECK(num >= 0);
-    while (num > 0) {
-      numer.push_back(num % base);
-      num /= base;
-    }
+  BigRat() {
+    mpq_init(r);
+  }
+  BigRat(int64_t numer, int64_t denom) {
+    CHECK(denom >= 0);
+    mpq_set_ui(r, numer, denom);
+    mpq_canonicalize(r);
   }
 
-  // Represent the same number, but multiplying the numerator and
-  // denominator by b^e. So Shift(2) on 34/100 becomes 3400/10000.
-  void Shift(int e) {
-    denom_exp += e;
-    for (int i = 0; i < e; i++) numer.push_front(0);
-  }
-
-  void Unzero() {
-    while (!numer.empty() && numer.back() == 0)
-      numer.pop_back();
-  }
-
-  void Validate() const;
+  // No copy / assignment supported.
+  // (This can actually be done pretty easily with
+  // mpq_set. but it is not free)
+  BigRat(const BigRat &other) = delete;
+  BigRat &operator =(const BigRat &other) = delete;
   
   std::string ToString() const;
 
-  std::deque<int> numer;
-  int denom_exp = 1;
+  ~BigRat() {
+    mpq_clear(r);
+  }
 
-  // TODO: Could perhaps be template param.
-  int base = 2; 
+  void PlusEq(const BigRat &b) {
+    mpq_t tmp;
+    mpq_init(tmp);
+    mpq_add(tmp, r, b.r);
+    mpq_swap(r, tmp);
+    mpq_clear(tmp);
+  }
+
+  void MulEq(const BigRat &b) {
+    mpq_t tmp;
+    mpq_init(tmp);
+    mpq_mul(tmp, r, b.r);
+    mpq_swap(r, tmp);
+    mpq_clear(tmp);
+  }
+
+  void ScaleBy(int64_t s) {
+    BigRat sr{s, 1LL};
+    MulEq(sr);
+  }
+
+  static bool LessEq(const BigRat &a, const BigRat &b) {
+    const int ord = mpq_cmp(a.r, b.r);
+    return ord <= 0;
+  }
+
+  static bool Less(const BigRat &a, const BigRat &b) {
+    const int ord = mpq_cmp(a.r, b.r);
+    return ord < 0;
+  }
+
+private:
+  // Always canonicalized.
+  mpq_t r;
 };
-
-// Losing precision, drop digits from the numerator and powers
-// from the denominator until the new denominator size is reached.
-BigRat Truncate(const BigRat &a, int denom_exp);
-
-BigRat PlusSameDenom(const BigRat &a, const BigRat &b);
-
-// Multiply a by a small rational s/(B^y)
-BigRat Scale(const BigRat &a, int s, int y);
-
-// a - b. The result may not be negative!
-BigRat MinusSameDenom(const BigRat &a, const BigRat &b);
-
-// Args must be unzeroed.
-bool LessEq(const BigRat &a, const BigRat &b);
-
-inline bool Less(const BigRat &a, const BigRat &b) {
-  // a < b iff !(a >= b) aka !(b <= a)
-  return !LessEq(b, a);
-}
 
 #endif
