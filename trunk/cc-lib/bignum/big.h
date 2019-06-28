@@ -6,9 +6,6 @@
 #include "bign.h"
 #include "bigq.h"
 
-// XXXX
-#include "../base/logging.h"
-
 #include <algorithm>
 #include <cstdint>
 #include <string>
@@ -17,8 +14,7 @@
 struct BigInt {
   BigInt() : BigInt(0LL) {}
   explicit BigInt(int64_t n);
-
-  // TODO: From string
+  explicit BigInt(const std::string &digits);
   
   // Value semantics with linear-time copies (like std::vector).
   BigInt(const BigInt &other);
@@ -61,7 +57,8 @@ struct BigRat {
   // Zero.
   BigRat() : BigRat(0LL, 1LL) {}
   BigRat(int64_t numer, int64_t denom);
- 
+  BigRat(const BigInt &numer, const BigInt &denom);
+  
   BigRat(const BigRat &other);
   BigRat &operator =(const BigRat &other);
   BigRat &operator =(BigRat &&other);
@@ -85,15 +82,11 @@ struct BigRat {
 
   static BigRat ApproxDouble(double num, int64_t max_denom);
 
-  void Validate() const; // XXX
-  
   void Swap(BigRat *other);
     
 private:
   // Takes ownership.
-  explicit BigRat(BigQ q) : bigq(q) {
-    CHECK(bigq != nullptr);
-  }
+  explicit BigRat(BigQ q) : bigq(q) {}
   // TODO: This is a pointer to a struct with two BigZs (pointers),
   // so it would probably be much better to just unpack it here.
   // bigq.cc is seemingly set up to do this by redefining some
@@ -129,6 +122,10 @@ BigInt::~BigInt() {
 
 void BigInt::Swap(BigInt *other) {
   std::swap(bigz, other->bigz);
+}
+
+BigInt::BigInt(const std::string &digits) {
+  bigz = BzFromStringLen(digits.c_str(), digits.size(), 10, BZ_UNTIL_END);
 }
 
 std::string BigInt::ToString(int base) const {
@@ -182,36 +179,22 @@ BigInt BigInt::Pow(const BigInt &a, uint64_t exponent) {
   return BigInt{BzPow(a.bigz, exponent), nullptr};
 }
 
-void BigRat::Validate() const {
-  CHECK(bigq != nullptr);
-  CHECK(bigq->N != nullptr);
-  CHECK(bigq->D != nullptr);
-  CHECK(bigq->N->Header.Size < 1000);
-  CHECK(bigq->D->Header.Size < 1000);
-}
-
-
 BigRat::BigRat(int64_t numer, int64_t denom) {
   // PERF This could avoid creating intermediate BigZ with
   // a new function inside bigq.
   BigInt n{numer}, d{denom};
   bigq = BqCreate(n.bigz, d.bigz);
-  CHECK(bigq != nullptr) << numer << " / " << denom;
-  Validate();
 }
+BigRat::BigRat(const BigInt &numer, const BigInt &denom)
+  : bigq(BqCreate(numer.bigz, denom.bigz)) {}
 
 // PERF: Should have BqCopy so that we don't need to re-normalize.
 BigRat::BigRat(const BigRat &other) :
   bigq(BqCreate(
 	   BqGetNumerator(other.bigq),
 	   BqGetDenominator(other.bigq))) {
-  other.Validate();
-  Validate();
 }
 BigRat &BigRat::operator =(const BigRat &other) {
-  Validate();
-  other.Validate();
-
   // Self-assignment does nothing.
   if (this == &other) return *this;
   BqDelete(bigq);
@@ -220,20 +203,15 @@ BigRat &BigRat::operator =(const BigRat &other) {
   return *this;
 }
 BigRat &BigRat::operator =(BigRat &&other) {
-  Validate();
-  other.Validate();
   Swap(&other);
   return *this;
 }
 
 void BigRat::Swap(BigRat *other) {
-  Validate();
-  other->Validate();
   std::swap(bigq, other->bigq);
 }
 
 BigRat::~BigRat() {
-  Validate();
   BqDelete(bigq);
   bigq = nullptr;
 }
@@ -263,8 +241,6 @@ BigRat BigRat::Negate(const BigRat &a) {
   return BigRat{BqNegate(a.bigq)};
 }
 BigRat BigRat::Plus(const BigRat &a, const BigRat &b) {
-  a.Validate();
-  b.Validate();
   BigQ res = BqAdd(a.bigq, b.bigq);
   return BigRat{res};
 }
