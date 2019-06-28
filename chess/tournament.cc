@@ -128,8 +128,11 @@ const vector<Entrant> &GetEntrants() {
 			
 			Worstfish,
 
-			NumericPi,
-			NumericE,
+			BinaryPi,
+			BinaryE,
+
+			RationalPi,
+			RationalE,
 			
 			MinOpponentMoves,
 			MirrorYSymmetry,

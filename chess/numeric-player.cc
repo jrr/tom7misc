@@ -120,11 +120,11 @@ const vector<bool> &GetE() {
 }
 
 template<const vector<bool> &(*F)(), const char *(*CONSTANT)()>
-struct NumericPlayer : public Player {
-  NumericPlayer() : bits(F()) {}
+struct BinaryPlayer : public Player {
+  BinaryPlayer() : bits(F()) {}
 
-  struct NumericGame : public PlayerGame {
-    explicit NumericGame(const NumericPlayer &p) : player(p) {}
+  struct BinaryGame : public PlayerGame {
+    explicit BinaryGame(const BinaryPlayer &p) : player(p) {}
     
     // Most canonical way to order these is asciibetically by their
     // algebraic move names.
@@ -251,15 +251,15 @@ struct NumericPlayer : public Player {
     }
 
     int stream_idx = 0;
-    const NumericPlayer &player;
+    const BinaryPlayer &player;
   };
 
   PlayerGame *CreateGame() override {
-    return new NumericGame(*this);
+    return new BinaryGame(*this);
   }
   
   string Name() const override {
-    return StringPrintf("numeric_%s", CONSTANT());
+    return StringPrintf("binary_%s", CONSTANT());
   }
   string Desc() const override {
     return StringPrintf(
@@ -444,12 +444,12 @@ struct RationalPlayer : public Player {
 
 
 
-Player *NumericPi() {
-  return new NumericPlayer<GetPi, PiName>;
+Player *BinaryPi() {
+  return new BinaryPlayer<GetPi, PiName>;
 }
 
-Player *NumericE() {
-  return new NumericPlayer<GetE, EName>;
+Player *BinaryE() {
+  return new BinaryPlayer<GetE, EName>;
 }
 
 Player *RationalPi() {

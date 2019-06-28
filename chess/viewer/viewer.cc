@@ -1999,7 +1999,8 @@ int main(int argc, char **argv) {
   // ui.async_player.reset(new AsyncPlayer(AlmanacPopular()));
   // ui.async_player.reset(new AsyncPlayer(BlindSpycheck()));
   // ui.async_player.reset(new AsyncPlayer(Chessmaster1()));
-  ui.async_player.reset(new AsyncPlayer(NumericE()));
+  // ui.async_player.reset(new AsyncPlayer(BinaryE()));
+  ui.async_player.reset(new AsyncPlayer(RationalPi()));  
   // ui.async_player.reset(new AsyncPlayer(SinglePlayer()));
 
   if (argc > 1) {
