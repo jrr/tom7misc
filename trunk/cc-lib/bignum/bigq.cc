@@ -1,5 +1,5 @@
 /*
- * $Id: bigq.c,v 1.45 2019/06/28 11:19:45 tom7 Exp $
+ * $Id: bigq.c,v 1.56 2019/06/28 12:48:04 tom7 Exp $
  */
 
 /*
@@ -37,6 +37,8 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include "../base/logging.h" // XXX
+
 /*
  * Implementation note:
  * If any BigQ parameter is passed as BZNULL, function returns BZNULL which
@@ -59,6 +61,9 @@ BqCreateInternal(const BigZ n, const BigZ d, BqCreateMode mode) {
          * - d in (N \ {0})
          */
 
+  CHECK(n->Header.Size < 1000);
+  CHECK(d->Header.Size < 1000);
+  
   // XXX leaks!
   printf("BqCreateInternal %s / %s %s\n",
 	 BzToString(n, 10, 0),
@@ -71,20 +76,24 @@ BqCreateInternal(const BigZ n, const BigZ d, BqCreateMode mode) {
         BigZ    cd;
 
         if (n == BZNULL || d == BZNULL) {
-                return (BQNULL);
+	  CHECK(false) << "arg null";
+	  return (BQNULL);
         }
 
 #if     defined(BQ_POSITIVE_DENOMINATOR)
         if (BzGetSign(d) != BZ_PLUS) {
-                return (BQNULL);
+	  CHECK(false) << "not positive";
+	  return (BQNULL);
         }
 #else
         if (BzGetSign(d) == BZ_ZERO) {
+	  	  CHECK(false) << "denom zero";
                 return (BQNULL);
         }
 #endif
 
         if ((q = (BigQ)BqAlloc()) == 0) {
+	  	  	  CHECK(false) << "alloc failed";
                 return (BQNULL);
         }
 
@@ -96,6 +105,7 @@ BqCreateInternal(const BigZ n, const BigZ d, BqCreateMode mode) {
 
                 BqSetNumerator(q, BzFromInteger((BzInt)0));
                 BqSetDenominator(q, BzFromInteger((BzInt)1));
+		printf("Returning 0/1\n"); fflush(stdout);
                 return (q);
         }
 
@@ -125,10 +135,22 @@ BqCreateInternal(const BigZ n, const BigZ d, BqCreateMode mode) {
         BqSetNumerator(q, cn);
         BqSetDenominator(q, cd);
 
+	CHECK(cn->Header.Size < 1000);
+	CHECK(cd->Header.Size < 1000);
+	
         if (BzLength(cd) != (BigNumLength)1) {
                 BqNormalize(q);
         }
 
+	CHECK(q->N->Header.Size < 1000);
+	CHECK(q->D->Header.Size < 1000);
+
+	
+	printf("Returning normal %s %s\n",
+	       BzToString(q->N, 10, 0),
+	       BzToString(q->D, 10, 0)
+	       );
+	fflush(stdout);
         return (q);
 }
 
@@ -160,6 +182,8 @@ BqNormalize(BigQ q) {
 
 BigQ
 BqCreate(const BigZ n, const BigZ d) {
+  CHECK(n->Header.Size < 1000);
+  CHECK(d->Header.Size < 1000);
   // XXX leaks!
   printf("BqCreate %s / %s\n",
 	 BzToString(n, 10, 0),
@@ -207,9 +231,14 @@ BqAdd(const BigQ a, const BigQ b) {
                  * Compute numerator
                  */
 
+		// So somewhere in here the size gets huge?
+		
                 tmp1 = BzMultiply(an, bd);
                 tmp2 = BzMultiply(ad, bn);
+		CHECK(tmp1->Header.Size < 1000);
+		CHECK(tmp2->Header.Size < 1000);
                 n = BzAdd(tmp1, tmp2);
+		CHECK(n->Header.Size < 1000);
                 BzFree(tmp2);
                 BzFree(tmp1);
 
@@ -219,6 +248,8 @@ BqAdd(const BigQ a, const BigQ b) {
 
                 d = BzMultiply(ad, bd);
 
+		CHECK(d->Header.Size < 1000);
+		
                 return (BqCreateInternal(n, d, BQ_SET));
         }
 }

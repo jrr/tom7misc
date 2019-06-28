@@ -40,7 +40,9 @@
  */
 
 // TODO: Moved from header. Just inline it? -tom7
-#define BZ_OPTIMIZE_PRINT
+// #define BZ_OPTIMIZE_PRINT
+
+#include "../base/logging.h" // XXX
 
 
 // what is this?! -tom7
@@ -289,6 +291,9 @@ BzCreate(BigNumLength Size) {
 
         chunk = sizeof(BigZHeader) + Size * sizeof(BigNumDigit);
 
+	printf("BzCreate w/ size = %d\n", Size);
+	CHECK(Size < 1000); // XXX
+	
         if ((z = (BigZ)(BzAlloc(chunk))) != BZNULL) {
                 /*
                  * reset digits
@@ -312,8 +317,9 @@ BzNumDigits(const BigZ z) {
         /*
          * Returns the number of digits used by z.
          */
-
-        return (BnnNumDigits(BzToBn(z), BzGetSize(z)));
+  BigNumLength sz = BzGetSize(z);
+  printf("bigz at %p size %d\n", z, sz); fflush(stdout); // XXX
+        return (BnnNumDigits(BzToBn(z), sz));
 }
 
 BigNumLength
@@ -1659,6 +1665,7 @@ BzToBigNum(const BigZ z, BigNumLength *nl) {
                 for (i = 0, m = ++n; i < *nl; i++, m++) {
                         *m = BzGetDigit(z, i);
                 }
+
         }
 
         return (n);

@@ -37,22 +37,26 @@ static BigQ Forward(const BigQ r, int n) {
 #endif
 
 int main(int argc, char **argv) {
+  printf("Start.\n");
+  fflush(stdout);
   {
-  BigInt i{1234567LL};
-  BigInt j{33LL};
-  BigInt k = BigInt::Times(i, j);
+    BigInt i{1234567LL};
+    BigInt j{33LL};
+    BigInt k = BigInt::Times(i, j);
   
-  printf("Integer: %s %s %s\n",
-	 i.ToString().c_str(),
-	 j.ToString().c_str(),
-	 k.ToString().c_str());
+    printf("Integer: %s %s %s\n",
+	   i.ToString().c_str(),
+	   j.ToString().c_str(),
+	   k.ToString().c_str());
+    fflush(stdout);
   }
 
   BigRat sum;
   for (int i = 0; i < 1000; i++) {
+    printf("====== %d =====\n", i); fflush(stdout);
     // + 1/1, - 1/3, + 1/5
     BigRat term{(i & 1) ? -1 : 1,
-		i * 2 + 1};
+	i * 2 + 1};
     printf("%s + %s\n", sum.ToString().c_str(), term.ToString().c_str());
     fflush(stdout);
     sum = BigRat::Plus(sum, term);
