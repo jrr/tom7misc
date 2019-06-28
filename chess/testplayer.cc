@@ -57,10 +57,12 @@ struct TextExplainer : public Explainer {
 };
 
 int main(int argc, char **argv) {
-  std::unique_ptr<Player> white_player{NumericE()};
-  std::unique_ptr<Player> black_player{Popular()};
+  std::unique_ptr<Player> white_player{RationalPi()};
+  std::unique_ptr<Player> black_player{RationalE()};
 
-  static constexpr int NUM_LOOPS = 100;
+  // #define VERBOSE
+  
+  static constexpr int NUM_LOOPS = 1;
   
   for (int loops = 0; loops < NUM_LOOPS; loops++) {
     std::unique_ptr<PlayerGame> white{white_player->CreateGame()};
@@ -112,7 +114,7 @@ int main(int argc, char **argv) {
       black_turn = !black_turn;
     }
 
-#if 0 || defined(VERBOSE)
+#if 1 || defined(VERBOSE)
     printf("\nGame over:\n%s\n", pos.BoardString().c_str());
     #endif
   }

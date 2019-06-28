@@ -10,4 +10,7 @@
 Player *NumericPi();
 Player *NumericE();
 
+Player *RationalPi();
+Player *RationalE();
+
 #endif
