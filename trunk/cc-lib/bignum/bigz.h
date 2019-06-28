@@ -115,11 +115,6 @@ using BzInt = int64_t;
 using BzUInt = uint64_t;
 
 
-/*
- * Random seed type, by contract it must be an unsigned int.
- */
-typedef unsigned int                    BzSeed;
-
 #if     !defined(BZ_BUCKET_SIZE)
 #if     defined(_WIN64) || (defined(SIZEOF_LONG) && (SIZEOF_LONG == 8))
 #define BZ_BUCKET_SIZE 64
@@ -203,7 +198,6 @@ extern BigZ         BzAsh(const BigZ y, int n);
 extern BigZ         BzSqrt(const BigZ z);
 extern BigZ         BzLcm(const BigZ y, const BigZ z);
 extern BigZ         BzGcd(const BigZ y, const BigZ z);
-extern BigZ         BzRandom(const BigZ n, BzSeed *seed);
 extern BigZ         BzModExp(const BigZ base, const BigZ exponent, const BigZ modulus);
 
 /*

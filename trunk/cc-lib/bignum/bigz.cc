@@ -2359,69 +2359,6 @@ BzGcd(const BigZ y, const BigZ z) {
         }
 }
 
-static BigNumDigit BzInternalRandom(BzSeed *seed);
-
-static BigNumDigit
-BzInternalRandom(BzSeed *seed) {
-        if (seed == (BzSeed *)0) {
-                /*
-                 * Should not happen. Returns 0 instead of hanging.
-                 */
-                return 0;
-        }
-
-        /*
-         * http://en.wikipedia.org/wiki/Linear_congruential_generator
-         * a - 1 is divisible by all prime factors of m.
-         * (In our case m = 2^32, size of the int, so m has only one prime
-         * factor = 2)
-         * a - 1 is a multiple of 4 if m is a multiple of 4.
-         * (32768 is multiple of 4, and 1103515244 too)
-         */
-
-        *seed = *seed * 1103515245 + 12345;
-        return (((BigNumDigit)*seed) / 65536) % 32768;
-}
-
-BigZ
-BzRandom(const BigZ n, BzSeed *seed) {
-        BigZ res;
-        BigZ r;
-        BigNumLength len;
-        BigNumLength i;
-
-        /*
-         * Algo: make a copy of n and call BzInternalRandom() to replace all
-         * its bits (all its BigNumDigit).
-         * Assume any bit has an equiprobable [0-1] value.
-         */
-
-        if ((r = BzCopy(n)) == BZNULL) {
-                return BZNULL;
-        }
-
-        len = BzGetSize(n);
-
-        for (i = 0; i < len; ++i) {
-                BigNumLength j;
-                BigNumDigit  *d = BzToBn(r) + i;
-
-                for (j = 0; j < (BigNumLength)sizeof(d); ++j) {
-                        BigNumDigit chunk = (BzInternalRandom(seed) & 0xff);
-                        *d += (chunk << (j * BN_BYTE_SIZE));
-                }
-        }
-
-        /*
-         * Call BzMod to insure result is less than n.
-         */
-        res = BzMod(r, n);
-
-        BzFree(r);
-
-        return (res);
-}
-
 BigZ
 BzPow(const BigZ base, BzUInt exponent) {
         if (exponent == 0) {
