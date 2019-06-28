@@ -698,7 +698,7 @@ BzTruncate(const BigZ y, const BigZ z) {
 
         if (r == BZNULL) {
                 /*
-                 * This should never happend.
+                 * This should never happen.
                  */
                 BzFree(q);
                 return BZNULL;
@@ -763,7 +763,7 @@ BzCeiling(const BigZ y, const BigZ z) {
 
         if (r == BZNULL) {
                 /*
-                 * This should never happend.
+                 * This should never happen.
                  */
                 BzFree(q);
                 return BZNULL;
@@ -815,7 +815,7 @@ BzRound(const BigZ y, const BigZ z) {
 
         if (r == BZNULL) {
                 /*
-                 * This should never happend.
+                 * This should never happen.
                  */
                 BzFree(q);
                 return BZNULL;
@@ -966,7 +966,7 @@ BzRem(const BigZ y, const BigZ z) {
 
                 if (r == BZNULL) {
                         /*
-                         * This should never happend.
+                         * This should never happen.
                          */
                         return BZNULL;
                 }

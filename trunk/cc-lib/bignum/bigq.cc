@@ -1,5 +1,5 @@
 /*
- * $Id: bigq.c,v 1.42 2019/06/28 00:03:09 tom7 Exp $
+ * $Id: bigq.c,v 1.45 2019/06/28 11:19:45 tom7 Exp $
  */
 
 /*
@@ -59,6 +59,13 @@ BqCreateInternal(const BigZ n, const BigZ d, BqCreateMode mode) {
          * - d in (N \ {0})
          */
 
+  // XXX leaks!
+  printf("BqCreateInternal %s / %s %s\n",
+	 BzToString(n, 10, 0),
+	 BzToString(d, 10, 0),
+	 mode == BQ_COPY ? "COPY" : "SET");
+  fflush(stdout);
+  
         BigQ    q;
         BigZ    cn;
         BigZ    cd;
@@ -153,6 +160,12 @@ BqNormalize(BigQ q) {
 
 BigQ
 BqCreate(const BigZ n, const BigZ d) {
+  // XXX leaks!
+  printf("BqCreate %s / %s\n",
+	 BzToString(n, 10, 0),
+	 BzToString(d, 10, 0));
+  fflush(stdout);
+  
         return (BqCreateInternal(n, d, BQ_COPY));
 }
 
@@ -183,6 +196,13 @@ BqAdd(const BigQ a, const BigQ b) {
                 BigZ tmp1;
                 BigZ tmp2;
 
+		printf("BqAdd %s / %s + %s / %s\n",
+		       BzToString(an, 10, 0),
+		       BzToString(ad, 10, 0),
+		       BzToString(bn, 10, 0),
+		       BzToString(bd, 10, 0));
+		fflush(stdout);
+		
                 /*
                  * Compute numerator
                  */
