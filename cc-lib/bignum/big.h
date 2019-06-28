@@ -47,11 +47,13 @@ struct BigInt {
 private:
   friend class BigRat;
   // Takes ownership.
-  explicit BigInt(BigZ z) : bigz(z) {}
+  // nullptr token here is just used to distinguish from the version
+  // that takes an int64 (would be ambiguous with BigInt(0)).
+  explicit BigInt(BigZ z, nullptr_t token) : bigz(z) {}
   
   // BigZ is a pointer to a bigz struct, which is the
   // header followed by digits.
-  BigZ bigz;
+  BigZ bigz = nullptr;
 };
 
 
@@ -81,13 +83,14 @@ struct BigRat {
   static BigRat Minus(const BigRat &a, const BigRat &b);
 
   static BigRat ApproxDouble(double num, int64_t max_denom);
-  
+
+  void Validate() const; // XXX
   
   void Swap(BigRat *other);
     
 private:
   // Takes ownership.
-  explicit BigRat(BigQ q) : bigq(bigq) {
+  explicit BigRat(BigQ q) : bigq(q) {
     CHECK(bigq != nullptr);
     printf("Created from bigq %p\n", bigq);
     fflush(stdout);
@@ -98,7 +101,7 @@ private:
   // so it would probably be much better to just unpack it here.
   // bigq.cc is seemingly set up to do this by redefining some
   // macros in the EXTERNAL_BIGQ_MEMORY section of the header.
-  BigQ bigq;
+  BigQ bigq = nullptr;
 };
 
 
@@ -122,7 +125,10 @@ BigInt &BigInt::operator =(BigInt &&other) {
   return *this;
 }
 
-BigInt::~BigInt() { BzFree(bigz); }
+BigInt::~BigInt() {
+  BzFree(bigz);
+  bigz = nullptr;
+}
 
 void BigInt::Swap(BigInt *other) {
   std::swap(bigz, other->bigz);
@@ -141,10 +147,10 @@ bool BigInt::IsEven() const { return BzIsEven(bigz); }
 bool BigInt::IsOdd() const { return BzIsOdd(bigz); }
 
 BigInt BigInt::Negate(const BigInt &a) {
-  return BigInt(BzNegate(a.bigz));
+  return BigInt{BzNegate(a.bigz), nullptr};
 }
 BigInt BigInt::Abs(const BigInt &a) {
-  return BigInt(BzAbs(a.bigz));
+  return BigInt{BzAbs(a.bigz), nullptr};
 }
 // TODO: Overload <, etc. and <=>
 int BigInt::Compare(const BigInt &a, const BigInt &b) {
@@ -156,29 +162,36 @@ int BigInt::Compare(const BigInt &a, const BigInt &b) {
   }
 }
 BigInt BigInt::Plus(const BigInt &a, const BigInt &b) {
-  return BigInt{BzAdd(a.bigz, b.bigz)};
+  return BigInt{BzAdd(a.bigz, b.bigz), nullptr};
 }
 BigInt BigInt::Minus(const BigInt &a, const BigInt &b) {
-  return BigInt{BzSubtract(a.bigz, b.bigz)};
+  return BigInt{BzSubtract(a.bigz, b.bigz), nullptr};
 }
 BigInt BigInt::Times(const BigInt &a, const BigInt &b) {
-  return BigInt{BzMultiply(a.bigz, b.bigz)};
+  return BigInt{BzMultiply(a.bigz, b.bigz), nullptr};
 }
 // TODO: Quotrem via BzDivide
 BigInt BigInt::Div(const BigInt &a, const BigInt &b) {
-  return BigInt{BzDiv(a.bigz, b.bigz)};
+  return BigInt{BzDiv(a.bigz, b.bigz), nullptr};
 }
 // TODO: truncate, floor, ceiling round. what are they?
 
 // TODO: Clarify mod vs rem?
 BigInt BigInt::Mod(const BigInt &a, const BigInt &b) {
-  return BigInt{BzMod(a.bigz, b.bigz)};
+  return BigInt{BzMod(a.bigz, b.bigz), nullptr};
 }
 
 BigInt BigInt::Pow(const BigInt &a, uint64_t exponent) {
-  return BigInt{BzPow(a.bigz, exponent)};
+  return BigInt{BzPow(a.bigz, exponent), nullptr};
 }
 
+void BigRat::Validate() const {
+  CHECK(bigq != nullptr);
+  CHECK(bigq->N != nullptr);
+  CHECK(bigq->D != nullptr);
+  CHECK(bigq->N->Header.Size < 1000);
+  CHECK(bigq->D->Header.Size < 1000);
+}
 
 
 BigRat::BigRat(int64_t numer, int64_t denom) {
@@ -187,15 +200,22 @@ BigRat::BigRat(int64_t numer, int64_t denom) {
   BigInt n{numer}, d{denom};
   bigq = BqCreate(n.bigz, d.bigz);
   CHECK(bigq != nullptr) << numer << " / " << denom;
+  Validate();
 }
 
 // PERF: Should have BqCopy so that we don't need to re-normalize.
 BigRat::BigRat(const BigRat &other) :
   bigq(BqCreate(
 	   BqGetNumerator(other.bigq),
-	   BqGetDenominator(other.bigq))) { }
+	   BqGetDenominator(other.bigq))) {
+  other.Validate();
+  Validate();
+}
 BigRat &BigRat::operator =(const BigRat &other) {
-  printf("assignent\n");
+  Validate();
+  other.Validate();
+
+  printf("assignent %p = %p\n", this, &other);
   fflush(stdout);
 
   // Self-assignment does nothing.
@@ -206,20 +226,26 @@ BigRat &BigRat::operator =(const BigRat &other) {
   return *this;
 }
 BigRat &BigRat::operator =(BigRat &&other) {
-  printf("Move-assigned\n");
+  Validate();
+  other.Validate();
+  printf("Move-assigned %p = %p\n", this, &other);
   fflush(stdout);
   Swap(&other);
   return *this;
 }
 
 void BigRat::Swap(BigRat *other) {
+  Validate();
+  other->Validate();
   printf("Swap %s %s\n", ToString().c_str(), other->ToString().c_str());
   fflush(stdout);
   std::swap(bigq, other->bigq);
 }
 
 BigRat::~BigRat() {
+  Validate();
   BqDelete(bigq);
+  bigq = nullptr;
 }
 
 int BigRat::Compare(const BigRat &a, const BigRat &b) {
@@ -247,7 +273,10 @@ BigRat BigRat::Negate(const BigRat &a) {
   return BigRat{BqNegate(a.bigq)};
 }
 BigRat BigRat::Plus(const BigRat &a, const BigRat &b) {
-  return BigRat{BqAdd(a.bigq, b.bigq)};
+  a.Validate();
+  b.Validate();
+  BigQ res = BqAdd(a.bigq, b.bigq);
+  return BigRat{res};
 }
 BigRat BigRat::Minus(const BigRat &a, const BigRat &b) {
   return BigRat{BqSubtract(a.bigq, b.bigq)};

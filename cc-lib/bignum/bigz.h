@@ -75,8 +75,8 @@ typedef enum {
  */
 
 typedef struct {
-        BigNumLength    Size;
-        BzSign          Sign;
+        BigNumLength    Size = 0;
+        BzSign          Sign = BZ_ZERO;
 } BigZHeader;
 
  /*
@@ -114,7 +114,7 @@ using BzChar = char;
 using BzInt = int64_t;
 using BzUInt = uint64_t;
 
-
+/*
 #if     !defined(BZ_BUCKET_SIZE)
 #if     defined(_WIN64) || (defined(SIZEOF_LONG) && (SIZEOF_LONG == 8))
 #define BZ_BUCKET_SIZE 64
@@ -122,6 +122,9 @@ using BzUInt = uint64_t;
 #define BZ_BUCKET_SIZE 32
 #endif
 #endif
+*/
+
+#define BZ_BUCKET_SIZE 64
 
 #if     !defined(__EXTERNAL_BIGZ_MEMORY)
 #define __toBzObj(z)                    ((__BigZ)z)

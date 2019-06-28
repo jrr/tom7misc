@@ -55,8 +55,8 @@ typedef enum {
  */
 
 struct BigQStruct {
-        BigZ    N;
-        BigZ    D;
+        BigZ    N = nullptr;
+        BigZ    D = nullptr;
 };
 
 typedef struct BigQStruct * __BigQ;
