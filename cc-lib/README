@@ -84,3 +84,5 @@ crypt/        - Simple implementations of cryptographic algorithms like AES
                 and SHA256. Perhaps arcfour and MD5 should be in here too.
 pi/           - Some code for working on the raspberry pi, particularly
                 for doing GPIO.
+bignum/       - Simple arbitrary-precision integers and rationals (BSD-like
+                license). Not as fast as GMP, but easier to compile!
