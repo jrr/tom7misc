@@ -6,14 +6,6 @@
 
 using int64 = int64_t;
 
-static BigQ FromInts(int64 a, int64 b) {
-  BigZ n = BzFromInteger(a);
-  BigZ d = BzFromInteger(b);
-  BigQ r = BqCreate(n, d);
-  BzFree(n);
-  BzFree(d);
-  return r;
-}
 #if 0
 // Only thing we need for chess playing is this function.
 // It takes n (number of moves) and figures out which 1/n region
@@ -45,15 +37,32 @@ static BigQ Forward(const BigQ r, int n) {
 #endif
 
 int main(int argc, char **argv) {
+  {
   BigInt i{1234567LL};
-
-  printf("Integer: %s\n", i.ToString().c_str());
+  BigInt j{33LL};
+  BigInt k = BigInt::Times(i, j);
   
-  BigQ r = FromInts(12345, 99999);
+  printf("Integer: %s %s %s\n",
+	 i.ToString().c_str(),
+	 j.ToString().c_str(),
+	 k.ToString().c_str());
+  }
 
-  char *s = BqToString(r, 0);
-  printf("Rational: %s\n", s);
-  free(s);
-
-  BqDelete(r);
+  BigRat sum;
+  for (int i = 0; i < 1000; i++) {
+    // + 1/1, - 1/3, + 1/5
+    BigRat term{(i & 1) ? -1 : 1,
+		i * 2 + 1};
+    printf("%s + %s\n", sum.ToString().c_str(), term.ToString().c_str());
+    fflush(stdout);
+    sum = BigRat::Plus(sum, term);
+    printf("= %s\n", sum.ToString().c_str());
+    fflush(stdout);
+    BigRat tpi = BigRat::Times(sum, BigRat{4,1});
+    printf("Approx pi: %s = %f\n",
+	   tpi.ToString().c_str(),
+	   tpi.ToDouble());
+    fflush(stdout);
+  }
+  
 }
