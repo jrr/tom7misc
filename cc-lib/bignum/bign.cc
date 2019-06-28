@@ -31,7 +31,7 @@
 /*
  *      bign.c : the kernel written in pure C (it uses no C library)
  *
- *      $Id: bign.c,v 1.55 2016/04/21 05:54:09 jullien Exp $
+ *      $Id: bign.c,v 1.56 2019/06/28 00:01:44 tom7 Exp $
  */
 
 /*
@@ -59,9 +59,7 @@
  *
  */
 
-#if     !defined(__BIGN_H)
 #include "bign.h"
-#endif
 
 static void
 BnnDivideHelper(BigNum nn, BigNumLength nl, BigNum dd, BigNumLength dl);

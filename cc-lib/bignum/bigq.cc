@@ -1,5 +1,5 @@
 /*
- * $Id: bigq.c,v 1.40 2015/12/19 08:15:23 jullien Exp $
+ * $Id: bigq.c,v 1.42 2019/06/28 00:03:09 tom7 Exp $
  */
 
 /*
@@ -31,9 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if     !defined(__BIGQ_H)
 #include "bigq.h"
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -625,19 +623,14 @@ BqFromDouble(double num, BzInt maxd) {
         return (q);
 }
 
-double
-BqToDouble(const BigQ a) {
-        BzInt  in = (BzInt)0;
-        BzUInt id = (BzUInt)1;
+double BqToDouble(const BigQ a) {
+  BzInt  in = (BzInt)0;
+  BzUInt id = (BzUInt)1;
 
-        if ((BzToIntegerPointer(BqGetNumerator(a), &in) != 0)
-            && (BzToUnsignedIntegerPointer(BqGetDenominator(a), &id) != 0)) {
-                return (double)in / (double)id;
-        } else {
-#if defined(NAN)
-                return NAN;
-#else
-                return 0.0;
-#endif
-        }
+  if ((BzToIntegerPointer(BqGetNumerator(a), &in) != 0)
+      && (BzToUnsignedIntegerPointer(BqGetDenominator(a), &id) != 0)) {
+    return (double)in / (double)id;
+  } else {
+    return 0.0 / 0.0;
+  }
 }
