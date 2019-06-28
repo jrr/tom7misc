@@ -27,16 +27,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if     !defined(__BIGQ_H)
+#ifndef __BIGQ_H
 #define __BIGQ_H
 
-#if     !defined(__BIGZ_H)
 #include "bigz.h"
-#endif
-
-#if     defined(__cplusplus)
-extern  "C"     {
-#endif
 
 #define BQ_PURE_FUNCTION                BN_PURE_FUNCTION
 #define BQ_CONST_FUNCTION               BN_CONST_FUNCTION
@@ -104,10 +98,6 @@ extern double       BqToDouble(const BigQ a);
 
 #if 0
 extern BzChar *     BqToStringBuffer(const BigQ q, int sign, BzChar *buf, size_t *len);
-#endif
-
-#if     defined(__cplusplus)
-}
 #endif
 
 #endif  /* __BIGQ_H */

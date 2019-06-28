@@ -1,6 +1,10 @@
 See https://sourceforge.net/projects/bigz/ for the original source
 of this project. It was forked from version 1.6.2.
 
+C++ in big.* are new in this fork; since it is not much use without the
+license below, for simplicity we use the same license for everything in
+this directory.
+
 /*
  * Simplified BSD License
  *

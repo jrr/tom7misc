@@ -1,5 +1,5 @@
 /*
- * $Id: bign.h,v 1.37 2015/12/31 08:06:56 jullien Exp $
+ * $Id: bign.h,v 1.39 2019/06/28 00:00:38 tom7 Exp $
  */
 
 /*
@@ -36,16 +36,10 @@
  *      bign.h - Types and structures for clients of BigNum.
  */
 
-#if     !defined(__BIGN_H)
+#ifndef __BIGN_H
 #define __BIGN_H
 
-#if     defined(HAVE_CONFIG_H)
-#include "config.h"
-#endif
-
-#if     defined(_WIN64) || (defined(HAVE_STDINT_H) && (SIZEOF_VOID_P >= 8))
-#include <stdint.h>
-#endif
+#include <cstdint>
 
 /*
  *  Bignum representation
@@ -60,22 +54,11 @@
  *       nn
  */
 
-#if     defined(__cplusplus)
-extern  "C"     {
-#endif
-
 /*
  *      Internal digit type.
  */
 
-#if     !defined(BN_NUM_DIGIT_TYPE)
-#define BN_NUM_DIGIT_TYPE
-#if     defined(_WIN64) || (defined(HAVE_STDINT_H) && (SIZEOF_VOID_P >= 8))
-typedef uint64_t                BigNumDigit;
-#else
-typedef unsigned long           BigNumDigit;
-#endif
-#endif
+using BigNumDigit = uint64_t;
 
 #if     defined(__GNUC__) && (__GNUC__ >= 3)
 #if     !defined(BN_CONST_FUNCTION)
@@ -182,9 +165,5 @@ extern BigNumDigit  BnnShiftRight(BigNum mm, BigNumLength ml, BigNumLength nbits
 extern BigNumCarry  BnnSubtract(BigNum mm, BigNumLength ml, const BigNum nn, BigNumLength nl, BigNumCarry carryin);
 extern BigNumCarry  BnnSubtractBorrow(BigNum nn, BigNumLength nl, BigNumCarry carryin);
 extern void         BnnXorDigits(BigNum n, BigNumDigit d);
-
-#if     defined(__cplusplus)
-}
-#endif
 
 #endif  /* __BIGN_H */

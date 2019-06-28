@@ -28,22 +28,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if     !defined(__BIGZ_H)
+#ifndef __BIGZ_H
 #define __BIGZ_H
 
-#if     !defined(__BIGN_H)
 #include "bign.h"
-#endif
-
-#if     defined(__cplusplus)
-extern  "C"     {
-#endif
 
 #include <stdlib.h>
-
-#if     defined(_WIN64) || (defined(HAVE_STDINT_H) && (SIZEOF_VOID_P >= 8))
-#include <stdint.h>
-#endif
+#include <cstdint>
 
 #define BZ_PURE_FUNCTION                BN_PURE_FUNCTION
 #define BZ_CONST_FUNCTION               BN_CONST_FUNCTION
@@ -118,35 +109,16 @@ typedef struct BigZStruct * __BigZ;
 typedef __BigZ                          BigZ;
 #endif
 
-#if     !defined(BZ_CHAR_TYPE)
-#define BZ_CHAR_TYPE
-typedef char                            BzChar;
-#endif
+// TODO: Just use these types directly in the interface/code. -tom7
+using BzChar = char;
+using BzInt = int64_t;
+using BzUInt = uint64_t;
 
-#if     !defined(BZ_INT_TYPE)
-#define BZ_INT_TYPE
-#if     defined(_WIN64) || (defined(HAVE_STDINT_H) && (SIZEOF_VOID_P >= 8))
-typedef int64_t                         BzInt;
-#else
-typedef int                             BzInt;
-#endif
-#endif
-
-#if     !defined(BZ_UINT_TYPE)
-#define BZ_UINT_TYPE
-#if     defined(_WIN64) || (defined(HAVE_STDINT_H) && (SIZEOF_VOID_P >= 8))
-typedef uint64_t                        BzUInt;
-#else
-typedef unsigned int                    BzUInt;
-#endif
-#endif
 
 /*
  * Random seed type, by contract it must be an unsigned int.
  */
 typedef unsigned int                    BzSeed;
-
-#define BZ_OPTIMIZE_PRINT
 
 #if     !defined(BZ_BUCKET_SIZE)
 #if     defined(_WIN64) || (defined(SIZEOF_LONG) && (SIZEOF_LONG == 8))
@@ -158,7 +130,7 @@ typedef unsigned int                    BzSeed;
 
 #if     !defined(__EXTERNAL_BIGZ_MEMORY)
 #define __toBzObj(z)                    ((__BigZ)z)
-#define BZNULL                          ((BigZ)0)
+#define BZNULL                          ((BigZ)nullptr)
 #define BzAlloc(size)                   malloc(size)
 #define BzFree(z)                       free(z) /* free(__toBzObj(z)) */
 #define BzStringAlloc(size)             malloc(size * sizeof(BzChar))
@@ -199,6 +171,7 @@ extern BigZ         BzRem(const BigZ y, const BigZ z);
 extern BigZ         BzPow(const BigZ base, BzUInt exponent);
 extern BigNumBool   BzIsEven(const BigZ y) BZ_PURE_FUNCTION;
 extern BigNumBool   BzIsOdd(const BigZ y) BZ_PURE_FUNCTION;
+  // sign can be BZ_FORCE_SIGN (forces leading +) or 0 -tom7
 extern BzChar *     BzToString(const BigZ z, BigNumDigit base, int sign);
 extern size_t       BzStrLen(const BzChar *s) BN_PURE_FUNCTION;
 extern BzChar *     BzToStringBuffer(const BigZ z, BigNumDigit base, int sign, /*@null@*/ BzChar * const buf, /*@null@*/ size_t *len);
@@ -240,10 +213,6 @@ extern BigZ         BzModExp(const BigZ base, const BigZ exponent, const BigZ mo
 #if     defined(BZ_DEBUG)
 extern void         BnDebug(const char *m, const BzChar *bzstr, const BigNum n, BigNumLength nl, BzSign sign);
 extern void         BzDebug(const char *m, const BigZ y);
-#endif
-
-#if     defined(__cplusplus)
-}
 #endif
 
 #endif  /* __BIGZ_H */
