@@ -7,8 +7,8 @@
 
 #include "chess.h"
 
-Player *NumericPi();
-Player *NumericE();
+Player *BinaryPi();
+Player *BinaryE();
 
 Player *RationalPi();
 Player *RationalE();

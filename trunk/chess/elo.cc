@@ -35,10 +35,9 @@ static constexpr int ELO_PASSES = 20;
 
 
 // To protect against the effects of imbalanced number of games
-// in the elo calculation, sample this many games from each cell
-// instead of using them all. There must be at least this many
-// games in each cell. If 0, don't sample.
-// static constexpr int SAMPLE_N = 10; // 71;
+// in the elo calculation, sample from each cell instead of using
+// them all. The size of the sample is the size of the minimum
+// cell.
 static constexpr bool SAMPLE = true;
 
 struct Elo {
@@ -253,9 +252,10 @@ static vector<Elo> ComputeElo(ArcFour *rc,
       }
 
       // TODO: Perhaps should use diminishing k as games go on.
-      // Modulating this based on the rating does not make that much sense to me;
-      // I think this is intended to capture the fact that true human skill changes
-      // over time. Our computer players are not like that.
+      // Modulating this based on the rating does not make that much
+      // sense to me; I think this is intended to capture the fact
+      // that true human skill changes over time. Our computer players
+      // are not like that.
       const double k_white = k;
       const double k_black = k;
 
@@ -278,18 +278,125 @@ static vector<Elo> ComputeElo(ArcFour *rc,
 }
 
 static int64 GetMinMatchups(int num_entrants,
-			    const vector<Cell> &outcomes) {
+			    const vector<Cell> &outcomes,
+			    int *min_white, int *min_black) {
   int64 min_total = -1;
   for (int white = 0; white < num_entrants; white++) {
     for (int black = 0; black < num_entrants; black++) {
       if (white != black) {
 	const Cell &cell = outcomes[white * num_entrants + black];
 	int64 total = cell.white_wins + cell.white_losses + cell.draws;
-	if (min_total < 0 || total < min_total) min_total = total;
+	if (min_total < 0 || total < min_total) {
+	  min_total = total;
+	  *min_white = white;
+	  *min_black = black;
+	}
       }
     }
   }
   return min_total;
+}
+
+
+static void MakeImages(int num_entrants,
+		       const vector<string> &names,
+		       const vector<int> &by_elo,
+		       const vector<Cell> &outcomes) {
+  std::vector<uint8> rgba;
+  static constexpr int CELL = 16;
+  const int WIDTH = CELL * num_entrants;
+  const int HEIGHT = CELL * num_entrants;
+  rgba.resize(WIDTH * HEIGHT * 4);
+
+  auto BlendQuarter = [&rgba, WIDTH, HEIGHT](int x, int y,
+					     uint8 r, uint8 g, uint8 b) {
+      const int i = (WIDTH * y + x) * 4;
+
+      const uint8 oldr = rgba[i + 0];
+      const uint8 oldg = rgba[i + 1];
+      const uint8 oldb = rgba[i + 2];
+      const uint8 olda = rgba[i + 3];
+      uint8 rr = Mix4(oldr, oldr, oldr, r);
+      uint8 gg = Mix4(oldg, oldg, oldg, g);
+      uint8 bb = Mix4(oldb, oldb, oldb, b);
+      SetPixel(WIDTH, HEIGHT, x, y, rr, gg, bb, olda, &rgba);
+    };
+
+  auto BlendHalf = [&rgba, WIDTH, HEIGHT](int x, int y,
+					  uint8 r, uint8 g, uint8 b) {
+      const int i = (WIDTH * y + x) * 4;
+
+      const uint8 oldr = rgba[i + 0];
+      const uint8 oldg = rgba[i + 1];
+      const uint8 oldb = rgba[i + 2];
+      const uint8 olda = rgba[i + 3];
+      uint8 rr = Mix4(oldr, oldr, r, r);
+      uint8 gg = Mix4(oldg, oldg, g, g);
+      uint8 bb = Mix4(oldb, oldb, b, b);
+      SetPixel(WIDTH, HEIGHT, x, y, rr, gg, bb, olda, &rgba);
+    };
+
+  for (int erow = 0; erow < num_entrants; erow++) {
+    const int row = by_elo[erow];
+    for (int ecol = 0; ecol < num_entrants; ecol++) {
+      const int col = by_elo[ecol];
+      const int idx = row * num_entrants + col;
+      const Cell &cell = outcomes[idx];
+
+      const int64 total = cell.white_wins + cell.white_losses + cell.draws;
+
+      int xx = ecol * CELL, yy = erow * CELL;
+	
+      if (total > 0) {
+	double fr = cell.white_losses / (double)total;
+	double fg = cell.white_wins / (double)total;
+	double fb = cell.draws / (double)total;
+	// We want black text to be visible on the color, so use
+	// the space from 0.5 - 1.
+	uint8 ir = (int)round((0.5 + (fr * 0.5)) * 255.0);
+	uint8 ig = (int)round((0.5 + (fg * 0.5)) * 255.0);
+	uint8 ib = (int)round((0.5 + (fb * 0.5)) * 255.0);
+	FillRect(WIDTH, HEIGHT,
+		 xx, yy, CELL, CELL,
+		 ir, ig, ib, 255, &rgba);
+      }
+
+      if (cell.white_wins == 0 && cell.draws == 0) {
+	for (int i = 3; i < CELL - 2; i++) {
+	  BlendHalf(xx + i, yy + i, 0, 0, 0);
+	}
+
+	for (int i = 3; i < CELL - 2; i++) {
+	  BlendHalf(xx + (CELL - i), yy + i, 0, 0, 0);
+	}
+      }
+	
+      if (cell.white_losses == 0 && cell.draws == 0) {
+	for (int i = 3; i < CELL - 2; i++) {
+	  BlendHalf(xx + i, yy + i, 0, 0, 0);
+	}
+
+	for (int i = 3; i < CELL - 2; i++) {
+	  BlendHalf(xx + (CELL - i), yy + i, 0, 0, 0);
+	}
+      }
+
+    }
+  }
+    
+  // Draw grid over it.
+  for (int y = 1; y < num_entrants; y++) {
+    for (int x = 0; x < WIDTH; x++) {
+      BlendQuarter(x, y * CELL, 0, 0, 0);
+    }
+  }
+  for (int x = 1; x < num_entrants; x++) {
+    for (int y = 0; y < HEIGHT; y++) {
+      BlendQuarter(x * CELL, y, 0, 0, 0);
+    }
+  }
+    
+  SaveRGBA(rgba, WIDTH, HEIGHT, "elo.png");
 }
 
 int main(int argc, char **argv) {
@@ -332,9 +439,12 @@ int main(int argc, char **argv) {
 
   vector<Cell> sampled_outcomes = outcomes;
   if (SAMPLE) {
-    const int sample_n = GetMinMatchups(num_entrants, outcomes);
+    int min_white = 0, min_black = 0;
+    const int sample_n =
+      GetMinMatchups(num_entrants, outcomes, &min_white, &min_black);
     ArcFour rc(StringPrintf("sample.%lld", (int64)time(nullptr)));
-
+    printf("Fewest matchups in %s vs %s.\n",
+	   names[min_white].c_str(), names[min_black].c_str());
     printf("Sample %d from each cell...\n", sample_n);
     for (int white = 0; white < num_entrants; white++) {
       for (int black = 0; black < num_entrants; black++) {
@@ -516,106 +626,9 @@ int main(int argc, char **argv) {
   }
   PrintColumns();
 
-  fprintf(f, "</table>\n");
+  fprintf(f, "</table>\n");  
 
-  {
-    std::vector<uint8> argb;
-    static constexpr int CELL = 16;
-    const int WIDTH = CELL * num_entrants;
-    const int HEIGHT = CELL * num_entrants;
-    argb.resize(WIDTH * HEIGHT * 4);
-
-    auto BlendQuarter = [&argb, WIDTH, HEIGHT](int x, int y,
-					       uint8 r, uint8 g, uint8 b) {
-	const int i = (WIDTH * y + x) * 4;
-
-	const uint8 olda = argb[i + 0];
-	const uint8 oldr = argb[i + 1];
-	const uint8 oldg = argb[i + 2];
-	const uint8 oldb = argb[i + 3];
-	uint8 rr = Mix4(oldr, oldr, oldr, r);
-	uint8 gg = Mix4(oldg, oldg, oldg, g);
-	uint8 bb = Mix4(oldb, oldb, oldb, b);
-	SetPixel(WIDTH, HEIGHT, x, y, olda, rr, gg, bb, &argb);
-      };
-
-    auto BlendHalf = [&argb, WIDTH, HEIGHT](int x, int y,
-					    uint8 r, uint8 g, uint8 b) {
-	const int i = (WIDTH * y + x) * 4;
-
-	const uint8 olda = argb[i + 0];
-	const uint8 oldr = argb[i + 1];
-	const uint8 oldg = argb[i + 2];
-	const uint8 oldb = argb[i + 3];
-	uint8 rr = Mix4(oldr, oldr, r, r);
-	uint8 gg = Mix4(oldg, oldg, g, g);
-	uint8 bb = Mix4(oldb, oldb, b, b);
-	SetPixel(WIDTH, HEIGHT, x, y, olda, rr, gg, bb, &argb);
-      };
-
-    for (int erow = 0; erow < num_entrants; erow++) {
-      const int row = by_elo[erow];
-      for (int ecol = 0; ecol < num_entrants; ecol++) {
-	const int col = by_elo[ecol];
-	const int idx = row * num_entrants + col;
-	const Cell &cell = outcomes[idx];
-
-	const int64 total = cell.white_wins + cell.white_losses + cell.draws;
-
-	int xx = ecol * CELL, yy = erow * CELL;
-	
-	if (total > 0) {
-	  double fr = cell.white_losses / (double)total;
-	  double fg = cell.white_wins / (double)total;
-	  double fb = cell.draws / (double)total;
-	  // We want black text to be visible on the color, so use
-	  // the space from 0.5 - 1.
-	  uint8 ir = (int)round((0.5 + (fr * 0.5)) * 255.0);
-	  uint8 ig = (int)round((0.5 + (fg * 0.5)) * 255.0);
-	  uint8 ib = (int)round((0.5 + (fb * 0.5)) * 255.0);
-	  FillRect(WIDTH, HEIGHT,
-		   xx, yy, CELL, CELL,
-		   255, ir, ig, ib, &argb);
-	}
-
-	if (cell.white_wins == 0 && cell.draws == 0) {
-	  for (int i = 3; i < CELL - 2; i++) {
-	    BlendHalf(xx + i, yy + i, 0, 0, 0);
-	  }
-
-	  for (int i = 3; i < CELL - 2; i++) {
-	    BlendHalf(xx + (CELL - i), yy + i, 0, 0, 0);
-	  }
-	}
-	
-	if (cell.white_losses == 0 && cell.draws == 0) {
-	  for (int i = 3; i < CELL - 2; i++) {
-	    BlendHalf(xx + i, yy + i, 0, 0, 0);
-	  }
-
-	  for (int i = 3; i < CELL - 2; i++) {
-	    BlendHalf(xx + (CELL - i), yy + i, 0, 0, 0);
-	  }
-	}
-
-      }
-    }
-    
-    // Draw grid over it.
-    for (int y = 1; y < num_entrants; y++) {
-      for (int x = 0; x < WIDTH; x++) {
-	BlendQuarter(x, y * CELL, 0, 0, 0);
-      }
-    }
-    for (int x = 1; x < num_entrants; x++) {
-      for (int y = 0; y < HEIGHT; y++) {
-	BlendQuarter(x * CELL, y, 0, 0, 0);
-      }
-    }
-    
-    SaveARGB(argb, WIDTH, HEIGHT, "elo.png");
-  }
-  
+  MakeImages(num_entrants, names, by_elo, outcomes);
   
   fprintf(f, "<table><tr><td>player</td><td>25</td><td>elo</td><td>75</td><td>w/l/d</td>"
 	  "<td>p | norm(p)</td></tr>\n");
