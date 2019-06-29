@@ -59,7 +59,7 @@ struct FontReal final : public Font {
   SDL_Surface *screen;
   int ndim;
 
-  unsigned char chars[255];
+  unsigned char chars[256];
 
   virtual int sizex(const string &);
   virtual int sizex_plain(const string &);
@@ -123,7 +123,7 @@ Font *Font::create_from_surface(SDL_Surface *screen,
     if (!f->data[last]) return nullptr;
   }
 
-  for (int j = 0; j < 255; j++) {
+  for (int j = 0; j < 256; j++) {
     f->chars[j] = 0;
   }
 
