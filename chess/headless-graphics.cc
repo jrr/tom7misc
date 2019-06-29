@@ -91,6 +91,9 @@ HeadlessFont *HeadlessFont::Create(const std::string &filename,
   }
   stbi_image_free(stb_rgba);
 
+  CHECK(hf->font_height >= styles * char_height) <<
+    filename << " " << styles << " " << hf->font_height;
+  
   // TODO: Can support multiple dimmings, scales here.
   // Since this is headless, there is less need for computing these
   // up front. Could just do it dynamically.
@@ -110,10 +113,12 @@ HeadlessFont *HeadlessFont::Create(const std::string &filename,
 void HeadlessFont::DrawPlain(int x, int y,
 			     const std::string &s,
 			     std::vector<uint8_t> *rgba,
-			     int width, int height) {
+			     int width, int height,
+			     int style) {
+  CHECK(style * char_height < font_height) << style;
   int xx = x;
   for (int i = 0; i < s.size(); i++) {
-    DrawChar(s[i], 0, xx, y, rgba, width, height);
+    DrawChar(s[i], style, xx, y, rgba, width, height);
     xx += char_width;
     xx -= overlap;
   }

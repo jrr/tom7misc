@@ -58,7 +58,8 @@ struct HeadlessFont {
 	    int width, int height);
   void DrawPlain(int x, int y, const std::string &s,
 		 std::vector<uint8_t> *rgba,
-		 int width, int height);
+		 int width, int height,
+		 int style = 0);
   
 private:
   HeadlessFont(int char_width,
