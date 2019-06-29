@@ -30,7 +30,7 @@ static constexpr double ELO_START = 1000.0;
 // static constexpr int NUM_ELO_ROUNDS = 19;
 // static constexpr int ELO_PASSES = 20;
 
-#if 1 // XXX
+#if 1
 // Just run fast to look at output.
 static constexpr int NUM_ELO_ROUNDS = 3;
 static constexpr int ELO_PASSES = 2;
@@ -47,6 +47,13 @@ static constexpr int MIN_STATIONARY_ITERS = 100000;
 // them all. The size of the sample is the size of the minimum
 // cell.
 static constexpr bool SAMPLE = true;
+
+template<class C, class K, class T>
+static T FindWithDefault(const C &c, const K &key, T def) {
+  auto it = c.find(key);
+  if (it == c.end()) return def;
+  else return it->second;
+}
 
 struct Elo {
   double elo = ELO_START;
@@ -90,7 +97,7 @@ static vector<double> ComputeStationary(int num_entrants,
       return make_pair(cell.white_wins / (double)total,
 		       cell.white_losses / (double)total);
     };
-  
+
   // A Markov chain. The entry at mc[num_entrants * row + col] is the
   // probability of a transition from state 'row' to state 'col'. Imagine
   // a champion trophy held by the 'row' player. This player plays in
@@ -119,7 +126,7 @@ static vector<double> ComputeStationary(int num_entrants,
 	std::tie(black_win, black_loss) = GetProbs(col, row);
 	double white_draw = 1.0 - (white_win + white_loss);
 	double black_draw = 1.0 - (black_win + black_loss);
-      
+
 	// Play randomly as black or white, so just mix the two
 	// expectations evenly.
 	double expected_losses = (white_loss + black_win) * 0.5;
@@ -151,7 +158,7 @@ static vector<double> ComputeStationary(int num_entrants,
 	next[col] += dist[row] * mc[row * num_entrants + col];
       }
     }
-    
+
     double diff = 0.0;
     for (int i = 0; i < num_entrants; i++)
       diff += std::fabs(next[i] - dist[i]);
@@ -178,13 +185,13 @@ static vector<Elo> ComputeElo(ArcFour *rc,
   // We don't need the examples, but it's easiest to just copy
   // everything. We will modify wins/losses/draws to replay the games.
   std::vector<Cell> outcomes = orig_outcomes;
-  
+
   vector<Elo> elos;
   elos.resize(num_entrants);
   CHECK(start_elos.size() == num_entrants);
   for (int i = 0; i < num_entrants; i++)
     elos[i].elo = start_elos[i];
-  
+
   // Perform iterative updates in random order.
   vector<pair<int, int>> nonempty_matchups;
   // Initialize, ignoring self-play.
@@ -222,7 +229,7 @@ static vector<Elo> ComputeElo(ArcFour *rc,
       cell->draws--;
       return 0;
     };
-  
+
   while (!nonempty_matchups.empty()) {
     Shuffle(rc, &nonempty_matchups);
     vector<pair<int, int>> next_matchups;
@@ -232,7 +239,7 @@ static vector<Elo> ComputeElo(ArcFour *rc,
       // Randomly pick one of the wins, losses or draws. 1 means
       // 1 white wins.
       const int result = ClaimResult(cell);
-      
+
       const double q_white = pow(10.0, elos[white].elo / 400.0);
       const double q_black = pow(10.0, elos[black].elo / 400.0);
       // Expected score.
@@ -269,7 +276,7 @@ static vector<Elo> ComputeElo(ArcFour *rc,
 
       elos[white].elo += k_white * (s_white - e_white);
       elos[black].elo += k_black * (s_black - e_black);
-      
+
       elos[white].games++;
       elos[black].games++;
 
@@ -306,15 +313,19 @@ static int64 GetMinMatchups(int num_entrants,
 }
 
 
-static void MakeImages(int num_entrants,
-		       const vector<string> &names,
-		       const vector<int> &by_elo,
-		       const vector<Cell> &outcomes) {
+static void MakeImage(
+    std::unordered_map<string, int> *mask,
+    int num_entrants,
+    const vector<string> &names,
+    const vector<int> &by_elo,
+    const vector<Cell> &outcomes,
+    const string &filename) {
   std::vector<uint8> rgba;
   static constexpr int CELL = 16;
   const int MARGIN_LEFT = 160;
+  const int MARGIN_TOP = 16;
   const int WIDTH = CELL * num_entrants + MARGIN_LEFT;
-  const int HEIGHT = CELL * num_entrants;
+  const int HEIGHT = CELL * num_entrants + MARGIN_TOP;
   rgba.resize(WIDTH * HEIGHT * 4);
 
   auto BlendQuarter = [&rgba, WIDTH, HEIGHT](int x, int y,
@@ -345,63 +356,86 @@ static void MakeImages(int num_entrants,
       SetPixel(WIDTH, HEIGHT, x, y, rr, gg, bb, olda, &rgba);
     };
 
+  auto Allowed = [mask, &names](int entrant) -> bool {
+      return mask == nullptr ||
+	mask->find(names[entrant]) != mask->end();
+    };
+  
   for (int erow = 0; erow < num_entrants; erow++) {
     const int row = by_elo[erow];
     for (int ecol = 0; ecol < num_entrants; ecol++) {
       const int col = by_elo[ecol];
+      int xx = MARGIN_LEFT + ecol * CELL, yy = MARGIN_TOP + erow * CELL;
+
       const int idx = row * num_entrants + col;
       const Cell &cell = outcomes[idx];
 
       const int64 total = cell.white_wins + cell.white_losses + cell.draws;
 
-      int xx = MARGIN_LEFT + ecol * CELL, yy = erow * CELL;
-	
+      uint8 ir = 0x77, ig = 0x77, ib = 0x77;
       if (total > 0) {
 	double fr = cell.white_losses / (double)total;
 	double fg = cell.white_wins / (double)total;
 	double fb = cell.draws / (double)total;
-	// We want black text to be visible on the color, so use
+	// We want black x to be visible on the color, so use
 	// the space from 0.5 - 1.
-	uint8 ir = (int)round((0.5 + (fr * 0.5)) * 255.0);
-	uint8 ig = (int)round((0.5 + (fg * 0.5)) * 255.0);
-	uint8 ib = (int)round((0.5 + (fb * 0.5)) * 255.0);
+	ir = (int)round((0.5 + (fr * 0.5)) * 255.0);
+	ig = (int)round((0.5 + (fg * 0.5)) * 255.0);
+	ib = (int)round((0.5 + (fb * 0.5)) * 255.0);
+      }
+      
+      if (Allowed(row) && Allowed(col)) {
+
+
 	FillRect(WIDTH, HEIGHT,
 		 xx, yy, CELL, CELL,
 		 ir, ig, ib, 255, &rgba);
-      }
-
-      if (cell.white_wins == 0 && cell.draws == 0) {
-	for (int i = 3; i < CELL - 2; i++) {
-	  BlendHalf(xx + i, yy + i, 0, 0, 0);
-	}
-
-	for (int i = 3; i < CELL - 2; i++) {
-	  BlendHalf(xx + (CELL - i), yy + i, 0, 0, 0);
-	}
-      }
 	
-      if (cell.white_losses == 0 && cell.draws == 0) {
-	for (int i = 3; i < CELL - 2; i++) {
-	  BlendHalf(xx + i, yy + i, 0, 0, 0);
+	if (cell.white_wins == 0 && cell.draws == 0) {
+	  for (int i = 3; i < CELL - 2; i++) {
+	    BlendHalf(xx + i, yy + i, 0, 0, 0);
+	  }
+
+	  for (int i = 3; i < CELL - 2; i++) {
+	    BlendHalf(xx + (CELL - i), yy + i, 0, 0, 0);
+	  }
 	}
 
-	for (int i = 3; i < CELL - 2; i++) {
-	  BlendHalf(xx + (CELL - i), yy + i, 0, 0, 0);
+	if (cell.white_losses == 0 && cell.draws == 0) {
+	  for (int i = 3; i < CELL - 2; i++) {
+	    BlendHalf(xx + i, yy + i, 0, 0, 0);
+	  }
+
+	  for (int i = 3; i < CELL - 2; i++) {
+	    BlendHalf(xx + (CELL - i), yy + i, 0, 0, 0);
+	  }
 	}
+	
+      } else {
+	// Masked out. Draw as grey.
+	uint8 mmr = (erow & 1) ? 0x2F : 0x22;
+	uint8 mmc = !(ecol & 1) ? 0x2F : 0x22;
+	uint8 mm = (mmr + mmc) >> 1;
+
+	uint8 rr = Mix4(ir, mm, mm, mm);
+	uint8 gg = Mix4(ig, mm, mm, mm);
+	uint8 bb = Mix4(ib, mm, mm, mm);
+	FillRect(WIDTH, HEIGHT,
+		 xx, yy, CELL, CELL,
+		 rr, gg, bb, 255, &rgba);
       }
-
     }
   }
-    
-  // Draw grid over it.
+
+  // Draw grid over the tournament square area.
   for (int y = 1; y < num_entrants; y++) {
-    for (int x = 0; x < WIDTH; x++) {
-      BlendQuarter(MARGIN_LEFT + x, y * CELL, 0, 0, 0);
+    for (int x = 0; x < WIDTH - MARGIN_LEFT; x++) {
+      BlendQuarter(MARGIN_LEFT + x, MARGIN_TOP + y * CELL, 0, 0, 0);
     }
   }
   for (int x = 1; x < num_entrants; x++) {
-    for (int y = 0; y < HEIGHT; y++) {
-      BlendQuarter(MARGIN_LEFT + x * CELL, y, 0, 0, 0);
+    for (int y = 0; y < HEIGHT - MARGIN_TOP; y++) {
+      BlendQuarter(MARGIN_LEFT + x * CELL, MARGIN_TOP + y, 0, 0, 0);
     }
   }
 
@@ -409,29 +443,57 @@ static void MakeImages(int num_entrants,
     " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
     "0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?";
 
-  // Draw tiger stripes for player names.
+  // Draw tiger stripes for player names (left side).
   for (int row = 0; row < num_entrants; row++) {
     int mm = (row & 1) ? 0x2F : 0x22;
     FillRect(WIDTH, HEIGHT,
-	     0, row * CELL, MARGIN_LEFT - 1, CELL - 1,
+	     0, MARGIN_TOP + row * CELL + 1, MARGIN_LEFT - 1, CELL - 1,
 	     mm, mm, mm, 255, &rgba);
   }
-  
+
+  // Draw tiger stripes for player names (top).
+  for (int col = 0; col < num_entrants; col++) {
+    int mm = !(col & 1) ? 0x2F : 0x22;
+    FillRect(WIDTH, HEIGHT,
+	     MARGIN_LEFT + col * CELL + 1, 0, CELL - 1, MARGIN_TOP - 1,
+	     mm, mm, mm, 255, &rgba);
+  }
+
   std::unique_ptr<HeadlessFont> font(
-      HeadlessFont::Create("blind/font.png", FONTCHARS, 9, 16, 7, 1));
+      HeadlessFont::Create("rainbowfont.png", FONTCHARS, 9, 16, 20, 1));
   CHECK(font.get() != nullptr);
 
   for (int erow = 0; erow < num_entrants; erow++) {
     const int row = by_elo[erow];
-    // const string &name = names[row];
-    // XXX -19 here is hard-coded as the longest name...
-    string name = Util::Pad(-19, names[row]);
-    font->DrawPlain(2, erow * CELL,
-		    name,
-		    &rgba, WIDTH, HEIGHT);
+    if (Allowed(row)) {
+      int style = (mask == nullptr) ? 0 :
+	FindWithDefault(*mask, names[row], 0);
+      // const string &name = names[row];
+      // XXX -19 here is hard-coded as the longest name...
+      string name = Util::Pad(-19, names[row]);
+      font->DrawPlain(2, MARGIN_TOP + erow * CELL + 1,
+		      name,
+		      &rgba, WIDTH, HEIGHT, style);
+    }
   }
-  
-  SaveRGBA(rgba, WIDTH, HEIGHT, "elo.png");
+
+  // And just the first letter for columns.
+  for (int ecol = 0; ecol < num_entrants; ecol++) {
+    const int col = by_elo[ecol];
+    if (Allowed(col)) {
+      int style = (mask == nullptr) ? 0 :
+	FindWithDefault(*mask, names[col], 0);
+      string name = names[col];
+      name.resize(1);
+      font->DrawPlain(MARGIN_LEFT + ecol * CELL + 3, 0,
+		      name,
+		      &rgba, WIDTH, HEIGHT, style);
+    }
+  }
+
+  SaveRGBA(rgba, WIDTH, HEIGHT, filename);
+  printf("Wrote to %s\n", filename.c_str());
+  fflush(stdout);
 }
 
 int main(int argc, char **argv) {
@@ -467,7 +529,7 @@ int main(int argc, char **argv) {
   }
 
   ReportGaps(num_entrants, names, outcomes);
-  
+
   // PERF could be in parallel...
   const vector<double> stationary =
     ComputeStationary(num_entrants, names, outcomes);
@@ -517,7 +579,7 @@ int main(int argc, char **argv) {
       }
     }
   }
-  
+
   printf("Running elo:\n");
   fflush(stdout);
   const int64 start_elo = time(nullptr);
@@ -537,9 +599,9 @@ int main(int argc, char **argv) {
       for (int e = 0; e < elos.size(); e++)
 	start_elos[e] = elos[e].elo;
     }
-    
+
     all_elos.push_back(std::move(elos));
-    if (i % 100 == 0) { printf("%d ", i); fflush(stdout); }
+    if (i % 10 == 0) { printf("%d ", i); fflush(stdout); }
   }
   printf("Done in %lld sec.\n", time(nullptr) - start_elo);
   fflush(stdout);
@@ -548,7 +610,7 @@ int main(int argc, char **argv) {
   string prelude = Util::ReadFile("tournament-prelude.html");
   FILE *f = fopen("tournament.html", "wb");
   CHECK(f);
-  
+
   fprintf(f, "<!doctype html>\n"
 	  "<meta charset=\"utf-8\" />\n"
 	  "%s", prelude.c_str());
@@ -595,7 +657,7 @@ int main(int argc, char **argv) {
     es.p75 = player_elos[(NUM_ELO_ROUNDS >> 2) * 3].elo;
     elos.push_back(es);
   }
-  
+
   vector<int> by_elo;
   for (int i = 0; i < num_entrants; i++) by_elo.push_back(i);
   // Note: Assumes no nans.
@@ -605,7 +667,7 @@ int main(int argc, char **argv) {
 		return elos[a].median < elos[b].median;
 	      return a < b;
 	    });
-  
+
   // U+FF3C fullwidth reverse solidus
   fprintf(f, "<table>");
 
@@ -661,10 +723,122 @@ int main(int argc, char **argv) {
   }
   PrintColumns();
 
-  fprintf(f, "</table>\n");  
+  fprintf(f, "</table>\n");
 
-  MakeImages(num_entrants, names, by_elo, outcomes);
+  MakeImage(nullptr, num_entrants, names, by_elo, outcomes, "elo.png");
+
+  // But now staged...
+  std::unordered_map<string, int> mask;
+  mask["random_move"] = 1;
+  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+	    "elo-images/random.png");
+
+  mask["same_color"] = 9;
+  mask["opposite_color"] = 9;
+  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+	    "elo-images/color.png");
+
+  mask["swarm"] = 13;
+  mask["huddle"] = 13;
+  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+	    "elo-images/huddle.png");
   
+  mask["cccp"] = 2;
+  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+	    "elo-images/cccp.png");
+  
+  mask["safe"] = 16;
+  mask["dangerous"] = 16;
+  mask["popular"] = 16;
+  mask["rare"] = 16;
+  mask["survivalist"] = 16;
+  mask["fatalist"] = 16;
+  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+	    "elo-images/fate.png");
+
+  mask["topple10k"] = 19;
+  mask["topple1m"] = 19;
+  mask["stockfish0"] = 19;
+  mask["stockfish5"] = 19;
+  mask["stockfish10"] = 19;
+  mask["stockfish15"] = 19;
+  mask["stockfish20"] = 19;
+  mask["stockfish1m"] = 19;
+  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+	    "elo-images/strong-engines.png");
+
+  mask["worstfish"] = 3;
+  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+	    "elo-images/worstfish.png");
+  
+  mask["chessmaster.nes_lv1"] = 17;
+  mask["chessmaster.nes_lv2"] = 17;
+  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+	    "elo-images/chessmaster.png");
+
+  mask["singleplayer"] = 8;
+  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+	    "elo-images/singleplayer.png");
+
+  mask["binary_pi"] = 6;
+  mask["binary_e"] = 6;
+  mask["rational_pi"] = 6;
+  mask["rational_e"] = 6;
+  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+	    "elo-images/numeric.png");
+  
+  mask["stockfish1m_r64"] = 11;
+  mask["stockfish1m_r128"] = 11;
+  mask["stockfish1m_r256"] = 11;
+  mask["stockfish1m_r512"] = 11;
+  mask["stockfish1m_r1024"] = 11;
+  mask["stockfish1m_r2048"] = 11;
+  mask["stockfish1m_r4096"] = 11;
+  mask["stockfish1m_r8192"] = 11;
+  mask["stockfish1m_r16384"] = 11;
+  mask["stockfish1m_r32768"] = 11;
+  mask["stockfish1m_r49152"] = 11;
+  mask["stockfish1m_r57344"] = 11;
+  mask["stockfish1m_r61440"] = 11;
+  mask["stockfish1m_r63488"] = 11;
+  mask["stockfish1m_r64512"] = 11;
+  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+	    "elo-images/dilution.png");
+
+  /*
+    4;
+    5;
+    14;
+    7;
+    10;
+    12;
+    15;
+    18;
+			Equalizer,
+
+			BlindYolo,
+			BlindSingleKings,
+			BlindSpycheck,
+
+			MinOpponentMoves,
+			MirrorYSymmetry,
+			MirrorXSymmetry,
+			Symmetry180,
+			FirstMove,
+			Alphabetical,
+			Pacifist,
+			Generous,
+			NoIInsist,
+			Huddle,
+			Swarm,
+			SuicideKing,
+			ReverseStarting,
+
+			AlmanacPopular,
+
+  */
+
+
   fprintf(f, "<table><tr><td>player</td><td>25</td><td>elo</td><td>75</td><td>w/l/d</td>"
 	  "<td>p | norm(p)</td></tr>\n");
   for (int i : by_elo) {
