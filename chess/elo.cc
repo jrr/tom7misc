@@ -30,9 +30,17 @@ static constexpr double ELO_START = 1000.0;
 // static constexpr int NUM_ELO_ROUNDS = 19;
 // static constexpr int ELO_PASSES = 20;
 
+#if 1 // XXX
+// Just run fast to look at output.
+static constexpr int NUM_ELO_ROUNDS = 3;
+static constexpr int ELO_PASSES = 2;
+static constexpr int MIN_STATIONARY_ITERS = 100;
+#else
+// Get good, stable results
 static constexpr int NUM_ELO_ROUNDS = 19;
 static constexpr int ELO_PASSES = 20;
-
+static constexpr int MIN_STATIONARY_ITERS = 100000;
+#endif
 
 // To protect against the effects of imbalanced number of games
 // in the elo calculation, sample from each cell instead of using
@@ -152,7 +160,7 @@ static vector<double> ComputeStationary(int num_entrants,
     if (iters % 10000 == 0) {
       fprintf(stderr, "%d iters, err %.8f\n", iters, diff);
     }
-    if (iters > 100000 && diff < 0.000001) {
+    if (iters > MIN_STATIONARY_ITERS && diff < 0.000001) {
       fprintf(stderr, "Satisfactory error in %d iters\n", iters);
       break;
     }
@@ -304,7 +312,8 @@ static void MakeImages(int num_entrants,
 		       const vector<Cell> &outcomes) {
   std::vector<uint8> rgba;
   static constexpr int CELL = 16;
-  const int WIDTH = CELL * num_entrants;
+  const int MARGIN_LEFT = 160;
+  const int WIDTH = CELL * num_entrants + MARGIN_LEFT;
   const int HEIGHT = CELL * num_entrants;
   rgba.resize(WIDTH * HEIGHT * 4);
 
@@ -345,7 +354,7 @@ static void MakeImages(int num_entrants,
 
       const int64 total = cell.white_wins + cell.white_losses + cell.draws;
 
-      int xx = ecol * CELL, yy = erow * CELL;
+      int xx = MARGIN_LEFT + ecol * CELL, yy = erow * CELL;
 	
       if (total > 0) {
 	double fr = cell.white_losses / (double)total;
@@ -387,15 +396,41 @@ static void MakeImages(int num_entrants,
   // Draw grid over it.
   for (int y = 1; y < num_entrants; y++) {
     for (int x = 0; x < WIDTH; x++) {
-      BlendQuarter(x, y * CELL, 0, 0, 0);
+      BlendQuarter(MARGIN_LEFT + x, y * CELL, 0, 0, 0);
     }
   }
   for (int x = 1; x < num_entrants; x++) {
     for (int y = 0; y < HEIGHT; y++) {
-      BlendQuarter(x * CELL, y, 0, 0, 0);
+      BlendQuarter(MARGIN_LEFT + x * CELL, y, 0, 0, 0);
     }
   }
-    
+
+  static constexpr const char FONTCHARS[] =
+    " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    "0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?";
+
+  // Draw tiger stripes for player names.
+  for (int row = 0; row < num_entrants; row++) {
+    int mm = (row & 1) ? 0x2F : 0x22;
+    FillRect(WIDTH, HEIGHT,
+	     0, row * CELL, MARGIN_LEFT - 1, CELL - 1,
+	     mm, mm, mm, 255, &rgba);
+  }
+  
+  std::unique_ptr<HeadlessFont> font(
+      HeadlessFont::Create("blind/font.png", FONTCHARS, 9, 16, 7, 1));
+  CHECK(font.get() != nullptr);
+
+  for (int erow = 0; erow < num_entrants; erow++) {
+    const int row = by_elo[erow];
+    // const string &name = names[row];
+    // XXX -19 here is hard-coded as the longest name...
+    string name = Util::Pad(-19, names[row]);
+    font->DrawPlain(2, erow * CELL,
+		    name,
+		    &rgba, WIDTH, HEIGHT);
+  }
+  
   SaveRGBA(rgba, WIDTH, HEIGHT, "elo.png");
 }
 
