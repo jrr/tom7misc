@@ -25,6 +25,8 @@
 #include "../gamestats.h"
 #include "../chessmaster.h"
 #include "../numeric-player.h"
+#include "../stockfish-player.h"
+#include "../fate-player.h"
 #include "timer.h"
 
 // #include "unblinder.h"
@@ -132,14 +134,14 @@ struct Evaluator {
     DRAW,
     PLAYING,
   };
-  
+
   struct Evaluation {
     Status status;
     // Best move, if not game over.
     Move move;
     Stockfish::Score score;
   };
-  
+
   Evaluator() {}
 
   void Enqueue(const Position &position, bool at_front = false) {
@@ -154,7 +156,7 @@ struct Evaluator {
 
     // fprintf(stderr, "Enqueue %s first\n", position.ToFEN(1, 1).c_str());
     // fflush(stderr);
-    
+
     if (at_front) {
       todo.push_front(position);
     } else {
@@ -178,25 +180,25 @@ struct Evaluator {
     if (it == cache.end()) return nullptr;
     return it->second;
   }
-  
+
   ~Evaluator() {
     fprintf(stderr, "Waiting for evaluators to die...\n");
     fflush(stderr);
     WriteWithLock(&m, &should_die, true);
-    
+
     for (std::thread &t : threads)
       t.join();
     fprintf(stderr, "Done.\n");
     fflush(stderr);
   }
-  
+
 private:
   // OK to have many of these. Each creates its own private stockfish
   // process.
   void WorkThread() {
     std::unique_ptr<Stockfish> stockfish{new Stockfish(20, 500'000 /* ' */)};
     CHECK(stockfish.get() != nullptr);
-    
+
     for (;;) {
       /*
       {
@@ -214,7 +216,7 @@ private:
         WriteMutexLock ml(&m);
         if (should_die)
           return;
-        
+
         // Lost race?
         if (todo.empty()) {
           usleep(1);
@@ -226,7 +228,7 @@ private:
       }
 
       // fprintf(stderr, "process: %s\n", p.BoardString().c_str());
-      
+
       // Do work, not holding lock.
       Evaluation *evaluation = new Evaluation;
       if (p.HasLegalMoves()) {
@@ -252,7 +254,7 @@ private:
       }
     }
   }
-  
+
   std::shared_mutex m;
   bool should_die = false;
   std::deque<Position> todo;
@@ -263,7 +265,7 @@ private:
 };
 
 struct Interpolation {
-  bool Update() { 
+  bool Update() {
     if (frames > 0) {
       // If in interpolation, always draw.
       count++;
@@ -283,7 +285,7 @@ struct Interpolation {
     frames = n;
     count = 0;
   }
-  
+
   bool On() const { return frames > 0; }
   float Frac() const { return (float)count / frames; }
 
@@ -321,7 +323,7 @@ struct AsyncPlayer {
     Reset();
     worker = std::make_unique<std::thread>([this]() { WorkThread(); });
   }
-  
+
   // Reset to starting position.
   void Reset() {
     WriteMutexLock ml(&mutex);
@@ -365,7 +367,7 @@ struct AsyncPlayer {
       break;
     }
   }
-  
+
   // Returns pointer to move if available.
   // The pointer is invalidated by ApplyMove or Reset.
   const ExplainedMove *GetMove() {
@@ -411,16 +413,16 @@ struct AsyncPlayer {
     WriteMutexLock ml(&mutex);
     if (state == State::HAVE_RETURNED_MOVE) state = State::HAVE_MOVE;
   }
-  
+
   ~AsyncPlayer() {
     {
       WriteMutexLock ml(&mutex);
       state = State::SHOULD_DIE;
     }
-    
+
     worker->join();
   }
-  
+
   void WorkThread() {
     for (;;) {
       {
@@ -435,7 +437,7 @@ struct AsyncPlayer {
         case State::IDLE:
           CHECK(queued_moves.empty());
           break;
-        
+
         case State::WAITING_TO_RESET:
         case State::WAITING_FOR_MOVE:
           LOG(FATAL) << "Worker thread invalid state";
@@ -474,9 +476,9 @@ struct AsyncPlayer {
             position.ApplyMove(m);
           }
           queued_moves.clear();
-          state = State::IDLE;    
+          state = State::IDLE;
           break;
-          
+
         case State::WAITING_FOR_MOVE:
           // Might still be invalidated if we made moves
           // (without resetting...)
@@ -508,7 +510,7 @@ private:
       em->graphic_width = 0;
       em->graphic_height = 0;
     }
-    
+
     void SetScoredMoves(
         const vector<tuple<Position::Move, int64_t, string>> &v) override {
       em->moves.clear();
@@ -539,10 +541,10 @@ private:
       em->graphic_height = h;
       em->rgba = rgba;
     }
-    
+
     // Writes here.
     ExplainedMove *em = nullptr;
-    
+
    private:
     // The actual position that the move is being explained for.
     // Morally const.
@@ -557,7 +559,7 @@ private:
     HAVE_RETURNED_MOVE,
     SHOULD_DIE,
   };
-  
+
   std::shared_mutex mutex;
   State state = State::IDLE;
 
@@ -576,7 +578,7 @@ struct UI {
 
   Interpolation interp_meter;
   Interpolation interp_piece;
-  
+
   UI();
   void LoadMoves(const string &movedata);
   void Loop();
@@ -586,7 +588,7 @@ struct UI {
 
   bool MakeMove(const ExplainedMove &m);
   bool AnimateMove(const ExplainedMove &m);
-  
+
   void SaveUndo() {
     undo_buffer.push_back(sdlutil::duplicate(drawing));
     while (undo_buffer.size() > MAX_UNDO) {
@@ -609,7 +611,7 @@ struct UI {
   // Invariant is that all moves up to this point are reflected
   // in the position.
   int movie_idx = 0;
-  
+
   uint32 current_color = COLORS[2];
   // Single nybble in [1, 15]. 0 is disallowed.
   int current_alpha = 15;
@@ -617,26 +619,27 @@ struct UI {
     uint8 aa = current_alpha | (current_alpha << 4);
     return (current_color & 0xFFFFFF) | (aa << 24);
   }
-  
+
   bool draw_only_bits = false;
   bool draw_stockfish = false;
   bool draw_meter = true;
   bool draw_explainer = true;
   bool draw_movelist = true;
   bool draw_board = true;
-
-  int draw_fates = 0;
+  bool draw_pieces = true;
   
+  int draw_fates = 0;
+
   // Computer always plays black.
   // If true, make the computer move without interaction.
   bool autoplay_computer = true;
   // Kept in sync with the current position.
   std::unique_ptr<AsyncPlayer> async_player;
 
-  
-  
+
+
   float old_meter_value = 0.0f / 0.0f;
-  
+
   SDL_Surface *drawing = nullptr;
   int mousex = 0, mousey = 0;
   bool dragging = false;
@@ -649,13 +652,13 @@ struct UI {
   static constexpr int MAX_UNDO = 32;
   deque<SDL_Surface *> undo_buffer;
   deque<SDL_Surface *> redo_buffer;
-  
+
   bool UpdateEval() {
     if (!PositionEq()(position, current_eval_position)) {
       current_eval = nullptr;
       current_eval_position = position;
     }
-    
+
     if (current_eval == nullptr) {
       current_eval = evaluator->GetEval(current_eval_position);
       if (current_eval == nullptr) {
@@ -669,10 +672,10 @@ struct UI {
   }
 
   uint64 PositionBits() const;
-  
+
   Position current_eval_position;
   const Evaluator::Evaluation *current_eval = nullptr;
-  
+
   std::unique_ptr<Evaluator> evaluator;
 };
 }  // namespace
@@ -707,13 +710,13 @@ void UI::LoadMoves(const string &movestring) {
 }
 
 static void DrawThick(SDL_Surface *surf, int x0, int y0,
-                      int x1, int y1, 
-                      Uint32 color) {  
+                      int x1, int y1,
+                      Uint32 color) {
   static constexpr int THICKNESS = 3;
   Line<int> l{x0, y0, x1, y1};
 
   const int w = surf->w, h = surf->h;
-  
+
   Uint32 *bufp = (Uint32 *)surf->pixels;
   int stride = surf->pitch >> 2;
   auto SetPixel = [color, w, h, bufp, stride](int x, int y) {
@@ -735,7 +738,7 @@ static void DrawThick(SDL_Surface *surf, int x0, int y0,
     };
 
   ThickPixel(x0, y0);
-  
+
   for (const std::pair<int, int> point : Line<int>{x0, y0, x1, y1}) {
     const int x = point.first, y = point.second;
     ThickPixel(x, y);
@@ -745,12 +748,12 @@ static void DrawThick(SDL_Surface *surf, int x0, int y0,
 static void FloodFill(SDL_Surface *surf, int x, int y,
                       Uint32 color) {
   const int w = surf->w, h = surf->h;
-  
+
   Uint32 *bufp = (Uint32 *)surf->pixels;
   int stride = surf->pitch >> 2;
 
   const Uint32 replace_color = bufp[y * stride + x];
-  
+
   auto GetPixel = [w, h, bufp, stride, replace_color](int x, int y) {
       if (x >= 0 && y >= 0 &&
           x < w && y < h) {
@@ -815,7 +818,7 @@ void UI::Loop() {
         SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
 
         const int oldx = mousex, oldy = mousey;
-        
+
         mousex = e->x;
         mousey = e->y;
 
@@ -848,6 +851,16 @@ void UI::Loop() {
           ui_dirty = true;
           break;
         }
+
+	case SDLK_DELETE: {
+	  movie.clear();
+	  movie_idx = 0;
+	  position = Position();
+	  current_fates = Fates();
+	  async_player->Reset();
+	  ui_dirty = true;
+	  break;
+	}
 
         case SDLK_LEFT: {
           if (movie_idx > 0) {
@@ -890,11 +903,12 @@ void UI::Loop() {
         }
 
 	case SDLK_j: {
-	  draw_fates = !draw_fates;
+	  draw_fates++;
+	  draw_fates %= 3;
 	  ui_dirty = true;
 	  break;
 	}
-	  
+
         case SDLK_d: {
           mode = Mode::DRAWING;
           SDL_SetCursor(cursor_arrow);
@@ -908,7 +922,7 @@ void UI::Loop() {
           ui_dirty = true;
           break;
         }
-          
+
         case SDLK_c: {
           mode = Mode::CHESS;
           SDL_SetCursor(cursor_hand);
@@ -940,7 +954,7 @@ void UI::Loop() {
           ui_dirty = true;
           break;
         }
-          
+
         case SDLK_z: {
           // XXX check ctrl?
           if (!undo_buffer.empty()) {
@@ -965,6 +979,12 @@ void UI::Loop() {
           break;
         }
 
+	case SDLK_p: {
+	  draw_pieces = !draw_pieces;
+	  ui_dirty = true;
+	  break;
+	}
+	  
         case SDLK_KP_PLUS:
         case SDLK_EQUALS:
         case SDLK_PLUS:
@@ -973,6 +993,7 @@ void UI::Loop() {
           ui_dirty = true;
           break;
 
+  
         case SDLK_KP_MINUS:
         case SDLK_MINUS:
           current_alpha--;
@@ -986,10 +1007,31 @@ void UI::Loop() {
           break;
         }
 
+	case SDLK_l: {
+	  if (event.key.keysym.mod & KMOD_CTRL) {
+	    SaveUndo();
+	    printf("Load drawing.png...\n");
+	    fflush(stdout);
+	    SDL_Surface *s = sdlutil::LoadImage("drawing.png");
+	    CHECK(s);
+	    SDL_SetAlpha(s, 0, 0xFF);
+	    sdlutil::blitall(s, drawing, 0, 0);
+	    SDL_FreeSurface(s);
+	    ui_dirty = true;
+	  }
+	  break;
+	}
+	  
         case SDLK_s: {
-          draw_stockfish = !draw_stockfish;
-          ui_dirty = true;
-          break;
+	  if (event.key.keysym.mod & KMOD_CTRL) {
+	    sdlutil::SavePNG("drawing.png", drawing);
+	    printf("Wrote drawing.png\n");
+	    fflush(stdout);
+	  } else {
+	    draw_stockfish = !draw_stockfish;
+	    ui_dirty = true;
+	  }
+	  break;
         }
 
         case SDLK_a: {
@@ -1005,7 +1047,6 @@ void UI::Loop() {
           break;
         }
 
-          
         case SDLK_0:
         case SDLK_1:
         case SDLK_2:
@@ -1023,7 +1064,7 @@ void UI::Loop() {
           ui_dirty = true;
           break;
         }
-          
+
         default:;
         }
         break;
@@ -1034,7 +1075,7 @@ void UI::Loop() {
         SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
         mousex = e->x;
         mousey = e->y;
-        
+
         dragging = true;
         if (mode == Mode::DRAWING) {
           SaveUndo();
@@ -1045,18 +1086,18 @@ void UI::Loop() {
           SaveUndo();
           DrawThick(drawing, mousex, mousey, mousex, mousey, 0x00000000);
           ui_dirty = true;
-          
+
         } else if (mode == Mode::FILLING) {
           SaveUndo();
 
           FloodFill(drawing, mousex, mousey, GetColor());
-          
+
           ui_dirty = true;
         } else if (mode == Mode::CHESS) {
 
           SDL_SetCursor(cursor_hand_closed);
           ui_dirty = true;
-          
+
           // Get indicated square.
           std::pair<int, int> square;
           if (InSquare(mousex, mousey, &square)) {
@@ -1072,13 +1113,13 @@ void UI::Loop() {
           }
           drag_source = {-1, -1};
         }
-        
+
         break;
       }
 
       case SDL_MOUSEBUTTONUP: {
         // LMB/RMB, drag, etc.
-        dragging = false;       
+        dragging = false;
 
         if (mode == Mode::CHESS) {
           std::pair<int, int> square;
@@ -1116,7 +1157,7 @@ void UI::Loop() {
         }
         break;
       }
-        
+
       default:;
       }
     }
@@ -1136,7 +1177,7 @@ void UI::Loop() {
         ui_dirty = true;
       }
     }
-    
+
     if (UpdateEval()) {
       interp_meter.Interpolate(15);
       ui_dirty = true;
@@ -1144,7 +1185,7 @@ void UI::Loop() {
 
     if (interp_meter.Update()) ui_dirty = true;
     if (interp_piece.Update()) ui_dirty = true;
-    
+
     if (ui_dirty) {
       sdlutil::clearsurface(screen, 0xFFFFFFFF);
       Draw();
@@ -1152,7 +1193,7 @@ void UI::Loop() {
       ui_dirty = false;
     }
   }
-  
+
 }
 
 bool UI::AnimateMove(const ExplainedMove &em) {
@@ -1161,7 +1202,7 @@ bool UI::AnimateMove(const ExplainedMove &em) {
 
   interp_piece.Interpolate(10);
   ui_dirty = true;
-  
+
   return true;
 }
 
@@ -1193,7 +1234,7 @@ bool UI::MakeMove(const ExplainedMove &em) {
       s += "  1/2-1/2";
     }
   }
-  
+
   CHECK(movie_idx <= movie.size()) << movie_idx << " " << movie.size();
   if (movie_idx == movie.size()) {
     movie.emplace_back(position, em, s, current_fates);
@@ -1215,7 +1256,7 @@ void UI::DrawStatus() {
   int drawcolor = 1;
   int fillcolor = 1;
   int chesscolor = 1;
-  
+
   switch (mode) {
   case Mode::ERASING:
     erasecolor = 2;
@@ -1228,7 +1269,7 @@ void UI::DrawStatus() {
   case Mode::FILLING:
     fillcolor = 2;
     break;
-    
+
   case Mode::CHESS:
     chesscolor = 2;
     break;
@@ -1240,14 +1281,14 @@ void UI::DrawStatus() {
       "ON",
       "PATH",
     };
-  
+
 #define KEY(s) "^3" s "^<"
   const string modestring =
     StringPrintf(KEY("E") "^%drase^<  "
                  KEY("D") "^%draw^<  "
                  KEY("F") "^%dill^<  "
                  KEY("C") "^%dhess^<  "
-                 
+
                  KEY("A") "utoplay %s  "
                  KEY("B") "its %s  "
                  KEY("S") "tockfish %s  "
@@ -1271,7 +1312,7 @@ void UI::DrawStatus() {
                  );
   font2x->draw(5, SCREENH - (FONTHEIGHT * 2) - 1, modestring);
 #undef KEY
-  
+
   // Color swatches.
   switch (mode) {
   case Mode::ERASING:
@@ -1312,7 +1353,7 @@ void UI::DrawStatus() {
                  "[home] [<-] [->] navigate movie, ...");
     break;
   }
-  
+
 }
 
 struct Typewriter {
@@ -1321,7 +1362,7 @@ struct Typewriter {
     startx(x), starty(y),
     width(w), height(h) { }
 
-  // Assumes 
+  // Assumes
   void Write(const string &s) {
     int w = fon->sizex(s);
     if (current_line_width > 0 &&
@@ -1339,7 +1380,7 @@ struct Typewriter {
     current_line++;
     current_line_width = 0;
   }
-  
+
   int current_line = 0;
   int current_line_width = 0;
   Font *fon = nullptr;
@@ -1368,7 +1409,7 @@ static void DrawArrow(SDL_Surface *surf,
 void UI::Draw() {
   // Status stuff, always outside the 1920x1080 window.
   DrawStatus();
-  
+
   // On-screen stuff
 
   // Board first.
@@ -1402,7 +1443,7 @@ void UI::Draw() {
       }
     }
   }
-    
+
   // Draw evaluation.
   if (draw_stockfish && current_eval != nullptr) {
     switch (current_eval->status) {
@@ -1420,7 +1461,7 @@ void UI::Draw() {
 		CHESSX + m.dst_col * CHESSSCALE + (CHESSSCALE >> 1),
 		CHESSY + m.dst_row * CHESSSCALE + (CHESSSCALE >> 1),
 		STOCKFISH_COLOR);
-      
+
       font2x->draw(100, 16, Position::DebugMoveString(m));
       int value = current_eval->score.value;
       // Evaluation is always from engine perspective, but since we
@@ -1431,7 +1472,7 @@ void UI::Draw() {
 		   StringPrintf("%s%d",
 				(current_eval->score.is_mate ? "#" : ""),
 				value));
-	
+
       break;
     }
     }
@@ -1443,7 +1484,7 @@ void UI::Draw() {
       draw_meter &&
       (current_eval != nullptr ||
        !std::isnan(old_meter_value))) {
-    
+
       // Draw "meter". Meter value is in [0, 1] where 0.5 is draw
       // and 1.0 is white winning.
       const float new_meter_value = [&]{
@@ -1460,7 +1501,7 @@ void UI::Draw() {
 	  } else if (current_eval->status == Evaluator::DRAW) {
 	    return 0.5f;
 	  }
-	  
+
 	  if (current_eval->score.is_mate)
 	    return value < 0 ? 0.0f : 1.0f;
 	  // Otherwise, sigmoid
@@ -1470,7 +1511,7 @@ void UI::Draw() {
 
       const float interp = interp_meter.Frac();
       const float f =
-	interp_meter.On() ? 
+	interp_meter.On() ?
 	((1.0f - interp) * old_meter_value) +
 	(interp * new_meter_value) :
 	new_meter_value;
@@ -1502,8 +1543,11 @@ void UI::Draw() {
 			 hh + 2,
 			 0xFF444444);
   };
-      
+
   auto DrawPieceAt = [this](int x, int y, uint8 piece) {
+      if (!draw_pieces)
+	return;
+      
       if (draw_only_bits) {
 	font4x->draw(x, y + 8, "^9" BARSTART BAR_10);
       } else {
@@ -1517,11 +1561,11 @@ void UI::Draw() {
 	}
 
 	chessfont3x->draw(x, y, str);
-      } 
+      }
     };
 
   // fate paths for whole movie. Under the pieces.
-  if (draw_fates == 2) {
+  if (draw_fates > 0) {
     // TODO: 32 distinct colors here?
     static constexpr uint32 FATE_COLORS[32] = {
       0xFFcd0022,
@@ -1585,7 +1629,7 @@ void UI::Draw() {
 		return {-k + (m - n), k};
 	      return {k, k - (m - n - t)};
 	    };
-	  
+
 	  auto GetXY = [&visited, &Ulam](int p) -> std::pair<int, int> {
 	      int x = CHESSSCALE * (p % 8) + CHESSX + CHESSSCALE / 2;
 	      int y = CHESSSCALE * (p / 8) + CHESSY + CHESSSCALE / 2;
@@ -1605,7 +1649,7 @@ void UI::Draw() {
       prev_fate = fate;
     }
   }
-  
+
   if (draw_board) {
     for (int r = 0; r < 8; r++) {
       const int yy = CHESSY + r * CHESSSCALE;
@@ -1626,7 +1670,7 @@ void UI::Draw() {
 	  if ((old_piece & Position::TYPE_MASK) != Position::EMPTY) {
 	    DrawPieceAt(xx, yy + 8, old_piece);
 	  }
-	  // But DON'T draw the piece that's moving; we do it below.	  
+	  // But DON'T draw the piece that's moving; we do it below.
 	} else {
 	  // Normal case.
 	  uint8 piece = position.PieceAt(r, c);
@@ -1661,17 +1705,18 @@ void UI::Draw() {
 
     int xx = ((1.0f - f) * oldx) + (f * newx);
     int yy = ((1.0f - f) * oldy) + (f * newy);
-    
+
     DrawPieceAt(xx, yy + 8, p);
   }
-  
+
   if (draw_only_bits) {
     font2x->draw(CHESSX, CHESSY + 8 * CHESSSCALE + 8,
 		 StringPrintf("0x%llx", PositionBits()));
   }
 
-  if (draw_fates > 0) {
+  if (draw_fates == 2) {
     static constexpr const char *piece_names[] {
+	/*
 	"a rook",
 	"b knight",
 	"c bishop",
@@ -1692,7 +1737,32 @@ void UI::Draw() {
 	"king",
 	"f bishop",
 	"g knight",
-	"h rook", };
+	"h rook", 
+	*/
+	"a rook",
+	"b knight",
+	"c bishop",
+	"queen",
+	"king",
+	"f bishop",
+	"g knight",
+	"h rook",
+	"alexis", "bruno", "caleb", "diego",
+	"esther", "foxglove", "grainger", "hartford",
+	// white
+	"arial", "baskerville", "chicago", "droid sans",
+	"eurostile", "fixedsys", "geneva", "helvetica",
+	"a rook",
+	"b knight",
+	"c bishop",
+	"queen",
+	"king",
+	"f bishop",
+	"g knight",
+	"h rook", 
+
+
+      };
     uint8 count[64] = {};
     for (int i = 0; i < 32; i++) {
       uint8 fate = current_fates.fates[i];
@@ -1714,11 +1784,11 @@ void UI::Draw() {
       count[pos]++;
     }
   }
-  
+
   if (draw_movelist) {
     Typewriter t{font2x, 900, 16, 1900 - 900, 1000 - 16};
     // t.Write(StringPrintf("^3Move %d. ", movie_idx));
-    
+
     for (int i = 0; i < movie.size(); i++) {
       int color = i < movie_idx ? (i == movie_idx - 1 ? 6 : 0) : 4;
       const string &ms = std::get<2>(movie[i]);
@@ -1727,7 +1797,8 @@ void UI::Draw() {
 		      em.has_position ||
 		      !em.message.empty() ||
 		      !em.moves.empty();
-      const char *ann = has_explanation ? "^4" HEART : "";
+      (void)has_explanation;
+      const char *ann = ""; // has_explanation ? "^4" HEART : "";
       if (i & 1) {
 	// Black's move.
 	t.Write(StringPrintf("^%d%s%s  ", color, ms.c_str(), ann));
@@ -1743,11 +1814,11 @@ void UI::Draw() {
     if (movie_idx - 1 >= 0) {
       em = &std::get<1>(movie[movie_idx - 1]);
     }
-    
+
     // const ExplainedMove *em = async_player->GetMove();
-    
+
     if (em != nullptr) {
-      Typewriter t{font, 900, 500, 1900 - 900, 1080 - 500};
+      Typewriter t{font2x, 900, 500, 1900 - 900, 1080 - 500};
       if (em->no_moves) {
 	t.Write("(no moves)");
       }
@@ -1770,7 +1841,7 @@ void UI::Draw() {
 	const int EX = 900;
 	const int EY = 550;
 	const int w = em->graphic_width;
-	const int h = em->graphic_height;	
+	const int h = em->graphic_height;
 	const vector<uint8> &rgba = em->rgba;
 	CHECK(rgba.size() == w * h * 4);
 	for (int y = 0; y < h; y++) {
@@ -1790,7 +1861,7 @@ void UI::Draw() {
 	  }
 	}
       }
-      
+
       if (em->has_position) {
 	// XXX maybe get position from typewriter.
 	const int EX = 900;
@@ -1833,7 +1904,7 @@ void UI::Draw() {
       }
     }
   }
-    
+
   sdlutil::blitall(drawing, screen, 0, 0);
 }
 
@@ -1849,7 +1920,7 @@ uint64 UI::PositionBits() const {
   }
   return out;
 }
-      
+
 int main(int argc, char **argv) {
   /* Initialize SDL and network, if we're using it. */
   CHECK(SDL_Init(SDL_INIT_VIDEO |
@@ -1866,7 +1937,7 @@ int main(int argc, char **argv) {
   if (icon != nullptr) {
     SDL_WM_SetIcon(icon, nullptr);
   }
-  
+
   screen = sdlutil::makescreen(SCREENW, SCREENH);
   CHECK(screen);
 
@@ -1890,14 +1961,19 @@ int main(int argc, char **argv) {
 			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font4x != nullptr) << "Couldn't load font.";
 
-  //# define CHESSFONT "../blind/chessfont.png"
+  # define CHESSFONT "../blind/chessfont.png"
   // # define CHESSFONT "chessfont-blindfold.png"
   // # define CHESSFONT "chessfont-cards.png"
   //# define CHESSFONT "chessfont-halos.png"
+
+  // #define CHESSFONT "chessfont-letter.png"
   
   // Note, chessfont-nes might be missing; it is non-free.
-# define CHESSFONT "chessfont-nes.png"
-
+  // # define CHESSFONT "chessfont-nes.png"
+  // #define CHESSFONT "chessfont-cylon.png"
+  //   #define CHESSFONT "../blind/chessfont.png"
+  // #define CHESSFONT "chessfont-cccp.png"
+  
   /*
     This one probably comes first, so maybe just uses regular
     pieces: Random,
@@ -1916,7 +1992,7 @@ int main(int argc, char **argv) {
 
     SinglePlayer, ... introduce game tree search ...
                       (before worstfish)
-			
+
     TODO: Worstfish,
 
     halo: Pacifist, Generous, NoIInsist,
@@ -1949,7 +2025,7 @@ int main(int argc, char **argv) {
 			Stockfish10,
 			Stockfish15,
 			Stockfish20,
-			
+
 			Stockfish1M,
 
    perhaps we can have programmatically randomized
@@ -1970,29 +2046,29 @@ int main(int argc, char **argv) {
 			Stockfish1M_128,
 			Stockfish1M_64,
   */
-  
+
   chessfont = Font::create(screen,
 			   CHESSFONT,
 			   " PNBRQKpnbrqk",
 			   32, 32, 1, 0, 1);
-  CHECK(chessfont != nullptr) << "Couldn't load chessfont.";
+  CHECK(chessfont != nullptr) << "Couldn't load chessfont " << CHESSFONT;
 
   chessfont3x = Font::CreateX(3,
 			      screen,
 			      CHESSFONT,
 			      " PNBRQKpnbrqk",
 			      32, 32, 1, 0, 1);
-  CHECK(chessfont3x != nullptr) << "Couldn't load chessfont3x.";
+  CHECK(chessfont3x != nullptr) << "Couldn't load chessfont3x " << CHESSFONT;
 
   CHECK((cursor_arrow = Cursor::MakeArrow()));
   CHECK((cursor_bucket = Cursor::MakeBucket()));
   CHECK((cursor_hand = Cursor::MakeHand()));
   CHECK((cursor_hand_closed = Cursor::MakeHandClosed()));
   CHECK((cursor_eraser = Cursor::MakeEraser()));
-  
+
   SDL_SetCursor(cursor_arrow);
   SDL_ShowCursor(SDL_ENABLE);
-  
+
   UI ui;
 
   // ui.async_player.reset(new AsyncPlayer(MinOpponentMoves()));
@@ -2000,14 +2076,23 @@ int main(int argc, char **argv) {
   // ui.async_player.reset(new AsyncPlayer(BlindSpycheck()));
   // ui.async_player.reset(new AsyncPlayer(Chessmaster1()));
   // ui.async_player.reset(new AsyncPlayer(BinaryE()));
-  ui.async_player.reset(new AsyncPlayer(RationalPi()));  
+  // ui.async_player.reset(new AsyncPlayer(RationalPi()));
+  // ui.async_player.reset(new AsyncPlayer(SuicideKing()));
+  // ui.async_player.reset(new AsyncPlayer(NoIInsist()));
   // ui.async_player.reset(new AsyncPlayer(SinglePlayer()));
-
+  // ui.async_player.reset(new AsyncPlayer(Random()));
+  // ui.async_player.reset(new AsyncPlayer(MirrorYSymmetry()));
+  // ui.async_player.reset(new AsyncPlayer(CCCP()));
+  // ui.async_player.reset(new AsyncPlayer(Alphabetical()));
+  // ui.async_player.reset(new AsyncPlayer(Stockfish0()));
+  ui.async_player.reset(new AsyncPlayer(Fatalist()));
+  
   if (argc > 1) {
     ui.LoadMoves(argv[1]);
+    ui.autoplay_computer = false;
   }
   ui.Loop();
-  
+
   SDL_Quit();
   return 0;
 }
