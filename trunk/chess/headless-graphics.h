@@ -16,6 +16,13 @@ void FillRect(int w, int h,
 	      uint8_t r, uint8_t g, uint8_t b, uint8_t a,
 	      std::vector<uint8_t> *rgba);
 
+std::vector<uint8_t> PadImageCenter(
+    const std::vector<uint8_t> &rgba_in,
+    int width_in, int height_in,
+    int width_out, int height_out,
+    // Background color.
+    uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+
 void SaveARGB(const std::vector<uint8_t> &argb, int width, int height,
 	      const std::string &filename);
 

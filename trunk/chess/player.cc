@@ -90,7 +90,17 @@ struct RandomPlayer : public StatelessPlayer {
     std::vector<Move> legal = pos.GetLegalMoves();
     CHECK(!legal.empty());
 
-    return legal[RandTo32(&rc, legal.size())];
+    int chosen = RandTo32(&rc, legal.size());
+    
+    if (explainer != nullptr) {
+      vector<tuple<Position::Move, int64_t, string>> v;
+      for (int i = 0; i < legal.size(); i++) {
+	v.emplace_back(legal[i], i, i == chosen ? " <---- " : "");
+      }
+      explainer->SetScoredMoves(v);
+    }
+    
+    return legal[chosen];
   }
   
   string Name() const override { return "random_move"; }
@@ -223,12 +233,22 @@ struct AlphabeticalPlayer : public StatelessPlayer {
     }
     CHECK(!labeled.empty());
 
-    return PlayerUtil::GetBest(
-	labeled,
-	[](const LabeledMove &a,
-	   const LabeledMove &b) {
-	  return a.move_string < b.move_string;
-	}).m;
+    auto Compare = [](const LabeledMove &a,
+		      const LabeledMove &b) {
+	return a.move_string < b.move_string;
+      };
+    
+    if (explainer != nullptr) {
+      std::sort(labeled.begin(), labeled.end(), Compare);
+      vector<tuple<Position::Move, int64, string>> vec;
+      for (int i = 0; i < labeled.size(); i++) {
+	const LabeledMove &lm = labeled[i];
+	vec.emplace_back(lm.m, i + 1, i == 0 ? " <-- " : "");
+      }
+      explainer->SetScoredMoves(vec);
+    }
+    
+    return PlayerUtil::GetBest(labeled, Compare).m;
   }
   
   string Name() const override { return "alphabetical"; }
@@ -244,7 +264,8 @@ struct PacifistPlayer : public EvalResultPlayer {
     if (p->IsMated())
       return 0xFFFF'FFFF'FFFF;
     int64 material = 0LL;
-    const uint8 opponent_mask = p->BlackMove() ? Position::BLACK : Position::WHITE;
+    const uint8 opponent_mask = p->BlackMove() ?
+      Position::BLACK : Position::WHITE;
     for (int r = 0; r < 8; r++) {
       for (int c = 0; c < 8; c++) {
 	const uint8 piece = p->PieceAt(r, c);

@@ -4,6 +4,7 @@
 #include <mutex>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <cstdint>
 #include <vector>
 #include <string>
@@ -30,7 +31,7 @@ static constexpr double ELO_START = 1000.0;
 // static constexpr int NUM_ELO_ROUNDS = 19;
 // static constexpr int ELO_PASSES = 20;
 
-#if 1
+#if 0
 // Just run fast to look at output.
 static constexpr int NUM_ELO_ROUNDS = 3;
 static constexpr int ELO_PASSES = 2;
@@ -60,6 +61,13 @@ struct Elo {
   // Used to determine k-factor.
   int games = 0;
   // Totals.
+  int wins = 0, losses = 0, draws = 0;
+};
+
+struct EloSummary {
+  double median = 0.0;
+  double p25 = 0.0, p75 = 0.0;
+  // For the median one.
   int wins = 0, losses = 0, draws = 0;
 };
 
@@ -312,22 +320,60 @@ static int64 GetMinMatchups(int num_entrants,
   return min_total;
 }
 
+struct ImageArgs {
+  ImageArgs(
+      int num_entrants,
+      const vector<string> &names,
+      const vector<int> &by_elo,
+      const vector<Cell> &outcomes,
+      const vector<EloSummary> &elos,
+      const vector<double> &stationary) :
+    num_entrants(num_entrants),
+    names(names),
+    by_elo(by_elo),
+    outcomes(outcomes),
+    elos(elos),
+    stationary(stationary) {}
+  
+  int num_entrants;
+  const vector<string> &names;
+  const vector<int> &by_elo;
+  const vector<Cell> &outcomes;
+  const vector<EloSummary> &elos;
+  const vector<double> &stationary;
+};
 
 static void MakeImage(
     std::unordered_map<string, int> *mask,
-    int num_entrants,
-    const vector<string> &names,
-    const vector<int> &by_elo,
-    const vector<Cell> &outcomes,
+    const std::unordered_map<string, string> &aliases,
+    const std::unordered_set<string> &highlight,
+    const ImageArgs &args,
     const string &filename) {
+
+  int num_entrants = args.num_entrants;
+  const vector<string> &names = args.names;
+  const vector<int> &by_elo = args.by_elo;
+  const vector<Cell> &outcomes = args.outcomes;
+  const vector<EloSummary> &elos = args.elos;
+  const vector<double> &stationary = args.stationary;
+  
   std::vector<uint8> rgba;
+  static constexpr int TOP_CHARS = 4;
   static constexpr int CELL = 16;
-  const int MARGIN_LEFT = 160;
-  const int MARGIN_TOP = 16;
+  constexpr int P_LEFT = 9 * 9 + 4;
+  constexpr int ELO_LEFT = 6 * 9 + 4;
+  constexpr int MARGIN_LEFT = P_LEFT + ELO_LEFT + 160;
+  constexpr int MARGIN_TOP = 16 * TOP_CHARS;
   const int WIDTH = CELL * num_entrants + MARGIN_LEFT;
   const int HEIGHT = CELL * num_entrants + MARGIN_TOP;
   rgba.resize(WIDTH * HEIGHT * 4);
-
+  for (int i = 0; i < WIDTH * HEIGHT; i++) {
+    rgba[i * 4 + 0] = 0x00;
+    rgba[i * 4 + 1] = 0x00;
+    rgba[i * 4 + 2] = 0x00;
+    rgba[i * 4 + 3] = 0xFF;
+  }
+  
   auto BlendQuarter = [&rgba, WIDTH, HEIGHT](int x, int y,
 					     uint8 r, uint8 g, uint8 b) {
       const int i = (WIDTH * y + x) * 4;
@@ -360,6 +406,10 @@ static void MakeImage(
       return mask == nullptr ||
 	mask->find(names[entrant]) != mask->end();
     };
+
+  auto Highlight = [highlight, &names](int entrant) -> bool {
+      return highlight.find(names[entrant]) != highlight.end();
+    };
   
   for (int erow = 0; erow < num_entrants; erow++) {
     const int row = by_elo[erow];
@@ -385,7 +435,6 @@ static void MakeImage(
       }
       
       if (Allowed(row) && Allowed(col)) {
-
 
 	FillRect(WIDTH, HEIGHT,
 		 xx, yy, CELL, CELL,
@@ -413,13 +462,14 @@ static void MakeImage(
 	
       } else {
 	// Masked out. Draw as grey.
-	uint8 mmr = (erow & 1) ? 0x2F : 0x22;
-	uint8 mmc = !(ecol & 1) ? 0x2F : 0x22;
+	uint8 mmr = (erow & 1) ? 0x7F : 0x72;
+	uint8 mmc = !(ecol & 1) ? 0x7F : 0x72;
 	uint8 mm = (mmr + mmc) >> 1;
 
-	uint8 rr = Mix4(ir, mm, mm, mm);
-	uint8 gg = Mix4(ig, mm, mm, mm);
-	uint8 bb = Mix4(ib, mm, mm, mm);
+	uint8 rr = mm, gg = mm, bb = mm;
+	// uint8 rr = Mix4(ir, ir, ir, mm);
+	// uint8 gg = Mix4(ig, ig, ig, mm);
+	// uint8 bb = Mix4(ib, ib, ib, mm);
 	FillRect(WIDTH, HEIGHT,
 		 xx, yy, CELL, CELL,
 		 rr, gg, bb, 255, &rgba);
@@ -446,23 +496,51 @@ static void MakeImage(
   // Draw tiger stripes for player names (left side).
   for (int row = 0; row < num_entrants; row++) {
     int mm = (row & 1) ? 0x2F : 0x22;
+    int rr = Highlight(by_elo[row]) ? 0x5f : mm;
     FillRect(WIDTH, HEIGHT,
 	     0, MARGIN_TOP + row * CELL + 1, MARGIN_LEFT - 1, CELL - 1,
-	     mm, mm, mm, 255, &rgba);
-  }
+	     rr, mm, mm, 255, &rgba);
 
+
+    int mmm = Mix4(mm, mm, mm, 0x0);
+    int rrr = Mix4(rr, rr, rr, 0x0);
+    FillRect(WIDTH, HEIGHT,
+	     0, MARGIN_TOP + row * CELL + 1, P_LEFT + ELO_LEFT, CELL - 1,
+	     rrr, mmm, mmm, 255, &rgba);
+  }
+  
   // Draw tiger stripes for player names (top).
   for (int col = 0; col < num_entrants; col++) {
     int mm = !(col & 1) ? 0x2F : 0x22;
+    int rr = Highlight(by_elo[col]) ? 0x5f : mm;
     FillRect(WIDTH, HEIGHT,
 	     MARGIN_LEFT + col * CELL + 1, 0, CELL - 1, MARGIN_TOP - 1,
-	     mm, mm, mm, 255, &rgba);
+	     rr, mm, mm, 255, &rgba);
   }
 
-  std::unique_ptr<HeadlessFont> font(
+  // Separator between elo and name.
+  for (int y = 0; y < HEIGHT - MARGIN_TOP; y++) {
+    BlendHalf(P_LEFT + ELO_LEFT, MARGIN_TOP + y, 0, 0, 0);
+  }
+  // p and elo
+  for (int y = 0; y < HEIGHT - MARGIN_TOP; y++) {
+    BlendHalf(P_LEFT, MARGIN_TOP + y, 0, 0, 0);
+  }
+
+  
+  std::unique_ptr<HeadlessFont> rainbow(
       HeadlessFont::Create("rainbowfont.png", FONTCHARS, 9, 16, 20, 1));
+  CHECK(rainbow.get() != nullptr);
+  std::unique_ptr<HeadlessFont> font(
+      HeadlessFont::Create("blind/font.png", FONTCHARS, 9, 16, 7, 1));
   CHECK(font.get() != nullptr);
 
+  auto Alias = [&aliases](const string &name) -> string {
+      auto it = aliases.find(name);
+      if (it == aliases.end()) return name;
+      else return it->second;
+    };
+  
   for (int erow = 0; erow < num_entrants; erow++) {
     const int row = by_elo[erow];
     if (Allowed(row)) {
@@ -470,28 +548,58 @@ static void MakeImage(
 	FindWithDefault(*mask, names[row], 0);
       // const string &name = names[row];
       // XXX -19 here is hard-coded as the longest name...
-      string name = Util::Pad(-19, names[row]);
-      font->DrawPlain(2, MARGIN_TOP + erow * CELL + 1,
-		      name,
-		      &rgba, WIDTH, HEIGHT, style);
+      string name = Util::Pad(-19, Alias(names[row]));
+      rainbow->DrawPlain(P_LEFT + ELO_LEFT + 2,
+			 MARGIN_TOP + erow * CELL + 1,
+			 name,
+			 &rgba, WIDTH, HEIGHT, style);
+      string elo =
+	Util::Pad(-6, StringPrintf("%.1f", elos[row].median));
+      font->DrawPlain(P_LEFT + 6,
+		      MARGIN_TOP + erow * CELL + 1,
+		      elo,
+		      &rgba, WIDTH, HEIGHT, 1);
+      string prob =
+	Util::Pad(-8, StringPrintf("%.7f", stationary[row]));
+      font->DrawPlain(3,
+		      MARGIN_TOP + erow * CELL + 1,
+		      prob,
+		      &rgba, WIDTH, HEIGHT, 4);
     }
   }
+  font->DrawPlain(P_LEFT + 18,
+		  MARGIN_TOP - CELL + 1,
+		  "elo",
+		  &rgba, WIDTH, HEIGHT, 0);
 
+  font->DrawPlain(4,
+		  MARGIN_TOP - CELL + 1,
+		  "prob",
+		  &rgba, WIDTH, HEIGHT, 0);
+  
+  
   // And just the first letter for columns.
   for (int ecol = 0; ecol < num_entrants; ecol++) {
     const int col = by_elo[ecol];
     if (Allowed(col)) {
       int style = (mask == nullptr) ? 0 :
 	FindWithDefault(*mask, names[col], 0);
-      string name = names[col];
-      name.resize(1);
-      font->DrawPlain(MARGIN_LEFT + ecol * CELL + 3, 0,
-		      name,
-		      &rgba, WIDTH, HEIGHT, style);
+      string name = Alias(names[col]);
+      for (int i = 0; i < TOP_CHARS; i++) {
+	string n = name.substr(i, 1);
+	rainbow->DrawPlain(MARGIN_LEFT + ecol * CELL + 5, i * 14 + 2,
+			   n,
+			   &rgba, WIDTH, HEIGHT, style);
+      }
     }
   }
 
-  SaveRGBA(rgba, WIDTH, HEIGHT, filename);
+  // Now pad it to 1920x1080.
+  std::vector<uint8> rgba1080 =
+    PadImageCenter(rgba, WIDTH, HEIGHT, 1920, 1080, 0, 0, 0, 0xFF);
+  
+  // SaveRGBA(rgba, WIDTH, HEIGHT, filename);
+  SaveRGBA(rgba1080, 1920, 1080, filename);
   printf("Wrote to %s\n", filename.c_str());
   fflush(stdout);
 }
@@ -629,13 +737,6 @@ int main(int argc, char **argv) {
   }
   fprintf(f, "];\n</script>\n\n");
 
-  struct EloSummary {
-    double median = 0.0;
-    double p25 = 0.0, p75 = 0.0;
-    // For the median one.
-    int wins = 0, losses = 0, draws = 0;
-  };
-
   vector<EloSummary> elos;
   for (int i = 0; i < num_entrants; i++) {
     vector<Elo> player_elos;
@@ -725,27 +826,72 @@ int main(int argc, char **argv) {
 
   fprintf(f, "</table>\n");
 
-  MakeImage(nullptr, num_entrants, names, by_elo, outcomes, "elo.png");
+  ImageArgs image_args(
+      num_entrants,
+      names,
+      by_elo,
+      outcomes,
+      elos,
+      stationary);
+
+  std::unordered_map<string, string> aliases{
+    {"stockfish1m_r64", "stockfish 99.9%"},
+    {"stockfish1m_r128", "stockfish 99.8%"},
+    {"stockfish1m_r256", "stockfish 99.6%"},
+    {"stockfish1m_r512", "stockfish 99.2%"},
+    {"stockfish1m_r1024", "stockfish 98.4%"},
+    {"stockfish1m_r2048", "stockfish 96.9%"},
+    {"stockfish1m_r4096", "stockfish 93.7%"},
+    {"stockfish1m_r8192", "stockfish 87.5%"},
+    {"stockfish1m_r16384", "stockfish 75%"},
+    {"stockfish1m_r32768", "stockfish 50%"},
+    {"stockfish1m_r49152", "stockfish 25%"},
+    {"stockfish1m_r57344", "stockfish 12.5%"},
+    {"stockfish1m_r61440", "stockfish 6.2%"},
+    {"stockfish1m_r63488", "stockfish 3.1%"},
+    {"stockfish1m_r64512", "stockfish 1.5%"},
+  };
+  
+  MakeImage(nullptr, aliases, {}, image_args, "elo.png");
 
   // But now staged...
   std::unordered_map<string, int> mask;
   mask["random_move"] = 1;
-  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+  MakeImage(&mask, aliases, {}, image_args,
 	    "elo-images/random.png");
 
   mask["same_color"] = 9;
   mask["opposite_color"] = 9;
-  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+  MakeImage(&mask, aliases, {"same_color", "opposite_color"}, image_args,
 	    "elo-images/color.png");
 
   mask["swarm"] = 13;
   mask["huddle"] = 13;
-  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+  MakeImage(&mask, aliases, {"swarm", "huddle"}, image_args,
 	    "elo-images/huddle.png");
-  
+ 
+  mask["sym_mirror_y"] = 4;
+  mask["sym_mirror_x"] = 4;
+  mask["sym_180"] = 4;
+  MakeImage(&mask, aliases,
+	    {"sym_mirror_y", "sym_mirror_x", "sym_180"}, image_args,
+	    "elo-images/symmetric.png");
+
+  mask["reverse_starting"] = 5;
+  MakeImage(&mask, aliases, {"reverse_starting"}, image_args,
+	    "elo-images/reverse.png");
+
+   
   mask["cccp"] = 2;
-  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+  MakeImage(&mask, aliases, {"cccp"}, image_args,
 	    "elo-images/cccp.png");
+
+  mask["first_move"] = 18;
+  mask["alphabetical"] = 18;
+  MakeImage(&mask, aliases, {"first_move", "alphabetical"}, image_args,
+	    "elo-images/lex.png");
+
+  // ---------
   
   mask["safe"] = 16;
   mask["dangerous"] = 16;
@@ -753,9 +899,21 @@ int main(int argc, char **argv) {
   mask["rare"] = 16;
   mask["survivalist"] = 16;
   mask["fatalist"] = 16;
-  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+  MakeImage(&mask, aliases, {"safe", "dangerous", "popular", "rare",
+			     "survivalist", "fatalist"}, image_args,
 	    "elo-images/fate.png");
 
+  mask["pacifist"] = 14;
+  mask["generous"] = 14;
+  mask["no_i_insist"] = 14;
+  MakeImage(&mask, aliases,
+	    {"pacifist", "generous", "no_i_insist"}, image_args,
+	    "elo-images/vegetarian.png");
+
+  mask["suicide_king"] = 10;
+  MakeImage(&mask, aliases, {"suicide_king"}, image_args,
+	    "elo-images/suicide.png");
+  
   mask["topple10k"] = 19;
   mask["topple1m"] = 19;
   mask["stockfish0"] = 19;
@@ -764,28 +922,55 @@ int main(int argc, char **argv) {
   mask["stockfish15"] = 19;
   mask["stockfish20"] = 19;
   mask["stockfish1m"] = 19;
-  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+  MakeImage(&mask, aliases, {
+      "topple10k",
+      "topple1m",
+      "stockfish0",
+      "stockfish5",
+      "stockfish10",
+      "stockfish15",
+      "stockfish20",
+      "stockfish1m",
+    }, image_args,
 	    "elo-images/strong-engines.png");
 
   mask["worstfish"] = 3;
-  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+  MakeImage(&mask, aliases, {"worstfish"}, image_args,
 	    "elo-images/worstfish.png");
   
   mask["chessmaster.nes_lv1"] = 17;
   mask["chessmaster.nes_lv2"] = 17;
-  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+  MakeImage(&mask, aliases, {"chessmaster.nes_lv1",
+		    "chessmaster.nes_lv2"}, image_args,
 	    "elo-images/chessmaster.png");
 
-  mask["singleplayer"] = 8;
-  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+  mask["single_player4"] = 8;
+  MakeImage(&mask, aliases, {"single_player4"}, image_args,
 	    "elo-images/singleplayer.png");
 
   mask["binary_pi"] = 6;
   mask["binary_e"] = 6;
   mask["rational_pi"] = 6;
   mask["rational_e"] = 6;
-  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+  MakeImage(&mask, aliases, {"binary_pi", "binary_e",
+		    "rational_pi", "rational_e"}, image_args,
 	    "elo-images/numeric.png");
+
+  mask["equalizer"] = 15;
+  mask["min_oppt_moves"] = 15;
+  MakeImage(&mask, aliases, {"equalizer", "min_oppt_moves"}, image_args,
+	    "elo-images/nice.png");
+  
+  mask["blind_yolo"] = 7;
+  mask["blind_kings"] = 7;
+  mask["blind_spycheck"] = 7;
+  MakeImage(&mask, aliases, {"blind_yolo", "blind_kings", "blind_spycheck"},
+	    image_args,
+	    "elo-images/blind.png");
+
+  mask["almanac_popular"] = 12;
+  MakeImage(&mask, aliases, {"almanac_popular"}, image_args,
+	    "elo-images/almanac.png");
   
   mask["stockfish1m_r64"] = 11;
   mask["stockfish1m_r128"] = 11;
@@ -802,48 +987,34 @@ int main(int argc, char **argv) {
   mask["stockfish1m_r61440"] = 11;
   mask["stockfish1m_r63488"] = 11;
   mask["stockfish1m_r64512"] = 11;
-  MakeImage(&mask, num_entrants, names, by_elo, outcomes,
+  MakeImage(&mask, aliases, {
+      "stockfish1m_r64",
+      "stockfish1m_r128",
+      "stockfish1m_r256",
+      "stockfish1m_r512",
+      "stockfish1m_r1024",
+      "stockfish1m_r2048",
+      "stockfish1m_r4096",
+      "stockfish1m_r8192",
+      "stockfish1m_r16384",
+      "stockfish1m_r32768",
+      "stockfish1m_r49152",
+      "stockfish1m_r57344",
+      "stockfish1m_r61440",
+      "stockfish1m_r63488",
+      "stockfish1m_r64512",
+    }, image_args,
 	    "elo-images/dilution.png");
 
-  /*
-    4;
-    5;
-    14;
-    7;
-    10;
-    12;
-    15;
-    18;
-			Equalizer,
+  MakeImage(&mask, aliases, {}, image_args, "elo-images/final.png");
 
-			BlindYolo,
-			BlindSingleKings,
-			BlindSpycheck,
-
-			MinOpponentMoves,
-			MirrorYSymmetry,
-			MirrorXSymmetry,
-			Symmetry180,
-			FirstMove,
-			Alphabetical,
-			Pacifist,
-			Generous,
-			NoIInsist,
-			Huddle,
-			Swarm,
-			SuicideKing,
-			ReverseStarting,
-
-			AlmanacPopular,
-
-  */
-
-
-  fprintf(f, "<table><tr><td>player</td><td>25</td><td>elo</td><td>75</td><td>w/l/d</td>"
+  fprintf(f, "<table><tr><td>player</td><td>25</td><td>elo</td><td>75</td>"
+	  "<td>w/l/d</td>"
 	  "<td>p | norm(p)</td></tr>\n");
   for (int i : by_elo) {
     fprintf(f,
-	    " <tr><td>%s</td><td>%.2f</td><td>%.2f</td><td>%.2f</td><td>%d/%d/%d</td>"
+	    " <tr><td>%s</td><td>%.2f</td><td>%.2f</td><td>%.2f</td>"
+	    "<td>%d/%d/%d</td>"
 	    "<td>%.8f | %.8f</td></tr>\n",
 	    names[i].c_str(),
 	    elos[i].p25,

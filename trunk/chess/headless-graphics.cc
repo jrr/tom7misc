@@ -34,6 +34,55 @@ void FillRect(int w, int h,
   }
 }
 
+std::vector<uint8_t> PadImageCenter(
+    const std::vector<uint8_t> &rgba_in,
+    int width_in, int height_in,
+    int width_out, int height_out,
+    uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+
+  vector<uint8> ret;
+  ret.resize(width_out * height_out * 4);
+  for (int i = 0; i < width_out * height_out; i++) {
+    ret[i * 4 + 0] = r;
+    ret[i * 4 + 1] = g;
+    ret[i * 4 + 2] = b;
+    ret[i * 4 + 3] = a;
+  }
+
+  // Note: Could be negative if this function is being
+  // used to crop.
+  const int yoff = (height_out - height_in) >> 1;
+  const int xoff = (width_out - width_in) >> 1;
+  
+  for (int y = 0; y < height_out; y++) {
+    int sy = y - yoff;
+    if (sy < 0) continue;
+    if (sy >= height_in) break;
+    for (int x = 0; x < width_out; x++) {
+      int sx = x - xoff;
+      if (sx < 0) continue;
+      if (sx >= width_in) break;
+
+      // Inside source image. Copy the pixel.
+      int sidx = ((sy * width_in) + sx) * 4;
+      int didx = ((y * width_out) + x) * 4;
+
+      uint8 r = rgba_in[sidx + 0];
+      uint8 g = rgba_in[sidx + 1];
+      uint8 b = rgba_in[sidx + 2];
+      uint8 a = rgba_in[sidx + 3];
+    
+      ret[didx + 0] = r;
+      ret[didx + 1] = g;
+      ret[didx + 2] = b;
+      ret[didx + 3] = a;
+    }
+  }
+
+  return ret;
+}
+
+
 void SaveARGB(const vector<uint8> &argb, int width, int height,
 	      const string &filename) {
   CHECK(argb.size() == width * height * 4);
@@ -187,3 +236,4 @@ void HeadlessFont::DrawChar(uint8 c, int style,
     }
   }
 }
+
