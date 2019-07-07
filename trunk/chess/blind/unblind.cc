@@ -1229,7 +1229,7 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 
 // These must be initialized before starting the UI thread!
 static constexpr int NUM_VIDEO_STIMULATIONS = 6;
-static constexpr int EXPORT_EVERY = 16;
+static constexpr int EXPORT_EVERY = 4;
 // static constexpr int EXPORT_EVERY = 1;
 static std::shared_mutex video_export_m;
 static int current_round = 0;
@@ -1402,7 +1402,7 @@ static void UIThread() {
   int vlayer = 0;
   
   for (;;) {
-    // int round = SharedReadWithLock(&video_export_m, &current_round);
+    // int round = ReadWithLock(&video_export_m, &current_round);
     {
       ReadMutexLock ml(&video_export_m);
       if (dirty) {
@@ -1680,7 +1680,7 @@ static void UIThread() {
       }
     }
 
-    if (SharedReadWithLock(&train_done_m, &train_done)) {
+    if (ReadWithLock(&train_done_m, &train_done)) {
       Printf("UI thread saw that training finished.\n");
       return;
     }
@@ -1735,7 +1735,7 @@ static void UIThread() {
 }
 
 LoadPositions load_positions(
-    []() { return SharedReadWithLock(&train_should_die_m, &train_should_die); },
+    []() { return ReadWithLock(&train_should_die_m, &train_should_die); },
     MAX_PGN_PARALLELISM,
     MAX_GAMES,
     MAX_POSITIONS);
@@ -1747,7 +1747,8 @@ static void TrainThread() {
   // XXX This is probably still way too low. These are very small for chess (a
   // stimulation just needs the node activation values, so it's much smaller than
   // the network itself, which has to store weights for each incoming edge).
-  static constexpr int EXAMPLES_PER_ROUND = 2048; // 4096;
+  static constexpr int EXAMPLES_PER_ROUND = 32; // for video
+    // 2048; // 4096;
   static constexpr int EXAMPLE_QUEUE_TARGET = std::max(EXAMPLES_PER_ROUND * 2, 1024);
   // On a verbose round, we write a network checkpoint and maybe some
   // other stuff to disk. XXX: Do this based on time, since rounds speed can vary
@@ -1793,7 +1794,7 @@ static void TrainThread() {
 
   NetworkGPU net_gpu{global_cl, net.get()};
 
-  if (SharedReadWithLock(&train_should_die_m, &train_should_die))
+  if (ReadWithLock(&train_should_die_m, &train_should_die))
     return;
 
   Printf("Network uses %.2fMB of storage (without overhead).\n",
@@ -1813,7 +1814,7 @@ static void TrainThread() {
     training.push_back(new TrainingRoundGPU{global_cl, *net});
 
   auto ShouldDie = [&net]() {
-    bool should_die = SharedReadWithLock(&train_should_die_m, &train_should_die);
+    bool should_die = ReadWithLock(&train_should_die_m, &train_should_die);
     if (should_die) {
       Printf("Train thread signaled death.\n");
       Printf("Saving to net.val...\n");
@@ -1885,7 +1886,7 @@ static void TrainThread() {
     rc.Discard(2000);
     
     for (;;) {
-      if (SharedReadWithLock(&train_should_die_m, &train_should_die)) {
+      if (ReadWithLock(&train_should_die_m, &train_should_die)) {
 	return;
       }
       
@@ -2315,7 +2316,7 @@ static void TrainThread() {
 
   Printf(" ** Done. **");
 
-  SharedWriteWithLock(&train_done_m, &train_done, true);
+  WriteWithLock(&train_done_m, &train_done, true);
 }
 
 
@@ -2381,7 +2382,7 @@ int SDL_main(int argc, char **argv) {
   UIThread();
 
   Printf("Killing train thread (might need to wait for round to finish)...\n");
-  SharedWriteWithLock(&train_should_die_m, &train_should_die, true);
+  WriteWithLock(&train_should_die_m, &train_should_die, true);
   load_games_thread.join();
   train_thread.join();
 
