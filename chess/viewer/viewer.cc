@@ -88,6 +88,7 @@ using Move = Position::Move;
 
 #define FONTWIDTH 9
 #define FONTHEIGHT 16
+static Font *fates_font = nullptr;
 static Font *font = nullptr, *font2x = nullptr, *font4x = nullptr;
 static Font *chessfont = nullptr, *chessfont3x = nullptr;
 
@@ -1278,8 +1279,8 @@ void UI::DrawStatus() {
   static constexpr const char* FATESTATES[3] =
     {
       "OFF",
-      "ON",
       "PATH",
+      "NAME",
     };
 
 #define KEY(s) "^3" s "^<"
@@ -1760,8 +1761,6 @@ void UI::Draw() {
 	"f bishop",
 	"g knight",
 	"h rook", 
-
-
       };
     uint8 count[64] = {};
     for (int i = 0; i < 32; i++) {
@@ -1770,17 +1769,22 @@ void UI::Draw() {
       uint8 r = pos / 8;
       uint8 c = pos % 8;
       int fcolor = i < 16 ? 1 : 0;
+
+      const int len = (fate & Fates::DIED) ? strlen(piece_names[i]) + 2 :
+	strlen(piece_names[i]);
+      
+      int xx = CHESSX + c * CHESSSCALE + 8 +
+		       (((10 - len) * (FONTWIDTH - 1)) >> 1);
+      int yy = CHESSY + r * CHESSSCALE + (CHESSSCALE - FONTHEIGHT - 2) -
+		       FONTHEIGHT * count[pos];
       if (fate & Fates::DIED) {
-	font->draw(CHESSX + c * CHESSSCALE + 8,
-		   CHESSY + r * CHESSSCALE + (CHESSSCALE - FONTHEIGHT - 2) -
-		   FONTHEIGHT * count[pos],
-		   StringPrintf("^2x ^%d%s", fcolor, piece_names[i]));
-      } else {
-	font->draw(CHESSX + c * CHESSSCALE + 8,
-		   CHESSY + r * CHESSSCALE + (CHESSSCALE - FONTHEIGHT - 2) -
-		   FONTHEIGHT * count[pos],
-		   StringPrintf("^%d%s", fcolor, piece_names[i]));
+	// red 'x'
+	font->draw(xx, yy, StringPrintf("^2x"));
+	xx += FONTWIDTH * 2;
       }
+      fates_font->draw(
+	  xx, yy,
+	  StringPrintf("^%d%s", fcolor, piece_names[i]));
       count[pos]++;
     }
   }
@@ -1941,12 +1945,20 @@ int main(int argc, char **argv) {
   screen = sdlutil::makescreen(SCREENW, SCREENH);
   CHECK(screen);
 
+  fates_font = Font::create(screen,
+			    "fates-font.png",
+			    FONTCHARS,
+			    11, FONTHEIGHT + 2, 2, 3, 1);
+  CHECK(fates_font != nullptr) << "Couldn't load fates_font.";
+  
   font = Font::create(screen,
 		      "../blind/font.png",
 		      FONTCHARS,
 		      FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font != nullptr) << "Couldn't load font.";
 
+
+  
   font2x = Font::CreateX(2,
 			 screen,
 			 "../blind/font.png",
@@ -1964,7 +1976,7 @@ int main(int argc, char **argv) {
   # define CHESSFONT "../blind/chessfont.png"
   // # define CHESSFONT "chessfont-blindfold.png"
   // # define CHESSFONT "chessfont-cards.png"
-  //# define CHESSFONT "chessfont-halos.png"
+  // # define CHESSFONT "chessfont-halos.png"
 
   // #define CHESSFONT "chessfont-letter.png"
   
@@ -1973,6 +1985,8 @@ int main(int argc, char **argv) {
   // #define CHESSFONT "chessfont-cylon.png"
   //   #define CHESSFONT "../blind/chessfont.png"
   // #define CHESSFONT "chessfont-cccp.png"
+
+  // #define CHESSFONT "chessfont-idiot.png"
   
   /*
     This one probably comes first, so maybe just uses regular
@@ -2076,8 +2090,9 @@ int main(int argc, char **argv) {
   // ui.async_player.reset(new AsyncPlayer(BlindSpycheck()));
   // ui.async_player.reset(new AsyncPlayer(Chessmaster1()));
   // ui.async_player.reset(new AsyncPlayer(BinaryE()));
+  // ui.async_player.reset(new AsyncPlayer(BlindSingleKings()));
   // ui.async_player.reset(new AsyncPlayer(RationalPi()));
-  // ui.async_player.reset(new AsyncPlayer(SuicideKing()));
+  ui.async_player.reset(new AsyncPlayer(SuicideKing()));
   // ui.async_player.reset(new AsyncPlayer(NoIInsist()));
   // ui.async_player.reset(new AsyncPlayer(SinglePlayer()));
   // ui.async_player.reset(new AsyncPlayer(Random()));
@@ -2085,7 +2100,11 @@ int main(int argc, char **argv) {
   // ui.async_player.reset(new AsyncPlayer(CCCP()));
   // ui.async_player.reset(new AsyncPlayer(Alphabetical()));
   // ui.async_player.reset(new AsyncPlayer(Stockfish0()));
-  ui.async_player.reset(new AsyncPlayer(Fatalist()));
+  // ui.async_player.reset(new AsyncPlayer(Fatalist()));
+  // ui.async_player.reset(new AsyncPlayer(NoIInsist()));
+  // ui.async_player.reset(new AsyncPlayer(Generous()));
+  // ui.async_player.reset(new AsyncPlayer(Worstfish()));
+  // ui.async_player.reset(new AsyncPlayer(Chessmaster2()));
   
   if (argc > 1) {
     ui.LoadMoves(argv[1]);

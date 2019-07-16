@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <cstdint>
 #include <string>
 #include <functional>
@@ -28,7 +29,8 @@ struct OutcomeKeyHash {
 using Outcomes = std::unordered_map<std::pair<std::string, std::string>, Cell, OutcomeKeyHash>;
 
 struct TournamentDB {
-  static Outcomes LoadFromFile(const std::string &filename);
+  static Outcomes LoadFromFile(const std::string &filename,
+			       const std::unordered_set<std::string> &ignore = {});
   static void SaveToFile(const Outcomes &outcomes, const std::string &filename);
   
   // Merge all the outcomes in source into dest, modifying it in place.

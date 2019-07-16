@@ -34,3 +34,59 @@ tend to lead to wins
 - bad chess engines: just use the probability maps
   from the previous to try to move pieces to squares where
   they are likely to survive.
+
+ideas from Youtube:
+ "Leo Sporn": "Balanced" strategy that tries to keep the center of mass
+ (pieces given weights = their typical values) near the center of
+ the board
+
+ Freeasinbear: maximize number of legal moves
+
+ Alex Movitz: "Tragic Backstory". (maybe better "assassin") Each piece
+ has a list of enemy pieces that it will try to eliminate, in order
+
+ Alistair Buxton: "Boringfish: Stockfish, but play the move
+ corresponding to the tree with the lowest standard deviation, ie
+ minimize the effect that the opponent can have on the game (for
+ better or worse.)"
+ 
+
+Maurdekye
+some chess engine suggestions:
+* maxi-min: minimax, but explores the search tree by visiting it's own moves with the lowest score, and it's opponent's moves with the highest score
+* long distance runner: always plays the move that goes the furthest distance
+* cocky savant: plays a random dilution between stockfish and random, but sampled based on how well it's doing; the better it's doing, the more likely it'll make random moves, but the worse it does, the more likely it'll make moves using stockfish. Another variant on this could be just normal stockfish, but with the number of iterations tuned up or down depending on how well it's doing.
+* scaredy cat: tries to keep it's pieces as far away from the opponent's as possible, at all times
+* orthogonal: doesn't move diagonally, if it can help it
+* diagonal: doesn't move orthogonally, if it can help it
+* offensive defense: attempts to move it's pieces to surround the closest enemy piece to it's own king
+* bloodlust: uses the singleplayer minimax algorithm, but the utility function only cares about how many pieces it was able to capture
+* assassin: minimax, where the utility function is only worried about whether or not it was able to capture the opponent's king or queen
+* king me!: minimax, only tries to make moves that let it king it's own pawns
+* twitch plays chess: every time a move is needed, it uploads a picture of the board to the internet, and the winning move is voted on by people online
+* high entropy: attempts to keep it's pieces in a group together, such that black and white are in distinct groups on the board
+* low entropy: attempts to mix it's pieces in with it's opponent's pieces such that there's an even distribution of black and white pieces throughout the board
+* deterministic: hashes the current board state, then uses that number to index into the list of available moves
+* ultra-deterministic: hashes the board state only counting the positions of it's own pieces, then uses that number to index into the list of available moves
+* lefty: attempts to move the piece furthest to the left of the board
+* righty: attempts to move the piece furthest to the right of the board
+* revenger: attempts to capture the opponent's piece that most recently captured one of their own pieces
+* stubborn: picks a piece, then continues to make moves with that same piece until it either no longer can, or is forced to make a repeat move
+* equalizer v2: attempts to capture pieces using the bloodlust algorithm, only until there are the same number of pieces on the board between the two opponents
+* checkers: does not move pieces backwards, until they are able to touch the opposite side of the board
+
+Alexa Tandon
+A few more bad chess engines:
+
+One that prioritizes moves of lower valued pieces (likes to move pawns, doesn't like to move kings or queens)
+One that does the reverse of the above
+One that likes to keep its pieces as close to their starting positions as possible
+One that will use the minimax algorithm but evaluate using "minimin" or "maximax" (Assuming itself and its opponent will only play the best/worst moves)
+One that tries to pick moves that move forward (inspired by an xkcd comic)
+One that tries to keep pieces in the middle of the board
+
+Garbaz:
+Another idea for a really bad algorithm: "Reverse Hierarchy". If a pawn is threatened try to save it by moving it or sacrificing other pieces. Of course you still have to move the king if checked.
+
+Patrick Hilhorst:
+Build a NN that classifies board states  into 'in the database' or 'not in the database', and play moves that result in board states that the network thinks would be in the database.
