@@ -606,7 +606,26 @@ static void MakeImage(
 
 int main(int argc, char **argv) {
   printf("Reading outcomes db:\n");
-  Outcomes sparse_outcomes = TournamentDB::LoadFromFile("tournament.db");
+
+  std::unordered_set<string> ignore = {
+    "stockfish1m_r64",
+    "stockfish1m_r128",
+    "stockfish1m_r256",
+    "stockfish1m_r512",
+    "stockfish1m_r1024",
+    "stockfish1m_r2048",
+    "stockfish1m_r4096",
+    "stockfish1m_r8192",
+    "stockfish1m_r16384",
+    "stockfish1m_r32768",
+    "stockfish1m_r49152",
+    "stockfish1m_r57344",
+    "stockfish1m_r61440",
+    "stockfish1m_r63488",
+    "stockfish1m_r64512",
+  };
+  
+  Outcomes sparse_outcomes = TournamentDB::LoadFromFile("tournament.db", /* XXX */ ignore);
   printf("Densifying outcomes:\n");
   // Assign some arbitrary indices.
   int next_id = 0;
@@ -852,6 +871,7 @@ int main(int argc, char **argv) {
     {"stockfish1m_r64512", "stockfish 1.5%"},
   };
   
+#if 0
   MakeImage(nullptr, aliases, {}, image_args, "elo.png");
 
   // But now staged...
@@ -890,9 +910,7 @@ int main(int argc, char **argv) {
   mask["alphabetical"] = 18;
   MakeImage(&mask, aliases, {"first_move", "alphabetical"}, image_args,
 	    "elo-images/lex.png");
-
-  // ---------
-  
+ 
   mask["safe"] = 16;
   mask["dangerous"] = 16;
   mask["popular"] = 16;
@@ -902,7 +920,7 @@ int main(int argc, char **argv) {
   MakeImage(&mask, aliases, {"safe", "dangerous", "popular", "rare",
 			     "survivalist", "fatalist"}, image_args,
 	    "elo-images/fate.png");
-
+  
   mask["pacifist"] = 14;
   mask["generous"] = 14;
   mask["no_i_insist"] = 14;
@@ -910,10 +928,12 @@ int main(int argc, char **argv) {
 	    {"pacifist", "generous", "no_i_insist"}, image_args,
 	    "elo-images/vegetarian.png");
 
+ 
   mask["suicide_king"] = 10;
   MakeImage(&mask, aliases, {"suicide_king"}, image_args,
 	    "elo-images/suicide.png");
-  
+
+
   mask["topple10k"] = 19;
   mask["topple1m"] = 19;
   mask["stockfish0"] = 19;
@@ -937,13 +957,13 @@ int main(int argc, char **argv) {
   mask["worstfish"] = 3;
   MakeImage(&mask, aliases, {"worstfish"}, image_args,
 	    "elo-images/worstfish.png");
-  
+
   mask["chessmaster.nes_lv1"] = 17;
   mask["chessmaster.nes_lv2"] = 17;
   MakeImage(&mask, aliases, {"chessmaster.nes_lv1",
 		    "chessmaster.nes_lv2"}, image_args,
 	    "elo-images/chessmaster.png");
-
+ 
   mask["single_player4"] = 8;
   MakeImage(&mask, aliases, {"single_player4"}, image_args,
 	    "elo-images/singleplayer.png");
@@ -960,13 +980,15 @@ int main(int argc, char **argv) {
   mask["min_oppt_moves"] = 15;
   MakeImage(&mask, aliases, {"equalizer", "min_oppt_moves"}, image_args,
 	    "elo-images/nice.png");
-  
+
   mask["blind_yolo"] = 7;
   mask["blind_kings"] = 7;
   mask["blind_spycheck"] = 7;
   MakeImage(&mask, aliases, {"blind_yolo", "blind_kings", "blind_spycheck"},
 	    image_args,
 	    "elo-images/blind.png");
+
+  // ---------
 
   mask["almanac_popular"] = 12;
   MakeImage(&mask, aliases, {"almanac_popular"}, image_args,
@@ -1007,7 +1029,8 @@ int main(int argc, char **argv) {
 	    "elo-images/dilution.png");
 
   MakeImage(&mask, aliases, {}, image_args, "elo-images/final.png");
-
+#endif
+  
   fprintf(f, "<table><tr><td>player</td><td>25</td><td>elo</td><td>75</td>"
 	  "<td>w/l/d</td>"
 	  "<td>p | norm(p)</td></tr>\n");

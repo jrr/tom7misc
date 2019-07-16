@@ -34,7 +34,8 @@ void TournamentDB::SaveToFile(const Outcomes &outcomes, const std::string &filen
   fclose(f);
 }
 
-Outcomes TournamentDB::LoadFromFile(const string &filename) {
+Outcomes TournamentDB::LoadFromFile(const string &filename,
+				    const std::unordered_set<string> &ignore) {
   vector<string> lines = Util::ReadFileToLines(filename);
   Outcomes outcomes;
   for (string &line : lines) {
@@ -53,6 +54,10 @@ Outcomes TournamentDB::LoadFromFile(const string &filename) {
     cell.white_wins = strtoll(wins_s.c_str(), nullptr, 10);
     cell.white_losses = strtoll(losses_s.c_str(), nullptr, 10);
     cell.draws = strtoll(draws_s.c_str(), nullptr, 10);
+
+    if (ignore.find(white) != ignore.end() ||
+	ignore.find(black) != ignore.end())
+      continue;
     outcomes[make_pair(white, black)] = cell;
   }
   return outcomes;
