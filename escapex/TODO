@@ -6,6 +6,7 @@ Make this work again on OSX 10.10+ and windows!
  - Add mixer framework in for next release
  - byte order when manually making graphics, like mainshow?
      - any more of these?
+ - Probably release a source-only tarball for linux?
 
 Use specific-width integer types instead of 'unsigned'.
 

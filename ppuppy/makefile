@@ -6,7 +6,7 @@ jstalk : jstalk/slides.js
 # CXX=g++
 # CXX=x86_64-w64-mingw32-g++
 # consider O2 for releases...
-CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O2 --std=c++14 -I ../cc-lib  -DPSS_STYLE=1 -I ../cc-lib/pi
+CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O2 --std=c++14 -I ../cc-lib  -DPSS_STYLE=1 -DDISABLE_I2C -I ../cc-lib/pi
 # XXX for windows
 LFLAGS=-static -lpthread
 

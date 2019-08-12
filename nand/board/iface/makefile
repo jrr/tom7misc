@@ -2,7 +2,7 @@ default : nandy-graph.exe
 all : testnand.exe test-nandy.exe piface.exe test-nandy.exe
 
 
-CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O2 --std=c++14 -I ../../../cc-lib   -I ../../../cc-lib/pi
+CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O2 --std=c++14 -DDISABLE_I2C -I ../../../cc-lib   -I ../../../cc-lib/pi
 
 # XXX for windows
 # PLATFORMCFLAGS= -D__MINGW32__ -DHAVE_ALLOCA  -D_WIN32_WINNT=0x0602 -D_GLIBCXX_HAS_GTHREADS -mthreads

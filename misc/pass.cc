@@ -482,6 +482,11 @@ int main(int argc, char **argv) {
     string enc = Encrypt(pass, contents);
     Util::WriteFile(file, enc);
 
+  } else if (cmd == "gen") {
+    // Generate a strong random password.
+    const string pass = Base64::EncodeV(CryptRandom(24));
+    printf("%s\n", pass.c_str());
+    
   } else if (cmd == "wipe") {
 
     CHECK(WipeFile(file)) << file;
