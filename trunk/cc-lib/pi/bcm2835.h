@@ -7,8 +7,15 @@
    Modified by Tom 7 in 2018+.
    See README.bcm2835 for docs that I moved out of this header.   
 
-   Note: I removed some functionality I don't need (e.g. i2c, SPI)
-   since it was pretty big, although I didn't clean out everything.
+   Note: I removed some functionality I didn't need (e.g. SPI)
+   since it was pretty big.
+   Better idea: Remove batches of functionality at compile time. Try:
+     -DDISABLE_I2C
+
+   TODO: Merge back in SPI (etc.) support, guarded by defines.
+   TODO: Raspberry Pi 4 has different peripheral base address and
+   maybe other differences. Merge them in from newer version of this
+   lib.
 
    I also added "support" for the interrupt controller. You can
    manually disable or enable interrupts. Since there's no way to
@@ -1114,6 +1121,105 @@ extern "C" {
   */
   extern void bcm2835_gpio_set_pud(uint8_t pin, uint8_t pud);
 
+#ifndef DISABLE_I2C
+
+    /*! \defgroup i2c I2C access
+
+      These functions let you use I2C (The Broadcom Serial Control bus
+      with the Philips I2C bus/interface version 2.1 January 2000.) to
+      interface with an external I2C device. @{
+    */
+  
+    /*! Start I2C operations.
+
+      Forces RPi I2C pins P1-03 (SDA) and P1-05 (SCL) to alternate
+      function ALT0, which enables those pins for I2C interface. You
+      should call bcm2835_i2c_end() when all I2C functions are
+      complete to return the pins to their default functions
+
+      \return 1 if successful, 0 otherwise (perhaps because you are
+      not running as root)
+    */
+    extern int bcm2835_i2c_begin(void);
+
+    /*! End I2C operations.
+      I2C pins P1-03 (SDA) and P1-05 (SCL)
+      are returned to their default INPUT behaviour.
+    */
+    extern void bcm2835_i2c_end(void);
+
+    /*! Sets the I2C slave address.
+      \param[in] addr The I2C slave address.
+    */
+    extern void bcm2835_i2c_setSlaveAddress(uint8_t addr);
+
+    /*! Sets the I2C clock divider and therefore the I2C clock speed.
+      \param[in] divider The desired I2C clock divider, one of
+      BCM2835_I2C_CLOCK_DIVIDER_*, see \ref bcm2835I2CClockDivider
+    */
+    extern void bcm2835_i2c_setClockDivider(uint16_t divider);
+
+    /*! Sets the I2C clock divider by converting the baudrate parameter to
+      the equivalent I2C clock divider. ( see \sa bcm2835_i2c_setClockDivider)
+      For the I2C standard 100khz you would set baudrate to 100000
+      The use of baudrate corresponds to its use in the I2C kernel device
+      driver. (Of course, bcm2835 has nothing to do with the kernel driver)
+    */
+    extern void bcm2835_i2c_set_baudrate(uint32_t baudrate);
+
+    /*! Transfers any number of bytes to the currently selected I2C slave.
+      (as previously set by \sa bcm2835_i2c_setSlaveAddress)
+      \param[in] buf Buffer of bytes to send.
+      \param[in] len Number of bytes in the buf buffer, and the number of 
+      bytes to send.
+      \return reason see \ref bcm2835I2CReasonCodes
+    */
+    extern uint8_t bcm2835_i2c_write(const char * buf, uint32_t len);
+
+    /*! Transfers any number of bytes from the currently selected I2C slave.
+      (as previously set by \sa bcm2835_i2c_setSlaveAddress)
+      \param[in] buf Buffer of bytes to receive.
+      \param[in] len Number of bytes in the buf buffer, and the number of 
+      bytes to received.
+      \return reason see \ref bcm2835I2CReasonCodes
+    */
+    extern uint8_t bcm2835_i2c_read(char* buf, uint32_t len);
+
+    /*! Allows reading from I2C slaves that require a repeated start (without 
+      any prior stop) to read after the required slave register has been set. 
+      For example, the popular MPL3115A2 pressure and temperature sensor. 
+      Note that your device must support or require this mode. If your 
+      device does not require this mode then the standard combined:
+      \sa bcm2835_i2c_write
+      \sa bcm2835_i2c_read
+      are a better choice.
+      Will read from the slave previously set by bcm2835_i2c_setSlaveAddress.
+      \param[in] regaddr Buffer containing the slave register you wish 
+      to read from.
+      \param[in] buf Buffer of bytes to receive.
+      \param[in] len Number of bytes in the buf buffer, and the number of
+      bytes to received.
+      \return reason see \ref bcm2835I2CReasonCodes
+    */
+    extern uint8_t bcm2835_i2c_read_register_rs(char* regaddr, char* buf, uint32_t len);
+
+    /*! Allows sending an arbitrary number of bytes to I2C slaves
+      before issuing a repeated start (with no prior stop) and reading
+      a response. Necessary for devices that require such behavior,
+      such as the MLX90620. Will write to and read from the slave
+      previously set by bcm2835_i2c_setSlaveAddress.
+
+      \param[in] cmds Buffer containing the bytes to send before the 
+      repeated start condition.
+      \param[in] cmds_len Number of bytes to send from cmds buffer
+      \param[in] buf Buffer of bytes to receive.
+      \param[in] buf_len Number of bytes to receive in the buf buffer.
+      \return reason see \ref bcm2835I2CReasonCodes
+    */
+    extern uint8_t bcm2835_i2c_write_read_rs(char* cmds, uint32_t cmds_len, char* buf, uint32_t buf_len);
+
+#endif  // DISABLE_I2C
+  
   /* \defgroup st System Timer access
     Allows access to and delays using the System Timer Counter.
   */
