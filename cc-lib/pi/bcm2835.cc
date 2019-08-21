@@ -27,6 +27,15 @@
 /* This means pin LOW, false, 0volts on a pin. */
 #define LOW  0x0
 
+// Uncommenting this define compiles alternative I2C code for the
+// version 1 RPi. The P1 header I2C pins are connected to SDA0 and SCL0
+// on V1.
+
+// By default I2C code is generated for the V2 RPi which has SDA1 and
+// SCL1 connected.
+/* #define I2C_V1 */
+
+
 /* Physical address and size of the peripherals block
 // May be overridden on RPi2
 */
@@ -526,7 +535,7 @@ void bcm2835_i2c_set_baudrate(uint32_t baudrate) {
 }
 
 /* Writes an number of bytes to I2C */
-uint8_t bcm2835_i2c_write(const char * buf, uint32_t len) {
+uint8_t bcm2835_i2c_write(const char *buf, uint32_t len) {
 #ifdef I2C_V1
     volatile uint32_t* dlen    = bcm2835_bsc0 + BCM2835_BSC_DLEN/4;
     volatile uint32_t* fifo    = bcm2835_bsc0 + BCM2835_BSC_FIFO/4;
@@ -544,14 +553,17 @@ uint8_t bcm2835_i2c_write(const char * buf, uint32_t len) {
     uint8_t reason = BCM2835_I2C_REASON_OK;
 
     /* Clear FIFO */
-    bcm2835_peri_set_bits(control, BCM2835_BSC_C_CLEAR_1 , BCM2835_BSC_C_CLEAR_1 );
-    /* Clear Status */
-    bcm2835_peri_write(status, BCM2835_BSC_S_CLKT | BCM2835_BSC_S_ERR | BCM2835_BSC_S_DONE);
+    bcm2835_peri_set_bits(control,
+			  BCM2835_BSC_C_CLEAR_1, BCM2835_BSC_C_CLEAR_1);
+    /* Clear Status by writing 1 to these fields. */
+    bcm2835_peri_write(status,
+		       BCM2835_BSC_S_CLKT |
+		       BCM2835_BSC_S_ERR |
+		       BCM2835_BSC_S_DONE);
     /* Set Data Length */
     bcm2835_peri_write(dlen, len);
     /* pre populate FIFO with max buffer */
-    while( remaining && ( i < BCM2835_BSC_FIFO_SIZE ) )
-    {
+    while ( remaining && ( i < BCM2835_BSC_FIFO_SIZE ) ) {
         bcm2835_peri_write_nb(fifo, buf[i]);
         i++;
         remaining--;
@@ -561,36 +573,27 @@ uint8_t bcm2835_i2c_write(const char * buf, uint32_t len) {
     bcm2835_peri_write(control, BCM2835_BSC_C_I2CEN | BCM2835_BSC_C_ST);
     
     /* Transfer is over when BCM2835_BSC_S_DONE */
-    while(!(bcm2835_peri_read(status) & BCM2835_BSC_S_DONE ))
-    {
-        while ( remaining && (bcm2835_peri_read(status) & BCM2835_BSC_S_TXD ))
-    	{
-	    /* Write to FIFO */
-	    bcm2835_peri_write(fifo, buf[i]);
-	    i++;
-	    remaining--;
-    	}
+    while (!(bcm2835_peri_read(status) & BCM2835_BSC_S_DONE )) {
+      while ( remaining && (bcm2835_peri_read(status) & BCM2835_BSC_S_TXD )) {
+	/* Write to FIFO */
+	bcm2835_peri_write(fifo, buf[i]);
+	i++;
+	remaining--;
+      }
     }
 
-    /* Received a NACK */
-    if (bcm2835_peri_read(status) & BCM2835_BSC_S_ERR)
-    {
-	reason = BCM2835_I2C_REASON_ERROR_NACK;
+    if (bcm2835_peri_read(status) & BCM2835_BSC_S_ERR) {
+      /* Received a NACK */
+      reason = BCM2835_I2C_REASON_ERROR_NACK;
+    } else if (bcm2835_peri_read(status) & BCM2835_BSC_S_CLKT) {
+      /* Received Clock Stretch Timeout */
+      reason = BCM2835_I2C_REASON_ERROR_CLKT;
+    } else if (remaining) {
+      /* Not all data is sent */
+      reason = BCM2835_I2C_REASON_ERROR_DATA;
     }
 
-    /* Received Clock Stretch Timeout */
-    else if (bcm2835_peri_read(status) & BCM2835_BSC_S_CLKT)
-    {
-	reason = BCM2835_I2C_REASON_ERROR_CLKT;
-    }
-
-    /* Not all data is sent */
-    else if (remaining)
-    {
-	reason = BCM2835_I2C_REASON_ERROR_DATA;
-    }
-
-    bcm2835_peri_set_bits(control, BCM2835_BSC_S_DONE , BCM2835_BSC_S_DONE);
+    bcm2835_peri_set_bits(control, BCM2835_BSC_S_DONE, BCM2835_BSC_S_DONE);
 
     return reason;
 }

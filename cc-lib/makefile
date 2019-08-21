@@ -1,16 +1,16 @@
 
 default : heap_test.exe minmax-heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe textsvg_test.exe lines_test.exe image_test.exe util_test.exe randutil_test.exe json_test.exe arcfour_test.exe lastn-buffer_test.exe list-util_test.exe $(TESTCOMPILE)
 
-TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o
+TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o simpledxf.o
 
 BASE=base/logging.o base/stringprintf.o
 
 # for 64 bits on windows
-# CXX=x86_64-w64-mingw32-g++
-# CC=x86_64-w64-mingw32-g++
-CXX=g++
-CC=gcc
-CXXFLAGS=-I. --std=c++14 -O2 # -static
+CXX=x86_64-w64-mingw32-g++
+CC=x86_64-w64-mingw32-g++
+# CXX=g++
+# CC=gcc
+CXXFLAGS=-I. --std=c++17 -O2 # -static
 
 # For linux, others...
 # (pthreads can't be linked statically)
@@ -54,6 +54,9 @@ lastn-buffer_test.exe : lastn-buffer_test.o $(BASE)
 
 interval-tree_test.exe : interval-tree_test.o $(BASE) arcfour.o
 	$(CXX) $(CXXFLAGS) $^ -o $@
+
+simpledxf.o : simpledxf.cc simpledxf.h
+	$(CXX) $(CXXFLAGS) $< -o $@ -c
 
 threadutil_test.exe : threadutil.h threadutil_test.o $(BASE)
 	$(CXX) $(CXXFLAGS) threadutil_test.o $(BASE) -o $@ -lpthread
