@@ -1174,7 +1174,7 @@ extern "C" {
       bytes to send.
       \return reason see \ref bcm2835I2CReasonCodes
     */
-    extern uint8_t bcm2835_i2c_write(const char * buf, uint32_t len);
+    extern uint8_t bcm2835_i2c_write(const char *buf, uint32_t len);
 
     /*! Transfers any number of bytes from the currently selected I2C slave.
       (as previously set by \sa bcm2835_i2c_setSlaveAddress)
@@ -1183,7 +1183,7 @@ extern "C" {
       bytes to received.
       \return reason see \ref bcm2835I2CReasonCodes
     */
-    extern uint8_t bcm2835_i2c_read(char* buf, uint32_t len);
+    extern uint8_t bcm2835_i2c_read(char *buf, uint32_t len);
 
     /*! Allows reading from I2C slaves that require a repeated start (without 
       any prior stop) to read after the required slave register has been set. 
