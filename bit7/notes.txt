@@ -1,0 +1,27 @@
+Need to decide whether an 8x8 font should include inter-letter and inter-line spacing?
+
+If not:
+ - Sorta makes sense; a letter is 8x8 pixels.
+ - Works best on a hardware display that is e.g. 8 pixels tall.
+ - Storage is perhaps more efficient, if this row/col would always be blank
+
+If so:
+ - Matches what terminal fonts usually do?
+ - Makes blitting simpler, although not by much
+ - Makes metrics somewhat simpler? (n character word is just 8n x 8)
+ - Drawing characters can still use the space, so that we get nice contiguous
+   lines / shades on these. (This is probably the clincher!)
+ - Can fudge a little in a pinch, like lowercase g
+
+We could also offer multiple versions of the font, if like these danger zones
+are "optional" (e.g. they are only used by drawing characters) then we could
+generate a version that drops them.
+
+I guess the main thing I like about not including them is that it would be very
+reasonable to have a 8 pixel-tall hardware LED display and want to load an 8x8
+pixel font there. But we could also just have a design intent note that says
+the bottom row and right column can be safely dropped, as these are just used
+for spacing or continuity in drawing characters. We'd have to avoid 'fudge' in
+this case, but otherwise this seems like the best way to go.
+
+
