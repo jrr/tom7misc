@@ -51,12 +51,16 @@ static void DisableEchoExcursion(F f) {
   system("stty echo");
   
 #else
-  struct termios tty;
-  tcgetattr(STDIN_FILENO, &tty);
-  if (enable) tty.c_lflag |= ECHO;
-  else tty.c_lflag &= ~ECHO;
+  struct termios old_tty, new_tty;
+  tcgetattr(STDIN_FILENO, &old_tty);
+  tcgetattr(STDIN_FILENO, &new_tty);
+  new_tty.c_lflag &= ~ECHO;
 
-  (void)tcsetattr(STDIN_FILENO, TCSANOW, &tty);
+  (void)tcsetattr(STDIN_FILENO, TCSANOW, &new_tty);
+
+  f();
+
+  (void)tcsetattr(STDIN_FILENO, TCSANOW, &old_tty);
 #endif
 }
 
@@ -394,9 +398,41 @@ static string ReadPass() {
       // HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE); 
       getline(cin, pass);
     });
+  fprintf(stderr, "\n");
   return pass;
 }
 
+static void OpenWithEditor(const string &pass,
+			   const string &file,
+			   const string &cmd) {
+  CryptRand cr;
+  const string tmpname = StringPrintf("deleteme-%llx.txt", cr.Word64());
+  const string enctext = Util::ReadFile(file);
+
+  // If we had the wrong password (typo), it's important that we
+  // detect it here, or else we'll reencrypt the gibberish with the
+  // wrong password.
+  string header;
+  std::vector<std::pair<string, string>> lines;
+  CHECK(Decrypt(pass, enctext, &header, &lines)) <<
+    "Failed to decrypt: " << file;
+  string plaintext = FlattenDecrypted(header, lines);
+  Util::WriteFile(tmpname, plaintext);
+
+  std::system(StringPrintf(
+		  "%s %s", cmd.c_str(), tmpname.c_str()).c_str());
+
+  string newplain = Util::ReadFile(tmpname);
+  // Note we can use a version that merges IVs from old, and checks
+  // for IV reuse too. XXX if this fails, we might want to be
+  // clearer about where the data is currently stored?
+  string newenc = Encrypt(pass, newplain);
+  Util::WriteFile(file, newenc);
+  if (!WipeFile(tmpname))
+    fprintf(stderr, "Warning: Couldn't wipe %s\n", tmpname.c_str());
+    
+  CHECK(Util::remove(tmpname));
+}
 
 int main(int argc, char **argv) {
   CHECK(argc >= 3);
@@ -437,35 +473,12 @@ int main(int argc, char **argv) {
     
   } else if (cmd == "emacs") {
     const string pass = ReadPass();
+    OpenWithEditor(pass, file, "emacs -nw");
+
+  } else if (cmd == "notepad") {
+    const string pass = ReadPass();
+    OpenWithEditor(pass, file, "notepad");
     
-    CryptRand cr;
-    const string tmpname = StringPrintf("deleteme-%llx.txt", cr.Word64());
-    const string enctext = Util::ReadFile(file);
-    // If we had the wrong password (typo), it's important that we
-    // detect it here, or else we'll reencrypt the gibberish with the
-    // wrong password.
-
-    string header;
-    std::vector<std::pair<string, string>> lines;
-    CHECK(Decrypt(pass, enctext, &header, &lines)) <<
-      "Failed to decrypt: " << file;
-    string plaintext = FlattenDecrypted(header, lines);
-    Util::WriteFile(tmpname, plaintext);
-
-    // "emacs -nw"
-    std::system(StringPrintf("notepad %s", tmpname.c_str()).c_str());
-
-    string newplain = Util::ReadFile(tmpname);
-    // Note we can use a version that merges IVs from old, and checks
-    // for IV reuse too. XXX if this fails, we might want to be
-    // clearer about where the data is currently stored?
-    string newenc = Encrypt(pass, newplain);
-    Util::WriteFile(file, newenc);
-    if (!WipeFile(tmpname))
-      fprintf(stderr, "Warning: Couldn't wipe %s\n", tmpname.c_str());
-    
-    CHECK(Util::remove(tmpname));
-
   } else if (cmd == "new") {
     const string pass = ReadPass();
     
