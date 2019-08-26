@@ -226,11 +226,12 @@ static T ReadAndCloseFile(FILE *f, const T *magic_opt) {
   // we got it right. However, we need to remain correct even
   // when stat returns nonsense (such as 0 or 4096).
 
-  // TODO: Not sure how portable fstat64 is. An alternative is
-  // to compile with -D_FILE_OFFSET_BITS=64. Another alternative
-  // is to only do gigabyte-size reads, although reading a file
-  // that's a significant fraction of all available memory is
-  // one of the main points of going through all this complexity!
+  // TODO: Not sure how portable fstat64 is. OS X marks it as
+  // deprecated since 10.6. An alternative is to compile with
+  // -D_FILE_OFFSET_BITS=64. Another alternative is to only do
+  // gigabyte-size reads, although reading a file that's a significant
+  // fraction of all available memory is one of the main points of
+  // going through all this complexity!
   int fd = fileno(f);
   struct stat64 st;
   if (0 != fstat64(fd, &st)) {
