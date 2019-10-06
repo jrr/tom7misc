@@ -7,7 +7,12 @@
 #include <vector>
 
 struct TextSVG {
+  // Uses px and sets origin at 0,0.
   static std::string Header(double width, double height);
+  static std::string HeaderEx(double x, double y,
+			      double width, double height,
+			      const std::string &units,
+			      const std::string &generator);
   static std::string Footer();
 
   // Returns a string containing a number suitable for SVG (with

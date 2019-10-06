@@ -90,3 +90,9 @@ Another idea for a really bad algorithm: "Reverse Hierarchy". If a pawn is threa
 
 Patrick Hilhorst:
 Build a NN that classifies board states  into 'in the database' or 'not in the database', and play moves that result in board states that the network thinks would be in the database.
+
+Ryan Malloy:
+"StockMarketFish" An algorithm that attempts to play moves such that a
+graph of the engine evaluation of the board over the course of the
+game looks similar to a graph of the performance of the New York Stock
+Exchange over its entire history.

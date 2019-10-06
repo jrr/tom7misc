@@ -199,7 +199,7 @@ string Util::Join(const vector<string> &v, const string &sep) {
   if (v.empty()) return "";
   // PERF can pre-allocate the output string, for one thing.
   string out = v[0];
-  for (int i = 1; i < v.size(); i++) {
+  for (int i = 1; i < (int)v.size(); i++) {
     out += sep;
     out += v[i];
   }
@@ -286,7 +286,7 @@ static T ReadAndCloseFile(FILE *f, const T *magic_opt) {
 
     // Keep the buffer large enough to store what we think the actual
     // size is, so that we don't have to keep resizing it.
-    if (ret.size() < size_guess) {
+    if ((int64)ret.size() < size_guess) {
       #if READFILE_DEBUG
       printf("Resize buffer %lld -> %lld\n", (int64)ret.size(), size_guess);
       #endif
@@ -387,7 +387,7 @@ vector<string> Util::SplitToLines(const string &s) {
 map<string, string> Util::ReadFileToMap(const string &f) {
   map<string, string> m;
   vector<string> lines = ReadFileToLines(f);
-  for (int i = 0; i < lines.size(); i++) {
+  for (int i = 0; i < (int)lines.size(); i++) {
     string rest = lines[i];
     string tok = chop(rest);
     rest = losewhitel(rest);
@@ -398,16 +398,16 @@ map<string, string> Util::ReadFileToMap(const string &f) {
 
 static inline string PadWith(int n, string s, char c) {
   if (n >= 0) {
-    if (s.length() < n) {
+    if ((int)s.length() < n) {
       s.reserve(n);
-      while (s.length() < n)
+      while ((int)s.length() < n)
 	s.push_back(c);
     }
     return s;
   } else {
     // n < 0. Pad left, but negate n so it's easier to think about.
     n = -n;
-    if (s.length() < n) {
+    if ((int)s.length() < n) {
       string ret(n - s.length(), c);
       ret.append(s);
       return ret;
@@ -515,7 +515,7 @@ vector<uint64> Util::ReadUint64File(const string &filename) {
   vector<uint64> ret;
   ret.reserve(bytes.size() / 8);
   uint64 w = 0ULL;
-  for (int i = 0; i < bytes.size(); i++) {
+  for (int i = 0; i < (int)bytes.size(); i++) {
     w <<= 8;
     w |= bytes[i];
     if ((i & 7) == 7) {
@@ -1090,7 +1090,7 @@ string Util::dirplus(const string &dir_, const string &file) {
 string Util::cdup(const string &dir) {
   /* XXX right second argument to rfind? I want to find the last / */
   size_t idx = dir.rfind(DIRSEP, dir.length() - 1);
-  if (idx != (signed)string::npos) {
+  if (idx != string::npos) {
     if (idx) return dir.substr(0, idx);
     else return ".";
   } else return ".";
