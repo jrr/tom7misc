@@ -31,7 +31,7 @@ ImageRGBA *ImageRGBA::Load(const string &filename) {
 
 ImageRGBA::ImageRGBA(const vector<uint8> &rgba, int width, int height)
   : width(width), height(height), rgba(rgba) {
-  CHECK(rgba.size() == width * height * 4);
+  CHECK((int)rgba.size() == width * height * 4);
 }
 
 ImageRGBA::ImageRGBA(int width, int height)
@@ -40,7 +40,7 @@ ImageRGBA::ImageRGBA(int width, int height)
 }
 
 void ImageRGBA::Save(const std::string &filename) const {
-  CHECK(rgba.size() == width * height * 4);
+  CHECK((int)rgba.size() == width * height * 4);
   stbi_write_png(filename.c_str(), width, height, 4, rgba.data(), 4 * width);
 }
 
@@ -133,7 +133,7 @@ void ImageRGBA::BlendPixel(int x, int y,
 
 ImageA::ImageA(const vector<uint8> &alpha, int width, int height)
     : width(width), height(height), alpha(alpha) {
-  CHECK(alpha.size() == width * height);
+  CHECK((int)alpha.size() == width * height);
 }
 
 ImageA *ImageA::Copy() const {
