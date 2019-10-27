@@ -673,10 +673,6 @@ typedef enum {
   BCM2835_PWM_CLOCK_DIVIDER_1     = 1        /* 1 = 4.6875kHz, same as divider 4096 */
 } bcm2835PWMClockDivider;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
   /* \defgroup init Library initialisation and management
     These functions allow you to intialise and control the bcm2835 library
   */
@@ -1053,7 +1049,7 @@ extern "C" {
     result in a delay of about 80 microseconds. Your mileage may vary.
     \param[in] micros Delay in microseconds
   */
-  extern void bcm2835_delayMicroseconds (uint64_t micros);
+  extern void bcm2835_delayMicroseconds(uint64_t micros);
 
   /* Sets the output state of the specified pin
     \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
@@ -1271,9 +1267,5 @@ extern "C" {
     Can vary from 0 to RANGE.
   */
   extern void bcm2835_pwm_set_data(uint8_t channel, uint32_t data);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* BCM2835_H */
