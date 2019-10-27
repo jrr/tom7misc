@@ -11,8 +11,9 @@
    since it was pretty big.
    Better idea: Remove batches of functionality at compile time. Try:
      -DDISABLE_I2C
+     -DDISABLE_SPI
 
-   TODO: Merge back in SPI (etc.) support, guarded by defines.
+   TODO: Merge back in other removed support, guarded by defines.
    TODO: Raspberry Pi 4 has different peripheral base address and
    maybe other differences. Merge them in from newer version of this
    lib.
@@ -1110,111 +1111,320 @@ typedef enum {
     *paddr_c = offs;
   }
   
-  /* Sets the Pull-up/down mode for the specified pin. This is more convenient than
-    clocking the mode in with bcm2835_gpio_pud() and bcm2835_gpio_pudclk().
-    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-    \param[in] pud The desired Pull-up/down mode. One of BCM2835_GPIO_PUD_* from bcm2835PUDControl
+  /* Sets the Pull-up/down mode for the specified pin. This is more 
+     convenient than clocking the mode in with bcm2835_gpio_pud() and 
+     bcm2835_gpio_pudclk().
+     \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+     \param[in] pud The desired Pull-up/down mode. One of 
+     BCM2835_GPIO_PUD_* from bcm2835PUDControl
   */
   extern void bcm2835_gpio_set_pud(uint8_t pin, uint8_t pud);
 
 #ifndef DISABLE_I2C
 
-    /*! \defgroup i2c I2C access
-
-      These functions let you use I2C (The Broadcom Serial Control bus
-      with the Philips I2C bus/interface version 2.1 January 2000.) to
-      interface with an external I2C device. @{
-    */
+  // I2C support.
   
-    /*! Start I2C operations.
+  /* Start I2C operations.
 
-      Forces RPi I2C pins P1-03 (SDA) and P1-05 (SCL) to alternate
-      function ALT0, which enables those pins for I2C interface. You
-      should call bcm2835_i2c_end() when all I2C functions are
-      complete to return the pins to their default functions
+    Forces RPi I2C pins P1-03 (SDA) and P1-05 (SCL) to alternate
+    function ALT0, which enables those pins for I2C interface. You
+    should call bcm2835_i2c_end() when all I2C functions are
+    complete to return the pins to their default functions
 
-      \return 1 if successful, 0 otherwise (perhaps because you are
-      not running as root)
-    */
-    extern int bcm2835_i2c_begin(void);
+    \return 1 if successful, 0 otherwise (perhaps because you are
+    not running as root)
+  */
+  extern int bcm2835_i2c_begin(void);
 
-    /*! End I2C operations.
-      I2C pins P1-03 (SDA) and P1-05 (SCL)
-      are returned to their default INPUT behaviour.
-    */
-    extern void bcm2835_i2c_end(void);
+  /* End I2C operations.
+    I2C pins P1-03 (SDA) and P1-05 (SCL)
+    are returned to their default INPUT behaviour.
+  */
+  extern void bcm2835_i2c_end(void);
 
-    /*! Sets the I2C slave address.
-      \param[in] addr The I2C slave address.
-    */
-    extern void bcm2835_i2c_setSlaveAddress(uint8_t addr);
+  /* Sets the I2C slave address.
+    \param[in] addr The I2C slave address.
+  */
+  extern void bcm2835_i2c_setSlaveAddress(uint8_t addr);
 
-    /*! Sets the I2C clock divider and therefore the I2C clock speed.
-      \param[in] divider The desired I2C clock divider, one of
-      BCM2835_I2C_CLOCK_DIVIDER_*, see \ref bcm2835I2CClockDivider
-    */
-    extern void bcm2835_i2c_setClockDivider(uint16_t divider);
+  /* Sets the I2C clock divider and therefore the I2C clock speed.
+    \param[in] divider The desired I2C clock divider, one of
+    BCM2835_I2C_CLOCK_DIVIDER_*, see \ref bcm2835I2CClockDivider
+  */
+  extern void bcm2835_i2c_setClockDivider(uint16_t divider);
 
-    /*! Sets the I2C clock divider by converting the baudrate parameter to
-      the equivalent I2C clock divider. ( see \sa bcm2835_i2c_setClockDivider)
-      For the I2C standard 100khz you would set baudrate to 100000
-      The use of baudrate corresponds to its use in the I2C kernel device
-      driver. (Of course, bcm2835 has nothing to do with the kernel driver)
-    */
-    extern void bcm2835_i2c_set_baudrate(uint32_t baudrate);
+  /* Sets the I2C clock divider by converting the baudrate parameter to
+    the equivalent I2C clock divider. (see bcm2835_i2c_setClockDivider)
+    For the I2C standard 100khz you would set baudrate to 100000
+    The use of baudrate corresponds to its use in the I2C kernel device
+    driver. (Of course, bcm2835 has nothing to do with the kernel driver)
+  */
+  extern void bcm2835_i2c_set_baudrate(uint32_t baudrate);
 
-    /*! Transfers any number of bytes to the currently selected I2C slave.
-      (as previously set by \sa bcm2835_i2c_setSlaveAddress)
-      \param[in] buf Buffer of bytes to send.
-      \param[in] len Number of bytes in the buf buffer, and the number of 
-      bytes to send.
-      \return reason see \ref bcm2835I2CReasonCodes
-    */
-    extern uint8_t bcm2835_i2c_write(const char *buf, uint32_t len);
+  /* Transfers any number of bytes to the currently selected I2C slave.
+    (as previously set by \sa bcm2835_i2c_setSlaveAddress)
+    \param[in] buf Buffer of bytes to send.
+    \param[in] len Number of bytes in the buf buffer, and the number of 
+    bytes to send.
+    \return reason see \ref bcm2835I2CReasonCodes
+  */
+  extern uint8_t bcm2835_i2c_write(const char *buf, uint32_t len);
 
-    /*! Transfers any number of bytes from the currently selected I2C slave.
-      (as previously set by \sa bcm2835_i2c_setSlaveAddress)
-      \param[in] buf Buffer of bytes to receive.
-      \param[in] len Number of bytes in the buf buffer, and the number of 
-      bytes to received.
-      \return reason see \ref bcm2835I2CReasonCodes
-    */
-    extern uint8_t bcm2835_i2c_read(char *buf, uint32_t len);
+  /* Transfers any number of bytes from the currently selected I2C slave.
+    (as previously set by \sa bcm2835_i2c_setSlaveAddress)
+    \param[in] buf Buffer of bytes to receive.
+    \param[in] len Number of bytes in the buf buffer, and the number of 
+    bytes to received.
+    \return reason see \ref bcm2835I2CReasonCodes
+  */
+  extern uint8_t bcm2835_i2c_read(char *buf, uint32_t len);
 
-    /*! Allows reading from I2C slaves that require a repeated start (without 
-      any prior stop) to read after the required slave register has been set. 
-      For example, the popular MPL3115A2 pressure and temperature sensor. 
-      Note that your device must support or require this mode. If your 
-      device does not require this mode then the standard combined:
-      \sa bcm2835_i2c_write
-      \sa bcm2835_i2c_read
-      are a better choice.
-      Will read from the slave previously set by bcm2835_i2c_setSlaveAddress.
-      \param[in] regaddr Buffer containing the slave register you wish 
-      to read from.
-      \param[in] buf Buffer of bytes to receive.
-      \param[in] len Number of bytes in the buf buffer, and the number of
-      bytes to received.
-      \return reason see \ref bcm2835I2CReasonCodes
-    */
-    extern uint8_t bcm2835_i2c_read_register_rs(char* regaddr, char* buf, uint32_t len);
+  /* Allows reading from I2C slaves that require a repeated start (without 
+    any prior stop) to read after the required slave register has been set. 
+    For example, the popular MPL3115A2 pressure and temperature sensor. 
+    Note that your device must support or require this mode. If your 
+    device does not require this mode then the standard combined:
+    \sa bcm2835_i2c_write
+    \sa bcm2835_i2c_read
+    are a better choice.
+    Will read from the slave previously set by bcm2835_i2c_setSlaveAddress.
+    \param[in] regaddr Buffer containing the slave register you wish 
+    to read from.
+    \param[in] buf Buffer of bytes to receive.
+    \param[in] len Number of bytes in the buf buffer, and the number of
+    bytes to received.
+    \return reason see \ref bcm2835I2CReasonCodes
+  */
+  extern uint8_t bcm2835_i2c_read_register_rs(char* regaddr, char* buf,
+					      uint32_t len);
 
-    /*! Allows sending an arbitrary number of bytes to I2C slaves
-      before issuing a repeated start (with no prior stop) and reading
-      a response. Necessary for devices that require such behavior,
-      such as the MLX90620. Will write to and read from the slave
-      previously set by bcm2835_i2c_setSlaveAddress.
+  /* Allows sending an arbitrary number of bytes to I2C slaves
+    before issuing a repeated start (with no prior stop) and reading
+    a response. Necessary for devices that require such behavior,
+    such as the MLX90620. Will write to and read from the slave
+    previously set by bcm2835_i2c_setSlaveAddress.
 
-      \param[in] cmds Buffer containing the bytes to send before the 
-      repeated start condition.
-      \param[in] cmds_len Number of bytes to send from cmds buffer
-      \param[in] buf Buffer of bytes to receive.
-      \param[in] buf_len Number of bytes to receive in the buf buffer.
-      \return reason see \ref bcm2835I2CReasonCodes
-    */
-    extern uint8_t bcm2835_i2c_write_read_rs(char* cmds, uint32_t cmds_len, char* buf, uint32_t buf_len);
+    \param[in] cmds Buffer containing the bytes to send before the 
+    repeated start condition.
+    \param[in] cmds_len Number of bytes to send from cmds buffer
+    \param[in] buf Buffer of bytes to receive.
+    \param[in] buf_len Number of bytes to receive in the buf buffer.
+    \return reason see \ref bcm2835I2CReasonCodes
+  */
+  extern uint8_t bcm2835_i2c_write_read_rs(char* cmds,
+					   uint32_t cmds_len,
+					   char* buf,
+					   uint32_t buf_len);
 
 #endif  // DISABLE_I2C
+
+#ifndef DISABLE_SPI
+
+  /* Start SPI operations.
+    Forces RPi SPI0 pins P1-19 (MOSI), P1-21 (MISO), P1-23 (CLK), 
+    P1-24 (CE0) and P1-26 (CE1) to alternate function ALT0, which 
+    enables those pins for SPI interface. You should call 
+    bcm2835_spi_end() when all SPI funcitons are complete to 
+    return the pins to their default functions.
+    \sa  bcm2835_spi_end()
+    \return 1 if successful, 0 otherwise (perhaps because you are not 
+    running as root)
+  */
+  extern int bcm2835_spi_begin(void);
+
+  /* End SPI operations.
+    SPI0 pins P1-19 (MOSI), P1-21 (MISO), P1-23 (CLK), P1-24 (CE0) 
+    and P1-26 (CE1) are returned to their default INPUT behavior.
+  */
+  extern void bcm2835_spi_end(void);
+
+  /* Sets the SPI bit order
+    Set the bit order to be used for transmit and receive. The 
+    bcm2835 SPI0 only supports BCM2835_SPI_BIT_ORDER_MSB,
+    so if you select BCM2835_SPI_BIT_ORDER_LSB, the bytes will 
+    be reversed in software.
+    The library defaults to BCM2835_SPI_BIT_ORDER_MSB.
+    \param[in] order The desired bit order, one of 
+    BCM2835_SPI_BIT_ORDER_*, see \ref bcm2835SPIBitOrder
+  */
+  extern void bcm2835_spi_setBitOrder(uint8_t order);
+
+  /* Sets the SPI clock divider and therefore the SPI clock speed. 
+    \param[in] divider The desired SPI clock divider, one of 
+    BCM2835_SPI_CLOCK_DIVIDER_*, see \ref bcm2835SPIClockDivider
+  */
+  extern void bcm2835_spi_setClockDivider(uint16_t divider);
+
+  /* Sets the SPI clock divider by converting the speed parameter to
+    the equivalent SPI clock divider. (see bcm2835_spi_setClockDivider)
+    \param[in] speed_hz The desired SPI clock speed in Hz
+  */
+ extern void bcm2835_spi_set_speed_hz(uint32_t speed_hz);
+
+  /* Sets the SPI data mode
+    Sets the clock polariy and phase
+    \param[in] mode The desired data mode, one of BCM2835_SPI_MODE*, 
+    see \ref bcm2835SPIMode
+  */
+  extern void bcm2835_spi_setDataMode(uint8_t mode);
+
+  /* Sets the chip select pin(s)
+    When an bcm2835_spi_transfer() is made, the selected pin(s) will be 
+    asserted during the transfer.
+    \param[in] cs Specifies the CS pins(s) that are used to activate 
+    the desired slave. 
+    One of BCM2835_SPI_CS*, see \ref bcm2835SPIChipSelect
+  */
+  extern void bcm2835_spi_chipSelect(uint8_t cs);
+
+  /* Sets the chip select pin polarity for a given pin
+    When an bcm2835_spi_transfer() occurs, the currently selected chip 
+    select pin(s) will be asserted to the 
+    value given by active. When transfers are not happening, the chip 
+    select pin(s) return to the complement (inactive) value.
+    \param[in] cs The chip select pin to affect
+    \param[in] active Whether the chip select pin is to be active HIGH
+  */
+  extern void bcm2835_spi_setChipSelectPolarity(uint8_t cs, uint8_t active);
+
+  /* Transfers one byte to and from the currently selected SPI slave.
+    Asserts the currently selected CS pins (as previously set by 
+    bcm2835_spi_chipSelect) during the transfer.
+    Clocks the 8 bit value out on MOSI, and simultaneously clocks in 
+    data from MISO. 
+    Returns the read data byte from the slave.
+    Uses polled transfer as per section 10.6.1 of the BCM 2835 ARM 
+    Peripherals manual.
+    \param[in] value The 8 bit data byte to write to MOSI
+    \return The 8 bit byte simultaneously read from  MISO
+    \sa bcm2835_spi_transfern()
+  */
+  extern uint8_t bcm2835_spi_transfer(uint8_t value);
+
+  /* Transfers any number of bytes to and from the currently selected 
+     SPI slave.
+     Asserts the currently selected CS pins (as previously set by 
+     bcm2835_spi_chipSelect) during the transfer.
+    Clocks the len 8 bit bytes out on MOSI, and simultaneously clocks in
+    data from MISO. 
+    The data read read from the slave is placed into rbuf. rbuf must be 
+    at least len bytes long Uses polled transfer as per section 10.6.1
+    of the BCM 2835 ARM Peripherals manual.
+    \param[in] tbuf Buffer of bytes to send. 
+    \param[out] rbuf Received bytes will by put in this buffer
+    \param[in] len Number of bytes in the tbuf buffer, and the number 
+    of bytes to send/received
+    \sa bcm2835_spi_transfer()
+  */
+  extern void bcm2835_spi_transfernb(char* tbuf, char* rbuf, uint32_t len);
+
+  /* Transfers any number of bytes to and from the currently selected SPI
+     slave using bcm2835_spi_transfernb.
+    The returned data from the slave replaces the transmitted data in 
+    the buffer.
+    \param[in,out] buf Buffer of bytes to send. Received bytes will 
+    replace the contents
+    \param[in] len Number of bytes int eh buffer, and the number of 
+    bytes to send/received
+    \sa bcm2835_spi_transfer()
+  */
+  extern void bcm2835_spi_transfern(char* buf, uint32_t len);
+
+  /* Transfers any number of bytes to the currently selected SPI slave.
+    Asserts the currently selected CS pins (as previously set by 
+    bcm2835_spi_chipSelect) during the transfer.
+    \param[in] buf Buffer of bytes to send.
+    \param[in] len Number of bytes in the buf buffer, and the number 
+    of bytes to send.
+  */
+  extern void bcm2835_spi_writenb(const char* buf, uint32_t len);
+
+  /* Transfers half-word to and from the currently selected SPI slave.
+    Asserts the currently selected CS pins (as previously set by 
+    bcm2835_spi_chipSelect) during the transfer.
+    Clocks the 8 bit value out on MOSI, and simultaneously clocks in 
+    data from MISO.
+    Returns the read data byte from the slave.
+    Uses polled transfer as per section 10.6.1 of the BCM 2835 ARM 
+    Peripherals manual
+    \param[in] data The 8 bit data byte to write to MOSI
+    \sa bcm2835_spi_writenb()
+  */
+  extern void bcm2835_spi_write(uint16_t data);
+
+  /* Start AUX SPI operations.
+    Forces RPi AUX SPI pins P1-36 (MOSI), P1-38 (MISO), P1-40 (CLK) 
+    and P1-36 (CE2) to alternate function ALT4, which enables those
+    pins for SPI interface.
+    \return 1 if successful, 0 otherwise (perhaps because you are 
+    not running as root)
+  */
+  extern int bcm2835_aux_spi_begin(void);
+
+  /* End AUX SPI operations.
+     SPI1 pins P1-36 (MOSI), P1-38 (MISO), P1-40 (CLK) and P1-36 (CE2)
+     are returned to their default INPUT behaviour.
+   */
+  extern void bcm2835_aux_spi_end(void);
+
+  /* Sets the AUX SPI clock divider and therefore the AUX SPI clock speed.
+    \param[in] divider The desired AUX SPI clock divider.
+  */
+  extern void bcm2835_aux_spi_setClockDivider(uint16_t divider);
+
+  /*
+   * Calculates the input for bcm2835_aux_spi_setClockDivider
+   * @param speed_hz A value between BCM2835_AUX_SPI_CLOCK_MIN 
+   and BCM2835_AUX_SPI_CLOCK_MAX
+   * @return Input for bcm2835_aux_spi_setClockDivider
+   */
+  extern uint16_t bcm2835_aux_spi_CalcClockDivider(uint32_t speed_hz);
+
+  /* Transfers half-word to and from the AUX SPI slave.
+     Asserts the currently selected CS pins during the transfer.
+     \param[in] data The 8 bit data byte to write to MOSI
+     \return The 8 bit byte simultaneously read from MISO
+     \sa bcm2835_spi_transfern()
+  */
+  extern void bcm2835_aux_spi_write(uint16_t data);
+
+  /* Transfers any number of bytes to the AUX SPI slave.
+    Asserts the CE2 pin during the transfer.
+    \param[in] buf Buffer of bytes to send.
+    \param[in] len Number of bytes in the tbuf buffer, and the number
+    of bytes to send.
+  */
+  extern void bcm2835_aux_spi_writenb(const char *buf, uint32_t len);
+
+  /* Transfers any number of bytes to and from the AUX SPI slave
+    using bcm2835_aux_spi_transfernb.
+    The returned data from the slave replaces the transmitted data
+    in the buffer.
+    \param[in,out] buf Buffer of bytes to send. Received bytes will 
+    replace the contents.
+    \param[in] len Number of bytes int eh buffer, and the number of 
+    bytes to send/received.
+    \sa bcm2835_aux_spi_transfer()
+  */
+  extern void bcm2835_aux_spi_transfern(char *buf, uint32_t len);
+
+  /* Transfers any number of bytes to and from the AUX SPI slave.
+    Asserts the CE2 pin during the transfer.
+    Clocks the len 8 bit bytes out on MOSI, and simultaneously clocks 
+    in data from MISO.
+    The data read read from the slave is placed into rbuf. rbuf must
+    be at least len bytes long
+    \param[in] tbuf Buffer of bytes to send.
+    \param[out] rbuf Received bytes will by put in this buffer
+    \param[in] len Number of bytes in the tbuf buffer, and the number
+    of bytes to send/received.
+  */
+  extern void bcm2835_aux_spi_transfernb(const char *tbuf,
+					 char *rbuf, uint32_t len);
+
+  
+#endif  // DISABLE_SPI
+
   
   /* \defgroup st System Timer access
     Allows access to and delays using the System Timer Counter.
@@ -1251,7 +1461,8 @@ typedef enum {
     \param[in] markspace Set true if you want Mark-Space mode. 0 for Balanced mode.
     \param[in] enabled Set true to enable this channel and produce PWM pulses.
   */
-  extern void bcm2835_pwm_set_mode(uint8_t channel, uint8_t markspace, uint8_t enabled);
+  extern void bcm2835_pwm_set_mode(uint8_t channel, uint8_t markspace,
+				   uint8_t enabled);
 
   /* Sets the maximum range of the PWM output.
     The data value can vary between 0 and this range to control PWM output
