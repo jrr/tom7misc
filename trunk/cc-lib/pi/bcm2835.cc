@@ -635,7 +635,7 @@ void bcm2835_spi_transfernb(char* tbuf, char* rbuf, uint32_t len) {
   bcm2835_peri_set_bits(paddr, 0, BCM2835_SPI0_CS_TA);
 }
 
-/* Writes an number of bytes to SPI */
+/* Writes a number of bytes to SPI */
 void bcm2835_spi_writenb(const char* tbuf, uint32_t len) {
   volatile uint32_t* paddr = bcm2835_spi0 + BCM2835_SPI0_CS/4;
   volatile uint32_t* fifo = bcm2835_spi0 + BCM2835_SPI0_FIFO/4;
@@ -676,7 +676,7 @@ void bcm2835_spi_writenb(const char* tbuf, uint32_t len) {
   bcm2835_peri_set_bits(paddr, 0, BCM2835_SPI0_CS_TA);
 }
 
-/* Writes (and reads) an number of bytes to SPI
+/* Writes (and reads) a number of bytes to SPI
    Read bytes are copied over onto the transmit buffer
 */
 void bcm2835_spi_transfern(char* buf, uint32_t len) {
@@ -691,6 +691,9 @@ void bcm2835_spi_chipSelect(uint8_t cs) {
 
 void bcm2835_spi_setChipSelectPolarity(uint8_t cs, uint8_t active) {
   volatile uint32_t *paddr = bcm2835_spi0 + BCM2835_SPI0_CS/4;
+  // Note: 21 is one of the SPI pins, but this is actually
+  // referring to one of the constants BCM2835_SPI0_CS_CSPOL0 etc.,
+  // which happens to be 1<<21. -tom7
   uint8_t shift = 21 + cs;
   /* Mask in the appropriate CSPOLn bit */
   bcm2835_peri_set_bits(paddr, active << shift, 1 << shift);
@@ -718,8 +721,8 @@ void bcm2835_spi_write(uint16_t data) {
   while (!(bcm2835_peri_read(paddr) & BCM2835_SPI0_CS_TXD)) {}
 
   /* Write to FIFO */
-  bcm2835_peri_write_nb(fifo,  (uint32_t) data >> 8);
-  bcm2835_peri_write_nb(fifo,  data & 0xFF);
+  bcm2835_peri_write_nb(fifo, (uint32_t) data >> 8);
+  bcm2835_peri_write_nb(fifo, data & 0xFF);
 
 
   /* Wait for DONE to be set */
