@@ -1,4 +1,4 @@
-all : decode-monika.exe
+all : decode-monika.exe pass.exe swipe-ambiguous.exe memtest.exe
 
 
 CXX=x86_64-w64-mingw32-g++
@@ -19,6 +19,9 @@ pass.exe : pass.o ../cc-lib/base64.o ../cc-lib/util.o ../cc-lib/crypt/cryptrand.
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 decode-monika.exe : decode-monika.o ../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/image.o ../cc-lib/base/stringprintf.o ../cc-lib/base/logging.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+swipe-ambiguous.exe : swipe-ambiguous.o ../cc-lib/base/logging.o ../cc-lib/util.o ../cc-lib/base/stringprintf.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 memtest.exe : memtest.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o ../cc-lib/arcfour.o

@@ -86,6 +86,8 @@ int main(int argc, char **argv) {
      "  (SYMPATHIZING WOULD FIX QUAKER OBJECTIVES.) ",
      "  XW!@#$%^&*()-=_+{}[]\\|:\";'<>?,./ZXCVB~` ",
      "",
+     "  123,456 * 7,890 = 974,067,840 ",
+     "",
      "  jungle quip, " B7_ES  B7_ESW  B7_SW  " If you knew where you'd fall,",
      "  TTTTTT QQQQ` " B7_NES B7_NESW B7_NSW  " you'd put a pillow!",
      "  http://.com/ " B7_NE  B7_NEW  B7_NW   " (watch--said I--beloved)",
