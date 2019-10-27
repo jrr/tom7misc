@@ -1240,10 +1240,10 @@ typedef enum {
 
   /* Sets the SPI bit order
     Set the bit order to be used for transmit and receive. The 
-    bcm2835 SPI0 only supports BCM2835_SPI_BIT_ORDER_MSB,
-    so if you select BCM2835_SPI_BIT_ORDER_LSB, the bytes will 
+    bcm2835 SPI0 only supports BCM2835_SPI_BIT_ORDER_MSBFIRST,
+    so if you select BCM2835_SPI_BIT_ORDER_LSBFIRST, the bytes will 
     be reversed in software.
-    The library defaults to BCM2835_SPI_BIT_ORDER_MSB.
+    The library defaults to BCM2835_SPI_BIT_ORDER_MSBFIRST.
     \param[in] order The desired bit order, one of 
     BCM2835_SPI_BIT_ORDER_*, see \ref bcm2835SPIBitOrder
   */
@@ -1261,29 +1261,30 @@ typedef enum {
   */
  extern void bcm2835_spi_set_speed_hz(uint32_t speed_hz);
 
-  /* Sets the SPI data mode
-    Sets the clock polariy and phase
-    \param[in] mode The desired data mode, one of BCM2835_SPI_MODE*, 
-    see \ref bcm2835SPIMode
+  /* Sets the SPI data mode.
+     Sets the clock polarity and phase.
+     \param[in] mode The desired data mode, one of BCM2835_SPI_MODE*, 
+     see \ref bcm2835SPIMode
   */
   extern void bcm2835_spi_setDataMode(uint8_t mode);
 
-  /* Sets the chip select pin(s)
-    When an bcm2835_spi_transfer() is made, the selected pin(s) will be 
-    asserted during the transfer.
-    \param[in] cs Specifies the CS pins(s) that are used to activate 
-    the desired slave. 
-    One of BCM2835_SPI_CS*, see \ref bcm2835SPIChipSelect
+  /* Sets the chip select pin(s).
+     When an bcm2835_spi_transfer() is made, the selected pin(s) will be 
+     asserted during the transfer.
+     \param[in] cs Specifies the CS pins(s) that are used to activate 
+     the desired slave. 
+     One of BCM2835_SPI_CS*, see \ref bcm2835SPIChipSelect
   */
   extern void bcm2835_spi_chipSelect(uint8_t cs);
 
   /* Sets the chip select pin polarity for a given pin
     When an bcm2835_spi_transfer() occurs, the currently selected chip 
-    select pin(s) will be asserted to the 
-    value given by active. When transfers are not happening, the chip 
-    select pin(s) return to the complement (inactive) value.
-    \param[in] cs The chip select pin to affect
-    \param[in] active Whether the chip select pin is to be active HIGH
+    select pin(s) will be asserted to the value given by active. 
+    When transfers are not happening, the chip select pin(s) return to 
+    the complement (inactive) value.
+    \param[in] cs The chip select pin to affect (e.g. BCM2835_SPI_CS0 -tom7)
+    \param[in] active Whether the chip select pin is to be active HIGH.
+    (If 0, then low means select, like for /CE setups.)
   */
   extern void bcm2835_spi_setChipSelectPolarity(uint8_t cs, uint8_t active);
 
@@ -1296,7 +1297,7 @@ typedef enum {
     Uses polled transfer as per section 10.6.1 of the BCM 2835 ARM 
     Peripherals manual.
     \param[in] value The 8 bit data byte to write to MOSI
-    \return The 8 bit byte simultaneously read from  MISO
+    \return The 8 bit byte simultaneously read from MISO
     \sa bcm2835_spi_transfern()
   */
   extern uint8_t bcm2835_spi_transfer(uint8_t value);
@@ -1307,8 +1308,8 @@ typedef enum {
      bcm2835_spi_chipSelect) during the transfer.
     Clocks the len 8 bit bytes out on MOSI, and simultaneously clocks in
     data from MISO. 
-    The data read read from the slave is placed into rbuf. rbuf must be 
-    at least len bytes long Uses polled transfer as per section 10.6.1
+    The data read from the slave is placed into rbuf. rbuf must be 
+    at least len bytes long. Uses polled transfer as per section 10.6.1
     of the BCM 2835 ARM Peripherals manual.
     \param[in] tbuf Buffer of bytes to send. 
     \param[out] rbuf Received bytes will by put in this buffer
@@ -1324,7 +1325,7 @@ typedef enum {
     the buffer.
     \param[in,out] buf Buffer of bytes to send. Received bytes will 
     replace the contents
-    \param[in] len Number of bytes int eh buffer, and the number of 
+    \param[in] len Number of bytes in teh buffer, and the number of 
     bytes to send/received
     \sa bcm2835_spi_transfer()
   */
@@ -1402,7 +1403,7 @@ typedef enum {
     in the buffer.
     \param[in,out] buf Buffer of bytes to send. Received bytes will 
     replace the contents.
-    \param[in] len Number of bytes int eh buffer, and the number of 
+    \param[in] len Number of bytes in teh buffer, and the number of 
     bytes to send/received.
     \sa bcm2835_aux_spi_transfer()
   */
