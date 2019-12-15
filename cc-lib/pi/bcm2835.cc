@@ -397,50 +397,44 @@ void bcm2835_gpio_set_pad(uint8_t group, uint32_t control) {
 /* Some convenient arduino-like functions
 // milliseconds
 */
-void bcm2835_delay(unsigned int millis)
-{
-    struct timespec sleeper;
+void bcm2835_delay(unsigned int millis) {
+  struct timespec sleeper;
     
-    sleeper.tv_sec  = (time_t)(millis / 1000);
-    sleeper.tv_nsec = (long)(millis % 1000) * 1000000;
-    nanosleep(&sleeper, NULL);
+  sleeper.tv_sec  = (time_t)(millis / 1000);
+  sleeper.tv_nsec = (long)(millis % 1000) * 1000000;
+  nanosleep(&sleeper, NULL);
 }
 
 /* microseconds */
-void bcm2835_delayMicroseconds(uint64_t micros)
-{
-    struct timespec t1;
-    uint64_t        start;
+void bcm2835_delayMicroseconds(uint64_t micros) {
+  struct timespec t1;
+  uint64_t        start;
 	
-    if (debug)
-    {
-	/* Cant access sytem timers in debug mode */
-	printf("bcm2835_delayMicroseconds %lld\n", (long long int) micros);
-	return;
-    }
+  if (debug) {
+    /* Cant access sytem timers in debug mode */
+    printf("bcm2835_delayMicroseconds %lld\n", (long long int) micros);
+    return;
+  }
 
-    /* Calling nanosleep() takes at least 100-200 us, so use it for
-    // long waits and use a busy wait on the System Timer for the rest.
-    */
-    start =  bcm2835_st_read();
+  /* Calling nanosleep() takes at least 100-200 us, so use it for
+     long waits and use a busy wait on the System Timer for the rest. */
+  start = bcm2835_st_read();
    
-    /* Not allowed to access timer registers (result is not as precise)*/
-    if (start==0)
-    {
-	t1.tv_sec = 0;
-	t1.tv_nsec = 1000 * (long)(micros);
-	nanosleep(&t1, NULL);
-	return;
-    }
+  /* Not allowed to access timer registers (result is not as precise) */
+  if (start == 0) {
+    t1.tv_sec = 0;
+    t1.tv_nsec = 1000 * (long)(micros);
+    nanosleep(&t1, NULL);
+    return;
+  }
 
-    if (micros > 450)
-    {
-	t1.tv_sec = 0;
-	t1.tv_nsec = 1000 * (long)(micros - 200);
-	nanosleep(&t1, NULL);
-    }    
+  if (micros > 450) {
+    t1.tv_sec = 0;
+    t1.tv_nsec = 1000 * (long)(micros - 200);
+    nanosleep(&t1, NULL);
+  }    
   
-    bcm2835_st_delay(start, micros);
+  bcm2835_st_delay(start, micros);
 }
 
 /*
@@ -810,6 +804,12 @@ void bcm2835_aux_spi_write(uint16_t data) {
   bcm2835_peri_write(io, (uint32_t) data << 16);
 }
 
+// For integral T.
+template<class T>
+static inline T BCM_MIN(T a, T b) {
+  return a < b ? a : b;
+}
+
 void bcm2835_aux_spi_writenb(const char *tbuf, uint32_t len) {
   volatile uint32_t* cntl0 = bcm2835_spi1 + BCM2835_AUX_SPI_CNTL0/4;
   volatile uint32_t* cntl1 = bcm2835_spi1 + BCM2835_AUX_SPI_CNTL1/4;
@@ -837,7 +837,7 @@ void bcm2835_aux_spi_writenb(const char *tbuf, uint32_t len) {
 
     while (bcm2835_peri_read(stat) & BCM2835_AUX_SPI_STAT_TX_FULL) {}
 
-    count = MIN(tx_len, 3);
+    count = BCM_MIN(tx_len, 3U);
     data = 0;
 
     for (i = 0; i < count; i++) {
@@ -889,7 +889,7 @@ void bcm2835_aux_spi_transfernb(const char *tbuf, char *rbuf, uint32_t len) {
 
     while (!(bcm2835_peri_read(stat) & BCM2835_AUX_SPI_STAT_TX_FULL) &&
 	   (tx_len > 0)) {
-      count = MIN(tx_len, 3);
+      count = BCM_MIN(tx_len, 3U);
       data = 0;
 
       for (i = 0; i < count; i++) {
@@ -910,7 +910,7 @@ void bcm2835_aux_spi_transfernb(const char *tbuf, char *rbuf, uint32_t len) {
 
     while (!(bcm2835_peri_read(stat) & BCM2835_AUX_SPI_STAT_RX_EMPTY) &&
 	   (rx_len > 0)) {
-      count = MIN(rx_len, 3);
+      count = BCM_MIN(rx_len, 3U);
       data = bcm2835_peri_read(io);
 
       if (rbuf != NULL) {
@@ -933,7 +933,7 @@ void bcm2835_aux_spi_transfernb(const char *tbuf, char *rbuf, uint32_t len) {
 
     while (!(bcm2835_peri_read(stat) & BCM2835_AUX_SPI_STAT_BUSY) &&
 	   (rx_len > 0)) {
-      count = MIN(rx_len, 3);
+      count = BCM_MIN(rx_len, 3U);
       data = bcm2835_peri_read(io);
 
       if (rbuf != NULL) {
@@ -1035,10 +1035,10 @@ void bcm2835_i2c_setClockDivider(uint16_t divider) {
 
 /* set I2C clock divider by means of a baudrate number */
 void bcm2835_i2c_set_baudrate(uint32_t baudrate) {
-	uint32_t divider;
-	/* use 0xFFFE mask to limit a max value and round down any odd number */
-	divider = (BCM2835_CORE_CLK_HZ / baudrate) & 0xFFFE;
-	bcm2835_i2c_setClockDivider( (uint16_t)divider );
+  uint32_t divider;
+  /* use 0xFFFE mask to limit a max value and round down any odd number */
+  divider = (BCM2835_CORE_CLK_HZ / baudrate) & 0xFFFE;
+  bcm2835_i2c_setClockDivider( (uint16_t)divider );
 }
 
 /* Writes an number of bytes to I2C */
@@ -1373,35 +1373,35 @@ uint8_t bcm2835_i2c_write_read_rs(char* cmds, uint32_t cmds_len, char* buf, uint
 
 /* Read the System Timer Counter (64-bits) */
 uint64_t bcm2835_st_read(void) {
-    volatile uint32_t* paddr;
-    uint32_t hi, lo;
-    uint64_t st;
+  volatile uint32_t* paddr;
 
-    if (bcm2835_st == MAP_FAILED)
-	return 0;
+  if (bcm2835_st == MAP_FAILED)
+    return 0;
 
-    paddr = bcm2835_st + BCM2835_ST_CHI/4;
-    hi = bcm2835_peri_read(paddr);
+  // Looks like what this code is trying to do is account for the fact
+  // that the high and low bits are read separately, and the low bits might
+  // overflow between the reads. I guess it assumes that if this happens,
+  // we have plenty of time to try again. -tom7
+  paddr = bcm2835_st + BCM2835_ST_CHI/4;
+  uint32_t hi = bcm2835_peri_read(paddr);
 
+  paddr = bcm2835_st + BCM2835_ST_CLO/4;
+  uint32_t lo = bcm2835_peri_read(paddr);
+    
+  paddr = bcm2835_st + BCM2835_ST_CHI/4;
+  uint64_t st = bcm2835_peri_read(paddr);
+    
+  /* Test for overflow */
+  if (st == hi) {
+    st <<= 32;
+    st += lo;
+  } else {
+    // Faster version of this function could perhaps just return st << 32. -tom7
+    st <<= 32;
     paddr = bcm2835_st + BCM2835_ST_CLO/4;
-    lo = bcm2835_peri_read(paddr);
-    
-    paddr = bcm2835_st + BCM2835_ST_CHI/4;
-    st = bcm2835_peri_read(paddr);
-    
-    /* Test for overflow */
-    if (st == hi)
-    {
-        st <<= 32;
-        st += lo;
-    }
-    else
-    {
-        st <<= 32;
-        paddr = bcm2835_st + BCM2835_ST_CLO/4;
-        st += bcm2835_peri_read(paddr);
-    }
-    return st;
+    st += bcm2835_peri_read(paddr);
+  }
+  return st;
 }
 
 /* Delays for the specified number of microseconds with offset */

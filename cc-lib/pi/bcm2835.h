@@ -1029,7 +1029,7 @@ typedef enum {
     Uses nanosleep(), and therefore does not use CPU until the time is up.
     However, you are at the mercy of nanosleep(). From the manual for nanosleep():
     If the interval specified in req is not an exact multiple of the granularity  
-    underlying  clock  (see  time(7)),  then the interval will be
+    underlying clock (see time(7)), then the interval will be
     rounded up to the next multiple. Furthermore, after the sleep completes, 
     there may still be a delay before the CPU becomes free to once
     again execute the calling thread.
@@ -1041,7 +1041,7 @@ typedef enum {
     Uses a combination of nanosleep() and a busy wait loop on the BCM2835 system timers,
     However, you are at the mercy of nanosleep(). From the manual for nanosleep():
     If the interval specified in req is not an exact multiple of the granularity  
-    underlying  clock  (see  time(7)),  then the interval will be
+    underlying clock (see time(7)), then the interval will be
     rounded up to the next multiple. Furthermore, after the sleep completes, 
     there may still be a delay before the CPU becomes free to once
     again execute the calling thread.
