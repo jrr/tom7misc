@@ -9,8 +9,8 @@
 #include <cmath>
 
 #include "../cc-lib/threadutil.h"
-#include "../cc-lib/randutil.h"
-#include "../cc-lib/arcfour.h"
+// #include "../cc-lib/randutil.h"
+// #include "../cc-lib/arcfour.h"
 #include "../cc-lib/base/logging.h"
 #include "../cc-lib/base/stringprintf.h"
 
@@ -21,6 +21,8 @@
 #include "../cc-lib/sdl/cursor.h"
 #include "../cc-lib/lines.h"
 #include "../cc-lib/util.h"
+#include "../cc-lib/re2/re2.h"
+#include "../cc-lib/bounds.h"
 
 // Fork?
 #define FONTFILE "../chess/blind/font.png"
@@ -47,6 +49,80 @@ static SDL_Cursor *cursor_eraser = nullptr;
 #define SCREENH (VIDEOH + STATUSH)
 
 static SDL_Surface *screen = nullptr;
+
+struct TraceRow {
+  uint64 timestamp;
+  bool on[6];
+  int edges[6];
+  int since[6];
+};
+
+static vector<TraceRow> ReadRows(const string &filename) {
+  vector<string> lines = Util::ReadFileToLines(filename);
+
+  RE2 number("([0-9]+),?");
+
+  vector<TraceRow> rows;
+  rows.reserve(lines.size());
+
+  // skip first line, which is header.
+  for (int r = 1; r < lines.size(); r++) {
+    re2::StringPiece line(lines[r]);
+    TraceRow row;
+    if (!RE2::Consume(&line, number, &row.timestamp))
+      break;
+
+    for (int i = 0; i < 6; i++) {
+      int on;
+      CHECK(RE2::Consume(&line, number, &on)) << line;
+      row.on[i] = on != 0;
+    }
+
+    for (int i = 0; i < 6; i++)
+      CHECK(RE2::Consume(&line, number, &row.edges[i])) << line;
+
+    for (int i = 0; i < 6; i++)
+      CHECK(RE2::Consume(&line, number, &row.since[i])) << line;
+    rows.push_back(row);
+  }
+  return rows;
+}
+
+static vector<TraceRow> the_rows;
+
+double ExtractOn(const TraceRow &row, int i) {
+  return row.on[i] ? 1.0 : 0.0;
+}
+double ExtractEdges(const TraceRow &row, int i) {
+  return (double)row.edges[i];
+}
+double ExtractSince(const TraceRow &row, int i) {
+  return (double)row.since[i];
+}
+
+struct Series {
+  string name;
+  double (*Extract)(const TraceRow &, int);
+};
+
+vector<Series> serieses;
+Bounds max_bounds;
+
+static void InitBounds(const Series &series, Bounds *bounds) {
+  for (const TraceRow &row : the_rows) {
+    for (int i = 0; i < 6; i++) {
+      bounds->Bound((double)row.timestamp, series.Extract(row, i));
+    }
+  }
+}
+static void InitSeries() {
+  Series edges;
+  edges.name = "edges";
+  edges.Extract = ExtractEdges;
+  InitBounds(edges, &max_bounds);
+  
+  serieses = {edges};
+}
 
 // Mode basically controls what happens when we use the mouse.
 enum class Mode {
@@ -82,9 +158,9 @@ UI::UI() {
   CHECK(drawing != nullptr);
 }
 
-static void DrawThick(SDL_Surface *surf, int x0, int y0,
-                      int x1, int y1,
-                      Uint32 color) {
+static void DrawThickLine(SDL_Surface *surf, int x0, int y0,
+			  int x1, int y1,
+			  Uint32 color) {
   static constexpr int THICKNESS = 3;
   Line<int> l{x0, y0, x1, y1};
 
@@ -115,6 +191,30 @@ static void DrawThick(SDL_Surface *surf, int x0, int y0,
   for (const std::pair<int, int> point : Line<int>{x0, y0, x1, y1}) {
     const int x = point.first, y = point.second;
     ThickPixel(x, y);
+  }
+}
+
+static void DrawLine(SDL_Surface *surf, int x0, int y0,
+		     int x1, int y1,
+		     Uint32 color) {
+  Line<int> l{x0, y0, x1, y1};
+
+  const int w = surf->w, h = surf->h;
+
+  Uint32 *bufp = (Uint32 *)surf->pixels;
+  int stride = surf->pitch >> 2;
+  auto SetPixel = [color, w, h, bufp, stride](int x, int y) {
+      if (x >= 0 && y >= 0 &&
+          x < w && y < h) {
+        bufp[y * stride + x] = color;
+      }
+    };
+  
+  SetPixel(x0, y0);
+
+  for (const std::pair<int, int> point : Line<int>{x0, y0, x1, y1}) {
+    const int x = point.first, y = point.second;
+    SetPixel(x, y);
   }
 }
 
@@ -154,29 +254,29 @@ void UI::Loop() {
           return;
 
         case SDLK_HOME: {
-	  // XXX set to maximum extents
+          // XXX set to maximum extents
           break;
         }
-	  
+          
         case SDLK_KP_PLUS:
         case SDLK_EQUALS:
         case SDLK_PLUS:
-	  // XXX increase zoom
+          // XXX increase zoom
           break;
 
   
         case SDLK_KP_MINUS:
         case SDLK_MINUS:
-	  // XXX decrease zoom
+          // XXX decrease zoom
           break;
-	  
+          
         case SDLK_s: {
-	  if (event.key.keysym.mod & KMOD_CTRL) {
-	    sdlutil::SavePNG("drawing.png", drawing);
-	    printf("Wrote drawing.png\n");
-	    fflush(stdout);
-	  } 
-	  break;
+          if (event.key.keysym.mod & KMOD_CTRL) {
+            sdlutil::SavePNG("drawing.png", drawing);
+            printf("Wrote drawing.png\n");
+            fflush(stdout);
+          } 
+          break;
         }
 
         default:;
@@ -191,16 +291,16 @@ void UI::Loop() {
         mousey = e->y;
 
         dragging = true;
-	SDL_SetCursor(cursor_hand_closed);
-	// XXX set drag source, etc.
-	
+        SDL_SetCursor(cursor_hand_closed);
+        // XXX set drag source, etc.
+        
         break;
       }
 
       case SDL_MOUSEBUTTONUP: {
         // LMB/RMB, drag, etc.
         dragging = false;
-	SDL_SetCursor(cursor_hand);
+        SDL_SetCursor(cursor_hand);
         break;
       }
 
@@ -224,17 +324,52 @@ void UI::DrawStatus() {
 }
 
 static void DrawArrow(SDL_Surface *surf,
-		      int x0, int y0, int x1, int y1,
-		      Uint32 color) {
+                      int x0, int y0, int x1, int y1,
+                      Uint32 color) {
   // Main stem.
-  DrawThick(surf, x0, y0, x1, y1, color);
+  DrawThickLine(surf, x0, y0, x1, y1, color);
   sdlutil::DrawCircle32(surf, x1, y1, 6, color);
 }
+
+static constexpr uint32 COLORS[] = {
+  /* 3 */ 0xFFbd3838, // R
+  /* 4 */ 0xFF0ba112, // G
+  /* 5 */ 0xFF1664CE, // B
+  /* 6 */ 0xFFf943ea, // magenta
+  /* 8 */ 0xFF29edef, // cyan
+  /* 9 */ 0xFFc77e00, // orange/brown
+  /* 7 */ 0xFFeef943, // yellow
+  /* 0 */ 0xFF7500c7, // purple
+};
 
 void UI::Draw() {
   // Status stuff, always outside the 1920x1080 window.
   DrawStatus();
 
+  // XXX Draw grid...
+  
+  // Draw lines.
+  Bounds::Scaler scaler = max_bounds.Stretch(SCREENW, VIDEOH).FlipY();
+  for (const Series &series : serieses) {
+    for (int i = 0; i < 6; i++) {
+      uint32 color = COLORS[i];
+
+      double prev_x = scaler.ScaleX(the_rows[0].timestamp);
+      double prev_y = scaler.ScaleY(series.Extract(the_rows[0], i));
+
+      for (int r = 1; r < the_rows.size(); r++) {
+	const TraceRow &row = the_rows[r];
+	double x = scaler.ScaleX(row.timestamp);
+	double y = scaler.ScaleY(series.Extract(row, i));
+
+	DrawLine(screen, prev_x, prev_y, x, y, color);
+	
+	prev_x = x;
+	prev_y = y;
+      }
+    }
+  }
+  
   // On-screen stuff
   // sdlutil::blitall(drawing, screen, 0, 0);
 }
@@ -242,12 +377,12 @@ void UI::Draw() {
 int main(int argc, char **argv) {
   /* Initialize SDL and network, if we're using it. */
   CHECK(SDL_Init(SDL_INIT_VIDEO |
-		 SDL_INIT_TIMER |
-		 SDL_INIT_AUDIO) >= 0);
+                 SDL_INIT_TIMER |
+                 SDL_INIT_AUDIO) >= 0);
   fprintf(stderr, "SDL initialized OK.\n");
 
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,
-		      SDL_DEFAULT_REPEAT_INTERVAL);
+                      SDL_DEFAULT_REPEAT_INTERVAL);
 
   SDL_EnableUNICODE(1);
 
@@ -260,23 +395,23 @@ int main(int argc, char **argv) {
   CHECK(screen);
   
   font = Font::create(screen,
-		      FONTFILE,
-		      FONTCHARS,
-		      FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
+                      FONTFILE,
+                      FONTCHARS,
+                      FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font != nullptr) << "Couldn't load font.";
   
   font2x = Font::CreateX(2,
-			 screen,
-			 FONTFILE,
-			 FONTCHARS,
-			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
+                         screen,
+                         FONTFILE,
+                         FONTCHARS,
+                         FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font2x != nullptr) << "Couldn't load font.";
 
   font4x = Font::CreateX(4,
-			 screen,
-			 FONTFILE,
-			 FONTCHARS,
-			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
+                         screen,
+                         FONTFILE,
+                         FONTCHARS,
+                         FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font4x != nullptr) << "Couldn't load font.";
 
   CHECK((cursor_arrow = Cursor::MakeArrow()));
@@ -288,6 +423,15 @@ int main(int argc, char **argv) {
   SDL_SetCursor(cursor_arrow);
   SDL_ShowCursor(SDL_ENABLE);
 
+  the_rows = ReadRows("trace.csv");
+  printf("Read %lld rows\n", (int64)the_rows.size());
+
+  InitSeries();
+  printf("Bounds %f,%f -> %f,%f\n",
+	 max_bounds.MinX(), max_bounds.MinY(),
+	 max_bounds.MaxX(), max_bounds.MaxY());
+  fflush(stdout);
+  
   UI ui;
   ui.Loop();
 
