@@ -107,6 +107,16 @@ struct Series {
 
 vector<Series> serieses;
 Bounds max_bounds;
+static int pan_x = 0, pan_y = 0;
+
+Bounds::Scaler GetScaler() {
+  Bounds::Scaler scaler =
+    max_bounds.
+    Stretch(SCREENW, VIDEOH).
+    FlipY().
+    PanScreen(pan_x, pan_y);
+  return scaler;
+}
 
 static void InitBounds(const Series &series, Bounds *bounds) {
   for (const TraceRow &row : the_rows) {
@@ -116,12 +126,21 @@ static void InitBounds(const Series &series, Bounds *bounds) {
   }
 }
 static void InitSeries() {
+#if 1
   Series edges;
   edges.name = "edges";
   edges.Extract = ExtractEdges;
   InitBounds(edges, &max_bounds);
   
   serieses = {edges};
+#else
+  Series since;
+  since.name = "since";
+  since.Extract = ExtractSince;
+  InitBounds(since, &max_bounds);
+  
+  serieses = {since};
+#endif
 }
 
 // Mode basically controls what happens when we use the mouse.
@@ -150,6 +169,8 @@ struct UI {
   int mousex = 0, mousey = 0;
 
   bool dragging = false;
+  int start_pan_x = 0, start_pan_y = 0;
+  int drag_x = 0, drag_y = 0;
 };
 
 UI::UI() {
@@ -197,18 +218,34 @@ static void DrawThickLine(SDL_Surface *surf, int x0, int y0,
 static void DrawLine(SDL_Surface *surf, int x0, int y0,
 		     int x1, int y1,
 		     Uint32 color) {
+  // PERF: when zooming, many lines will be completely off screen.
+  // When clipping, have to be careful about the case that both
+  // endpoints are offscreen, but the line crosses a corner.
+
   Line<int> l{x0, y0, x1, y1};
 
   const int w = surf->w, h = surf->h;
 
   Uint32 *bufp = (Uint32 *)surf->pixels;
   int stride = surf->pitch >> 2;
+#if 0
   auto SetPixel = [color, w, h, bufp, stride](int x, int y) {
       if (x >= 0 && y >= 0 &&
           x < w && y < h) {
         bufp[y * stride + x] = color;
       }
     };
+#else
+  // Always blends 50/50.
+  auto SetPixel = [surf, color, w, h, bufp, stride](int x, int y) {
+      if (x >= 0 && y >= 0 &&
+          x < w && y < h) {
+	uint32 prev = bufp[y * stride + x];
+        bufp[y * stride + x] = sdlutil::Mix2(surf, color, prev);
+      }
+    };
+#endif
+  
   
   SetPixel(x0, y0);
 
@@ -239,6 +276,8 @@ void UI::Loop() {
         if (dragging) {
           switch (mode) {
           case Mode::PANNING:
+	    pan_x = start_pan_x + (mousex - drag_x);
+	    pan_y = start_pan_y + (mousey - drag_y);
             break;
           default:;
           }
@@ -291,6 +330,10 @@ void UI::Loop() {
         mousey = e->y;
 
         dragging = true;
+	start_pan_x = pan_x;
+	start_pan_y = pan_y;
+	drag_x = mousex;
+	drag_y = mousey;
         SDL_SetCursor(cursor_hand_closed);
         // XXX set drag source, etc.
         
@@ -299,8 +342,14 @@ void UI::Loop() {
 
       case SDL_MOUSEBUTTONUP: {
         // LMB/RMB, drag, etc.
+        SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
+        mousex = e->x;
+        mousey = e->y;
+
         dragging = false;
         SDL_SetCursor(cursor_hand);
+	pan_x = start_pan_x + (mousex - drag_x);
+	pan_y = start_pan_y + (mousey - drag_y);
         break;
       }
 
@@ -308,18 +357,21 @@ void UI::Loop() {
       }
     }
 
-    if (ui_dirty) {
+    // if (ui_dirty) {
       sdlutil::clearsurface(screen, 0xFFFFFFFF);
       Draw();
       SDL_Flip(screen);
-      ui_dirty = false;
-    }
+      // ui_dirty = false;
+      // }
   }
 }
 
 void UI::DrawStatus() {
+  Bounds::Scaler scaler = GetScaler();
+  double ox, oy;
+  std::tie(ox, oy) = scaler.Unscale({mousex, mousey});
   const string modestring =
-    "tips for using the program go here";
+    StringPrintf("mouse %.4f,%.4f", ox, oy);
   font2x->draw(5, SCREENH - (FONTHEIGHT * 2) - 1, modestring);
 }
 
@@ -349,7 +401,7 @@ void UI::Draw() {
   // XXX Draw grid...
   
   // Draw lines.
-  Bounds::Scaler scaler = max_bounds.Stretch(SCREENW, VIDEOH).FlipY();
+  Bounds::Scaler scaler = GetScaler();
   for (const Series &series : serieses) {
     for (int i = 0; i < 6; i++) {
       uint32 color = COLORS[i];
