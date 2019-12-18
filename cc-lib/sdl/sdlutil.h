@@ -47,7 +47,7 @@ struct sdlutil {
 
   static void drawclipline(SDL_Surface *, int x1, int y1, int x2, int y2,
 			   Uint8 R, Uint8 G, Uint8 B);
-  // Doesn't 
+  // Sets pixels; doesn't blend alpha.
   static void DrawClipLine32(SDL_Surface *, int x1, int y1, int x2, int y2,
 			     Uint32 color);
   
@@ -160,10 +160,6 @@ struct sdlutil {
      color and 1-frac of the second. Note that this does not
      treat alpha specially. */
   static Uint32 mixfrac(Uint32, Uint32, float frac);
-
-  // Don't use these. They are incorrect and there isn't a good way
-  // to get them at compile-time.
-  static const Uint32 rmask, gmask, bmask, amask;
 
   /* convert from hue-saturation-value-alpha space to RGBA (compatible
      with the supplied surface) */

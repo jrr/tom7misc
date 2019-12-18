@@ -1,8 +1,9 @@
 #include "bounds.h"
 
-#include <limits>
-#include <utility>
 #include <algorithm>
+#include <limits>
+#include <tuple>
+#include <utility>
 
 Bounds::Bounds() {}
 
@@ -64,6 +65,19 @@ Bounds::Scaler::Scale(std::pair<double, double> p) const {
   return {ScaleX(p.first), ScaleY(p.second)};
 }
 
+double Bounds::Scaler::UnscaleX(double x) const {
+  // PERF could compute and save xs inverse?
+  return (x / xs) - xoff;
+}
+double Bounds::Scaler::UnscaleY(double y) const {
+  // PERF could compute and save xs inverse?
+  return (y / ys) - yoff;
+}
+std::pair<double, double>
+Bounds::Scaler::Unscale(std::pair<double, double> p) const {
+  return {UnscaleX(p.first), UnscaleY(p.second)};
+}
+
 Bounds::Scaler Bounds::Stretch(double neww, double newh) const {
   const double oldw = maxx - minx;
   const double oldh = maxy - miny;
@@ -91,5 +105,13 @@ Bounds::Scaler Bounds::Scaler::FlipY() const {
   //        = (nyoff + y) * nys
   ret.ys = -ys;
   ret.yoff = -(yoff + height);
+  return ret;
+}
+
+Bounds::Scaler Bounds::Scaler::PanScreen(double sx, double sy) const {
+  Scaler ret = *this;
+  double xo = sx / xs, yo = sy / ys;
+  ret.xoff += xo;
+  ret.yoff += yo;
   return ret;
 }

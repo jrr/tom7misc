@@ -994,7 +994,7 @@ typedef enum {
   extern void bcm2835_gpio_clr_afen(uint8_t pin);
 
   /* Sets the Pull-up/down register for the given pin. This is
-    used with bcm2835_gpio_pudclk() to set the  Pull-up/down resistor for the given pin.
+    used with bcm2835_gpio_pudclk() to set the Pull-up/down resistor for the given pin.
     However, it is usually more convenient to use bcm2835_gpio_set_pud().
     \param[in] pud The desired Pull-up/down mode. One of BCM2835_GPIO_PUD_* from bcm2835PUDControl
     \sa bcm2835_gpio_set_pud()
