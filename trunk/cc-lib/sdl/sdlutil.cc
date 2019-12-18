@@ -24,21 +24,31 @@ using namespace std;
    OSes use different channel order. Stamp this out.
    SDL_GetRGBA and SDL_MapRGBA are the correct way to do this,
    though they may not be as fast.
+
+   (Note that these are used in the call to SDL_CreateRGBSurface;
+   why?)
+
+   PERF: Instead inline SDL_GetRGBA and SDL_MapRGBA here. They
+   are defined in sdl/src/video/SDL_pixels.c, and use shifts
+   and masks from the surfac; they won't be as fast as constexpr
+   masks but should inline decently fast without the function
+   call overhead! (And then benchmark!)
+
  */
 #if 0 /* SDL_BYTEORDER == SDL_BIG_ENDIAN */
-  const Uint32 sdlutil::rmask = 0xff000000;
-  const Uint32 sdlutil::gmask = 0x00ff0000;
-  const Uint32 sdlutil::bmask = 0x0000ff00;
-  const Uint32 sdlutil::amask = 0x000000ff;
+  static constexpr Uint32 rmask = 0xff000000;
+  static constexpr Uint32 gmask = 0x00ff0000;
+  static constexpr Uint32 bmask = 0x0000ff00;
+  static constexpr Uint32 amask = 0x000000ff;
   static constexpr Uint32 rshift = 24;
   static constexpr Uint32 gshift = 16;
   static constexpr Uint32 bshift = 8;
   static constexpr Uint32 ashift = 0;
 #else
-  const Uint32 sdlutil::rmask = 0x000000ff;
-  const Uint32 sdlutil::gmask = 0x0000ff00;
-  const Uint32 sdlutil::bmask = 0x00ff0000;
-  const Uint32 sdlutil::amask = 0xff000000;
+  static constexpr Uint32 rmask = 0x000000ff;
+  static constexpr Uint32 gmask = 0x0000ff00;
+  static constexpr Uint32 bmask = 0x00ff0000;
+  static constexpr Uint32 amask = 0xff000000;
   static constexpr Uint32 ashift = 24;
   static constexpr Uint32 bshift = 16;
   static constexpr Uint32 gshift = 8;

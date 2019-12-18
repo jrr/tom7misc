@@ -47,10 +47,9 @@ struct Bounds {
   // scale and origin, like a 1000x1000 pixel box whose bottom left is
   // 0,0 (call these "screen coordinates").
   // 
-  // This type is a transformation conveniently derived from
-  // the bounds and desired screen coordinates. (It's called a scaler
-  // but it also involves at least a translation. TODO: Allow flipping
-  // the coordinate system vertically, too.) The scaler is immutable,
+  // This type is a transformation conveniently derived from the
+  // bounds and desired screen coordinates. (It's called a scaler but
+  // it also involves at least a translation. The scaler is immutable,
   // even if the bounds it was derived from is modified.
   struct Scaler {
     // Maps a point from the original coordinates (i.e., what was inserted
@@ -59,7 +58,19 @@ struct Bounds {
     double ScaleY(double y) const;
     std::pair<double, double> Scale(std::pair<double, double> p) const;
 
+    // Inverse of the above (i.e., convert from screen coordinates to
+    // points in the original coordinate system).
+    double UnscaleX(double x) const;
+    double UnscaleY(double y) const;
+    std::pair<double, double> Unscale(std::pair<double, double> p) const;
+
+    // Derive new scalers.
     Scaler FlipY() const;
+    // Shifts the display of the data so that a data point that formerly
+    // displayed at screen coordinates (0,0) now appears at
+    // (screenx, screeny).
+    Scaler PanScreen(double screenx, double screeny) const;
+    
   private:
     friend class Bounds;
     double xoff = 0.0, yoff = 0.0;
