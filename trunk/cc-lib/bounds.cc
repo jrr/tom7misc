@@ -115,3 +115,14 @@ Bounds::Scaler Bounds::Scaler::PanScreen(double sx, double sy) const {
   ret.yoff += yo;
   return ret;
 }
+
+Bounds::Scaler Bounds::Scaler::Zoom(double xfactor, double yfactor) const {
+  Scaler ret = *this;
+  // ret.xoff *= xfactor;
+  // ret.yoff *= yfactor;
+  ret.xs *= xfactor;
+  ret.ys *= yfactor;
+  ret.width *= xfactor;
+  ret.height *= yfactor;
+  return ret;
+}

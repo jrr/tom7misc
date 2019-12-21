@@ -9,8 +9,6 @@
 #include <cmath>
 
 #include "../cc-lib/threadutil.h"
-// #include "../cc-lib/randutil.h"
-// #include "../cc-lib/arcfour.h"
 #include "../cc-lib/base/logging.h"
 #include "../cc-lib/base/stringprintf.h"
 
@@ -47,6 +45,8 @@ static SDL_Cursor *cursor_eraser = nullptr;
 #define STATUSH 128
 #define SCREENW 1920
 #define SCREENH (VIDEOH + STATUSH)
+
+static constexpr double ZOOM_FACTOR = 0.15;
 
 static SDL_Surface *screen = nullptr;
 
@@ -108,13 +108,16 @@ struct Series {
 vector<Series> serieses;
 Bounds max_bounds;
 static int pan_x = 0, pan_y = 0;
+static double zoom_x = 1.0, zoom_y = 1.0;
 
 Bounds::Scaler GetScaler() {
   Bounds::Scaler scaler =
     max_bounds.
     Stretch(SCREENW, VIDEOH).
     FlipY().
+    Zoom(zoom_x, zoom_y).
     PanScreen(pan_x, pan_y);
+
   return scaler;
 }
 
@@ -228,7 +231,7 @@ static void DrawLine(SDL_Surface *surf, int x0, int y0,
 
   Uint32 *bufp = (Uint32 *)surf->pixels;
   int stride = surf->pitch >> 2;
-#if 0
+#if 1
   auto SetPixel = [color, w, h, bufp, stride](int x, int y) {
       if (x >= 0 && y >= 0 &&
           x < w && y < h) {
@@ -258,6 +261,35 @@ static void DrawLine(SDL_Surface *surf, int x0, int y0,
 void UI::Loop() {
   for (;;) {
 
+    // Zoom by the given amount, but then adjust the pan so that the
+    // point under the cursor stays in the same place.
+    auto ZoomBy = [this](double zx, double zy) {
+	// Position in absolute coordinates where the mouse currently
+	// points.
+	Bounds::Scaler old_scaler = GetScaler();
+	double amx = old_scaler.UnscaleX(mousex);
+	double amy = old_scaler.UnscaleY(mousey);
+	
+	zoom_x += zx;
+	zoom_y += zy;
+
+	Bounds::Scaler new_scaler = GetScaler();
+	double nsmx = new_scaler.ScaleX(amx);
+	double nsmy = new_scaler.ScaleY(amy);
+
+	/*
+	printf("mouse %d,%d = abs %.2f, %.2f now %.2f,%.2f\n",
+	       mousex, mousey, amx, amy, nsmx, nsmy);
+	fflush(stdout);
+	*/
+	
+	// So, the pixel that used to be at mousex,mousey is now
+	// at nsmx,nsmy. Pan to put it at mousex,mousey by subtracting
+	// the "error".
+	pan_x -= (nsmx - mousex);
+	pan_y -= (nsmy - mousey);
+      };
+    
     SDL_Event event;
     if (SDL_PollEvent(&event)) {
       switch (event.type) {
@@ -267,8 +299,6 @@ void UI::Loop() {
 
       case SDL_MOUSEMOTION: {
         SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
-
-        const int oldx = mousex, oldy = mousey;
 
         mousex = e->x;
         mousey = e->y;
@@ -293,20 +323,23 @@ void UI::Loop() {
           return;
 
         case SDLK_HOME: {
-          // XXX set to maximum extents
+	  pan_x = 0;
+	  pan_y = 0;
+	  zoom_x = 1.0;
+	  zoom_y = 1.0;
           break;
         }
           
         case SDLK_KP_PLUS:
         case SDLK_EQUALS:
         case SDLK_PLUS:
-          // XXX increase zoom
+	  ZoomBy(ZOOM_FACTOR, ZOOM_FACTOR);
           break;
 
   
         case SDLK_KP_MINUS:
         case SDLK_MINUS:
-          // XXX decrease zoom
+	  ZoomBy(-ZOOM_FACTOR, -ZOOM_FACTOR);
           break;
           
         case SDLK_s: {
@@ -322,35 +355,46 @@ void UI::Loop() {
         }
         break;
       }
-
+	
       case SDL_MOUSEBUTTONDOWN: {
         // LMB/RMB, drag, etc.
-        SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
+        SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
         mousex = e->x;
         mousey = e->y;
 
-        dragging = true;
-	start_pan_x = pan_x;
-	start_pan_y = pan_y;
-	drag_x = mousex;
-	drag_y = mousey;
-        SDL_SetCursor(cursor_hand_closed);
-        // XXX set drag source, etc.
+	switch (e->button) {
+	case SDL_BUTTON_WHEELUP:
+	  ZoomBy(ZOOM_FACTOR, ZOOM_FACTOR);
+	  break;
+	case SDL_BUTTON_WHEELDOWN:
+	  ZoomBy(-ZOOM_FACTOR, -ZOOM_FACTOR);
+	  break;
+	case SDL_BUTTON_LEFT:
+	  dragging = true;
+	  start_pan_x = pan_x;
+	  start_pan_y = pan_y;
+	  drag_x = mousex;
+	  drag_y = mousey;
+	  SDL_SetCursor(cursor_hand_closed);
+	  break;
+	}
         
         break;
       }
 
       case SDL_MOUSEBUTTONUP: {
         // LMB/RMB, drag, etc.
-        SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
+	SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
         mousex = e->x;
         mousey = e->y;
 
-        dragging = false;
-        SDL_SetCursor(cursor_hand);
-	pan_x = start_pan_x + (mousex - drag_x);
-	pan_y = start_pan_y + (mousey - drag_y);
-        break;
+	if (e->button == SDL_BUTTON_LEFT) {
+	  dragging = false;
+	  SDL_SetCursor(cursor_hand);
+	  pan_x = start_pan_x + (mousex - drag_x);
+	  pan_y = start_pan_y + (mousey - drag_y);
+	}
+	break;
       }
 
       default:;

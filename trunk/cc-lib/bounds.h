@@ -70,6 +70,9 @@ struct Bounds {
     // displayed at screen coordinates (0,0) now appears at
     // (screenx, screeny).
     Scaler PanScreen(double screenx, double screeny) const;
+    // Scale data in the x/y dimensions by the given factor (i.e. 1.0
+    // does nothing).
+    Scaler Zoom(double xfactor, double yfactor) const;
     
   private:
     friend class Bounds;
