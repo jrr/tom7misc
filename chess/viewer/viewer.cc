@@ -1073,7 +1073,7 @@ void UI::Loop() {
 
       case SDL_MOUSEBUTTONDOWN: {
         // LMB/RMB, drag, etc.
-        SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
+	SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
         mousex = e->x;
         mousey = e->y;
 
