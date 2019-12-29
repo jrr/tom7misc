@@ -1,6 +1,6 @@
 
-#ifndef __UTIL_H
-#define __UTIL_H
+#ifndef __CCLIB_UTIL_H
+#define __CCLIB_UTIL_H
 
 #include <cstdlib>
 #include <map>
@@ -79,7 +79,7 @@ struct Util {
   static string lcase(const string &in);
   static string ucase(const string &in);
 
-  static bool ExistsFile(string);
+  static bool ExistsFile(const string &f);
 
   /* dirplus("/usr/local", "core") and
      dirplus("/usr/local/", core")  both give  "/usr/local/core"
@@ -127,7 +127,8 @@ struct Util {
 
   /* mylevels/good_tricky   to
      mylevels               to
-     . */
+     . 
+     (Currently only handles relative paths.) */
   static string cdup(const string &dir);
 
   /* true iff big ends with small */
@@ -165,18 +166,18 @@ struct Util {
 
   /* move a file from src to dst. Return
      true on success. */
-  static bool move(string src, string dst);
+  static bool move(const string &src, const string &dst);
 
   /* make a copy by reading/writing */
-  static bool copy(string src, string dst);
+  static bool copy(const string &src, const string &dst);
 
-  static string tempfile(string suffix);
+  static string tempfile(const string &suffix);
 
   /* does this file exist and is it a directory? */
-  static bool isdir(string s);
+  static bool isdir(const string &s);
 
   /* same as isdir */
-  static bool existsdir(string);
+  static bool existsdir(const string &d);
 
   static bool MakeDir(const string &s);
 

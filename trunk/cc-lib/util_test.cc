@@ -79,11 +79,17 @@ static void TestJoin() {
   CHECK_EQ("abcde", Util::Join({"a", "b", "cde"}, ""));
 }
 
+static void TestCdup() {
+  CHECK_EQ("abc/de", Util::cdup("abc/de/f"));
+  CHECK_EQ(".", Util::cdup("abc"));
+}
+
 int main(int argc, char **argv) {
   TestReadFiles();
   TestWhitespace();
   TestPad();
   TestJoin();
+  TestCdup();
   return 0;
 }
 

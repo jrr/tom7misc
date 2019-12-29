@@ -1,5 +1,5 @@
 
-default : heap_test.exe minmax-heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe textsvg_test.exe lines_test.exe image_test.exe util_test.exe randutil_test.exe json_test.exe arcfour_test.exe lastn-buffer_test.exe list-util_test.exe $(TESTCOMPILE)
+default : heap_test.exe minmax-heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe textsvg_test.exe lines_test.exe image_test.exe util_test.exe randutil_test.exe json_test.exe arcfour_test.exe lastn-buffer_test.exe list-util_test.exe edit-distance_test.exe $(TESTCOMPILE)
 
 TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o simpledxf.o
 
@@ -10,7 +10,7 @@ CXX=x86_64-w64-mingw32-g++
 CC=x86_64-w64-mingw32-g++
 # CXX=g++
 # CC=gcc
-CXXFLAGS=-I. --std=c++17 -O2 # -static
+CXXFLAGS=-I. --std=c++17 -O2 -static
 
 # For linux, others...
 # (pthreads can't be linked statically)
@@ -81,6 +81,9 @@ randutil_test.exe : randutil.h randutil_test.o arcfour.o $(BASE)
 
 json_test.exe : json_test.o $(BASE)
 	$(CXX) $(CXXFLAGS) json_test.o $(BASE) -o $@
+
+edit-distance_test.exe : edit-distance_test.o edit-distance.o $(BASE)
+	$(CXX) $(CXXFLAGS) $^ -o $@
 
 clean :
 	rm -f *.o *.exe
