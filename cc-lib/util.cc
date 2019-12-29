@@ -165,18 +165,18 @@ line *line::create(int a, int b, int c, int d) {
   return new LineReal(a, b, c, d);
 }
 
-bool Util::isdir(string f) {
+bool Util::isdir(const string &f) {
   struct stat st;
   return (0 == stat(f.c_str(), &st)) && (st.st_mode & S_IFDIR);
 }
 
-bool Util::ExistsFile(string s) {
+bool Util::ExistsFile(const string &s) {
   struct stat st;
 
   return 0 == stat(s.c_str(), &st);
 }
 
-bool Util::existsdir(string d) {
+bool Util::existsdir(const string &d) {
   return isdir(d); /* (ExistsFile(d) && isdir(d.c_str())); */
 }
 
@@ -798,7 +798,7 @@ string Util::NormalizeWhitespace(const string &s) {
   return LoseWhiteR(ret);
 }
 
-string Util::tempfile(string suffix) {
+string Util::tempfile(const string &suffix) {
   static int tries = 0;
 
   char *fname = new char[suffix.length() + 128];
@@ -1021,7 +1021,7 @@ bool Util::remove(const string &f) {
   return false;
 }
 
-bool Util::move(string src, string dst) {
+bool Util::move(const string &src, const string &dst) {
 # if defined(WIN32) || defined(__MINGW32__)
   if (0 == rename(src.c_str(), dst.c_str()))
     return true;
@@ -1045,7 +1045,7 @@ bool Util::move(string src, string dst) {
 }
 
 
-bool Util::copy(string src, string dst) {
+bool Util::copy(const string &src, const string &dst) {
   FILE *s = fopen(src.c_str(), "rb");
   if (!s) {
     // fprintf(stderr, "Couldn't open %s for reading\n", src.c_str());
@@ -1088,7 +1088,7 @@ string Util::dirplus(const string &dir_, const string &file) {
 }
 
 string Util::cdup(const string &dir) {
-  /* XXX right second argument to rfind? I want to find the last / */
+  /* Find the last / */
   size_t idx = dir.rfind(DIRSEP, dir.length() - 1);
   if (idx != string::npos) {
     if (idx) return dir.substr(0, idx);
