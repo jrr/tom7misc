@@ -24,6 +24,7 @@
 
 // Fork?
 #define FONTFILE "../chess/blind/font.png"
+#define FONTSMALLFILE "fontsmall.png"
 
 #define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?"
 
@@ -34,9 +35,12 @@ using namespace std;
 using int64 = int64_t;
 using uint32 = uint32_t;
 
-#define FONTWIDTH 9
-#define FONTHEIGHT 16
+static constexpr int FONTWIDTH = 9;
+static constexpr int FONTHEIGHT = 16;
 static Font *font = nullptr, *font2x = nullptr, *font4x = nullptr;
+static constexpr int FONTSMALLWIDTH = 6;
+static constexpr int FONTSMALLHEIGHT = 6;
+static Font *fontsmall = nullptr;
 
 static SDL_Cursor *cursor_arrow = nullptr, *cursor_bucket = nullptr;
 static SDL_Cursor *cursor_hand = nullptr, *cursor_hand_closed = nullptr;
@@ -129,7 +133,7 @@ static void InitBounds(const Series &series, Bounds *bounds) {
   }
 }
 static void InitSeries() {
-#if 1
+#if 0
   Series edges;
   edges.name = "edges";
   edges.Extract = ExtractEdges;
@@ -442,10 +446,29 @@ void UI::Draw() {
   // Status stuff, always outside the 1920x1080 window.
   DrawStatus();
 
-  // XXX Draw grid...
+  static constexpr int GRID_LINES = 12;
+  static constexpr uint32 GRID_COLOR = 0xFFDDDDDD;
+
+  Bounds::Scaler scaler = GetScaler();
+  // Horizontal grid lines
+  for (int i = 0; i < GRID_LINES; i++) {
+    int y = (VIDEOH / (double)GRID_LINES) * (i + 1);
+    DrawLine(screen, 0, y, SCREENW - 1, y, GRID_COLOR);
+    font->draw(6, y - FONTHEIGHT - 1,
+	       StringPrintf("^6%.4f",
+			    scaler.UnscaleY(y)));
+  }
+
+  // Vertical
+  for (int i = 0; i < GRID_LINES; i++) {
+    int x = (SCREENW / (double)GRID_LINES) * (i + 1);
+    DrawLine(screen, x, 0, x, SCREENH - 1, GRID_COLOR);
+    font->draw(x + 2, VIDEOH - FONTHEIGHT - 1,
+	       StringPrintf("^6%.4f",
+			    scaler.UnscaleX(x)));
+  }
   
   // Draw lines.
-  Bounds::Scaler scaler = GetScaler();
   for (const Series &series : serieses) {
     for (int i = 0; i < 6; i++) {
       uint32 color = COLORS[i];
@@ -489,6 +512,13 @@ int main(int argc, char **argv) {
 
   screen = sdlutil::makescreen(SCREENW, SCREENH);
   CHECK(screen);
+
+  fontsmall = Font::create(screen,
+			   FONTSMALLFILE,
+			   FONTCHARS,
+			   FONTSMALLWIDTH,
+			   FONTSMALLHEIGHT, FONTSTYLES, 0, 3);
+  CHECK(fontsmall != nullptr) << "Couldn't load fontsmall.";
   
   font = Font::create(screen,
                       FONTFILE,

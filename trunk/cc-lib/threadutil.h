@@ -6,6 +6,7 @@
 #include <thread>
 #include <mutex>
 #include <functional>
+#include <cstdint>
 
 #if __cplusplus >= 201703L
 // shared_mutex only available in C++17 and later.
@@ -168,7 +169,7 @@ void ParallelAppi(const std::vector<T> &vec,
   auto th = [&index_m, &next_index, &vec, &f]() {
     for (;;) {
       index_m.lock();
-      if (next_index == vec.size()) {
+      if (next_index == (int64_t)vec.size()) {
 	// All done. Don't increment counter so that other threads can
 	// notice this too.
 	index_m.unlock();
@@ -317,6 +318,8 @@ struct ThreadJoiner {
   std::thread *t;
 };
 
+// Calls f(x, y) for each 0 <= x < num1 and 0 <= y < num2,
+// in up to max_concurrency parallel threads.
 template<class F>
 void ParallelComp2D(int num1, int num2,
 		    const F &f,

@@ -10,6 +10,11 @@ struct EditDistance {
   // all cost 1.
   static int Distance(const std::string &s1, const std::string &s2);
 
+  // Same, but returns min(Distance(s1, s2), threshold). This is much
+  // faster for small thresholds.
+  static int Ukkonen(const std::string &s1, const std::string &s2,
+		     int threshold);
+  
   // TODO: Parameterized versions.
 
  private:
