@@ -101,24 +101,114 @@ void ComputeDistances(const vector<pair<string, string>> &contents) {
   fflush(stdout);
 }
 
-int main(int argc, char **argv) {
-  vector<string> all_files;
-  for (const char *d : DIRS) {
-    AddAllFilesRec(d, &all_files);
+string StripCR(const string &contents) {
+  string ret;
+  ret.reserve(contents.size());
+  for (const char c : contents) {
+    if (c == '\r')
+      continue;
+    ret += c;
+  }
+  return ret;
+}
+
+string StripHeader(const string &contents) {
+  /*
+  const char *hdr =
+    "#----------------------------------PLEASE NOTE-----"
+    "----------------------------#\n"
+    "#This file is the author's own work and represents "
+    "their interpretation of the #\n"
+    "#song. You may only use this file for private study, "
+    "scholarship, or research. #\n"
+    "#----------------------------------------------------"
+    "--------------------------##\n";
+  */
+    const char *hdr =
+    "#----------------------------------PLEASE NOTE-----"
+    "----------------------------#\n"
+    "#This file is the author's own work and represents "
+    "their interpretation of the #\n"
+    "#song. You may only use this file for private study, "
+    "scholarship, or research. #\n"
+    "#----------------------------------------------------"
+    "--------------------------#\n";
+    // Also one version with an additional # on its own.
+    
+
+  if (contents.find(hdr) == 0) {
+    return contents.substr(string(hdr).size(), string::npos);
+  }
+  return contents;
+}
+
+string Frontslash(const string &s) {
+  string ret;
+  for (const char c : s)
+    ret += (c == '\\' ? '/' : c);
+
+  if (ret.find("d:/") == 0) {
+    ret[0] = '/';
+    ret[1] = 'd';
+  } else if (ret.find("c:/") == 0) {
+    ret[0] = '/';
+    ret[1] = 'c';
   }
 
-  printf("Num files: %lld\n", (int64)all_files.size());
+  return ret;
+}
 
-  printf("Read contents..\n");
+string Backslash(const string &s) {
+  string ret;
+  for (const char c : s)
+    ret += (c == '/' ? '\\' : c);
+  return ret;
+}
+
+bool HasNonAscii(const string &s) {
+  for (const char c : s) {
+    switch (c) {
+    case ' ':
+    case '\n':
+    case '\r':
+    case '\t':
+      // ok.
+      break;
+    default:
+      if (c < ' ' || c > 127)
+	return true;
+    }
+  }
+  return false;
+}
+
+int main(int argc, char **argv) {
+#if 0
+  FILE *f = fopen("d:\\temp\\food.txt", "wb");
+  CHECK(f);
+  fprintf(f, "uhh\n");
+  fclose(f);
+
+  return 0;
+#endif
+  
+  vector<string> all_filenames;
+  for (const char *d : DIRS) {
+    AddAllFilesRec(d, &all_filenames);
+  }
+
+  printf("Num files: %lld\n", (int64)all_filenames.size());
+
+  printf("Read files..\n");
   fflush(stdout);
-  vector<pair<string, string>> contents =
-    ParallelMap(all_files,
+  vector<pair<string, string>> files =
+    ParallelMap(all_filenames,
 		[](const string &filename) {
 		  return make_pair(filename, Util::ReadFile(filename));
 		},
 		12);
   if (false) {
-    for (const auto &p : contents) {
+    for (const auto &p : files) {
       if (p.second.empty()) {
 	printf("Remove empty %s...\n", p.first.c_str());
 	Util::remove(p.first);
@@ -126,10 +216,43 @@ int main(int argc, char **argv) {
     }
   }
 
+  int non_ascii = 0;
+  for (const auto &p : files) {
+    if (HasNonAscii(p.second)) {
+      non_ascii++;
+      // printf("Non-ascii: %s\n", p.first.c_str());
+    }
+  }
+  printf("Non-ascii files: %d\n", non_ascii);
+
+
+  std::mutex m;
+  int changed = 0;
+  ParallelApp(files,
+	      [&m, &changed](const pair<string, string> &row) {
+		string c = StripHeader(StripCR(row.second));
+		if (c != row.second) {
+		  string filename = Backslash(row.first);
+		  CHECK(Util::WriteFile(filename, c)) << filename;
+		  
+		  {
+		    MutexLock ml(&m);
+		    changed++;
+		    printf("[%d] Write [%s] (%d -> %d)\n",
+			   changed,
+			   filename.c_str(),
+			   (int)row.second.size(), (int)c.size());
+		  }
+		}
+	      },
+	      12);
+
+  printf("Modified %d files in place.\n", changed);
+  
   printf("Done.\n");
   fflush(stdout);
 
-  ComputeDistances(contents);
+  // ComputeDistances(files);
   
   return 0;
 }
