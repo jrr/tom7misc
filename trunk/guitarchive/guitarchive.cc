@@ -21,6 +21,8 @@
 using namespace std;
 // using namespace re2;
 
+// TODO: rewrite \\" to "
+
 static constexpr const char *DIRS[] = {
   "c:\\code\\electron-guitar\\tabscrape\\tabs",
   "d:\\temp\\olga",
@@ -28,7 +30,6 @@ static constexpr const char *DIRS[] = {
 };
 
 struct Parser {
-
   bool GetMetadata(const string &filename,
 		   const string &contents,
 		   string *title,
@@ -42,9 +43,32 @@ struct Parser {
     return false;
   }
 
+  string FixMetadata(string contents) {
+    RE2::GlobalReplace(&contents, bandspace,
+		       "Title: \\3\n"
+		       "Artist: \\1\n"
+		       "Album: \\2\n");
+    RE2::GlobalReplace(&contents, songtitle, "Title: \\1\n");
+    RE2::GlobalReplace(&contents, originalalbum, "Album: \\1\n");
+    return contents;
+  }
+
+  static RE2::Options MultiLine() {
+    RE2::Options opt;
+    opt.set_posix_syntax(true);
+    opt.set_one_line(false);
+    return opt;
+  }
+  
   // Preferred explicit form at the beginning of the file.
   RE2 explicit_meta{"Title: (.*)\n"
                     "Artist: (.*)\n"};
+  RE2 bandspace{"Band   (.*)\n"
+		"Album: (.*)\n"
+		"Song: (.*)\n"};
+
+  RE2 originalalbum{"^[Oo]riginal [Aa]lbum: *(.*)\n", MultiLine()};
+  RE2 songtitle{"^[Ss]ong [Tt]itle: *(.*)\n", MultiLine()};
 };
 
 
@@ -153,9 +177,10 @@ int CountSpaces(const string &line) {
 
 // Remove trailing spaces from lines, and blank lines from bottom.
 // End every line (including the last) with a newline.
-string StripTrailing(const string &contents) {
+string StripOuterWhitespace(const string &contents) {
   vector<string> lines = Util::SplitToLines(contents);
   int min_spaces = 999;
+
   for (string &line : lines) {
     while (!line.empty() && line[line.size() - 1] == ' ') {
       line.resize(line.size() - 1);
@@ -169,7 +194,6 @@ string StripTrailing(const string &contents) {
   while (!lines.empty() && lines[lines.size() - 1].empty()) {
     lines.resize(lines.size() - 1);
   }
-  // TODO: And beginning...
   
   // Now if every non-empty line starts with space, remove it.
   if (min_spaces > 0) {
@@ -181,12 +205,22 @@ string StripTrailing(const string &contents) {
       }
     }
   }
-    
+
+  bool only_blank = true;
   string out;
   out.reserve(contents.size());
   for (const string &line : lines) {
-    out += line;
-    out += "\n";
+    if (line.empty()) {
+      if (only_blank) {
+	// Skip leading blank lines.
+      } else {
+	out += "\n";
+      }
+    } else {
+      out += line;
+      out += "\n";
+      only_blank = false;
+    }
   }
   return out;
 }
@@ -302,7 +336,36 @@ bool HasNonAscii(const string &s) {
   return false;
 }
 
+// Bad encodings. This appears to come from when windows-1252 encoded files get
+// "converted" to UTF-8 with a sloppy process that just encodes e.g. 0x96 as the
+// unicode U+0096, which is not a legal codepoint.
+string FixBadEncoding(const string &s) {
+  string r = Util::Replace(s, "\xc2\x91", "'");
+  r = Util::Replace(r, "\xc2\x92", "'");
+  r = Util::Replace(r, "\xc2\x93", "\"");
+  r = Util::Replace(r, "\xc2\x94", "\"");
+  r = Util::Replace(r, "\xc2\x96", "-");
+  return r;
+}
+
 int main(int argc, char **argv) {
+  {
+    
+    string s =
+          "Original Album:   Sondre Lerche\n"
+    "asdf\n"
+    "\n"
+    "Song title:       Domino\n"
+    "Original Album:   Sondre Lerche\n"
+      "\n"
+      "booooots\n";
+
+    Parser p;
+    s = p.FixMetadata(s);
+    printf("[%s]\n", s.c_str());
+    return 0;
+  }
+
 #if 0
   FILE *f = fopen("d:\\temp\\food.txt", "wb");
   CHECK(f);
@@ -326,7 +389,7 @@ int main(int argc, char **argv) {
 		[](const string &filename) {
 		  return make_pair(filename, Util::ReadFile(filename));
 		},
-		14);
+		16);
   if (false) {
     for (const auto &p : files) {
       if (p.second.empty()) {
@@ -341,6 +404,11 @@ int main(int argc, char **argv) {
     int non_ascii = 0;
     for (const auto &p : files) {
       total_bytes += p.second.size();
+      /*
+      if ((int)p.second.size() > 100000) {
+	printf("Large file [%lld]: %s\n", (int64)p.second.size(), p.first.c_str());
+      }
+      */
       if (HasNonAscii(p.second)) {
 	non_ascii++;
 	// printf("Non-ascii: %s\n", p.first.c_str());
@@ -354,12 +422,15 @@ int main(int argc, char **argv) {
   {
     std::mutex m;
     int has_marker = 0;
+    vector<string> todo;
     ParallelApp(files,
-		[&m, &has_marker](const pair<string, string> &row) {
+		[&m, &has_marker, &todo](const pair<string, string> &row) {
 		  if (row.second.find("-PLEASE NOTE-") != string::npos ||
-		      row.second.find("scholarship, or research") !=
-		      string::npos) {
+		      row.second.find("scholarship, or research") != string::npos ||
+		      row.second.find("Have fun, DAIRYBEAT on") != string::npos ||
+		      row.second.find("and has a specific punishment") != string::npos) {
 		    MutexLock ml(&m);
+		    todo.push_back(row.first);
 		    if (has_marker < 30 ||
 			(has_marker % 1000 == 0)) {
 		      printf("Marker? %s\n", row.first.c_str());
@@ -369,6 +440,11 @@ int main(int argc, char **argv) {
 		},
 		32);
     printf("May still have markers: %d\n", has_marker);
+    FILE *ff = fopen("markers_todo.txt", "wb");
+    for (const string &file : todo) {
+      fprintf(ff, "%s\n", file.c_str());
+    }
+    fclose(ff);
     fflush(stdout);
   }
   
@@ -393,13 +469,16 @@ int main(int argc, char **argv) {
   }
 
   {
+    Parser p;
     std::mutex m;
     int changed = 0;
     ParallelApp(files,
-		[&m, &changed](const pair<string, string> &row) {
-		  string c = StripTrailing(row.second);
+		[&p, &m, &changed](const pair<string, string> &row) {
+		  string c = StripOuterWhitespace(row.second);
+		  c = FixBadEncoding(c);
 		  c = StripCR(c);
 		  c = StripHeader(c);
+		  c = p.FixMetadata(c);
 		  // c = StripFooter(c);
 		  if (c != row.second) {
 		    string filename = Backslash(row.first);

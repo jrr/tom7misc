@@ -521,7 +521,211 @@ static const char *HEADER77 =
 "#This file is the author's own work and represents their interpretation of  the #\n"
 "#song. You may only use this file for private study, scholarship, or research.  #\n"
 "#------------------------------------------------------------------------------##\n";
+
+static const char *HEADER78 =
+"#-----------------------------------PLEASE NOTE---------------------------------#\n"
+"#-------------------------------------------------------------------------------#\n";
+
+static const char *HEADER79 =
+"----------------------------------PLEASE NOTE------------------------------\n"
+" This file is the author's own work and represents their interpretation of the\n"
+" song. You may only use this file for private study, scholarship, or research.\n"
+"---------------------------------------------------------------------------\n";
+
+static const char *HEADER80 =
+"#----------------------------------PLEASE NOTE----------------------------#\n"
+"#This file is the author's own work and represents their interpretation of#\n"
+"#the song. You may only use this file for private study, scholarship, or  #\n"
+"#research.                                                                #\n"
+"#-------------------------------------------------------------------------#\n";
+
+static const char *HEADER81 =
+"#-------------------------------PLEASE NOTE------------------------------#\n"
+"# This file is the author's own work and represents their interpretation #\n"
+"#       of the song. You may only use this file for private use.         #\n"
+"#------------------------------------------------------------------------#\n";
+
+static const char *HEADER82 =
+"#-----------------------------------PLEASE NOTE---------------------------------#\n"
+"#-------------------------------------------------------------------------------##\n";  
+
+
+static const char *HEADER83 =
+"#----------------------------------PLEASE NOTE------------------------------#\n"
+"# This file is the author's own work and represents their interpretation of the song.\n"
+"You may only use this file for private study, scholarship, or research.\n"
+"#------------------------------------------------------------------------------#\n";
+
+static const char *HEADER84 =
+"#----------------------------------PLEASE NOTE---------------------------------#\n"
+"#This file is the author's own work and represents their interpretation of the #\n"
+"#song. You may only use this file for private study, scholarship, or research. #\n"
+"#-----------------------------------------------------------------------------##\n";
+
+static const char *HEADER85 =
+"#-----------------------------PLEASE NOTE-----------------------------#\n"
+"# This file is the author's own work and represents their interpreta- #\n"
+"#   tion of the song. You may only use this file for private study,   #\n"
+"#                      scholarship, or research.                      #\n"
+"#---------------------------------------------------------------------#\n";
+
+static const char *HEADER86 =
+"#----------------------------------PLEASE NOTE---------------------------------#\n"
+"#This file is the author's own work and represents their interpretation of the #\n"
+"#song. You may only use this file for private study, scholarship, or research. #\n"
+"#------------------------------------------------------------------------------\n";
+
+static const char *HEADER87 =
+"---------------------------------PLEASE NOTE---------------------------------\n"
+"This file is the author's own work and represents their interpretation of the\n"
+"song. You may only use this file for private study, scholarship, or research.\n"
+"------------------------------------------------------------------------------\n";
   
+static const char *HEADER88 =
+"#--------------------------------PLEASE NOTE----------------------------------#\n"
+"#This file is the author's own work and represents their interpretation of the#\n"
+"#song. You may only use this file for private study, scholarship, or research.#\n"
+"#-----------------------------------------------------------------------------#\n";
+
+static const char *HEADER89 =
+"#----------------------------------PLEASE NOTE---------------------------------#\n"
+"#This file is the work of fans and represents their interpretation of the song.#\n"
+"#This file is licensed under a Creative Commons-License:                       #\n"
+"#http://creativecommons.org/licenses/by-nc-sa/2.0/at/deed.en                   #\n"
+"#------------------------------------------------------------------------------#\n";
+
+static const char *HEADER90 =
+  "#----------------------------------PLEASE NOTE-----------------------------#\n"
+"This file is the author's own work and represents their interpretation of the\n"
+"song. You may only use this file for private study, scholarship, or research.\n"
+  "#--------------------------------------------------------------------------#\n";
+  
+static const char *HEADER91 =
+"#------------------PLEASE NOTE------------------#\n"
+"#This file is my own work and represents my\n"
+"#interpretation of the song. You may only use this\n"
+"#file for private study, scholarship, or research.\n"
+  "#-----------------------------------------------#\n";
+
+static const char *HEADER92 =
+"#-----------------------------PLEASE NOTE---------------------------------#\n"
+"# This file is the author's own work and                                  #\n"
+"# represents their interpretation of the song.                            #\n"
+"# You may only use this file for private study, scholarship, or research. #\n"
+"#-------------------------------------------------------------------------#\n";
+  
+static const char *HEADER93 =
+"***************************************************************************************\n"
+"* Generated using Power Tab Editor by Brad Larsen - http://powertab.guitarnetwork.org *\n"
+"***************************************************************************************\n";
+
+static const char *HEADER94 =
+"**************************************************************************\n"
+"This file was generated with Power Tab Editor\n"
+"Get it at http://home.tct.net/~blarsen *\n"
+"**************************************************************************\n";
+
+static const char *HEADER95 =
+"#-----------------------PLEASE NOTE----------------------------#\n"
+"#   This file is the author's own work and represents their    #\n"
+"#   interpretation of the song. You may only use this file     #\n"
+"#   for private study, scholarship, or research.               #\n"
+"#--------------------------------------------------------------#\n";
+  
+static const char *HEADER96 =
+"#------------------------------PLEASE NOTE-------------------------------------#\n"
+"#This file is the author's own work and represents their interpretation of the #\n"
+"#song. You may only use this file for private study, scholarship, or research. #\n"
+"#------------------------------------------------------------------------------#\n";
+
+static const char *HEADER97 =
+"#----------------------------------PLEASE NOTE-------------------------------#\n"
+"#This file is the author's own work and represents my interpretation of the  #\n"
+"#song. You may only use this file for private study, scholarship, or research#\n"
+"#----------------------------------------------------------------------------#\n";
+  
+static const char *HEADER98 =
+"#--------------------------------PLEASE NOTE-------------------------------#\n"
+"#This file is the author's own work and represents their interpretation of the#\n"
+"#song. You may only use this file for private study, scholarship, or research.#\n"
+"#--------------------------------------------------------------------------#\n"
+"#- File created with Instab -http://www.pconline.com/~smcarey/instab.html -#\n"
+"#--------------------------------------------------------------------------#\n";
+  
+static const char *HEADER99 =
+":: Ultimate Guitar Archive ::\n"
+  "http://www.ultimate-guitar.com\n";
+  
+static const char *HEADER100 =
+"#--------------------------------PLEASE NOTE-----------------------------#\n"
+"#-------------------------------------------------------------------------#\n";
+  
+static const char *HEADER101 =
+"##-----------------------------PLEASE NOTE------------------------------##\n"
+"The owner of this website has not reviewed the contents of this\n"
+"file. If you feel that the content of this file may be violating\n"
+"copyright law, you may not use the information displayed here in any way.\n"
+"##----------------------------------------------------------------------##\n";
+  
+static const char *HEADER102 =
+"#-----------------------------PLEASE NOTE-------------------------------------#\n"
+"#     This file is the author's own work and represents their interpretation  #\n"
+"#of the song. You may only use this file for private study, scholarship, or   #\n"
+"#research. Remember to view this file in Courier, or some other monospaced    #\n"
+"#font.                                                                        #\n"
+"#-----------------------------------------------------------------------------#\n";
+
+static const char *HEADER103 =
+"#-------------------------------PLEASE NOTE-----------------------------#\n"
+"#-------------------------------------------------------------------------#\n";
+  
+static const char *HEADER104 =
+"#--------------------------------PLEASE NOTE-------------------------------#\n"
+"#This file is the author's own work and represents their interpretation of the#\n"
+"#song. You may only use this file for private study, scholarship, or research.#\n"
+"#--------------------------------------------------------------------------#\n"
+"# File created with Instab - http://www.pconline.com/~smcarey/instab.html -#\n"
+"#--------------------------------------------------------------------------#\n";
+  
+static const char *HEADER105 =
+"---------------------------------------------------------\n"
+"Get Your *Web-Based* Free Email at http://www.hotmail.com\n"
+"---------------------------------------------------------\n";
+
+static const char *HEADER106 =
+"*****************************************************************************\n"
+"Generated using Power Tab Editor by Brad Larsen http://powertab.guitarnetwork.org*\n"
+"*****************************************************************************\n";
+
+static const char *HEADER107 =
+"#-----------------------------------PLEASE NOTE------------------------------#\n"
+"#  This file is the author's own work and represents their interpretation    #\n"
+"#  of the song. The owner of this website has not reviewed the contents of   #\n"
+"#  this file. If you feel that the content of this file may be violating     #\n"
+"#  copyright law, you may not use the information displayed here in any way. #\n"
+"#----------------------------------------------------------------------------#\n";
+  
+static const char *HEADER108 =
+"______________________________________________________\n"
+"Get Your Private, Free Email at http://www.hotmail.com\n";
+
+
+static const char *LINE1 =
+  "** Generated using Power Tab Editor by Brad Larsen: The Official Power Tab Web Site\n";
+static const char *LINE2 =
+  "#-- File created with Instab - http://www.pconline.com/~smcarey/instab.html --#\n";
+
+static const char *LINE3 =
+  "Browse Artists &#8658; # A B C D E F G H I J K L M N O P Q R S T U V W X Y Z";
+
+static const char *LINE4 =
+  "http://sites.google.com/site/guitarmusicchordsandlyrics/";
+
+static const char *LINE5 =
+  "Brought to you by the GUITARMASTA - http://www.guitarmasta.net\n";
+
+static const char *LINE6 =
+  "Taken from The BassMasta -- http://www.bassmasta.net\n";
 
 std::initializer_list<const char *> Headers::headers = {
   HEADER1, HEADER2, HEADER3, HEADER4, HEADER5, HEADER6, HEADER7,
@@ -536,7 +740,14 @@ std::initializer_list<const char *> Headers::headers = {
   HEADER57, HEADER58, HEADER59, HEADER60, HEADER61, HEADER62,
   HEADER63, HEADER64, HEADER65, HEADER66, HEADER67, HEADER68,
   HEADER69, HEADER70, HEADER71, HEADER72, HEADER73, HEADER74,
-  HEADER75, HEADER76, HEADER77,
+  HEADER75, HEADER76, HEADER77, HEADER78, HEADER79, HEADER80,
+  HEADER81, HEADER82, HEADER83, HEADER84, HEADER85, HEADER86,
+  HEADER87, HEADER88, HEADER89, HEADER90, HEADER91, HEADER92,
+  HEADER93, HEADER94, HEADER95, HEADER96, HEADER97, HEADER98,
+  HEADER99, HEADER100, HEADER101, HEADER102, HEADER103, HEADER104,
+  HEADER105, HEADER106, HEADER107, HEADER108,
+
+  LINE1, LINE2, LINE3, LINE4, LINE5, LINE6,
 };
 
   
