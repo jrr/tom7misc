@@ -1,4 +1,3 @@
-
 // Code for cleaning and working with ASCII guitar tab files, e.g. from OLGA.
 
 #include <string>
@@ -6,6 +5,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string_view>
+#include <unordered_set>
 
 #include "util.h"
 #include "re2/re2.h"
@@ -21,7 +21,7 @@
 using namespace std;
 // using namespace re2;
 
-// TODO: rewrite \\" to "
+// file ends with "Set8" or "set8"
 
 static constexpr const char *DIRS[] = {
   "c:\\code\\electron-guitar\\tabscrape\\tabs",
@@ -33,7 +33,7 @@ struct Parser {
   bool GetMetadata(const string &filename,
 		   const string &contents,
 		   string *title,
-		   string *artist) {
+		   string *artist) const {
     re2::StringPiece cont(contents);
     if (RE2::Consume(&cont, explicit_meta, title, artist)) {
       return true;
@@ -43,13 +43,15 @@ struct Parser {
     return false;
   }
 
-  string FixMetadata(string contents) {
+  string FixMetadata(string contents) const {
     RE2::GlobalReplace(&contents, bandspace,
 		       "Title: \\3\n"
 		       "Artist: \\1\n"
 		       "Album: \\2\n");
     RE2::GlobalReplace(&contents, songtitle, "Title: \\1\n");
     RE2::GlobalReplace(&contents, originalalbum, "Album: \\1\n");
+    RE2::GlobalReplace(&contents, fromthealbum, "Album: \\1\n");
+    RE2::GlobalReplace(&contents, authorartist, "Artist: \\1\n");
     return contents;
   }
 
@@ -58,6 +60,63 @@ struct Parser {
     opt.set_posix_syntax(true);
     opt.set_one_line(false);
     return opt;
+  }
+
+  bool ExtractFile(const string &filename, string *title, string *artist) const {
+    // Note: Artist, then title.
+    if (!RE2::FullMatch(filename, tabfilename, artist, title))
+      return false;
+    if (*artist == "misc_unsigned_bands" || *artist == "misc_your_songs" ||
+	*artist == "unknown" || *artist == "various_artists") {
+      return false;
+    }
+    
+    // remove _ver3 etc.
+    RE2::GlobalReplace(title, remove_ver, "");
+    return true;
+  }
+
+  bool Extract(const string &filename, const string &contents,
+	       string *title, string *artist) const {
+    re2::StringPiece cont(contents);
+    string h1, h2;
+    if (RE2::Consume(&cont, dashedheader, &h1, title, artist, &h2)) {
+      if (h1.size() != h2.size()) return false;
+      *title = Util::LoseWhiteR(*title);
+      *artist = Util::LoseWhiteR(*artist);
+      string ltitle = Util::lcase(*title);
+      string lartist = Util::lcase(*artist);
+      if (ltitle.find("http:") != string::npos) return false;
+      if (lartist.find("http:") != string::npos) return false;      
+      
+      if (ltitle == "band name" || ltitle == "song name") return false;
+      if (lartist == "band name" || lartist == "song name") return false;      
+
+      // Require corroboration with filenames. Both artist - title and title - artist
+      // appear in real data, alas.
+      string ftitle, fartist;
+      if (ExtractFile(filename, &ftitle, &fartist)) {
+	auto ReplaceUnder = [](string s) {
+	    for (char &c : s) {
+	      if (c == '_') c = ' ';
+	    }
+	    return s;
+	  };
+	ftitle = ReplaceUnder(Util::lcase(ftitle));
+	fartist = ReplaceUnder(Util::lcase(fartist));
+	
+	int same_loss = EditDistance::Distance(ftitle, ltitle) +
+	  EditDistance::Distance(fartist, lartist);
+	int diff_loss = EditDistance::Distance(ftitle, lartist) +
+	  EditDistance::Distance(fartist, ltitle);
+	if (diff_loss < same_loss) {
+	  title->swap(*artist);
+	}
+	// XXX thresholds?
+	return true;
+      }
+    }
+    return false;
   }
   
   // Preferred explicit form at the beginning of the file.
@@ -69,6 +128,19 @@ struct Parser {
 
   RE2 originalalbum{"^[Oo]riginal [Aa]lbum: *(.*)\n", MultiLine()};
   RE2 songtitle{"^[Ss]ong [Tt]itle: *(.*)\n", MultiLine()};
+  RE2 fromthealbum{"^[Ff]rom [Tt]he [Aa]lbum: *(.*)\n", MultiLine()};
+  RE2 authorartist{"^[Aa]uthor/[Aa]rtist *: *(.*)\n", MultiLine()};
+
+  RE2 dashedheader{"^"
+		   "------------(-*)\n"
+		   "[ \t]**([A-Za-z0-9].*)[ \t]* - [ \t]*([A-Za-z0-9].*)\n"
+		   "------------(-*)\n", MultiLine()};
+
+  RE2 remove_ver{"(?:_ver[0-9]+)?$"};
+  RE2 tabfilename{"d:\\\\temp\\\\tabs[/\\\\].[/\\\\]([^/\\\\]*)[/\\\\]([^/\\\\]*)"
+		  "_(?:b?tab|crd|lyr)"
+		  ".txt"};
+  
 };
 
 
@@ -345,36 +417,15 @@ string FixBadEncoding(const string &s) {
   r = Util::Replace(r, "\xc2\x93", "\"");
   r = Util::Replace(r, "\xc2\x94", "\"");
   r = Util::Replace(r, "\xc2\x96", "-");
+  // Seems to be a problem with the 'tabs' scrape.
+  // r = Util::Replace(r, "\\\\\" ", "\"");
+  // And for the same at EOL after trailing whitespace was removed.
+  // r = Util::Replace(r, "\\\\\"\n", "\"\n");
   return r;
 }
 
 int main(int argc, char **argv) {
-  {
-    
-    string s =
-          "Original Album:   Sondre Lerche\n"
-    "asdf\n"
-    "\n"
-    "Song title:       Domino\n"
-    "Original Album:   Sondre Lerche\n"
-      "\n"
-      "booooots\n";
-
-    Parser p;
-    s = p.FixMetadata(s);
-    printf("[%s]\n", s.c_str());
-    return 0;
-  }
-
-#if 0
-  FILE *f = fopen("d:\\temp\\food.txt", "wb");
-  CHECK(f);
-  fprintf(f, "uhh\n");
-  fclose(f);
-
-  return 0;
-#endif
-  
+ 
   vector<string> all_filenames;
   for (const char *d : DIRS) {
     AddAllFilesRec(d, &all_filenames);
@@ -382,6 +433,35 @@ int main(int argc, char **argv) {
 
   printf("Num files: %lld\n", (int64)all_filenames.size());
 
+  std::unordered_set<string> filename_set;
+  for (const string &f : all_filenames) {
+    filename_set.insert(f);
+  }
+
+  if (false) {
+    // These were only in the "b" directory, somehow?
+    // filenames: 22954559 bytes
+    int num_mangled = 0;
+    RE2 mangled{"(d:\\\\temp\\\\tabs.*)_[0-9]+id_[0-9]+date\\.txt"};
+    for (const string &f : all_filenames) {
+      string part;
+      if (RE2::FullMatch(f, mangled, &part)) {
+	num_mangled++;
+	string norm = part + ".txt";
+	if (filename_set.find(norm) != filename_set.end()) {
+	  printf("[!!] Has both %s and %s\n", norm.c_str(), f.c_str());
+	  continue;
+	}
+	if (num_mangled % 100 == 0) printf("[%d] [%s] -> [%s]\n", num_mangled, f.c_str(), norm.c_str());
+	// CHECK(Util::move(f, norm)) << f;
+      }
+    }
+    printf("Num mangled: %d\n", num_mangled);
+    // After moving files, we have the wrong filenames, so force exit.
+    return 0;
+  }
+
+  
   printf("Read files..\n");
   fflush(stdout);
   vector<pair<string, string>> files =
@@ -390,31 +470,45 @@ int main(int argc, char **argv) {
 		  return make_pair(filename, Util::ReadFile(filename));
 		},
 		16);
+
+
+
   if (false) {
-    for (const auto &p : files) {
-      if (p.second.empty()) {
-	printf("Remove empty %s...\n", p.first.c_str());
-	Util::remove(p.first);
+    /*
+      string bogus =
+      Util::ReadFile("d:\\temp\\tabs\\a\\audioslave\\be_yourself_drum_tab.txt");
+      printf("Bogus: %s\n", bogus.c_str());
+      CHECK(!bogus.empty());
+
+      for (const auto &p : files) {
+      if (p.second == bogus) {
+      printf("Remove bogus %s...\n", p.first.c_str());
+      Util::remove(p.first);
       }
-    }
+      }
+      return 0;
+    */
   }
 
   {
+    int64 filename_bytes = 0;
     int64 total_bytes = 0;
     int non_ascii = 0;
     for (const auto &p : files) {
+      filename_bytes += p.first.size();
       total_bytes += p.second.size();
       /*
-      if ((int)p.second.size() > 100000) {
+	if ((int)p.second.size() > 100000) {
 	printf("Large file [%lld]: %s\n", (int64)p.second.size(), p.first.c_str());
-      }
+	}
       */
       if (HasNonAscii(p.second)) {
 	non_ascii++;
 	// printf("Non-ascii: %s\n", p.first.c_str());
       }
     }
-    printf("Total bytes: %lld\n", total_bytes);
+    printf("Filename bytes: %lld\n", filename_bytes);
+    printf("Content bytes: %lld\n", total_bytes);
     printf("Non-ascii files: %d\n", non_ascii);
     fflush(stdout);
   }
@@ -428,7 +522,8 @@ int main(int argc, char **argv) {
 		  if (row.second.find("-PLEASE NOTE-") != string::npos ||
 		      row.second.find("scholarship, or research") != string::npos ||
 		      row.second.find("Have fun, DAIRYBEAT on") != string::npos ||
-		      row.second.find("and has a specific punishment") != string::npos) {
+		      row.second.find("and has a specific punishment") != string::npos ||
+		      row.second.find("in an unauthorized application,") != string::npos) {
 		    MutexLock ml(&m);
 		    todo.push_back(row.first);
 		    if (has_marker < 30 ||
@@ -456,8 +551,7 @@ int main(int argc, char **argv) {
     ParallelApp(files,
 		[&p, &m, &has_meta](const pair<string, string> &row) {
 		  string title, artist;
-		  if (p.GetMetadata(row.first, row.second,
-				    &title, &artist)) {
+		  if (p.GetMetadata(row.first, row.second, &title, &artist)) {
 		    MutexLock ml(&m);
 		    // printf("[%s] by [%s]\n", title.c_str(), artist.c_str());
 		    has_meta++;
@@ -471,6 +565,32 @@ int main(int argc, char **argv) {
   {
     Parser p;
     std::mutex m;
+    int has_extraction = 0;
+    vector<string> examples;
+    ParallelApp(files,
+		[&p, &m, &has_extraction, &examples](const pair<string, string> &row) {
+		  string title, artist;
+		  if (p.Extract(row.first, row.second, &title, &artist)) {
+		    MutexLock ml(&m);
+		    examples.push_back(
+			StringPrintf("[%s] by [%s] (%s)\n",
+				     title.c_str(), artist.c_str(),
+				     row.first.c_str()));
+		    has_extraction++;
+		  }
+		},
+		32);
+    printf("Total with extractions: %d\n", has_extraction);
+    fflush(stdout);
+    FILE *f = fopen("extractions.txt", "wb");
+    for (const string &s : examples)
+      fprintf(f, "%s", s.c_str());
+    fclose(f);
+  }
+    
+  {
+    Parser p;
+    std::mutex m;
     int changed = 0;
     ParallelApp(files,
 		[&p, &m, &changed](const pair<string, string> &row) {
@@ -480,24 +600,30 @@ int main(int argc, char **argv) {
 		  c = StripHeader(c);
 		  c = p.FixMetadata(c);
 		  // c = StripFooter(c);
+		  /*
+		    if (!c.empty() && c[0] == ' ') {
+		    c = c.substr(1);
+		    }
+		  */
+		  
 		  if (c != row.second) {
 		    string filename = Backslash(row.first);
 		    CHECK(Util::WriteFile(filename, c)) << filename;
 		    /*
-		    printf("Rewrite %s:\n"
-			   "[%s] to [%s]\n",
-			   filename.c_str(),
-			   row.second.c_str(), c.c_str());
+		      printf("Rewrite %s:\n"
+		      "[%s] to [%s]\n",
+		      filename.c_str(),
+		      row.second.c_str(), c.c_str());
 		    */
 		    {
 		      MutexLock ml(&m);
 		      changed++;
 		      if (changed < 10 ||
 			  (changed % 1000 == 0)) {
-			    printf("[%d] Write [%s] (%d -> %d)\n",
-				   changed,
-				   filename.c_str(),
-				   (int)row.second.size(), (int)c.size());
+			printf("[%d] Write [%s] (%d -> %d)\n",
+			       changed,
+			       filename.c_str(),
+			       (int)row.second.size(), (int)c.size());
 		      }
 		    }
 		  }

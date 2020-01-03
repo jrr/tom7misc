@@ -709,6 +709,15 @@ static const char *HEADER108 =
 "______________________________________________________\n"
 "Get Your Private, Free Email at http://www.hotmail.com\n";
 
+static const char *HEADER109 =
+  "May Jesus Bless You! Jesus is Coming!\n"
+  "Get Ready & SEEK Him in Prayer and obedience!\n";
+
+static const char *HEADER110 =
+"****************************************************************************\n"
+"Generated using Power Tab Editor by Brad Larsen - http://powertab.guitarnetwork.org\n"
+  "****************************************************************************\n";
+  
 
 static const char *LINE1 =
   "** Generated using Power Tab Editor by Brad Larsen: The Official Power Tab Web Site\n";
@@ -726,6 +735,10 @@ static const char *LINE5 =
 
 static const char *LINE6 =
   "Taken from The BassMasta -- http://www.bassmasta.net\n";
+
+static const char *LINE7 =
+  "For more free tablature visit www.directTABS.com\n";
+
 
 std::initializer_list<const char *> Headers::headers = {
   HEADER1, HEADER2, HEADER3, HEADER4, HEADER5, HEADER6, HEADER7,
@@ -745,9 +758,9 @@ std::initializer_list<const char *> Headers::headers = {
   HEADER87, HEADER88, HEADER89, HEADER90, HEADER91, HEADER92,
   HEADER93, HEADER94, HEADER95, HEADER96, HEADER97, HEADER98,
   HEADER99, HEADER100, HEADER101, HEADER102, HEADER103, HEADER104,
-  HEADER105, HEADER106, HEADER107, HEADER108,
+  HEADER105, HEADER106, HEADER107, HEADER108, HEADER109, HEADER110,
 
-  LINE1, LINE2, LINE3, LINE4, LINE5, LINE6,
+  LINE1, LINE2, LINE3, LINE4, LINE5, LINE6, LINE7,
 };
 
   
