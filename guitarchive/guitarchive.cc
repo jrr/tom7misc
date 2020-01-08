@@ -21,7 +21,8 @@
 
 using namespace std;
 
-// TODO: file ends with "Set8" or "set8"
+static constexpr bool DRY_RUN = true;
+
 // TODO: file ends with enjoy!
 
 // TODO duplicate title, artist, etc.
@@ -33,11 +34,10 @@ using namespace std;
 // TODO: Remove duplicates!
 // TODO: Remove email header
 // TODO: Remove date header
-// TODO:
-// Band - Seether
-// Song - Cigarettes
 
-// \xc2\x97 is -
+//                            As recorded by Xavier Rudd
+//                          (From the 2002 Album TO LET)
+
 
 static constexpr const char *DIRS[] = {
   "c:\\code\\electron-guitar\\tabscrape\\tabs",
@@ -283,8 +283,13 @@ struct Parser {
     do {
       re2::StringPiece tmp = cont;
       string key, value;
-      if (!RE2::Consume(&tmp, mischeader, &key, &value))
-	break;
+
+      bool ok = RE2::Consume(&tmp, mischeader, &key, &value);
+
+      ok = ok || (RE2::Consume(&tmp, knownheader, &key, &value) &&
+		  value.find(" - ") == string::npos);
+
+      if (!ok) break;
       
       key = Util::LoseWhiteR(key);
       value = Util::LoseWhiteR(value);
@@ -320,11 +325,25 @@ struct Parser {
   }
 
   bool FilterHeaders(vector<pair<string, string>> *hdrs) const {
+    std::unordered_map<string, string> already;
     vector<pair<string, string>> ret;
     ret.reserve(hdrs->size());
     bool changed = false;
     for (auto &p : *hdrs) {
+      // Skip exact duplicates.
+      auto it = already.find(p.first);
+      if (it != already.end() && it->second == p.second) {
+	changed = true;
+	continue;
+      }
+      already[p.first] = p.second;
+      
       string lkey = Util::lcase(p.first);
+      if (lkey == "content-transfer-encoding" ||
+	  lkey == "message-id") {
+	changed = true;
+	continue;
+      }
       if (lkey == "received" &&
 	  p.second.find("SMTP") != string::npos) {
 	changed = true;
@@ -375,6 +394,7 @@ struct Parser {
       } else if (lkey == "artist" || lkey == "band" ||
 		 lkey == "band name" || lkey == "group" ||
 		 lkey == "artists" || lkey == "arist" ||
+		 lkey == "band/performed by" || lkey == "autor" ||
 		 lkey == "band/artist" || lkey == "artist/band" ||
 		 lkey == "artiste" || lkey == "band / artist" ||
 		 lkey == "artist/group" ||
@@ -449,7 +469,20 @@ struct Parser {
   RE2 mischeader{
     // Allow totally blank lines.
     "\n*"
-    " *([A-Za-z0-9'/ ]+) *: *(.*)\n"};
+      // XXX add -
+    " *([-A-Za-z0-9'/ ]+) *: *(.*)\n"};
+
+  // XXX TODO
+  RE2 knownheader{
+    "\n*"
+    "("
+    "[Ss]ong|"
+    "[Tt]itle|"
+    "[Aa]lbum|"
+    "[Aa]rtist|"
+    "[Bb]y"
+    ")"
+    " *- *(.*)\n"};
   
   
   // Preferred explicit form at the beginning of the file.
@@ -648,18 +681,20 @@ bool TryStripSuffix(string_view suffix,
 }
 
 string StripFooter(const string &contents) {
-  const string_view footer =
-    "<br>\n"
-    "Guitartabs.cc &copy; 2019</pre></pre>\n"
-    "</body></html>\n"
-    "<script language=\"javascript\">\n"
-    "\twindow.print();\n"
-    "</script>"sv;
-
   string_view cont(contents);
-  if (TryStripSuffix(footer, &cont)) {
+  if (TryStripSuffix("\nset8\n"sv, &cont)) {
     return (string)cont;
   }
+  if (TryStripSuffix("\nSet8\n"sv, &cont)) {
+    return (string)cont;
+  }
+  if (TryStripSuffix("\nEnjoy!\n"sv, &cont)) {
+    return (string)cont;
+  }
+  if (TryStripSuffix("\nenjoy!\n"sv, &cont)) {
+    return (string)cont;
+  }
+  
   return contents;
 }
 
@@ -691,6 +726,21 @@ string RewriteHeader(const string &contents) {
   return contents;
 }
 
+// Perhaps temporary rewrites.
+string AdHocSubstitutions(string s) {
+  static LazyRE2 chordsof = {
+    "\nlyrics and chords of: (.+) by (.+)\n"
+  };
+  RE2::GlobalReplace(&s, *chordsof, "\nTitle: \\1\n"
+		     "Artist: \\2\n");
+
+  static LazyRE2 recordedby = {
+    "\n[ \t]*As recorded by (.+)\n"
+  };
+  RE2::GlobalReplace(&s, *recordedby, "\nArtist: \\1\n");
+  
+  return s;
+}
 
 string StripHeader(const string &contents) {
   for (const char *hdr : Headers::headers) {
@@ -747,6 +797,11 @@ bool HasNonAscii(const string &s) {
 // Bad encodings. This appears to come from when windows-1252 encoded files get
 // "converted" to UTF-8 with a sloppy process that just encodes e.g. 0x96 as the
 // unicode U+0096, which is not a legal codepoint.
+//
+// There are also cases where these bytes are left bare (0x97 on its own can be
+// replaced with -, etc.) but we can't just replace that byte because it may
+// appear in a valid utf-8 encoding (i.e. 0xC3 0x97 is the multiply sign).
+// Pretty challenging!
 string FixBadEncoding(const string &s) {
   string r = Util::Replace(s, "\xc2\x91", "'");
   r = Util::Replace(r, "\xc2\x92", "'");
@@ -760,6 +815,8 @@ string FixBadEncoding(const string &s) {
   // r = Util::Replace(r, "\\\\\" ", "\"");
   // And for the same at EOL after trailing whitespace was removed.
   // r = Util::Replace(r, "\\\\\"\n", "\"\n");
+
+  r = Util::Replace(r, "\xc2\xb4", "'");
   return r;
 }
 
@@ -853,22 +910,31 @@ int main(int argc, char **argv) {
   }
   
   {
+    Parser p;
     std::mutex m;
     int has_marker = 0;
     vector<string> todo;
     ParallelApp(files,
-		[&m, &has_marker, &todo](const pair<string, string> &row) {
-		  if (row.second.find("-PLEASE NOTE-") != string::npos ||
-		      row.second.find("scholarship, or research") != string::npos ||
-		      row.second.find("Have fun, DAIRYBEAT on") != string::npos ||
-		      row.second.find("and has a specific punishment") != string::npos ||
-		      // XXX
-		      HasNonAscii(row.second) ||
-		      row.second.find("in an unauthorized application,") != string::npos) {
+		[&p, &m, &has_marker, &todo](const pair<string, string> &row) {
+		  /*
+		  bool accept =
+		    row.second.find("-PLEASE NOTE-") != string::npos ||
+		    row.second.find("scholarship, or research") != string::npos ||
+		    row.second.find("Have fun, DAIRYBEAT on") != string::npos ||
+		    row.second.find("and has a specific punishment") != string::npos ||
+		    // XXX
+		    // HasNonAscii(row.second) ||
+		    row.second.find("Song/CD") != string::npos ||
+		    row.second.find("in an unauthorized application,") != string::npos;
+		  */
+		  string title, artist;
+		  bool accept = !p.GetMetadata(row.first, row.second, &title, &artist);
+		  
+		  if (accept) {
 		    MutexLock ml(&m);
 		    todo.push_back(row.first);
-		    if (has_marker < 30 ||
-			(has_marker % 1000 == 0)) {
+		    if (has_marker < 20 ||
+			(has_marker % 10000 == 0)) {
 		      printf("Marker? %s\n", row.first.c_str());
 		    }
 		    has_marker++;
@@ -1026,16 +1092,18 @@ int main(int argc, char **argv) {
   {
     Parser p;
     std::mutex m;
+    vector<string> previews;
     int changed = 0;
     ParallelApp(files,
-		[&p, &m, &changed](const pair<string, string> &row) {
+		[&p, &m, &previews, &changed](const pair<string, string> &row) {
 		  string c = StripOuterWhitespace(row.second);
 		  c = FixBadEncoding(c);
 		  c = StripCR(c);
+		  c = AdHocSubstitutions(c);
 		  c = StripHeader(c);
 		  c = p.FixMetadata(row.first, c);
 		  c = p.FixHeaders(c);
-		  // c = StripFooter(c);
+		  c = StripFooter(c);
 		  /*
 		    if (!c.empty() && c[0] == ' ') {
 		    c = c.substr(1);
@@ -1044,14 +1112,42 @@ int main(int argc, char **argv) {
 		  
 		  if (c != row.second) {
 		    string filename = Backslash(row.first);
-		    CHECK(Util::WriteFile(filename, c)) << filename;
-		    /*
-		      printf("Rewrite %s:\n"
-		      "[%s] to [%s]\n",
-		      filename.c_str(),
-		      row.second.c_str(), c.c_str());
-		    */
-		    {
+		    if (DRY_RUN) {
+		      // XXX show full lines!
+		      string s1 = row.second;
+		      string s2 = c;
+		      int same_begin = 0, same_end = 0;
+		      while (!s1.empty() && !s2.empty() &&
+			     s1.back() == s2.back()) {
+			s1.pop_back();
+			s2.pop_back();
+			same_end++;
+		      }
+
+		      int start = 0;
+		      while (start < (int)s1.size() &&
+			     start < (int)s2.size() &&
+			     s1[start] == s2[start]) {
+			start++;
+			same_begin++;
+		      }
+		      s1 = s1.substr(start, string::npos);
+		      s2 = s2.substr(start, string::npos);
+		      
+		      MutexLock ml(&m);
+		      previews.push_back(
+			  StringPrintf("** %s\n"
+				       "(+%d before)\n"
+				       "%s\n"
+				       "  ->\n"
+				       "%s\n"
+				       "(+%d after)\n",
+				       filename.c_str(),
+				       same_begin,
+				       s1.c_str(), s2.c_str(), same_end));
+		    } else {
+		      CHECK(Util::WriteFile(filename, c)) << filename;
+
 		      MutexLock ml(&m);
 		      changed++;
 		      if (changed < 10 ||
@@ -1065,8 +1161,16 @@ int main(int argc, char **argv) {
 		  }
 		},
 		30);
-
-    printf("Modified %d files in place.\n", changed);
+    if (DRY_RUN) {
+      FILE *f = fopen("dry-run.txt", "wb");
+      for (const string &p : previews) {
+	fprintf(f, "%s\n", p.c_str());
+      }
+      fclose(f);
+      printf("Wrote %d changes for dry run.\n", (int)previews.size());
+    } else {
+      printf("Modified %d files in place.\n", changed);
+    }
     fflush(stdout);
   }
   
