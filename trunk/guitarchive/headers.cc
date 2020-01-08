@@ -739,6 +739,11 @@ static const char *LINE6 =
 static const char *LINE7 =
   "For more free tablature visit www.directTABS.com\n";
 
+static const char *LINE8 =
+  "- File created with Instab - http://www.pconline.com/~smcarey/instab.html\n";
+static const char *LINE9 =
+  "- File created with Instab - http://www.pconline.com/~smcarey/instab.html -\n";
+
 
 std::initializer_list<const char *> Headers::headers = {
   HEADER1, HEADER2, HEADER3, HEADER4, HEADER5, HEADER6, HEADER7,
@@ -760,7 +765,7 @@ std::initializer_list<const char *> Headers::headers = {
   HEADER99, HEADER100, HEADER101, HEADER102, HEADER103, HEADER104,
   HEADER105, HEADER106, HEADER107, HEADER108, HEADER109, HEADER110,
 
-  LINE1, LINE2, LINE3, LINE4, LINE5, LINE6, LINE7,
+  LINE1, LINE2, LINE3, LINE4, LINE5, LINE6, LINE7, LINE8, LINE9,
 };
 
   
