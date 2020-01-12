@@ -18,12 +18,12 @@ enum class Rules {
   NORMAL,
 };
 
-static constexpr Rules rules = Rules::ZOMBIE;
+static constexpr Rules rules = Rules::NORMAL;
 
 static constexpr int MAX_DAMAGE = 3;
 static constexpr int EXIT_X = 4;
 static constexpr int EXIT_Y = 0;
-static constexpr int TARGET_XP = 59;
+static constexpr int TARGET_XP = 50;
 
 static constexpr bool PERFECT_KILLS = true; // true; // false;
 
@@ -66,7 +66,7 @@ struct State {
     PETAL,
     FLOWER,
 
-    ZOMBIE,
+    DRACULA,
   };
   
   Tile tiles[WIDTH * HEIGHT];
@@ -155,7 +155,7 @@ struct State {
       damage++;
       break;
 
-    case ZOMBIE:
+    case DRACULA:
       if (damage == MAX_DAMAGE) {
 	// is this right?
 	if (rules == Rules::ZOMBIE) damage = 0;
@@ -265,7 +265,7 @@ struct State {
 	  case SMALL: ret += "o"; break;
 	  case PETAL: ret += "*"; break;
 	  case FLOWER: ret += "F"; break;
-	  case ZOMBIE: ret += "Z"; break;
+	  case DRACULA: ret += "D"; break;
 	  case WALL: ret += "#"; break;
 	  case SKING: ret += "$"; break;
 	  case SOLDIER: ret += "S"; break;
@@ -351,7 +351,7 @@ struct State {
 	    reachable_xp++;
 	    break;
 
-	  case ZOMBIE:
+	  case DRACULA:
 	    reachable_xp += 5;
 	    reachable_ents++;
 	    break;
@@ -460,16 +460,17 @@ struct State {
     /*
 
     Tile init[] = {
-      SPIDER, SPIDER, HEAL, EMPTY, EMPTY, ZOMBIE, EMPTY, HEAL, EMPTY,
+      SPIDER, SPIDER, HEAL, EMPTY, EMPTY, DRACULA, EMPTY, HEAL, EMPTY,
       SPIDER, EMPTY, EMPTY, SPIDER, EMPTY, PETAL, EMPTY, EMPTY, SPIDER,
-      EMPTY, WALL, ZOMBIE, SPIDER, SPIDER, FLOWER, EMPTY, WALL, SPIDER,
+      EMPTY, WALL, DRACULA, SPIDER, SPIDER, FLOWER, EMPTY, WALL, SPIDER,
       HEAL, SPIDER, SPIDER, EMPTY, WALL, PETAL, EMPTY, EMPTY, SPIDER,
-      ZOMBIE, EMPTY, SPIDER, EMPTY, WALL, EMPTY, EMPTY, EMPTY, HEAL,
+      DRACULA, EMPTY, SPIDER, EMPTY, WALL, EMPTY, EMPTY, EMPTY, HEAL,
       SPIDER, PETAL, FLOWER, EMPTY, EMPTY, HEAL, EMPTY, EMPTY, EMPTY,
       SPIDER, SPIDER, PETAL, EMPTY, EMPTY, EMPTY, SPIDER, SPIDER, SPIDER,
     };
     */    
 
+    /*
     Tile init[] = {
       EMPTY, EMPTY, SPIDER, EMPTY, EMPTY, EMPTY, SPIDER, SPIDER, EMPTY,
       SMALL, SPIDER, FLOWER, PETAL, SPIDER, EMPTY, EMPTY, SPIDER, EMPTY,
@@ -479,7 +480,24 @@ struct State {
       SMALL, PETAL, FLOWER, EMPTY, SPIDER, SPIDER, EMPTY, FLOWER, SPIDER,
       SPIDER, SPIDER, PETAL, EMPTY, EMPTY, EMPTY, EMPTY, PETAL, SPIDER,
     };
+    */
 
+    auto _ = EMPTY;
+    auto S = SPIDER;
+    auto H = HEAL;
+    auto W = WALL;
+    auto O = SMALL;
+    auto D = DRACULA;
+    Tile init[] = {
+      S, S, H, _, _, O, S, _, S,
+      S, _, _, S, _, D, S, _, H,
+      H, W, _, S, S, _, _, W, D,
+      D, _, _, _, W, _, _, S, O,
+      S, _, _, _, W, _, _, _, S,
+      S, _, _, O, O, S, _, H, _,
+      S, _, H, _, _, _, S, S, S,
+    };
+    
     State start;
     for (int i = 0; i < WIDTH * HEIGHT; i++) {
       start.tiles[i] = init[i];
