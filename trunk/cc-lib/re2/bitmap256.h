@@ -11,14 +11,19 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "util/util.h"
-#include "util/logging.h"
+#include "re2/util/util.h"
+#include "re2/util/logging.h"
 
 namespace re2 {
 
 class Bitmap256 {
  public:
   Bitmap256() {
+    Clear();
+  }
+
+  // Clears all of the bits.
+  void Clear() {
     memset(words_, 0, sizeof words_);
   }
 
