@@ -41,8 +41,8 @@
 
 #include <stdint.h>
 
-#include "util/util.h"
-#include "util/utf.h"
+#include "re2/util/util.h"
+#include "re2/util/utf.h"
 
 namespace re2 {
 

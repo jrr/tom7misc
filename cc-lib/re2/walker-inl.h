@@ -15,7 +15,7 @@
 
 #include <stack>
 
-#include "util/logging.h"
+#include "re2/util/logging.h"
 #include "re2/regexp.h"
 
 namespace re2 {
@@ -150,7 +150,7 @@ template<typename T> void Regexp::Walker<T>::Reset() {
   if (stack_ && stack_->size() > 0) {
     LOG(DFATAL) << "Stack not empty.";
     while (stack_->size() > 0) {
-      delete stack_->top().child_args;
+      delete[] stack_->top().child_args;
       stack_->pop();
     }
   }

@@ -19,6 +19,7 @@ struct EditDistance {
 
  private:
   EditDistance() = delete;
+  EditDistance(const EditDistance &) = delete;
 };
 
 #endif

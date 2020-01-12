@@ -15,7 +15,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "util/utf.h"
+#include "re2/util/utf.h"
 
 namespace re2 {
 

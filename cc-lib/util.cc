@@ -1120,6 +1120,9 @@ string Util::Replace(string src,
 
   if (findme.length() < 1) return src;
 
+  // PERF: Do this in one pass (copying) instead of repeatedly calling replace,
+  // which does n^2 work.
+  
   /* idx represents the position in src which, for all chars greater
      than it, there begins no match of findme */
   for (;;) {

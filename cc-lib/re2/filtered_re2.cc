@@ -7,8 +7,8 @@
 #include <stddef.h>
 #include <string>
 
-#include "util/util.h"
-#include "util/logging.h"
+#include "re2/util/util.h"
+#include "re2/util/logging.h"
 #include "re2/prefilter.h"
 #include "re2/prefilter_tree.h"
 
@@ -49,7 +49,7 @@ RE2::ErrorCode FilteredRE2::Add(const StringPiece& pattern,
   return code;
 }
 
-void FilteredRE2::Compile(std::vector<string>* atoms) {
+void FilteredRE2::Compile(std::vector<std::string>* atoms) {
   if (compiled_) {
     LOG(ERROR) << "Compile called already.";
     return;
