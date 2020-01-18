@@ -80,6 +80,7 @@ struct Database {
 
   struct Probe {
     int id = 0;
+    string name;
     string desc;
     Probe() {}
   };
@@ -106,16 +107,18 @@ struct Database {
 
     // Just read all the probes into a local map.
     Query q = conn.query(
-	"select id, code, description from probe order by id");
+	"select id, code, name, description from probe order by id");
     StoreQueryResult res = q.store();
     CHECK(res) << "Probe setup query failed";
     for (size_t i = 0; i < res.num_rows(); i++) {
       const int id = res[i]["id"];
       const char *code = res[i]["code"];
+      const char *name = res[i]["name"];
       const char *desc = res[i]["description"];
       probes[code].id = id;
+      probes[code].name = name;
       probes[code].desc = desc;
-      printf("%d. %s: %s\n", id, code, desc);
+      printf("%d. %s: %s (%s)\n", id, code, name, desc);
     }
   }
 
@@ -123,7 +126,7 @@ struct Database {
   string WriteTemp(const string &code, int microdegs_c) {
     auto it = probes.find(code);
     if (it == probes.end()) {
-      printf("Unknown probe %s!\n", code.c_str());
+      // printf("Unknown probe %s!\n", code.c_str());
       return "???";
     }
 
@@ -135,7 +138,7 @@ struct Database {
 			     now, id, microdegs_c);
     Query q = conn.query(qs.c_str());
     (void)q.store();
-    return it->second.desc;
+    return it->second.name;
   }
 };
 
