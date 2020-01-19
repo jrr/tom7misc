@@ -717,7 +717,29 @@ static const char *HEADER110 =
 "****************************************************************************\n"
 "Generated using Power Tab Editor by Brad Larsen - http://powertab.guitarnetwork.org\n"
   "****************************************************************************\n";
-  
+
+static const char *HEADER111 =
+"    [The following text is in the \"iso-8859-1\" character set]\n"
+"    [Your display is set for the \"US-ASCII\" character set]\n"
+  "    [Some characters may be displayed incorrectly]\n";
+
+static const char *HEADER112 =
+  "\n"
+  "#-----------------------------------------------------------------------------#\n"
+  "#-----------------------------------------------------------------------------#\n"
+  "\n";
+
+static const char *HEADER113 =
+  "#----------------------------------------------------------------#\n"
+  "#File created with Instab//www.pconline.com/~smcarey/instab.html-#\n"
+  "#----------------------------------------------------------------#\n";
+
+static const char *HEADER114 =
+"#-----------------------------------------------------------------------#\n"
+"#File created with Instab - http://www.pconline.com/~smcarey/instab.html#\n"
+  "#-----------------------------------------------------------------------#\n";
+
+
 
 static const char *LINE1 =
   "** Generated using Power Tab Editor by Brad Larsen: The Official Power Tab Web Site\n";
@@ -743,7 +765,26 @@ static const char *LINE8 =
   "- File created with Instab - http://www.pconline.com/~smcarey/instab.html\n";
 static const char *LINE9 =
   "- File created with Instab - http://www.pconline.com/~smcarey/instab.html -\n";
+static const char *LINE10 =
+  "BASSTABZ.com MAIN CONTENT PAGE\n";
 
+static const char *LINE11 =
+  "Created with TablEdit http://www.tabledit.com/\n";
+
+static const char *LINE12 =
+  "#   If you like this tab, please rate it above.  Thank you.\n";
+  
+static const char *LINE13 =
+  "#-- File created with Instab -\n";
+static const char *LINE14 =
+  "http://www.pconline.com/~smcarey/instab.html --#\n";
+static const char *LINE15 =
+  "#-- File created with Instab - http://www.pconline.com/~smcarey/instab.html -#\n";
+static const char *LINE16 =
+  "# If you like this tab, please rate it above. Thank you.\n";
+
+static const char *LINE17 =
+  "File created with Instab\n";
 
 std::initializer_list<const char *> Headers::headers = {
   HEADER1, HEADER2, HEADER3, HEADER4, HEADER5, HEADER6, HEADER7,
@@ -764,8 +805,11 @@ std::initializer_list<const char *> Headers::headers = {
   HEADER93, HEADER94, HEADER95, HEADER96, HEADER97, HEADER98,
   HEADER99, HEADER100, HEADER101, HEADER102, HEADER103, HEADER104,
   HEADER105, HEADER106, HEADER107, HEADER108, HEADER109, HEADER110,
-
+  HEADER111, HEADER112, HEADER113, HEADER114,
+  
   LINE1, LINE2, LINE3, LINE4, LINE5, LINE6, LINE7, LINE8, LINE9,
+  LINE10, LINE11, LINE12, LINE13, LINE14, LINE15, LINE16,
+  LINE17,
 };
 
   

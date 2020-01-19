@@ -21,29 +21,47 @@
 
 using namespace std;
 
-static constexpr bool DRY_RUN = true;
+static constexpr bool DRY_RUN = false;
 
-// TODO: file ends with enjoy!
-
-// TODO duplicate title, artist, etc.
-// Often these have small spelling or capitalization differences, too.
+// Can improve duplicate artist/title/album heuristics,
+// or perhaps just force taking the first one now
+// files that have two copies of the same tab in 'em
 
 // bytes 3 Jan 2020: 1829958389
 // bytes 4 Jan 2020: 1824308619
+// bytes 8 Jan 2020: 1823968001
+// bytes 10 Jan 2020: 1823938080
+// bytes 11 Jan 2020: 1823238643
+// bytes 12 Jan 2020: 1823206228
+// bytes 18 Jan 2020: 1822694213
 
-// TODO: Remove duplicates!
-// TODO: Remove email header
+// metadata 8 Jan 2020: 125276
+// metadata 10 Jan 2020: 129047
+// metadata 11 Jan 2020: 129738
+// metadata 12 Jan 2020: 130880
+// metadata 18 Jan 2020: 134800
+
+// TODO: Remove duplicate files!
 // TODO: Remove date header
+// TODO: remove various boring email headers
+// TODO: Title or Artist field matches "from the album ..."
 
-//                            As recorded by Xavier Rudd
-//                          (From the 2002 Album TO LET)
-
+// Title is just ================
+// (seems to be some common corruption?)
 
 static constexpr const char *DIRS[] = {
   "c:\\code\\electron-guitar\\tabscrape\\tabs",
   "d:\\temp\\olga",
   "d:\\temp\\tabs",
 };
+
+static RE2::Options MultiLine() {
+  RE2::Options opt;
+  opt.set_posix_syntax(true);
+  opt.set_one_line(false);
+  return opt;
+}
+
 
 struct Parser {
   bool GetMetadata(const string &filename,
@@ -83,16 +101,11 @@ struct Parser {
     return contents;
   }
 
-  static RE2::Options MultiLine() {
-    RE2::Options opt;
-    opt.set_posix_syntax(true);
-    opt.set_one_line(false);
-    return opt;
-  }
-
-  bool ExtractFile(const string &filename, string *title, string *artist) const {
+  bool ExtractFile(const string &filename,
+		   string *title, string *artist) const {
     // Note: Artist, then title.
-    if (!RE2::FullMatch(filename, tabfilename, artist, title))
+    if (!RE2::FullMatch(filename, tabfilename, artist, title) &&
+	!RE2::FullMatch(filename, olgafilename, artist, title))
       return false;
     if (*artist == "misc_unsigned_bands" || *artist == "misc_your_songs" ||
 	*artist == "unknown" || *artist == "various_artists") {
@@ -122,19 +135,10 @@ struct Parser {
       if (ltitle == "band name" || ltitle == "song name") return false;
       if (lartist == "band name" || lartist == "song name") return false;      
 
-      // Require corroboration with filenames. Both artist - title and title - artist
-      // appear in real data, alas.
+      // Require corroboration with filenames.
+      // Both artist - title and title - artist appear in real data, alas.
       string ftitle, fartist;
-      if (ExtractFile(filename, &ftitle, &fartist)) {
-	auto ReplaceUnder = [](string s) {
-	    for (char &c : s) {
-	      if (c == '_') c = ' ';
-	    }
-	    return s;
-	  };
-	ftitle = ReplaceUnder(Util::lcase(ftitle));
-	fartist = ReplaceUnder(Util::lcase(fartist));
-	
+      if (ExtractLFile(filename, &ftitle, &fartist)) {
 	int same_loss = EditDistance::Distance(ftitle, ltitle) +
 	  EditDistance::Distance(fartist, lartist);
 	int diff_loss = EditDistance::Distance(ftitle, lartist) +
@@ -154,7 +158,8 @@ struct Parser {
   bool Extract2(const string &filename, string *contents,
 		string *title, string *artist) const {
     re2::StringPiece cont(*contents);
-    if (RE2::Consume(&cont, byline, title, artist)) {
+    if (RE2::Consume(&cont, byline, title, artist) ||
+	RE2::Consume(&cont, quotedmultiby, title, artist)) {
       *title = Util::LoseWhiteR(*title);
       *artist = Util::LoseWhiteR(*artist);
 
@@ -248,15 +253,7 @@ struct Parser {
       // Require corroboration with filenames.
       // Here since we have "title by artist", it should really match that way.
       string ftitle, fartist;
-      if (ExtractFile(filename, &ftitle, &fartist)) {
-	auto ReplaceUnder = [](string s) {
-	    for (char &c : s) {
-	      if (c == '_') c = ' ';
-	    }
-	    return s;
-	  };
-	ftitle = ReplaceUnder(Util::lcase(ftitle));
-	fartist = ReplaceUnder(Util::lcase(fartist));
+      if (ExtractLFile(filename, &ftitle, &fartist)) {
 	
 	int same_loss = EditDistance::Distance(ftitle, ltitle) +
 	  EditDistance::Distance(fartist, lartist);
@@ -275,6 +272,22 @@ struct Parser {
     return false;
   }
 
+  bool ExtractLFile(const string &filename,
+		    string *ftitle, string *fartist) const {
+    if (ExtractFile(filename, ftitle, fartist)) {
+      auto ReplaceUnder = [](string s) {
+	  for (char &c : s) {
+	    if (c == '_') c = ' ';
+	  }
+	  return s;
+	};
+      *ftitle = ReplaceUnder(Util::lcase(*ftitle));
+      *fartist = ReplaceUnder(Util::lcase(*fartist));
+      return true;
+    }
+    return false;
+  }
+  
   // Extract Key: Value headers starting the file.
   vector<pair<string, string>> ExtractHeaders(string *contents) const {
     vector<pair<string, string>> hdrs;
@@ -284,8 +297,26 @@ struct Parser {
       re2::StringPiece tmp = cont;
       string key, value;
 
-      bool ok = RE2::Consume(&tmp, mischeader, &key, &value);
+      // Note: Be careful about cases where an earlier RE matches and so
+      // a later more-specific one cannot.
+      bool ok = RE2::Consume(&tmp, splitheader, &key, &value);
+      ok = ok || RE2::Consume(&tmp, mischeader, &key, &value);
 
+      if (!ok) {
+	if (RE2::Consume(&tmp, standardtuning)) {
+	  key = "Tuning";
+	  value = "Standard";
+	  ok = true;
+	}
+      }
+      
+      if (!ok) {
+	if (RE2::Consume(&tmp, tabbedby, &value)) {
+	  key = "Tabbed by";
+	  ok = true;
+	}
+      }
+      
       ok = ok || (RE2::Consume(&tmp, knownheader, &key, &value) &&
 		  value.find(" - ") == string::npos);
 
@@ -300,19 +331,21 @@ struct Parser {
       if (dashes > 6 ||
 	  value.empty() ||
 	  lkey == "http" ||
-	  (lkey.size() == 1 && lkey[0] >= 'a' && lkey[0] < 'g') || // note/chord names
+	  (lkey.size() == 1 &&
+	   lkey[0] >= 'a' && lkey[0] < 'g') || // note/chord names
 	  lkey == "am" ||
 	  lkey == "00" || lkey == "0" ||
 	  lkey.find("riff") == 0 ||
-	  lkey.find("chords") == 0 ||
+	  (lkey.find("chords") == 0 && lkey != "chords by") ||
 	  lkey.find("chorus") == 0 ||
 	  lkey.find("intro") == 0 ||
+	  lkey.find("define") == 0 ||	  
 	  lkey.find("guitar") == 0 ||
 	  lkey.find("verse") == 0 ||
 	  lkey.find("note") == 0) {
-	// These are not part of the headers, but rather introduce the content.
-	// Stop processing, and don't commit the 'consume' since it deletes leading
-	// whitespace.
+	// These are not part of the headers, but rather introduce the
+	// content. Stop processing, and don't commit the 'consume'
+	// since it deletes leading whitespace.
 	break;
       }
 
@@ -332,15 +365,27 @@ struct Parser {
     for (auto &p : *hdrs) {
       // Skip exact duplicates.
       auto it = already.find(p.first);
-      if (it != already.end() && it->second == p.second) {
-	changed = true;
-	continue;
+      if (it != already.end()) {
+	const string &prev = it->second;
+	const string &now = p.second;
+
+	// Skip exact duplicates.
+	if (prev == now) {
+	  changed = true;
+	  continue;
+	}
       }
       already[p.first] = p.second;
       
       string lkey = Util::lcase(p.first);
       if (lkey == "content-transfer-encoding" ||
-	  lkey == "message-id") {
+	  lkey == "message-id" ||
+	  lkey == "mime-version" ||
+	  lkey == "content-length" ||
+	  lkey == "content-type" ||
+	  lkey == "x-newsgroup-to-support" ||
+	  lkey == "x-mailer" ||
+	  lkey == "x-pop3-rcpt") {
 	changed = true;
 	continue;
       }
@@ -356,6 +401,100 @@ struct Parser {
     return changed;
   }
 
+  void DeduplicateHeaders(const string &filename,
+			  vector<pair<string, string>> *hdrs) const {
+    // Keys.
+    std::vector<string> original_order;
+    std::unordered_map<string, vector<string>> collated;
+    for (const auto &p : *hdrs) {
+      vector<string> *vals = &collated[p.first];
+      // First time we see it, add to original order.
+      if (vals->empty())
+	original_order.push_back(p.first);
+      vals->push_back(p.second);
+    }
+
+    // Larger scores better.
+    auto ScoreString = [](const string &s) -> double {
+	bool has_lcase = false, has_ucase = false;
+	bool has_uscore = false;
+	int parens = 0;
+	int good_punc = 0;
+	for (char c : s) {
+	  if (c >= 'a' && c <= 'z') has_lcase = true;
+	  if (c >= 'A' && c <= 'Z') has_ucase = true;
+	  if (c == '_') has_uscore = true;
+	  if (c == '(' || c == ')') parens++;
+	  if (c == '\'' || c == ',' || c == '-') good_punc++;
+	}
+
+	double by_score = s.find(" by ") != string::npos ? -10.0 : 0.0;
+	double from_score = s.find(" from ") != string::npos ? -10.0 : 0.0;
+	double http_score = s.find("http:") != string::npos ? -40.0 : 0.0;
+	double paren_score = -parens;
+
+	double punc_score = (good_punc > 0) ? 2.0 : 0.0;
+	
+	double case_score = (has_lcase && has_ucase) ? 10.0 : 0.0;
+	double underscore_score = has_uscore ? -5.0 : 0.0;
+	return by_score + from_score + paren_score + http_score +
+	  punc_score +
+	  case_score + underscore_score;
+      };
+
+    auto StripParenthetical = [](string *s) {
+	string rest;
+	if (RE2::FullMatch(*s, "(.*)\\([^()]+\\)", &rest)) {
+	  *s = rest;
+	}
+      };
+    
+    // Try to make sure that there is just one of these key fields.
+    for (const string &key : original_order) {
+      if (key == "Title" || key == "Artist" || key == "Album") {
+	vector<string> *vals = &collated[key];
+	if (vals->size() > 1) {
+	  string v1 = (*vals)[0];
+	  string v2 = (*vals)[1];
+
+	  string lv1 = Util::lcase(v1);
+	  string lv2 = Util::lcase(v2);
+	  static const char *strip_chars = "[-,_'\\.\\\"]";
+	  RE2::GlobalReplace(&lv1, strip_chars, "");
+	  RE2::GlobalReplace(&lv2, strip_chars, "");
+	  StripParenthetical(&lv1);
+	  StripParenthetical(&lv2);
+
+	  
+	  int loss = EditDistance::Distance(lv1, lv2);
+	  int mlen = std::min(lv1.size(), lv2.size());
+	  if (loss <= (int)(mlen / 3)) {
+	    // They are very similar, so pick the one that
+	    // we think looks better.
+	    double s1 = ScoreString(v1);
+	    double s2 = ScoreString(v2);
+
+	    // XXX this only reconciles the first two...
+	    vector<string> new_vals;
+	    if (s1 >= s2) new_vals.push_back(v1);
+	    else new_vals.push_back(v2);
+	    for (int i = 2; i < (int)vals->size(); i++)
+	      new_vals.push_back((*vals)[i]);
+	    vals->swap(new_vals);
+	  }
+	}
+      }
+    }
+    
+    vector<pair<string, string>> ret;
+    for (const string &key : original_order) {
+      for (const string &value : collated[key]) {
+	ret.emplace_back(key, value);
+      }
+    }
+    ret.swap(*hdrs);
+  }
+  
   // Puts the headers in the canonical Title/Artist/Album order if possible,
   // but otherwise leaves them intact. Must be exactly capital-t Title, etc.
   void SortHeaders(vector<pair<string, string>> *hdrs) const {
@@ -380,7 +519,28 @@ struct Parser {
 		     });
   }
 
-  void NormalizeHeaders(vector<pair<string, string>> *hdrs) const {
+  RE2 cleanvalue1{"<(.+)>"};
+  RE2 cleanvalue2{"\"([^\"]+)\""};
+  RE2 cleanvalue3{"'(.+)'"};
+  RE2 cleanvalue4{"(.+),"};
+  
+  void NormalizeHeaders(const string &filename,
+			vector<pair<string, string>> *hdrs) const {
+    vector<pair<string, string>> addme;
+    auto Clean = [this](const string &v) {
+	string ret;
+	if (RE2::FullMatch(v, cleanvalue1, &ret))
+	  return ret;
+	if (RE2::FullMatch(v, cleanvalue2, &ret))
+	  return ret;
+	if (RE2::FullMatch(v, cleanvalue3, &ret))
+	  return ret;
+	if (RE2::FullMatch(v, cleanvalue4, &ret))
+	  return ret;
+
+	return v;
+      };
+
     for (pair<string, string> &p : *hdrs) {
       const string lkey = Util::lcase(p.first);
       if (lkey == "title" || lkey == "song" || lkey == "songtitle" ||
@@ -388,37 +548,70 @@ struct Parser {
 	  lkey == "itle" || lkey == "track name" || lkey == "song tittle" ||
 	  lkey == "track title" || lkey == "tilte" || lkey == "titel" ||
 	  lkey == "titre" || lkey == "song title" || lkey == "song name" ||
-	  lkey == "tittle" || lkey == "titulo"
+	  lkey == "tittle" || lkey == "titulo" || lkey == "-title"
 	  ) {
 	p.first = "Title";
+	p.second = Clean(p.second);
+
+	string cleaned, album;
+	if (RE2::FullMatch(p.second, "(.+)[ \t]+from +the +album[ \t]+(.+)",
+			   &cleaned, &album)) {
+	  addme.emplace_back("Album", album);
+	  p.second = cleaned;
+	}
+
       } else if (lkey == "artist" || lkey == "band" ||
 		 lkey == "band name" || lkey == "group" ||
 		 lkey == "artists" || lkey == "arist" ||
 		 lkey == "band/performed by" || lkey == "autor" ||
 		 lkey == "band/artist" || lkey == "artist/band" ||
 		 lkey == "artiste" || lkey == "band / artist" ||
-		 lkey == "artist/group" ||
+		 lkey == "artist/group" || lkey == "aritst" ||
 		 lkey == "artist name" || lkey == "artis" ||
 		 lkey == "song artist" || lkey == "auther/artist" ||
 		 lkey == "author/band" || lkey == "artista" ||
 		 lkey == "artisit" || lkey == "artsit" ||
 		 lkey == "artsist" || lkey == "autore" ||
 		 lkey == "banda" || lkey == "atrist" ||
+		 lkey == "band/singer" || lkey == "original artist" ||
 		 lkey == "artiest" || lkey == "groupe" ||
 		 lkey == "rtist" || lkey =="artist/ band") {
 	p.first = "Artist";
+	p.second = Clean(p.second);
+
+	string cleaned, album;
+	if (RE2::FullMatch(p.second, "(.+)[ \t]+from +the +album[ \t]+(.+)",
+			   &cleaned, &album)) {
+	  addme.emplace_back("Album", album);
+	  p.second = cleaned;
+	}
+
       } else if (lkey == "album" || lkey == "albm" ||
 		 lkey == "ablum" || lkey == "albumn" ||
 		 lkey == "alblum" || lkey == "albulm" ||
 		 lkey == "cd" || lkey == "record" ||
 		 lkey == "album name" || lkey == "allbum" ||
-		 lkey == "album/ep" ||
+		 lkey == "album/ep" || lkey == "-album" ||
 		 lkey == "taken from the album" ||
 		 lkey == "from the album" ||
+
+		 // Release includes years.
+		 // Taken from includes stuff like http://youtube...
+		 // lkey == "release" || lkey == "taken from" ||
+		 
 		 lkey == "album title" || lkey == "from album") {
 	p.first = "Album";
+	p.second = Clean(p.second);
+
+	string cleaned, year;
+	if (RE2::FullMatch(p.second, "(.+)[ \t]+\\(((?:19|20)[0-9][0-9])\\)",
+			   &cleaned, &year)) {
+	  addme.emplace_back("Year", year);
+	  p.second = cleaned;
+	}
       } else if (lkey == "tuning" || lkey == "tunning" ||
 		 lkey == "tuneing" || lkey == "tuned" ||
+		 lkey == "tunnig" || lkey == "tunig" ||
 		 lkey == "tunging" || lkey == "tune") {
 	p.first = "Tuning";
       } else if (lkey == "capo") {
@@ -427,8 +620,10 @@ struct Parser {
 		 lkey == "tabed by" || lkey == "tabber" ||
 		 lkey == "taber" || lkey == "tabbe by" ||
 		 lkey == "tab by" || lkey == "tabs by" ||
+		 lkey == "tabledited by" ||
 		 lkey == "tab author" || lkey == "tabbed out by" ||
-		 lkey == "transcribe by" ||
+		 lkey == "transcribe by" || lkey == "original tab by" ||
+		 lkey == "tabbeb by" || lkey == "transcibed by" ||
 		 lkey == "transcribed by" || lkey == "transcriber") {
 	p.first = "Tabbed by";
       } else if (lkey == "email" || lkey == "e-mail" || lkey == "mail" ||
@@ -443,21 +638,62 @@ struct Parser {
 	p.first = "Key";
       } else if (lkey == "year") {
 	p.first = "Year";
+      } else if (lkey == "by" ||
+		 lkey == "written by" ||
+		 lkey == "performed by" ||
+		 lkey == "composer") {
+	// These need corroboration
+	string ftitle, fartist;
+	if (ExtractLFile(filename, &ftitle, &fartist)) {
+	  string lvalue = Util::lcase(p.second);
+	  int loss = EditDistance::Distance(lvalue, fartist);
+	  if (loss <= (int)(lvalue.size() / 3)) {
+	    p.first = "Artist";
+	  }
+	}
+      } else if (lkey == "tab") {
+	string artist, title;
+	// Note: just finding the word "by" picks up a lot of
+	// stray stuff.
+	if (RE2::FullMatch(p.second, " *(.+) +[Bb][Yy] +(.+)",
+			   &title, &artist)) {
+	  addme.emplace_back("Artist", artist);
+	  p.first = "Title";
+	  p.second = title;
+	} else {
+	  // p.first = "Tab";
+	}
       } else if (lkey == "subject") {
-	p.first = "Subject";
+	string artist, title;
+	if (RE2::FullMatch(p.second,
+			   " *(?:[Bb]?[Tt][Aa][Bb]|[Cc][Rr][Dd]):"
+			   " *(.+) +[Bb][Yy] +(.+)",
+			   &title, &artist)) {
+	  addme.emplace_back("Artist", artist);
+	  p.first = "Title";
+	  p.second = title;
+	} else {
+	  p.first = "Subject";
+	}
       }
       p.second = Util::losewhitel(p.second);
       p.second = Util::LoseWhiteR(p.second);
     }
+    
+    for (const auto &p : addme) {
+      hdrs->push_back(p);
+    }
   }
   
-  string FixHeaders(string contents) const {
+  string FixHeaders(const string &filename,
+		    string contents) const {
     string out;
     out.reserve(contents.size());
 
     vector<pair<string, string>> hdrs = ExtractHeaders(&contents);
     FilterHeaders(&hdrs);
-    NormalizeHeaders(&hdrs);
+    NormalizeHeaders(filename, &hdrs);
+    DeduplicateHeaders(filename, &hdrs);
     SortHeaders(&hdrs);
     for (const auto &p : hdrs) {
       out += StringPrintf("%s: %s\n", p.first.c_str(), p.second.c_str());
@@ -465,24 +701,61 @@ struct Parser {
     out += contents;
     return out;
   }
+
+# define HEADER_BLANKLINES "(?: *[-=*#]*\n)*"
   
   RE2 mischeader{
     // Allow totally blank lines.
+    // HEADER_BLANKLINES
     "\n*"
-      // XXX add -
     " *([-A-Za-z0-9'/ ]+) *: *(.*)\n"};
 
-  // XXX TODO
+  // Commonly spills.
+  RE2 splitheader{"\n*"
+		  // Don't care about preserving the two lines here,
+		  // since we discard this header anyway.
+                  "(Received): ((?:from|by) .+)\n"
+		  "[ \t]+.+\n"};
+  /*TODO ??
+  "Received: from animal-farm.nevada.edu by redrock.nevada.edu (5.65c/M1.4)\n"
+"	with SMTP id <AA22995>; Mon, 12 Apr 1993 10:39:03 -0700\n"
+"Received: from madrone.eecs.ucdavis.edu by animal-farm.nevada.edu id <AA03540@animal-farm.nevada.edu>; Mon, 12 Apr 1993 10:39:00 -0700\n"
+"Received: by madrone.eecs.ucdavis.edu (5.57/Ultrix3.0-C/eecs 1.1)\n"
+"	id AA21762; Mon, 12 Apr 93 10:38:58 -0700\n"
+  */
+
+  RE2 standardtuning{HEADER_BLANKLINES
+		     "(?i)[ \t]*standard +tuning\n"};
+
+  RE2 tabbedby{HEADER_BLANKLINES
+	       "(?i)[ \t]*tabbed +by +(.+)\n"};
+  
   RE2 knownheader{
-    "\n*"
-    "("
+    // "[*]*\n*"
+    HEADER_BLANKLINES
+    "(?i)" // case insensitive
+    "[ \t]*("
     "[Ss]ong|"
     "[Tt]itle|"
     "[Aa]lbum|"
     "[Aa]rtist|"
-    "[Bb]y"
+    "[Bb]and|"
+    "[Bb]y|"
+    "[Nn]ote|"
+    "[Dd]ate|"
+    "[Ff]rom|"
+    "[Cc]apo|"
+    "[Ss]ubmitted +[Bb]y|"
+    "[Tt]abbed|"
+    "[Yy]ear|"
+    "[Ww]ritten +[Bb]y|"
+    "[Tt]ab|"
+    "[Ss]ubject|"
+    "[Tt]uning|"
+    "[Tt]abbed +[Bb]y|"
+    "[Ee]-?[Mm]ail"
     ")"
-    " *- *(.*)\n"};
+    " *[-:=]+ *(.*)\n"};
   
   
   // Preferred explicit form at the beginning of the file.
@@ -501,15 +774,25 @@ struct Parser {
 		   "------------(-*)\n"
 		   "[ \t]*([A-Za-z0-9].*)[ \t]* - [ \t]*([A-Za-z0-9].*)\n"
 		   "------------(-*)\n", MultiLine()};
-  RE2 byline{"^[ \t]*([A-Za-z0-9].*)[ \t]+[Bb]y[ \t]+([A-Za-z0-9].*)\n", MultiLine()};
-  RE2 dashline{"^[ \t]*([A-Za-z0-9].*)[ \t]+-[ \t]+([A-Za-z0-9].*)\n", MultiLine()};
-	     
+  RE2 byline{"^[ \t]*([\"']?[A-Za-z0-9].*[\"']?)[ \t]+"
+	     "[Bb]y[ \t]+([A-Za-z0-9].*)\n",
+	     MultiLine()};
+  RE2 dashline{"^[ \t]*([A-Za-z0-9].*)[ \t]+-[ \t]+([A-Za-z0-9].*)\n",
+	       MultiLine()};
+  RE2 quotedmultiby{"^[ \t]*[\"']([^\"]+)[\"']\n"
+		    "[ \t]*[Bb][Yy]\n"
+		    "[ \t]*([A-Za-z0-9].*)\n", MultiLine()};
   
   RE2 remove_ver{"(?:_ver[0-9]+)?$"};
-  // TODO: Support OLGA dir as well
-  RE2 tabfilename{"d:\\\\temp\\\\tabs[/\\\\].[/\\\\]([^/\\\\]*)[/\\\\]([^/\\\\]*)"
-		  "_(?:b?tab|crd|lyr)"
-		  ".txt"};
+
+  // for "tabs" directory
+  RE2 tabfilename{
+    "d:\\\\temp\\\\tabs[/\\\\].[/\\\\]([^/\\\\]*)[/\\\\]([^/\\\\]*)"
+    "_(?:b?tab|crd|lyr)"
+    ".txt"};
+  RE2 olgafilename{
+    "d:\\\\temp\\\\olga[/\\\\].[/\\\\]([^/\\\\]+)[/\\\\]([^/\\\\]+)"
+    "\\.[a-z]+"};
 };
 
 
@@ -728,18 +1011,75 @@ string RewriteHeader(const string &contents) {
 
 // Perhaps temporary rewrites.
 string AdHocSubstitutions(string s) {
+  /*
   static LazyRE2 chordsof = {
     "\nlyrics and chords of: (.+) by (.+)\n"
   };
   RE2::GlobalReplace(&s, *chordsof, "\nTitle: \\1\n"
 		     "Artist: \\2\n");
+  */
 
+  /*
+  re2::StringPiece cont(s);
+  if (RE2::Consume(&cont, "The Black Crowes\n"))
+    s = (string)"Artist: The Black Crowes\n" + cont.ToString();
+  */
+
+    
+  /*
+  string rest;
+  re2::StringPiece cont(s);
+  if (RE2::Consume(&cont, "#-------------------------+#\n"))
+    s = cont.ToString();
+  */
+  
+  /*
   static LazyRE2 recordedby = {
-    "\n[ \t]*As recorded by (.+)\n"
+    "[ \t]*[Aa]s recorded by (.+)\n"
   };
   RE2::GlobalReplace(&s, *recordedby, "\nArtist: \\1\n");
+  */
+
+  /*
+  RE2 fullrecby{
+    "^[ \t]*(.+)\n"
+    "[ \t]*[Aa]s recorded by (.+)\n"
+    "[ \t]*\\([Ff]rom the ([0-9]+) [Aa]lbum (.+)\\)\n",
+    MultiLine()
+  };
+  RE2::GlobalReplace(&s, fullrecby,
+		     "Title: \\1\n"
+		     "Artist: \\2\n"
+		     "Album: \\4\n"
+		     "Year: \\3\n");
+  */
+
+  /*
+  RE2 fullrecby2{
+    "([ \t]*[-=]+\n)?"
+    "^[ \t]*(.*[A-Za-z0-9].+)\n"
+    "([ \t]*[-=]+\n)?"
+    "[ \t]*[Aa]s recorded by (.+)\n"
+    "[ \t]*\\(?[Ff]rom the [0-9]* ?[Aa]lbum (.+)\\)?\n",
+    MultiLine()
+  };
+  RE2::GlobalReplace(&s, fullrecby2,
+		     "Title: \\2\n"
+		     "Artist: \\4\n"
+		     "Album: \\5\n");
+  */
   
-  return s;
+  RE2 fullrecby3{
+    "([ \t]*[-=]+\n)?"
+    "^[ \t]*([^( \t\n].*[A-Za-z0-9].+[^) \t\n])\n"
+    "([ \t]*[-=]+\n)?"
+    "[ \t]*[Aa]s recorded by (.+)\n",
+    MultiLine()
+  };
+  RE2::GlobalReplace(&s, fullrecby3,
+		     "Title: \\2\n"
+		     "Artist: \\4\n");
+    return s;
 }
 
 string StripHeader(const string &contents) {
@@ -802,6 +1142,9 @@ bool HasNonAscii(const string &s) {
 // replaced with -, etc.) but we can't just replace that byte because it may
 // appear in a valid utf-8 encoding (i.e. 0xC3 0x97 is the multiply sign).
 // Pretty challenging!
+//
+// 0xa0 is nbsp in windows-1252, which should be space. But be careful of
+// the issue above!
 string FixBadEncoding(const string &s) {
   string r = Util::Replace(s, "\xc2\x91", "'");
   r = Util::Replace(r, "\xc2\x92", "'");
@@ -817,6 +1160,8 @@ string FixBadEncoding(const string &s) {
   // r = Util::Replace(r, "\\\\\"\n", "\"\n");
 
   r = Util::Replace(r, "\xc2\xb4", "'");
+  r = Util::Replace(r, "&quot;", "\"");
+  // TODO: More html, &lt; &gt; &amp; are pretty common
   return r;
 }
 
@@ -916,19 +1261,40 @@ int main(int argc, char **argv) {
     vector<string> todo;
     ParallelApp(files,
 		[&p, &m, &has_marker, &todo](const pair<string, string> &row) {
+		  // Skip "album tabs"
+		  if (row.first.find("album") != string::npos)
+		    return;
+		  
+		  const string &cont = row.second;
 		  /*
 		  bool accept =
-		    row.second.find("-PLEASE NOTE-") != string::npos ||
-		    row.second.find("scholarship, or research") != string::npos ||
-		    row.second.find("Have fun, DAIRYBEAT on") != string::npos ||
-		    row.second.find("and has a specific punishment") != string::npos ||
+		    cont.find("-PLEASE NOTE-") != string::npos ||
+		    cont.find("scholarship, or research") != string::npos ||
+		    cont.find("Have fun, DAIRYBEAT on") != string::npos ||
+		    cont.find("and has a specific punishment") != string::npos ||
 		    // XXX
-		    // HasNonAscii(row.second) ||
-		    row.second.find("Song/CD") != string::npos ||
-		    row.second.find("in an unauthorized application,") != string::npos;
+		    // HasNonAscii(cont) ||
+		    cont.find("Song/CD") != string::npos ||
+		    cont.find("in an unauthorized application,") != string::npos;
 		  */
+
+		  /*
 		  string title, artist;
-		  bool accept = !p.GetMetadata(row.first, row.second, &title, &artist);
+		  bool accept =
+		    !p.GetMetadata(row.first, cont, &title, &artist);
+		  */
+
+		  string contents = cont;
+		  (void)p.ExtractHeaders(&contents);
+		  bool accept = RE2::PartialMatch(contents, "(?i)\ntitle:.+\n");
+
+		  // p.ExtractFile(row.first, &title, &artist);
+
+
+		  // bool accept =
+		  // cont.find("www.Ultimate-Guitar.com") != string::npos;
+
+		  // bool accept = cont.find("&quot;") != string::npos;
 		  
 		  if (accept) {
 		    MutexLock ml(&m);
@@ -976,7 +1342,8 @@ int main(int argc, char **argv) {
     int has_extraction = 0;
     vector<string> examples;
     ParallelApp(files,
-		[&p, &m, &has_extraction, &examples](const pair<string, string> &row) {
+		[&p, &m, &has_extraction, &examples](
+		    const pair<string, string> &row) {
 		  string title, artist;
 		  string contents = row.second;
 		  if (p.Extract3(row.first, &contents, &title, &artist)) {
@@ -1010,7 +1377,7 @@ int main(int argc, char **argv) {
 		  if (!orig_hdrs.empty()) {
 		    vector<pair<string, string>> hdrs = orig_hdrs;
 		    p.FilterHeaders(&hdrs);
-		    p.NormalizeHeaders(&hdrs);
+		    p.NormalizeHeaders(row.first, &hdrs);
 		    p.SortHeaders(&hdrs);
 
 		    if (orig_hdrs != hdrs) {
@@ -1046,7 +1413,7 @@ int main(int argc, char **argv) {
 		  if (!orig_hdrs.empty()) {
 		    vector<pair<string, string>> hdrs = orig_hdrs;
 		    p.FilterHeaders(&hdrs);
-		    p.NormalizeHeaders(&hdrs);
+		    p.NormalizeHeaders(row.first, &hdrs);
 		    p.SortHeaders(&hdrs);
 
 		    MutexLock ml(&m);
@@ -1089,7 +1456,7 @@ int main(int argc, char **argv) {
 
   // return 0;
   
-  {
+  if (true) {
     Parser p;
     std::mutex m;
     vector<string> previews;
@@ -1102,28 +1469,47 @@ int main(int argc, char **argv) {
 		  c = AdHocSubstitutions(c);
 		  c = StripHeader(c);
 		  c = p.FixMetadata(row.first, c);
-		  c = p.FixHeaders(c);
+		  c = p.FixHeaders(row.first, c);
 		  c = StripFooter(c);
-		  /*
-		    if (!c.empty() && c[0] == ' ') {
-		    c = c.substr(1);
-		    }
-		  */
+
+		  if (c.find("#\n") == 0) {
+		    c = c.substr(2, string::npos);
+		  }
 		  
 		  if (c != row.second) {
 		    string filename = Backslash(row.first);
 		    if (DRY_RUN) {
-		      // XXX show full lines!
-		      string s1 = row.second;
-		      string s2 = c;
+		      static constexpr int CONTEXT = 1;
+		      vector<string> s1 = Util::SplitToLines(row.second);
+		      vector<string> s2 = Util::SplitToLines(c);
 		      int same_begin = 0, same_end = 0;
+
+		      int end = 0;
+		      while ((s1.size() - 1) - end > 0 &&
+			     (s2.size() - 1) - end > 0 &&
+			     s1[(s1.size() - 1) - end] ==
+			     s2[(s2.size() - 1) - end]) {
+			same_end++;
+			end++;
+		      }
+		      /*
 		      while (!s1.empty() && !s2.empty() &&
 			     s1.back() == s2.back()) {
 			s1.pop_back();
 			s2.pop_back();
 			same_end++;
 		      }
+		      */
 
+		      {
+			int trim_end = end - CONTEXT;
+			while (trim_end > 0) { 
+			  s1.pop_back();
+			  s2.pop_back();
+			  trim_end--;
+			}
+		      }
+		      
 		      int start = 0;
 		      while (start < (int)s1.size() &&
 			     start < (int)s2.size() &&
@@ -1131,20 +1517,29 @@ int main(int argc, char **argv) {
 			start++;
 			same_begin++;
 		      }
-		      s1 = s1.substr(start, string::npos);
-		      s2 = s2.substr(start, string::npos);
+		      if (start - CONTEXT >= 0) {
+			s1.erase(s1.begin(), s1.begin() + (start - CONTEXT));
+			s2.erase(s2.begin(), s2.begin() + (start - CONTEXT));
+		      }
+
+		      
 		      
 		      MutexLock ml(&m);
-		      previews.push_back(
-			  StringPrintf("** %s\n"
-				       "(+%d before)\n"
-				       "%s\n"
-				       "  ->\n"
-				       "%s\n"
-				       "(+%d after)\n",
-				       filename.c_str(),
-				       same_begin,
-				       s1.c_str(), s2.c_str(), same_end));
+		      string out = StringPrintf("** %s\n"
+						"(+%d before)\n",
+						filename.c_str(),
+						same_begin);
+		      for (const string &s : s1) {
+			out += s;
+			out += "\n";
+		      }
+		      out += "->\n";
+		      for (const string &s : s2) {
+			out += s;
+			out += "\n";
+		      }
+		      out += StringPrintf("(+%d after)\n", same_end);
+		      previews.push_back(out);
 		    } else {
 		      CHECK(Util::WriteFile(filename, c)) << filename;
 
