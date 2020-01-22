@@ -5,6 +5,5 @@
 - thread-util with progress feedback (e.g. ansi console, sdl)
 - thread pools
 - clean up style (use uppercase function and class names, like in sdlutil?)
-- get google's open source re2 library in here
-   https://github.com/google/re2/tree/master/re2
-   
+- Good standalone flate/zlib compressor: https://github.com/google/zopfli
+- Fast standalone compressor/decompressor: https://github.com/google/snappy
