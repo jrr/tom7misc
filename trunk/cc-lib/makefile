@@ -90,5 +90,8 @@ edit-distance_test.exe : edit-distance_test.o edit-distance.o $(BASE)
 re2_test.exe : re2_test.o $(RE2_OBJECTS) $(BASE) 
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
+web_test.exe : web_test.o  $(BASE)
+	$(CXX) $(CXXFLAGS) $^ -o $@ -lws2_32
+
 clean :
 	rm -f *.o *.exe
