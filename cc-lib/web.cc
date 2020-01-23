@@ -7,15 +7,16 @@
 
  */
 
+// TODO: header/cc
+// heapstring -> std::string, at least in external interface
 
 /*
 Tom's notes:
  - looks like this could be gutted and turned into a simple portable
    web server. main value here is socket stuff is done for us.
  - On mingw-64, I -DWIN32 and -D__WIN32__ (not sure if both are necessary)
- - I broke most of the "Zthread" stuff, just trying to get it to compile. Should just use native std::thread etc.; looks pretty easy.
  - To link, needed -lws2_32.
- - It successfully serves a connection and then aborts "terminate called without an active exception", but this is not surprising since the "zthread" hax are not functional
+ - It successfully serves a connection and then aborts "terminate called without an active exception", perhaps fixed now (I think this was because I wasn't detaching the connection threads.)
 
 
 /* 
@@ -65,6 +66,10 @@ See web_test.cc for example.
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <string>
+#include <cstring>
+
+using string = std::string;
 
 /* You can turn these prints on/off. ews_printf generally prints
    warnings + errors while ews_print_debug prints mundane
@@ -140,33 +145,32 @@ static bool OptionPrintResponse = false;
 
 typedef int64_t ssize_t;
 typedef SOCKET sockettype;
-#define STDCALL_ON_WIN32 WINAPI
 #else
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <pthread.h>
 #include <ifaddrs.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <strings.h>
 typedef int sockettype;
-#define STDCALL_ON_WIN32
 #endif
 
-typedef enum  {
-    RequestParseStateMethod,
-    RequestParseStatePath,
-    RequestParseStateVersion,
-    RequestParseStateHeaderName,
-    RequestParseStateHeaderValue,
-    RequestParseStateCR,
-    RequestParseStateCRLF,
-    RequestParseStateCRLFCR,
-    RequestParseStateBody,
-    RequestParseStateEatHeaders,
-    RequestParseStateDone
-} RequestParseState;
+
+// XXX enum class
+enum class RequestParseState  {
+  Method,
+  Path,
+  Version,
+  HeaderName,
+  HeaderValue,
+  CR,
+  CRLF,
+  CRLFCR,
+  Body,
+  EatHeaders,
+  Done,
+};
 
 /* just a calloc'd C string on the heap */
 struct HeapString {
@@ -189,64 +193,73 @@ struct Header {
 /* You'll look directly at this struct to handle HTTP requests. It's initialized
    by setting everything to 0 */
 struct Request {
-    /* null-terminated HTTP method (GET, POST, PUT, ...) */
-    char method[64];
-    size_t methodLength;
-    /* null-terminated HTTP version string (HTTP/1.0) */
-    char version[16];
-    size_t versionLength;
-    /* null-terminated HTTP path/URI ( /index.html?name=Forrest%20Heller ) */
-    char path[1024];
-    size_t pathLength;
-    /* null-terminated HTTP path/URI that has been %-unescaped. Used for a file serving */
-    char pathDecoded[1024];
-    size_t pathDecodedLength;
-    /* null-terminated string containing the request body. Used for POST forms and JSON blobs */
-    struct HeapString body;
-    /* HTTP request headers - use headerInRequest to find the header you're looking for. These used to be a linked list and that worked well, but it seemed overkill */
-    struct Header headers[REQUEST_MAX_HEADERS];
-    size_t headersCount;
-    /* the this->headers point at this string pool */
-    char headersStringPool[REQUEST_HEADERS_MAX_MEMORY];
-    size_t headersStringPoolOffset;
-    /* Since this has many fixed fields, we report when we went over the limit */
-    struct Warnings {
-        /* Was some header information discarded because there was not enough room in the pool? */
-        bool headersStringPoolExhausted;
-        /* Were there simply too many headers in this request for us to handle them all? */
-        bool tooManyHeaders;
-        /* request line strings truncated? */
-        bool methodTruncated;
-        bool versionTruncated;
-        bool pathTruncated;
-        bool bodyTruncated;
-    } warnings;
-    /* internal state for the request parser */
-    RequestParseState state;
+  /* null-terminated HTTP method (GET, POST, PUT, ...) */
+  char method[64];
+  size_t methodLength = 0;
+  /* null-terminated HTTP version string (HTTP/1.0) */
+  char version[16];
+  size_t versionLength = 0;
+  /* null-terminated HTTP path/URI ( /index.html?name=Forrest%20Heller ) */
+  char path[1024];
+  size_t pathLength = 0;
+  /* null-terminated HTTP path/URI that has been %-unescaped. Used for a file serving */
+  char pathDecoded[1024];
+  size_t pathDecodedLength = 0;
+
+  // Content length as sent by the client. 
+  int contentLength = 0;
+  /* the request body. Used for POST forms and JSON blobs */
+  string body;
+  /* HTTP request headers - use headerInRequest to find the header you're looking for. These used to be a linked list and that worked well, but it seemed overkill */
+  struct Header headers[REQUEST_MAX_HEADERS];
+  size_t headersCount = 0;
+  /* the this->headers point at this string pool */
+  char headersStringPool[REQUEST_HEADERS_MAX_MEMORY];
+  size_t headersStringPoolOffset = 0;
+  /* Since this has many fixed fields, we report when we went over the limit */
+  struct Warnings {
+    /* Was some header information discarded because there was not enough room in the pool? */
+    bool headersStringPoolExhausted = false;
+    /* Were there simply too many headers in this request for us to handle them all? */
+    bool tooManyHeaders = false;
+    /* request line strings truncated? */
+    bool methodTruncated = false;
+    bool versionTruncated = false;
+    bool pathTruncated = false;
+    bool bodyTruncated = false;
+  } warnings;
+  /* internal state for the request parser */
+  RequestParseState state = RequestParseState::Method;
 };
 
 struct ConnectionStatus {
-    int64_t bytesSent;
-    int64_t bytesReceived;
+  int64_t bytesSent = 0;
+  int64_t bytesReceived = 0;
 };
 
 /* This contains a full HTTP connection. For every connection, a thread is spawned
  and passed this struct */
+struct Server;
 struct Connection {
+  explicit Connection(Server *server) : server(server) {
+    // (original code calloc 0's everything which requestParse depends on)
+    memset(&remoteAddr, 0, sizeof(struct sockaddr_storage));
+  }
+  
   /* Just allocate the buffers in the connection. These go at the beginning of
      the connection in the hopes that they are 'more aligned' */
-  char sendRecvBuffer[SEND_RECV_BUFFER_SIZE];
-  char responseHeader[RESPONSE_HEADER_SIZE];
-  sockettype socketfd;
+  char sendRecvBuffer[SEND_RECV_BUFFER_SIZE] = {};
+  char responseHeader[RESPONSE_HEADER_SIZE] {};
+  sockettype socketfd = 0;
   /* Who connected? */
   struct sockaddr_storage remoteAddr;
-  socklen_t remoteAddrLength;
-  char remoteHost[128];
-  char remotePort[16];
+  socklen_t remoteAddrLength = 0;
+  char remoteHost[128] = {};
+  char remotePort[16] = {};
   struct ConnectionStatus status;
-  struct Request request;
+  Request request;
   /* points back to the server, usually used for the server's globalMutex */
-  struct Server* server;
+  struct Server* server = nullptr;
 };
 
 /* You create one of these for the server to send. Use one of the responseAlloc functions.
@@ -389,8 +402,6 @@ struct PathInformation {
 
 static void responseFree(struct Response* response);
 static void printIPv4Addresses(uint16_t portInHostOrder);
-static struct Connection* connectionAlloc(struct Server* server);
-static void connectionFree(struct Connection* connection);
 static void requestParse(struct Request* request, const char* requestFragment, size_t requestFragmentLength);
 static size_t heapStringNextAllocationSize(size_t required);
 static void poolStringStartNewString(struct PoolString* poolString, struct Request* request);
@@ -487,7 +498,8 @@ char* strdupDecodeGETParam(const char* paramNameIncludingEquals, const struct Re
 }
 
 char* strdupDecodePOSTParam(const char* paramNameIncludingEquals, const struct Request* request, const char* valueIfNotFound) {
-    return strdupDecodeGETorPOSTParam(paramNameIncludingEquals, request->body.contents, valueIfNotFound);
+  return strdupDecodeGETorPOSTParam(paramNameIncludingEquals, request->body.c_str(),
+				    valueIfNotFound);
 }
 
 typedef enum {
@@ -824,8 +836,9 @@ struct HeapString connectionDebugStringCreate(const struct Connection* connectio
         const struct Header* header = &connection->request.headers[i];
         heapStringAppendFormat(&debugString, "'%s' = '%s'\n", header->name.contents, header->value.contents);
     }
-    if (NULL != connection->request.body.contents) {
-        heapStringAppendFormat(&debugString, "\n*** Request Body ***\n%s\n", connection->request.body.contents);
+    if (!connection->request.body.empty()) {
+      heapStringAppendFormat(&debugString, "\n*** Request Body ***\n%s\n",
+			     connection->request.body.c_str());
     }
     heapStringAppendFormat(&debugString, "\n*** Request Warnings ***\n");
     bool hadWarnings = false;
@@ -892,22 +905,23 @@ static void poolStringAppendChar(struct Request* request, struct PoolString* str
 }
 
 // allocates a response with content = malloc(contentLength + 1) so you can write null-terminated strings to it
-struct Response* responseAlloc(int code, const char* status, const char* contentType, size_t bodyCapacity) {
-    struct Response* response = (struct Response*) calloc(1, sizeof(*response));
-    response->code = code;
-    heapStringInit(&response->body);
-    response->body.capacity = bodyCapacity;
-    response->body.length = 0;
-    if (response->body.capacity > 0) {
-        response->body.contents = (char*) calloc(1, response->body.capacity);
-        if (OptionIncludeStatusPageAndCounters) {
-	  MutexLock ml(&counters_lock);
-	  counters.heapStringAllocations++;
-        }
+struct Response* responseAlloc(int code, const char* status, const char* contentType,
+			       size_t bodyCapacity) {
+  struct Response* response = (struct Response*) calloc(1, sizeof(*response));
+  response->code = code;
+  heapStringInit(&response->body);
+  response->body.capacity = bodyCapacity;
+  response->body.length = 0;
+  if (response->body.capacity > 0) {
+    response->body.contents = (char*) calloc(1, response->body.capacity);
+    if (OptionIncludeStatusPageAndCounters) {
+      MutexLock ml(&counters_lock);
+      counters.heapStringAllocations++;
     }
-    response->contentType = strdupIfNotNull(contentType);
-    response->status = strdupIfNotNull(status);
-    return response;
+  }
+  response->contentType = strdupIfNotNull(contentType);
+  response->status = strdupIfNotNull(status);
+  return response;
 }
 
 struct Response* responseAllocHTML(const char* html) {
@@ -1082,7 +1096,10 @@ struct Response* responseAllocServeFileFromRequestPath(const char* pathPrefix,
   }
   // Step 3 (see above)
   if (pathEscapesDocumentRoot(requestPathSuffix)) {
-    return responseAllocHTMLWithStatus(403, "Forbidden", "<html><head><title>Forbidden</title></head><body>You are not allowed to access this URL</body></html>");
+    return responseAllocHTMLWithStatus(
+	403, "Forbidden",
+	"<html><head><title>Forbidden</title></head>"
+	"<body>You are not allowed to access this URL</body></html>");
   }
   // Step 4 (see above)
   struct HeapString filePath;
@@ -1102,22 +1119,39 @@ struct Response* responseAlloc400BadRequestHTML(const char* errorMessage) {
   if (NULL == errorMessage) {
     errorMessage = "An unspecified error occurred";
   }
-  return responseAllocWithFormat(400, "Bad Request", "text/html; charset=UTF-8", "<html><head><title>400 - Bad Request</title></head><body>The request made was invalid. %s", errorMessage);
+  return responseAllocWithFormat(
+      400, "Bad Request", "text/html; charset=UTF-8",
+      "<html><head><title>400 - Bad Request</title></head>"
+      "<body>The request made was invalid. %s", errorMessage);
 }
 
 struct Response* responseAlloc404NotFoundHTML(const char* resourcePathOrNull) {
   if (NULL == resourcePathOrNull) {
-    return responseAllocHTMLWithStatus(404, "Not Found", "<html><head><title>404 Not Found</title></head><body>The resource you specified could not be found</body></html>");
+    return responseAllocHTMLWithStatus(
+	404, "Not Found",
+	"<html><head><title>404 Not Found</title></head><body>"
+	"The resource you specified could not be found</body></html>");
   } else {
-    return responseAllocWithFormat(404, "Not Found", "text/html; charset=UTF-8", "<html><head><title>404 Not Found</title></head><body>The resource you specified ('%s') could not be found</body></html>", resourcePathOrNull);
+    return responseAllocWithFormat(
+	404, "Not Found", "text/html; charset=UTF-8",
+	"<html><head><title>404 Not Found</title></head><body>"
+	"The resource you specified ('%s') could not be found</body></html>",
+	resourcePathOrNull);
   }
 }
 
 struct Response* responseAlloc500InternalErrorHTML(const char* extraInformationOrNull) {
   if (NULL == extraInformationOrNull) {
-    return responseAllocHTMLWithStatus(500, "Internal Error", "<html><head><title>500 Internal Error</title></head><body>There was an internal error while completing your request</body></html>");
+    return responseAllocHTMLWithStatus(
+	500, "Internal Error",
+	"<html><head><title>500 Internal Error</title></head>"
+	"<body>There was an internal error while completing your request</body></html>");
   } else {
-    return responseAllocWithFormat(500, "Internal Error", "text/html; charset=UTF-8", "<html><head><title>500 Internal Error</title></head><body>There was an internal error while completing your request. %s</body></html>", extraInformationOrNull);
+    return responseAllocWithFormat(
+	500, "Internal Error", "text/html; charset=UTF-8",
+	"<html><head><title>500 Internal Error</title></head>"
+	"<body>There was an internal error while completing your request. %s</body></html>",
+	extraInformationOrNull);
   }
 }
 
@@ -1148,12 +1182,12 @@ static void responseFree(struct Response* response) {
 static RequestParseState stateHeaderNameIfSpaceLeft(struct Request* request) {
   if (request->headersCount < REQUEST_MAX_HEADERS) {
     if (!request->warnings.headersStringPoolExhausted) {
-      return RequestParseStateHeaderName;
+      return RequestParseState::HeaderName;
     }
   } else {
     request->warnings.tooManyHeaders = true;
   }
-  return RequestParseStateEatHeaders;
+  return RequestParseState::EatHeaders;
 }
 
 /* parses a typical HTTP request looking for the first line: GET /path HTTP/1.0\r\n */
@@ -1161,9 +1195,9 @@ static void requestParse(struct Request* request, const char* requestFragment, s
   for (size_t i = 0; i < requestFragmentLength; i++) {
     char c = requestFragment[i];
     switch (request->state) {
-    case RequestParseStateMethod:
+    case RequestParseState::Method:
       if (c == ' ') {
-	request->state = RequestParseStatePath;
+	request->state = RequestParseState::Path;
       } else if (request->methodLength < sizeof(request->method) - 1) {
 	request->method[request->methodLength] = c;
 	request->methodLength++;
@@ -1171,11 +1205,11 @@ static void requestParse(struct Request* request, const char* requestFragment, s
 	request->warnings.methodTruncated = true;
       }
       break;
-    case RequestParseStatePath:
+    case RequestParseState::Path:
       if (c == ' ') {
 	/* we are done parsing the path, decode it */
 	URLDecode(request->path, request->pathDecoded, sizeof(request->pathDecoded), URLDecodeTypeWholeURL);
-	request->state = RequestParseStateVersion;
+	request->state = RequestParseState::Version;
       } else if (request->pathLength < sizeof(request->path) - 1) {
 	request->path[request->pathLength] = c;
 	request->pathLength++;
@@ -1183,9 +1217,9 @@ static void requestParse(struct Request* request, const char* requestFragment, s
 	request->warnings.pathTruncated = true;
       }
       break;
-    case RequestParseStateVersion:
+    case RequestParseState::Version:
       if (c == '\r') {
-	request->state = RequestParseStateCR;
+	request->state = RequestParseState::CR;
       } else if (request->versionLength < sizeof(request->version) - 1) {
 	request->version[request->versionLength] = c;
 	request->versionLength++;
@@ -1193,12 +1227,12 @@ static void requestParse(struct Request* request, const char* requestFragment, s
 	request->warnings.versionTruncated = true;
       }
       break;
-    case RequestParseStateHeaderName:
+    case RequestParseState::HeaderName:
       assert(request->headersCount < REQUEST_MAX_HEADERS && "Parsing the request header name assumes we have space for more headers");
       if (c == ':') {
-	request->state = RequestParseStateHeaderValue;
+	request->state = RequestParseState::HeaderValue;
       } else if (c == '\r') {
-	request->state = RequestParseStateCR;
+	request->state = RequestParseState::CR;
       } else  {
 	/* if this is the first character in this header name, then initialize the string pool */
 	if (NULL == request->headers[request->headersCount].name.contents) {
@@ -1208,7 +1242,7 @@ static void requestParse(struct Request* request, const char* requestFragment, s
 	poolStringAppendChar(request, &request->headers[request->headersCount].name, c);
       }
       break;
-    case RequestParseStateHeaderValue:
+    case RequestParseState::HeaderValue:
       assert(request->headersCount < REQUEST_MAX_HEADERS && "Parsing the request header value assumes we have space for more headers");
       /* skip the first space if we are saving this to header */
       if (c == ' ' && request->headers[request->headersCount].value.length == 0) {
@@ -1219,7 +1253,7 @@ static void requestParse(struct Request* request, const char* requestFragment, s
 	if (request->headers[request->headersCount].value.length > 0 && request->headers[request->headersCount].name.length > 0) {
 	  request->headersCount++;
 	}
-	request->state = RequestParseStateCR;
+	request->state = RequestParseState::CR;
       } else {
 	assert(request->headersCount < REQUEST_MAX_HEADERS && "Parsing the request header value assumes we have space for more headers");
 	/* if this is the first character in this header name, then initialize the string pool */
@@ -1230,75 +1264,68 @@ static void requestParse(struct Request* request, const char* requestFragment, s
 	poolStringAppendChar(request, &request->headers[request->headersCount].value, c);
       }
       break;
-    case RequestParseStateCR:
+    case RequestParseState::CR:
       if (c == '\n') {
-	request->state = RequestParseStateCRLF;
+	request->state = RequestParseState::CRLF;
       } else {
 	request->state = stateHeaderNameIfSpaceLeft(request);
       }
       break;
-    case RequestParseStateCRLF:
+    case RequestParseState::CRLF:
       if (c == '\r') {
-	request->state = RequestParseStateCRLFCR;
+	request->state = RequestParseState::CRLFCR;
       } else {
 	request->state = stateHeaderNameIfSpaceLeft(request);
-	if (RequestParseStateHeaderName == request->state) {
+	if (RequestParseState::HeaderName == request->state) {
 	  /* this is the first character of the header - replay the HeaderName case so this character gets appended */
 	  i--;
 	}
       }
       break;
-    case RequestParseStateCRLFCR:
+    case RequestParseState::CRLFCR:
       if (c == '\n') {
-	/* assume the request state is done unless we have some Content-Length, which would come from something like a JSON blob */
-	request->state = RequestParseStateDone;
+	/* assume the request state is done unless we have some Content-Length, 
+	   which would come from something like a JSON blob */
+	request->state = RequestParseState::Done;
 	const struct Header* contentLengthHeader = headerInRequest("Content-Length", request);
 	if (NULL != contentLengthHeader) {
-	  ews_printf_debug("Incoming request has a body of length %s\n", contentLengthHeader->value.contents);
+	  ews_printf_debug("Incoming request has a body of length %s\n",
+			   contentLengthHeader->value.contents);
 	  /* Note that this limits content length to < 2GB on Windows */
 	  long contentLength = 0;
 	  if (1 == sscanf(contentLengthHeader->value.contents, "%ld", &contentLength)) {
 	    if (contentLength > REQUEST_MAX_BODY_LENGTH) {
+	      request->warnings.bodyTruncated = true;
 	      contentLength = REQUEST_MAX_BODY_LENGTH;
 	    }
 	    if (contentLength < 0) {
-	      ews_printf_debug("Warning: Incoming request has negative content length: %ld\n", contentLength);
+	      ews_printf_debug("Warning: Incoming request has negative "
+			       "content length: %ld\n", contentLength);
 	      contentLength = 0;
 	    }
-	    if (contentLength > 0) {
-	      request->body.contents = (char*)calloc(1, contentLength + 1);
-	    }
-	    request->body.capacity = contentLength;
-	    request->body.length = 0;
-	    request->state = RequestParseStateBody;
+	    request->contentLength = contentLength;
+	    request->body.reserve(contentLength);
+	    request->state = RequestParseState::Body;
 	  }
-
-	} else {
 	}
       } else {
 	request->state = stateHeaderNameIfSpaceLeft(request);
       }
       break;
-    case RequestParseStateEatHeaders:
+    case RequestParseState::EatHeaders:
       /* we have no more room for headers right now */
       if (c == '\r') {
-	request->state = RequestParseStateCR;
+	request->state = RequestParseState::CR;
       }
       break;
-    case RequestParseStateBody:
-      /* Copy the request body into request->body - the .length is from Content-Length so don't trust that (found with afl-fuzz!) */
-      if (request->body.length < request->body.capacity) {
-	request->body.contents[request->body.length] = c;
-	request->body.length++;
-      }
-      if (request->body.length == request->body.capacity) {
-	request->state = RequestParseStateDone;
+    case RequestParseState::Body:
+      // PERF can copy in bigger chunks...
+      request->body.push_back(c);
+      if (request->body.size() == request->contentLength) {
+	request->state = RequestParseState::Done;
       }
       break;
-    case RequestParseStateDone:
-      if (NULL != request->body.contents) {
-	request->warnings.bodyTruncated = true;
-      }
+    case RequestParseState::Done:
       break;
     }
   }
@@ -1306,35 +1333,32 @@ static void requestParse(struct Request* request, const char* requestFragment, s
 
 static void requestPrintWarnings(const struct Request* request, const char* remoteHost, const char* remotePort) {
   if (request->warnings.headersStringPoolExhausted) {
-    ews_printf("Warning: Request from %s:%s exhausted the header string pool so some information will be lost. You can try increasing REQUEST_HEADERS_MAX_MEMORY which is currently %ld bytes\n", remoteHost, remotePort, (long) REQUEST_HEADERS_MAX_MEMORY);
+    ews_printf("Warning: Request from %s:%s exhausted the header string pool so some "
+	       "information will be lost. You can try increasing REQUEST_HEADERS_MAX_MEMORY "
+	       "which is currently %ld bytes\n", remoteHost, remotePort,
+	       (long) REQUEST_HEADERS_MAX_MEMORY);
   }
   if (request->warnings.tooManyHeaders) {
-    ews_printf("Warning: Request from %s:%s had too many headers and we dropped some. You can try increasing REQUEST_MAX_HEADERS which is currently %ld\n", remoteHost, remotePort, (long) REQUEST_MAX_HEADERS);
+    ews_printf("Warning: Request from %s:%s had too many headers and we dropped some. "
+	       "You can try increasing REQUEST_MAX_HEADERS which is currently %ld\n",
+	       remoteHost, remotePort, (long) REQUEST_MAX_HEADERS);
   }
   if (request->warnings.methodTruncated) {
-    ews_printf("Warning: Request from %s:%s method was truncated to %s\n", remoteHost, remotePort, request->method);
+    ews_printf("Warning: Request from %s:%s method was truncated to %s\n",
+	       remoteHost, remotePort, request->method);
   }
   if (request->warnings.pathTruncated) {
-    ews_printf("Warning: Request from %s:%s path was truncated to %s\n", remoteHost, remotePort, request->path);
+    ews_printf("Warning: Request from %s:%s path was truncated to %s\n",
+	       remoteHost, remotePort, request->path);
   }
   if (request->warnings.versionTruncated) {
-    ews_printf("Warning: Request from %s:%s version was truncated to %s\n", remoteHost, remotePort, request->version);
+    ews_printf("Warning: Request from %s:%s version was truncated to %s\n",
+	       remoteHost, remotePort, request->version);
   }
   if (request->warnings.bodyTruncated) {
-    ews_printf("Warning: Request from %s:%s body was truncated to %" PRIu64 " bytes\n", remoteHost, remotePort, (uint64_t)request->body.length);
+    ews_printf("Warning: Request from %s:%s body was truncated to %" PRIu64 " bytes\n",
+	       remoteHost, remotePort, (uint64_t)request->body.size());
   }
-}
-
-static struct Connection* connectionAlloc(struct Server* server) {
-  // calloc 0's everything which requestParse depends on
-  struct Connection* connection = (struct Connection*) calloc(1, sizeof(*connection));
-  connection->server = server;
-  return connection;
-}
-
-static void connectionFree(struct Connection* connection) {
-  heapStringFreeContents(&connection->request.body);
-  free(connection);
 }
 
 static void SIGPIPEHandler(int signal) {
@@ -1416,7 +1440,7 @@ int Server::AcceptConnectionsUntilStopped(const struct sockaddr* address,
     ews_printf("Listening for connections on %s:%s\n", addressHost, addressPort);
   }
   /* allocate a connection (which sets connection->remoteAddrLength) and accept the next inbound connection */
-  struct Connection* nextConnection = connectionAlloc(this);
+  Connection* nextConnection = new Connection(this);
   while (shouldRun) {
     nextConnection->remoteAddrLength = sizeof(nextConnection->remoteAddr);
     nextConnection->socketfd = accept(listenerfd, (struct sockaddr*) &nextConnection->remoteAddr, &nextConnection->remoteAddrLength);
@@ -1438,21 +1462,10 @@ int Server::AcceptConnectionsUntilStopped(const struct sockaddr* address,
       activeConnectionCount++;
     }
 
-    // XXX create the thread as below...
     /* we just received a new connection, spawn a thread */
     std::thread connectionThread(connectionHandlerThread, nextConnection);
     connectionThread.detach();
-    // XXX Zthread_create(&connectionThread, NULL, &connectionHandlerThread, nextConnection);
-    /*
-      if (0 != result) {
-      ews_printf("Error while creating thread after accepting new connection! Zthread_create returned %d Continuing...\n", result);
-      }
-      result = Zthread_detach(connectionThread);
-      if (0 != result) {
-      printf("Error while calling Zthread_detach. Oh well - continuing with probably leaked memory. Zthread_detached returned %d\n", result);
-      }
-    */
-    nextConnection = connectionAlloc(this);
+    nextConnection = new Connection(this);
   }
 
 
@@ -1463,7 +1476,7 @@ int Server::AcceptConnectionsUntilStopped(const struct sockaddr* address,
     }
   }
 
-  connectionFree(nextConnection);
+  delete nextConnection;
 
   {
     std::unique_lock<std::mutex> lock_count(connectionFinishedLock);
@@ -1493,7 +1506,8 @@ static int sendResponse(struct Connection* connection, const struct Response* re
   if (NULL != response->filenameToSend) {
     return sendResponseFile(connection, response, bytesSent);
   }
-  ews_printf("Error: the request for '%s' failed because there was neither a response body nor a filenameToSend\n", connection->request.path);
+  ews_printf("Error: the request for '%s' failed because there was neither a response "
+	     "body nor a filenameToSend\n", connection->request.path);
   assert(0 && "See above ews_printf");
   return 1;
 }
@@ -1501,11 +1515,19 @@ static int sendResponse(struct Connection* connection, const struct Response* re
 static int sendResponseBody(struct Connection* connection, const struct Response* response,
 			    ssize_t* bytesSent) {
   /* First send the response HTTP headers */
-  int headerLength = snprintfResponseHeader(connection->responseHeader, sizeof(connection->responseHeader), response->code, response->status, response->contentType, response->extraHeaders, response->body.length);
-  ssize_t sendResult;
-  sendResult = send(connection->socketfd, connection->responseHeader, headerLength, 0);
+  int headerLength =
+    snprintfResponseHeader(connection->responseHeader,
+			   sizeof(connection->responseHeader),
+			   response->code,
+			   response->status,
+			   response->contentType,
+			   response->extraHeaders,
+			   response->body.length);
+  ssize_t sendResult =
+    send(connection->socketfd, connection->responseHeader, headerLength, 0);
   if (sendResult != headerLength) {
-    ews_printf("Failed to respond to %s:%s because we could not send the HTTP response *header*. send returned %ld with %s = %d\n",
+    ews_printf("Failed to respond to %s:%s because we could not send the HTTP "
+	       "response *header*. send returned %ld with %s = %d\n",
                connection->remoteHost,
                connection->remotePort,
                (long) sendResult,
@@ -1521,7 +1543,8 @@ static int sendResponseBody(struct Connection* connection, const struct Response
   if (response->body.length > 0) {
     sendResult = send(connection->socketfd, response->body.contents, response->body.length, 0);
     if (sendResult != (ssize_t) response->body.length) {
-      ews_printf("Failed to respond to %s:%s because we could not send the HTTP response *body*. send returned %" PRId64 " with %s = %d\n",
+      ews_printf("Failed to respond to %s:%s because we could not send the HTTP "
+		 "response *body*. send returned %" PRId64 " with %s = %d\n",
 		 connection->remoteHost,
 		 connection->remotePort,
 		 (int64_t) sendResult,
@@ -1537,7 +1560,9 @@ static int sendResponseBody(struct Connection* connection, const struct Response
   return 0;
 }
 
-static int sendResponseFile(struct Connection* connection, const struct Response* response, ssize_t* bytesSent) {
+static int sendResponseFile(struct Connection* connection,
+			    const struct Response* response,
+			    ssize_t* bytesSent) {
   /* If you were writing a high-performance web server you could use
      sendfile, memory map the file, or any number of exciting things. But
      here we just fread the first 100 bytes to figure out MIME type, then rewind
@@ -1640,7 +1665,8 @@ static int sendResponseFile(struct Connection* connection, const struct Response
   return result;
 }
 
-static struct Response* createResponseForRequestAutoreleased(const struct Request* request, struct Connection* connection) {
+static struct Response* createResponseForRequestAutoreleased(const struct Request* request,
+							     struct Connection* connection) {
   // XXX?? this was a werid OBJC wrapper and can probably go?
   return createResponseForRequest(request, connection);
 }
@@ -1649,8 +1675,10 @@ static void connectionHandlerThread(void* connectionPointer) {
   struct Connection* connection = (struct Connection*) connectionPointer;
   getnameinfo((struct sockaddr*) &connection->remoteAddr, connection->remoteAddrLength,
 	      connection->remoteHost, sizeof(connection->remoteHost),
-	      connection->remotePort, sizeof(connection->remotePort), NI_NUMERICHOST | NI_NUMERICSERV);
-  ews_printf_debug("New connection from %s:%s...\n", connection->remoteHost, connection->remotePort);
+	      connection->remotePort, sizeof(connection->remotePort),
+	      NI_NUMERICHOST | NI_NUMERICSERV);
+  ews_printf_debug("New connection from %s:%s...\n",
+		   connection->remoteHost, connection->remotePort);
   if (OptionIncludeStatusPageAndCounters) {
     MutexLock ml(&counters_lock);
     counters.activeConnections++;
@@ -1660,13 +1688,16 @@ static void connectionHandlerThread(void* connectionPointer) {
   bool madeRequestPrintf = false;
   bool foundRequest = false;
   ssize_t bytesRead;
-  while ((bytesRead = recv(connection->socketfd, connection->sendRecvBuffer, SEND_RECV_BUFFER_SIZE, 0)) > 0) {
+  while ((bytesRead = recv(connection->socketfd, connection->sendRecvBuffer,
+			   SEND_RECV_BUFFER_SIZE, 0)) > 0) {
     if (OptionPrintWholeRequest) {
       fwrite(connection->sendRecvBuffer, 1, bytesRead, stdout);
     }
     connection->status.bytesReceived += bytesRead;
     requestParse(&connection->request, connection->sendRecvBuffer, bytesRead);
-    if (connection->request.state >= RequestParseStateVersion && !madeRequestPrintf) {
+    if ((connection->request.state != RequestParseState::Method &&
+	 connection->request.state != RequestParseState::Path) &&
+	!madeRequestPrintf) {
       ews_printf_debug("Request from %s:%s: %s to %s HTTP version %s\n",
 		       connection->remoteHost,
 		       connection->remotePort,
@@ -1675,7 +1706,7 @@ static void connectionHandlerThread(void* connectionPointer) {
 		       connection->request.version);
       madeRequestPrintf = true;
     }
-    if (connection->request.state == RequestParseStateDone) {
+    if (connection->request.state == RequestParseState::Done) {
       foundRequest = true;
       break;
     }
@@ -1719,7 +1750,7 @@ static void connectionHandlerThread(void* connectionPointer) {
     connection->server->connectionFinishedCond.notify_all();
     connection->server->connectionFinishedLock.unlock();
   }
-  connectionFree(connection);
+  delete connection;
   return;
 }
 
