@@ -26,14 +26,14 @@ application to both handle requests dynamically and serve files. The
 idea is that it has no dependencies and is really easy to drop into a
 project. Here's the simplest way to get started:
 
-1. Call acceptConnectionsUntilStoppedFromEverywhereIPv4(NULL), which
+1. Call acceptConnectionsUntilStoppedFromEverywhereIPv4(nullptr), which
    will initialize a new server and block. Note: If you just want to
    take connections from a specific inteface/localhost you can use
    acceptConnectionsUntilStopped
 
 2. Fill out createResponseForRequest. Use the responseAlloc* functions
    to return a response or take over the connection yourself and
-   return NULL. The easiest way to serve static files is
+   return nullptr. The easiest way to serve static files is
    responseAllocServeFileFromRequestPath. The easiest way to serve
    HTML is responseAllocHTML. The easiest way to serve JSON is
    responseAllocJSON. The server will free() your response once it's
@@ -68,8 +68,14 @@ See web_test.cc for example.
 #include <condition_variable>
 #include <string>
 #include <cstring>
+#include <vector>
+#include <utility>
 
 using string = std::string;
+template<class T>
+using vector = std::vector<T>;
+template<class A, class B>
+using pair = std::pair<A, B>;
 
 /* You can turn these prints on/off. ews_printf generally prints
    warnings + errors while ews_print_debug prints mundane
@@ -100,12 +106,7 @@ static bool OptionListDirectoryContents = true;
 /* Print the entire server response to every request */
 static bool OptionPrintResponse = false;
 
-/* These bound the memory used by a request. The headers used to be
-   dynamically allocated but I've made them hard coded because: 1.
-   Memory used by a request should be bounded 2. It was responsible
-   for 2 * headersCount allocations every request */
-#define REQUEST_MAX_HEADERS 64
-#define REQUEST_HEADERS_MAX_MEMORY (8 * 1024)
+/* These bound the memory used by a request. */
 #define REQUEST_MAX_BODY_LENGTH (128 * 1024 * 1024) /* (rather arbitrary) */
 
 /* the buffer in connection used for sending and receiving. Should be
@@ -168,7 +169,6 @@ enum class RequestParseState  {
   CRLF,
   CRLFCR,
   Body,
-  EatHeaders,
   Done,
 };
 
@@ -185,23 +185,15 @@ struct PoolString {
     size_t length;
 };
 
-struct Header {
-    struct PoolString name;
-    struct PoolString value;
-};
-
 /* You'll look directly at this struct to handle HTTP requests. It's initialized
    by setting everything to 0 */
 struct Request {
-  /* null-terminated HTTP method (GET, POST, PUT, ...) */
-  char method[64];
-  size_t methodLength = 0;
-  /* null-terminated HTTP version string (HTTP/1.0) */
-  char version[16];
-  size_t versionLength = 0;
-  /* null-terminated HTTP path/URI ( /index.html?name=Forrest%20Heller ) */
-  char path[1024];
-  size_t pathLength = 0;
+  /* HTTP method (GET, POST, PUT, ...) */
+  string method;
+  /* HTTP version string (HTTP/1.0) */
+  string version;
+  /* HTTP path/URI ( /index.html?name=Forrest%20Heller ) */
+  string path;
   /* null-terminated HTTP path/URI that has been %-unescaped. Used for a file serving */
   char pathDecoded[1024];
   size_t pathDecodedLength = 0;
@@ -210,26 +202,17 @@ struct Request {
   int contentLength = 0;
   /* the request body. Used for POST forms and JSON blobs */
   string body;
-  /* HTTP request headers - use headerInRequest to find the header you're looking for. These used to be a linked list and that worked well, but it seemed overkill */
-  struct Header headers[REQUEST_MAX_HEADERS];
-  size_t headersCount = 0;
-  /* the this->headers point at this string pool */
-  char headersStringPool[REQUEST_HEADERS_MAX_MEMORY];
-  size_t headersStringPoolOffset = 0;
+  /* HTTP request headers - use headerInRequest to find the header you're looking for. */
+  std::vector<std::pair<string, string>> headers;
   /* Since this has many fixed fields, we report when we went over the limit */
   struct Warnings {
-    /* Was some header information discarded because there was not enough room in the pool? */
-    bool headersStringPoolExhausted = false;
-    /* Were there simply too many headers in this request for us to handle them all? */
-    bool tooManyHeaders = false;
     /* request line strings truncated? */
-    bool methodTruncated = false;
-    bool versionTruncated = false;
-    bool pathTruncated = false;
     bool bodyTruncated = false;
   } warnings;
+
   /* internal state for the request parser */
   RequestParseState state = RequestParseState::Method;
+  string partial_header_name, partial_header_value;
 };
 
 struct ConnectionStatus {
@@ -238,7 +221,7 @@ struct ConnectionStatus {
 };
 
 /* This contains a full HTTP connection. For every connection, a thread is spawned
- and passed this struct */
+   and passed this struct */
 struct Server;
 struct Connection {
   explicit Connection(Server *server) : server(server) {
@@ -272,7 +255,7 @@ struct Response {
   char* filenameToSend;
   char* status;
   char* contentType;
-  char* extraHeaders; // can be NULL
+  char* extraHeaders; // can be nullptr
 };
 
 #ifdef WIN32
@@ -280,7 +263,7 @@ static void ignoreSIGPIPE() {}
 #else
 static void ignoreSIGPIPE() {
   void* previousSIGPIPEHandler = (void*) signal(SIGPIPE, &SIGPIPEHandler);
-  if (NULL != previousSIGPIPEHandler && previousSIGPIPEHandler != &SIGPIPEHandler) {
+  if (nullptr != previousSIGPIPEHandler && previousSIGPIPEHandler != &SIGPIPEHandler) {
     ews_printf("Warning: Uninstalled previous SIGPIPE handler:%p and installed our "
 	       "handler which ignores SIGPIPE\n", previousSIGPIPEHandler);
   }
@@ -341,7 +324,7 @@ struct Response* responseAllocJSON(const char* json);
 struct Response* responseAllocJSONWithStatus(int code, const char* status, const char* json);
 struct Response* responseAllocJSONWithFormat(const char* format, ...) __printflike(1, 0);
 struct Response* responseAllocWithFormat(int code, const char* status, const char* contentType, const char* format, ...) __printflike(3, 0);
-/* If you leave the MIMETypeOrNULL NULL, the MIME type will be auto-detected */
+/* If you leave the MIMETypeOrNULL nullptr, the MIME type will be auto-detected */
 struct Response* responseAllocWithFile(const char* filename, const char* MIMETypeOrNULL);
 /* Error messages for when the request can't be handled properly */
 struct Response* responseAlloc400BadRequestHTML(const char* errorMessage);
@@ -351,13 +334,13 @@ struct Response* responseAlloc500InternalErrorHTML(const char* extraInformationO
 /* Wrappers around strdupDecodeGetorPOSTParam */
 char* strdupDecodeGETParam(const char* paramNameIncludingEquals, const struct Request* request, const char* valueIfNotFound);
 char* strdupDecodePOSTParam(const char* paramNameIncludingEquals, const struct Request* request, const char* valueIfNotFound);
-/* You can pass this the request->path for GET or request->body.contents for POST. Accepts NULL for paramString for convenience */
+/* You can pass this the request->path for GET or request->body.contents for POST. Accepts nullptr for paramString for convenience */
 char* strdupDecodeGETorPOSTParam(const char* paramNameIncludingEquals, const char* paramString, const char* valueIfNotFound);
 /* If you want to echo back HTML into the value="" attribute or display some user output this will help you (like &gt; &lt;) */
 char* strdupEscapeForHTML(const char* stringToEscape);
 /* If you have a file you reading/writing across connections you can use this provided pthread mutex so you don't have to make your own */
 /* Need to inspect a header in a request? */
-const struct Header* headerInRequest(const char* headerName, const struct Request* request);
+const string *headerInRequest(const char* headerName, const struct Request* request);
 /* Get a debug string representing this connection that's easy to print out. wrap it in HTML <pre> tags */
 struct HeapString connectionDebugStringCreate(const struct Connection* connection);
 /* Some really basic dynamic string handling. AppendChar and AppendFormat allocate enough memory and
@@ -404,8 +387,6 @@ static void responseFree(struct Response* response);
 static void printIPv4Addresses(uint16_t portInHostOrder);
 static void requestParse(struct Request* request, const char* requestFragment, size_t requestFragmentLength);
 static size_t heapStringNextAllocationSize(size_t required);
-static void poolStringStartNewString(struct PoolString* poolString, struct Request* request);
-static void poolStringAppendChar(struct Request* request, struct PoolString* string, char c);
 static bool strEndsWith(const char* big, const char* endsWith);
 static void callWSAStartupIfNecessary(void);
 static int pathInformationGet(const char* path, struct PathInformation* info);
@@ -432,26 +413,25 @@ static int snprintfResponseHeader(char* destination, size_t destinationCapacity,
 static void connectionHandlerThread(void* connectionPointer);
 static struct Response* createResponseForRequestAutoreleased(const struct Request* request, struct Connection* connection);
 
-typedef enum {
-    URLDecodeTypeWholeURL,
-    URLDecodeTypeParameter
-} URLDecodeType;
+enum class URLDecodeType {
+  WholeURL,
+  Parameter,
+};
 
 static void URLDecode(const char* encoded, char* decoded, size_t decodedCapacity, URLDecodeType type);
 
-const struct Header* headerInRequest(const char* headerName, const struct Request* request) {
-    for (size_t i = 0; i < request->headersCount; i++) {
-        assert(NULL != request->headers[i].name.contents);
-        if (0 == strcasecmp(request->headers[i].name.contents, headerName)) {
-            return &request->headers[i];
-        }
+const string *headerInRequest(const char* headerName, const struct Request* request) {
+  for (const auto &p : request->headers) {
+    if (0 == strcasecmp(p.first.c_str(), headerName)) {
+      return &p.second;
     }
-    return NULL;
+  }
+  return nullptr;
 }
 
 static char* strdupIfNotNull(const char* strToDup) {
-    if (NULL == strToDup) {
-        return NULL;
+    if (nullptr == strToDup) {
+        return nullptr;
     }
     return strdup(strToDup);
 }
@@ -463,19 +443,19 @@ typedef enum {
 } URLDecodeState;
 
 char* strdupDecodeGETorPOSTParam(const char* paramNameIncludingEquals, const char* paramString, const char* valueIfNotFound) {
-    assert(strstr(paramNameIncludingEquals, "=") != NULL && "You have to pass an equals sign after the param name, like 'name='");
-    /* The string passed is actually NULL -- this is accepted because it's more convenient */
-    if (NULL == paramString) {
+    assert(strstr(paramNameIncludingEquals, "=") != nullptr && "You have to pass an equals sign after the param name, like 'name='");
+    /* The string passed is actually nullptr -- this is accepted because it's more convenient */
+    if (nullptr == paramString) {
         return strdupIfNotNull(valueIfNotFound);
     }
     /* Find the paramString ("name=") */
     const char* paramStart = strstr(paramString, paramNameIncludingEquals);
-    if (NULL == paramStart) {
+    if (nullptr == paramStart) {
         return strdupIfNotNull(valueIfNotFound);
     }
     /* Ok paramStart points at -->"name=" ; let's make it point at "=" */
     paramStart = strstr(paramStart, "=");
-    if (NULL == paramStart) {
+    if (nullptr == paramStart) {
         ews_printf("It's very suspicious that we couldn't find an equals sign after searching for '%s' in '%s'\n", paramStart, paramString);
         return strdupIfNotNull(valueIfNotFound);
     }
@@ -489,121 +469,126 @@ char* strdupDecodeGETorPOSTParam(const char* paramNameIncludingEquals, const cha
     }
     size_t maximumPossibleLength = strlen(paramStart);
     char* decoded = (char*) malloc(maximumPossibleLength + 1);
-    URLDecode(paramStart, decoded, maximumPossibleLength + 1, URLDecodeTypeParameter);
+    URLDecode(paramStart, decoded, maximumPossibleLength + 1, URLDecodeType::Parameter);
     return decoded;
 }
 
-char* strdupDecodeGETParam(const char* paramNameIncludingEquals, const struct Request* request, const char* valueIfNotFound) {
-    return strdupDecodeGETorPOSTParam(paramNameIncludingEquals, request->path, valueIfNotFound);
+char* strdupDecodeGETParam(const char* paramNameIncludingEquals, const Request* request,
+			   const char* valueIfNotFound) {
+  return strdupDecodeGETorPOSTParam(paramNameIncludingEquals, request->path.c_str(),
+				    valueIfNotFound);
 }
 
-char* strdupDecodePOSTParam(const char* paramNameIncludingEquals, const struct Request* request, const char* valueIfNotFound) {
+char* strdupDecodePOSTParam(const char* paramNameIncludingEquals, const Request* request,
+			    const char* valueIfNotFound) {
   return strdupDecodeGETorPOSTParam(paramNameIncludingEquals, request->body.c_str(),
 				    valueIfNotFound);
 }
 
-typedef enum {
-    PathStateNormal,
-    PathStateSep,
-    PathStateDot,
-} PathState;
+enum class PathState {
+  Normal,
+  Sep,
+  Dot,
+};
 
+// TODO: These are static utilties that can be exposed to the user. They're not
+// needed in this code. Should port to std::string etc.
 /* Aggressively escape strings for URLs. This adds the %12%0f stuff */
 static char* strdupEscapeForURL(const char* stringToEscape) {
-    struct HeapString escapedString;
-    heapStringInit(&escapedString);
-    const char* p = stringToEscape;
-    while ('\0' != *p) {
-        bool isULetter = *p >= 'A' && *p <= 'Z';
-        bool isLLetter = *p >= 'a' && *p <= 'z';
-        bool isNumber = *p >= '0' && *p <= '9';
-        bool isAcceptablePunctuation = ('.' == *p || '/' == *p || '-' == *p);
-        if (isULetter || isLLetter || isNumber || isAcceptablePunctuation) {
-            heapStringAppendChar(&escapedString, *p);
-        } else {
-            // huh I guess %02x doesn't work in Windows?? holy cow
-            uint8_t pu8 = (uint8_t)*p;
-            uint8_t firstDigit = (pu8 & 0xf0) >> 4;
-            uint8_t secondDigit = pu8 & 0xf;
-            heapStringAppendFormat(&escapedString, "%%%x%x", firstDigit, secondDigit);
-        }
-        p++;
+  struct HeapString escapedString;
+  heapStringInit(&escapedString);
+  const char* p = stringToEscape;
+  while ('\0' != *p) {
+    bool isULetter = *p >= 'A' && *p <= 'Z';
+    bool isLLetter = *p >= 'a' && *p <= 'z';
+    bool isNumber = *p >= '0' && *p <= '9';
+    bool isAcceptablePunctuation = ('.' == *p || '/' == *p || '-' == *p);
+    if (isULetter || isLLetter || isNumber || isAcceptablePunctuation) {
+      heapStringAppendChar(&escapedString, *p);
+    } else {
+      // huh I guess %02x doesn't work in Windows?? holy cow
+      uint8_t pu8 = (uint8_t)*p;
+      uint8_t firstDigit = (pu8 & 0xf0) >> 4;
+      uint8_t secondDigit = pu8 & 0xf;
+      heapStringAppendFormat(&escapedString, "%%%x%x", firstDigit, secondDigit);
     }
-    return escapedString.contents;
+    p++;
+  }
+  return escapedString.contents;
 }
 
 char* strdupEscapeForHTML(const char* stringToEscape) {
-    struct HeapString escapedString;
-    heapStringInit(&escapedString);
-    size_t stringToEscapeLength = strlen(stringToEscape);
-    if (0 == stringToEscapeLength) {
-        char* empty = (char*) malloc(1);
-        *empty = '\0';
-        return empty;
+  struct HeapString escapedString;
+  heapStringInit(&escapedString);
+  size_t stringToEscapeLength = strlen(stringToEscape);
+  if (0 == stringToEscapeLength) {
+    char* empty = (char*) malloc(1);
+    *empty = '\0';
+    return empty;
+  }
+  for (size_t i = 0; i < stringToEscapeLength; i++) {
+    // this is an excerpt of some things translated by the PHP htmlentities function
+    char c = stringToEscape[i];
+    switch (c) {
+    case '"':
+      heapStringAppendFormat(&escapedString, "&quot;");
+      break;
+    case '&':
+      heapStringAppendFormat(&escapedString, "&amp;");
+      break;
+    case '\'':
+      heapStringAppendFormat(&escapedString, "&#039;");
+      break;
+    case '<':
+      heapStringAppendFormat(&escapedString, "&lt;");
+      break;
+    case '>':
+      heapStringAppendFormat(&escapedString, "&gt;");
+      break;
+    case ' ':
+      heapStringAppendFormat(&escapedString, "&nbsp;");
+      break;
+    default:
+      heapStringAppendChar(&escapedString, c);
+      break;
     }
-    for (size_t i = 0; i < stringToEscapeLength; i++) {
-        // this is an excerpt of some things translated by the PHP htmlentities function
-        char c = stringToEscape[i];
-        switch (c) {
-            case '"':
-                heapStringAppendFormat(&escapedString, "&quot;");
-                break;
-            case '&':
-                heapStringAppendFormat(&escapedString, "&amp;");
-                break;
-            case '\'':
-                heapStringAppendFormat(&escapedString, "&#039;");
-                break;
-            case '<':
-                heapStringAppendFormat(&escapedString, "&lt;");
-                break;
-            case '>':
-                heapStringAppendFormat(&escapedString, "&gt;");
-                break;
-            case ' ':
-                heapStringAppendFormat(&escapedString, "&nbsp;");
-                break;
-            default:
-                heapStringAppendChar(&escapedString, c);
-                break;
-        }
-    }
-    return escapedString.contents;
+  }
+  return escapedString.contents;
 }
 
 /* Is someone using ../ to try to read a directory outside of the documentRoot? */
 static bool pathEscapesDocumentRoot(const char* path) {
     int subdirDepth = 0;
-    PathState state = PathStateNormal;
+    PathState state = PathState::Normal;
     bool isFirstChar = true;
     while ('\0' != *path) {
         switch (state) {
-            case PathStateNormal:
+            case PathState::Normal:
                 if ('/' == *path || '\\' == *path) {
-                    state = PathStateSep;
+                    state = PathState::Sep;
                 } else if (isFirstChar && '.' == *path) {
-                    state = PathStateDot;
+                    state = PathState::Dot;
                 } else if (isFirstChar) {
                     subdirDepth++;
                 }
                 isFirstChar = false;
                 break;
-            case PathStateSep:
+            case PathState::Sep:
                 if ('.' == *path) {
-                    state = PathStateDot;
+                    state = PathState::Dot;
                 } else if ('/' != *path && '\\' != *path) {
                     subdirDepth++;
-                    state = PathStateNormal;
+                    state = PathState::Normal;
                 }
                 break;
-            case PathStateDot:
+            case PathState::Dot:
                 if ('/' == *path) {
-                    state = PathStateSep;
+                    state = PathState::Sep;
                 } else if ('.' == *path) {
                     subdirDepth--;
-                    state = PathStateNormal;
+                    state = PathState::Normal;
                 } else {
-                    state = PathStateNormal;
+                    state = PathState::Normal;
                 }
                 break;
         }
@@ -615,7 +600,8 @@ static bool pathEscapesDocumentRoot(const char* path) {
     return false;
 }
 
-static void URLDecode(const char* encoded, char* decoded, size_t decodedCapacity, URLDecodeType type) {
+static void URLDecode(const char* encoded, char* decoded, size_t decodedCapacity,
+		      URLDecodeType type) {
     /* We found a value. Unescape the URL. This is probably filled with bugs */
     size_t deci = 0;
     /* these three vars unescape % escaped things */
@@ -633,7 +619,7 @@ static void URLDecode(const char* encoded, char* decoded, size_t decodedCapacity
             break;
         }
         /* If we are decoding only a parameter then stop at & */
-        if (*encoded == '&' && URLDecodeTypeParameter == type) {
+        if (*encoded == '&' && URLDecodeType::Parameter == type) {
             break;
         }
         switch (state) {
@@ -681,8 +667,8 @@ static void heapStringReallocIfNeeded(struct HeapString* string, size_t minimumC
     /* to avoid many reallocations every time we call AppendChar, round up to the next power of two */
     string->capacity = heapStringNextAllocationSize(minimumCapacity);
     assert(string->capacity > 0 && "We are about to allocate a string with 0 capacity. We should have checked this condition above");
-    bool previouslyAllocated = string->contents != NULL;
-    /* Sometimes string->contents is NULL. realloc handles that case so no need for an extra if (NULL) malloc else realloc */
+    bool previouslyAllocated = string->contents != nullptr;
+    /* Sometimes string->contents is nullptr. realloc handles that case so no need for an extra if (nullptr) malloc else realloc */
     string->contents = (char*) realloc(string->contents, string->capacity);
 	/* zero out the newly allocated memory */
     memset(&string->contents[string->length], 0, string->capacity - string->length);
@@ -708,11 +694,11 @@ static size_t heapStringNextAllocationSize(size_t required) {
 }
 
 void heapStringAppendChar(struct HeapString* string, char c) {
-    heapStringReallocIfNeeded(string, string->length + 2);
-    string->contents[string->length] = c;
-    string->length++;
-	/* this should already be null-terminated but we'll be extra safe for web scale ^_^ */
-    string->contents[string->length] = '\0';
+  heapStringReallocIfNeeded(string, string->length + 2);
+  string->contents[string->length] = c;
+  string->length++;
+  /* this should already be null-terminated but we'll be extra safe for web scale ^_^ */
+  string->contents[string->length] = '\0';
 }
 
 void heapStringAppendFormat(struct HeapString* string, const char* format, ...) {
@@ -752,13 +738,13 @@ void heapStringAppendHeapString(struct HeapString* target, const struct HeapStri
 }
 
 static bool heapStringIsSaneCString(const struct HeapString* heapString) {
-    if (NULL == heapString->contents) {
+    if (nullptr == heapString->contents) {
         if (heapString->capacity != 0) {
-            ews_printf("The heap string %p has a capacity of %" PRIu64 "but it's contents are NULL\n", heapString, (uint64_t) heapString->capacity);
+            ews_printf("The heap string %p has a capacity of %" PRIu64 "but it's contents are nullptr\n", heapString, (uint64_t) heapString->capacity);
             return false;
         }
         if (heapString->length != 0) {
-            ews_printf("The heap string %p has a length of %" PRIu64 " but capacity is 0 and contents are NULL\n", heapString, (uint64_t) heapString->capacity);
+            ews_printf("The heap string %p has a length of %" PRIu64 " but capacity is 0 and contents are nullptr\n", heapString, (uint64_t) heapString->capacity);
             return false;
         }
         return true;
@@ -783,7 +769,7 @@ void heapStringAppendFormatV(struct HeapString* string, const char* format, va_l
     /* Figure out how many characters it would take to print the string */
     va_list apCopy;
     va_copy(apCopy, ap);
-    size_t appendLength = vsnprintf(NULL, 0, format, ap);
+    size_t appendLength = vsnprintf(nullptr, 0, format, ap);
     size_t requiredCapacity = string->length + appendLength + 1;
     heapStringReallocIfNeeded(string, requiredCapacity);
     assert(string->capacity >= string->length + appendLength + 1);
@@ -797,15 +783,15 @@ void heapStringAppendFormatV(struct HeapString* string, const char* format, va_l
 
 void heapStringInit(struct HeapString* string) {
     string->capacity = 0;
-    string->contents = NULL;
+    string->contents = nullptr;
     string->length = 0;
 }
 
 void heapStringFreeContents(struct HeapString* string) {
-    if (NULL != string->contents) {
-        assert(string->capacity > 0 && "A heap string had a capacity > 0 with non-NULL contents which implies a malloc(0)");
+    if (nullptr != string->contents) {
+        assert(string->capacity > 0 && "A heap string had a capacity > 0 with non-nullptr contents which implies a malloc(0)");
         free(string->contents);
-        string->contents = NULL;
+        string->contents = nullptr;
         string->capacity = 0;
         string->length = 0;
         if (OptionIncludeStatusPageAndCounters) {
@@ -813,98 +799,48 @@ void heapStringFreeContents(struct HeapString* string) {
 	  counters.heapStringFrees++;
         }
     } else {
-        assert(string->capacity == 0 && "Why did a string with a NULL contents have a capacity > 0? This is not correct and may indicate corruption");
+        assert(string->capacity == 0 && "Why did a string with a nullptr contents have a capacity > 0? This is not correct and may indicate corruption");
     }
 }
 
 struct HeapString connectionDebugStringCreate(const struct Connection* connection) {
-    struct HeapString debugString;
-    heapStringInit(&debugString);
-    heapStringAppendFormat(&debugString, "%s %s from %s:%s\n", connection->request.method, connection->request.path, connection->remoteHost, connection->remotePort);
-    heapStringAppendFormat(&debugString, "Request URL Path decoded to '%s'\n", connection->request.pathDecoded);
-    heapStringAppendFormat(&debugString, "Bytes sent:%" PRId64 "\n", connection->status.bytesSent);
-    heapStringAppendFormat(&debugString, "Bytes received:%" PRId64 "\n", connection->status.bytesReceived);
-    heapStringAppendFormat(&debugString, "Final request parse state:%d\n", connection->request.state);
-    heapStringAppendFormat(&debugString, "Header pool used:%" PRIu64 "\n", (uint64_t) connection->request.headersStringPoolOffset);
-    heapStringAppendFormat(&debugString, "Header count:%" PRIu64 "\n", (uint64_t) connection->request.headersCount);
-    bool firstHeader = true;
-    heapStringAppendString(&debugString, "\n*** Request Headers ***\n");
-    for (size_t i = 0; i < connection->request.headersCount; i++) {
-        if (firstHeader) {
-            firstHeader = false;
-        }
-        const struct Header* header = &connection->request.headers[i];
-        heapStringAppendFormat(&debugString, "'%s' = '%s'\n", header->name.contents, header->value.contents);
+  struct HeapString debugString;
+  heapStringInit(&debugString);
+  // heapStringAppendFormat(&debugString, "%s %s from %s:%s\n", connection->request.method, connection->request.path, connection->remoteHost, connection->remotePort);
+  heapStringAppendFormat(&debugString, "Request URL Path decoded to '%s'\n", connection->request.pathDecoded);
+  heapStringAppendFormat(&debugString, "Bytes sent:%" PRId64 "\n", connection->status.bytesSent);
+  heapStringAppendFormat(&debugString, "Bytes received:%" PRId64 "\n", connection->status.bytesReceived);
+  heapStringAppendFormat(&debugString, "Final request parse state:%d\n", connection->request.state);
+  heapStringAppendFormat(&debugString, "Header count:%" PRIu64 "\n",
+			 (uint64_t) connection->request.headers.size());
+  bool firstHeader = true;
+  heapStringAppendString(&debugString, "\n*** Request Headers ***\n");
+  for (const auto &header : connection->request.headers) {
+    if (firstHeader) {
+      firstHeader = false;
     }
-    if (!connection->request.body.empty()) {
-      heapStringAppendFormat(&debugString, "\n*** Request Body ***\n%s\n",
-			     connection->request.body.c_str());
-    }
-    heapStringAppendFormat(&debugString, "\n*** Request Warnings ***\n");
-    bool hadWarnings = false;
-    if (connection->request.warnings.headersStringPoolExhausted) {
-        heapStringAppendString(&debugString, "headersStringPoolExhausted - try upping REQUEST_HEADERS_MAX_MEMORY\n");
-        hadWarnings = true;
-    }
-    if (connection->request.warnings.tooManyHeaders) {
-        heapStringAppendString(&debugString, "tooManyHeaders - try upping REQUEST_MAX_HEADERS\n");
-        hadWarnings = true;
-    }
-    if (connection->request.warnings.methodTruncated) {
-        heapStringAppendString(&debugString, "methodTruncated - you can increase the size of method[]\n");
-        hadWarnings = true;
-    }
-    if (connection->request.warnings.pathTruncated) {
-        heapStringAppendString(&debugString, "pathTruncated - you can increase the size of path[]\n");
-        hadWarnings = true;
-    }
-    if (connection->request.warnings.versionTruncated) {
-        heapStringAppendString(&debugString, "versionTruncated - you can increase the size of version[]\n");
-        hadWarnings = true;
-    }
-    if (connection->request.warnings.bodyTruncated) {
-        heapStringAppendString(&debugString, "bodyTruncated - you can increase REQUEST_MAX_BODY_LENGTH");
-        hadWarnings = true;
-    }
-    if (!hadWarnings) {
-        heapStringAppendString(&debugString, "No warnings\n");
-    }
-    return debugString;
+    heapStringAppendFormat(&debugString, "'%s' = '%s'\n",
+			   header.first.c_str(),
+			   header.second.c_str());
+  }
+  if (!connection->request.body.empty()) {
+    heapStringAppendFormat(&debugString, "\n*** Request Body ***\n%s\n",
+			   connection->request.body.c_str());
+  }
+  heapStringAppendFormat(&debugString, "\n*** Request Warnings ***\n");
+  bool hadWarnings = false;
+  if (connection->request.warnings.bodyTruncated) {
+    heapStringAppendString(&debugString, "bodyTruncated - you can increase REQUEST_MAX_BODY_LENGTH");
+    hadWarnings = true;
+  }
+  if (!hadWarnings) {
+    heapStringAppendString(&debugString, "No warnings\n");
+  }
+  return debugString;
 }
 
-static void poolStringStartNewString(struct PoolString* poolString, struct Request* request) {
-    /* always re-initialize the length...just in case */
-    poolString->length = 0;
-
-    /* this is the first string in the pool */
-    if (0 == request->headersStringPoolOffset) {
-        poolString->contents = request->headersStringPool;
-        return;
-    }
-    /* the pool string is full - don't initialize anything writable and ensure any writing to this pool string crashes */
-    if (request->headersStringPoolOffset >= REQUEST_HEADERS_MAX_MEMORY - 1 - sizeof('\0')) { // we need to store one character (-1) and a null character at the end of the last string sizeof('\0')
-        poolString->length = 0;
-        poolString->contents = NULL;
-        request->warnings.headersStringPoolExhausted = true;
-        return;
-    }
-    /* there's already another string in the pool - we need to skip the null character (the string pool is initialized to 0s by calloc) */
-    request->headersStringPoolOffset++;
-    poolString->contents = &request->headersStringPool[request->headersStringPoolOffset];
-    poolString->length = 0;
-}
-
-static void poolStringAppendChar(struct Request* request, struct PoolString* string, char c) {
-    if (request->headersStringPoolOffset >= REQUEST_HEADERS_MAX_MEMORY - 1 - sizeof('\0')) { // we need to store one character (-1) and a null character at the end of the last string sizeof('\0')
-        request->warnings.headersStringPoolExhausted = true;
-        return;
-    }
-    string->contents[string->length] = c;
-    string->length++;
-    request->headersStringPoolOffset++;
-}
-
-// allocates a response with content = malloc(contentLength + 1) so you can write null-terminated strings to it
+// allocates a response with content = malloc(contentLength + 1) so you can write
+// null-terminated strings to it
 struct Response* responseAlloc(int code, const char* status, const char* contentType,
 			       size_t bodyCapacity) {
   struct Response* response = (struct Response*) calloc(1, sizeof(*response));
@@ -972,59 +908,59 @@ struct Response* responseAllocWithFormat(int code, const char* status, const cha
 }
 
 static bool requestMatchesPathPrefix(const char* requestPathDecoded, const char* pathPrefix, size_t* matchLength) {
-    /* special case: pathPrefix is "" - matching everything*/
-    if (pathPrefix[0] == '\0') {
-        return true;
-    }
-    /* special case: requestPathDecoded is "" - match nothing */
-    if (requestPathDecoded[0] == '\0') {
-        return false;
-    }
-    /* cases to think about:
-    pathPrefix  = "/releases/current" OR  "/releases/current/"
-    requestPath = "/releases/current/" OR "/releases/current" */
-    size_t requestPathDecodedLength = strlen(requestPathDecoded);
-    size_t pathPrefixLength = strlen(pathPrefix);
-    /* we checked for zero-length strings above so it's afe to do this*/
-    bool pathPrefixEndsWithSlash = pathPrefix[pathPrefixLength - 1] == '/';
-    bool requestPathDecodedEndsWithSlash = requestPathDecoded[requestPathDecodedLength - 1] == '/';
-    if (requestPathDecoded == strstr(requestPathDecoded, pathPrefix)) {
-        /* if this code path finds a match, it will always be the full path prefix that's matched */
-        if (NULL != matchLength) {
-            *matchLength = pathPrefixLength;
-        }
-        /* ok we just matched pathPrefix = "/releases/current" but what if requestPathDecoded is "/releases/currentXXX"? */
-        if (!pathPrefixEndsWithSlash) {
-            /* pathPrefix is equal to requestPathDecoded */
-            if (pathPrefixLength == requestPathDecodedLength) {
-                assert(0 == strcmp(pathPrefix, requestPathDecoded) && "I'm assuming that the strings match with the length check + strstr above and I hope that's true. If not, that check needs to be replaced with real (0 == strcmp)");
-                return true;
-            }
-            assert(requestPathDecodedLength > pathPrefixLength && "In the following code I am assuming that the requestPathDecoded is indeed longer than the path prefix because of the length check I did above (even though that was ==, the strstr has to match it)");
-            /* pathPrefix = "/releases/current" and requestPathDecoded = "/releases/currentX" - we needs X to be a /
-            We want pathPrefix to match "/releases/current/" but not "/releases/current1"	*/
-            if (requestPathDecoded[pathPrefixLength] == '/') {
-                return true;
-            }
-            /* this is the case where pathPrefix = "/releases/current" and requestPathDecoded = "/releases/current1" */
-            return false;
-        }
-        return true;
-    }
-    /* It can still be the case that pathPrefix is "/releases/current/" and requestPathDecoded is "/releases/current".
-    It's tempting to just put an assert and make the user fix it but we'll use some extra code to handle it. */
-    if (requestPathDecodedLength == pathPrefixLength - 1) {
-        /* make sure we're specifically matchig "/releases/current/" with "/releases/current" and not something like "/releases/currentX" */
-        if (pathPrefixEndsWithSlash && !requestPathDecodedEndsWithSlash) {
-            if (0 == strncmp(requestPathDecoded, pathPrefix, requestPathDecodedLength)) {
-                if (NULL != matchLength) {
-                    *matchLength = requestPathDecodedLength;
-                }
-                return true;
-            }
-        }
-    }
+  /* special case: pathPrefix is "" - matching everything*/
+  if (pathPrefix[0] == '\0') {
+    return true;
+  }
+  /* special case: requestPathDecoded is "" - match nothing */
+  if (requestPathDecoded[0] == '\0') {
     return false;
+  }
+  /* cases to think about:
+     pathPrefix  = "/releases/current" OR  "/releases/current/"
+     requestPath = "/releases/current/" OR "/releases/current" */
+  size_t requestPathDecodedLength = strlen(requestPathDecoded);
+  size_t pathPrefixLength = strlen(pathPrefix);
+  /* we checked for zero-length strings above so it's afe to do this*/
+  bool pathPrefixEndsWithSlash = pathPrefix[pathPrefixLength - 1] == '/';
+  bool requestPathDecodedEndsWithSlash = requestPathDecoded[requestPathDecodedLength - 1] == '/';
+  if (requestPathDecoded == strstr(requestPathDecoded, pathPrefix)) {
+    /* if this code path finds a match, it will always be the full path prefix that's matched */
+    if (nullptr != matchLength) {
+      *matchLength = pathPrefixLength;
+    }
+    /* ok we just matched pathPrefix = "/releases/current" but what if requestPathDecoded is "/releases/currentXXX"? */
+    if (!pathPrefixEndsWithSlash) {
+      /* pathPrefix is equal to requestPathDecoded */
+      if (pathPrefixLength == requestPathDecodedLength) {
+	assert(0 == strcmp(pathPrefix, requestPathDecoded) && "I'm assuming that the strings match with the length check + strstr above and I hope that's true. If not, that check needs to be replaced with real (0 == strcmp)");
+	return true;
+      }
+      assert(requestPathDecodedLength > pathPrefixLength && "In the following code I am assuming that the requestPathDecoded is indeed longer than the path prefix because of the length check I did above (even though that was ==, the strstr has to match it)");
+      /* pathPrefix = "/releases/current" and requestPathDecoded = "/releases/currentX" - we needs X to be a /
+	 We want pathPrefix to match "/releases/current/" but not "/releases/current1"	*/
+      if (requestPathDecoded[pathPrefixLength] == '/') {
+	return true;
+      }
+      /* this is the case where pathPrefix = "/releases/current" and requestPathDecoded = "/releases/current1" */
+      return false;
+    }
+    return true;
+  }
+  /* It can still be the case that pathPrefix is "/releases/current/" and requestPathDecoded is "/releases/current".
+     It's tempting to just put an assert and make the user fix it but we'll use some extra code to handle it. */
+  if (requestPathDecodedLength == pathPrefixLength - 1) {
+    /* make sure we're specifically matchig "/releases/current/" with "/releases/current" and not something like "/releases/currentX" */
+    if (pathPrefixEndsWithSlash && !requestPathDecodedEndsWithSlash) {
+      if (0 == strncmp(requestPathDecoded, pathPrefix, requestPathDecodedLength)) {
+	if (nullptr != matchLength) {
+	  *matchLength = requestPathDecodedLength;
+	}
+	return true;
+      }
+    }
+  }
+  return false;
 }
 /*
 Here's how the path logic works:
@@ -1077,12 +1013,12 @@ struct Response* responseAllocServeFileFromRequestPath(const char* pathPrefix,
 						       const char* requestPath,
 						       const char* requestPathDecoded,
 						       const char* documentRoot) {
-  if (NULL == pathPrefix) {
-    ews_printf_debug("responseAllocServeFileFromRequestPath(): The user passed in NULL for pathPrefix so we just defaulted to / for them. Whatever.\n");
+  if (nullptr == pathPrefix) {
+    ews_printf_debug("responseAllocServeFileFromRequestPath(): The user passed in nullptr for pathPrefix so we just defaulted to / for them. Whatever.\n");
     pathPrefix = "/";
   }
-  assert(NULL != requestPath && "The requestPath should not be NULL. It can be empty, but not NULL. Pass request->path");
-  assert(NULL != requestPathDecoded && "The requestPathDecoded should not be NULL. It can be empty, but not NULL. Pass request->requestPathDecoded");
+  assert(nullptr != requestPath && "The requestPath should not be nullptr. It can be empty, but not nullptr. Pass request->path");
+  assert(nullptr != requestPathDecoded && "The requestPathDecoded should not be nullptr. It can be empty, but not nullptr. Pass request->requestPathDecoded");
   // Step 1 (see above)
   size_t matchLength = 0;
   /* Do we even match this path? Also figure out the suffix (note the use of the _decoded_ path -- otherwise we would have %12s and stuff everywhere */
@@ -1116,7 +1052,7 @@ struct Response* responseAllocServeFileFromRequestPath(const char* pathPrefix,
 }
 
 struct Response* responseAlloc400BadRequestHTML(const char* errorMessage) {
-  if (NULL == errorMessage) {
+  if (nullptr == errorMessage) {
     errorMessage = "An unspecified error occurred";
   }
   return responseAllocWithFormat(
@@ -1126,7 +1062,7 @@ struct Response* responseAlloc400BadRequestHTML(const char* errorMessage) {
 }
 
 struct Response* responseAlloc404NotFoundHTML(const char* resourcePathOrNull) {
-  if (NULL == resourcePathOrNull) {
+  if (nullptr == resourcePathOrNull) {
     return responseAllocHTMLWithStatus(
 	404, "Not Found",
 	"<html><head><title>404 Not Found</title></head><body>"
@@ -1141,7 +1077,7 @@ struct Response* responseAlloc404NotFoundHTML(const char* resourcePathOrNull) {
 }
 
 struct Response* responseAlloc500InternalErrorHTML(const char* extraInformationOrNull) {
-  if (NULL == extraInformationOrNull) {
+  if (nullptr == extraInformationOrNull) {
     return responseAllocHTMLWithStatus(
 	500, "Internal Error",
 	"<html><head><title>500 Internal Error</title></head>"
@@ -1155,131 +1091,105 @@ struct Response* responseAlloc500InternalErrorHTML(const char* extraInformationO
   }
 }
 
-struct Response* responseAllocWithFile(const char* filename, const char* MIMETypeOrNULL) {
-  struct Response* response = responseAlloc(200, "OK", MIMETypeOrNULL, 0);
+struct Response* responseAllocWithFile(const char* filename, const char* MIMETypeOrnullptr) {
+  struct Response* response = responseAlloc(200, "OK", MIMETypeOrnullptr, 0);
   response->filenameToSend = strdup(filename);
   return response;
 }
 
 static void responseFree(struct Response* response) {
-  if (NULL != response->status) {
+  if (nullptr != response->status) {
     free(response->status);
   }
-  if (NULL != response->filenameToSend) {
+  if (nullptr != response->filenameToSend) {
     free(response->filenameToSend);
   }
-  if (NULL != response->contentType) {
+  if (nullptr != response->contentType) {
     free(response->contentType);
   }
-  if (NULL != response->extraHeaders) {
+  if (nullptr != response->extraHeaders) {
     free(response->extraHeaders);
   }
   heapStringFreeContents(&response->body);
   free(response);
 }
 
-/* Only grab another header if we have space for it. This was revealed to be open for attack by afl-fuzz! */
-static RequestParseState stateHeaderNameIfSpaceLeft(struct Request* request) {
-  if (request->headersCount < REQUEST_MAX_HEADERS) {
-    if (!request->warnings.headersStringPoolExhausted) {
-      return RequestParseState::HeaderName;
-    }
-  } else {
-    request->warnings.tooManyHeaders = true;
-  }
-  return RequestParseState::EatHeaders;
-}
-
 /* parses a typical HTTP request looking for the first line: GET /path HTTP/1.0\r\n */
-static void requestParse(struct Request* request, const char* requestFragment, size_t requestFragmentLength) {
+static void requestParse(struct Request* request,
+			 const char* requestFragment, size_t requestFragmentLength) {
   for (size_t i = 0; i < requestFragmentLength; i++) {
     char c = requestFragment[i];
     switch (request->state) {
     case RequestParseState::Method:
       if (c == ' ') {
 	request->state = RequestParseState::Path;
-      } else if (request->methodLength < sizeof(request->method) - 1) {
-	request->method[request->methodLength] = c;
-	request->methodLength++;
       } else {
-	request->warnings.methodTruncated = true;
+	request->method += c;
       }
       break;
     case RequestParseState::Path:
       if (c == ' ') {
 	/* we are done parsing the path, decode it */
-	URLDecode(request->path, request->pathDecoded, sizeof(request->pathDecoded), URLDecodeTypeWholeURL);
+	URLDecode(request->path.c_str(), request->pathDecoded, sizeof(request->pathDecoded),
+		  URLDecodeType::WholeURL);
 	request->state = RequestParseState::Version;
-      } else if (request->pathLength < sizeof(request->path) - 1) {
-	request->path[request->pathLength] = c;
-	request->pathLength++;
       } else {
-	request->warnings.pathTruncated = true;
+	request->path += c;
       }
       break;
     case RequestParseState::Version:
       if (c == '\r') {
 	request->state = RequestParseState::CR;
-      } else if (request->versionLength < sizeof(request->version) - 1) {
-	request->version[request->versionLength] = c;
-	request->versionLength++;
       } else {
-	request->warnings.versionTruncated = true;
+	request->version += c;
       }
       break;
     case RequestParseState::HeaderName:
-      assert(request->headersCount < REQUEST_MAX_HEADERS && "Parsing the request header name assumes we have space for more headers");
       if (c == ':') {
 	request->state = RequestParseState::HeaderValue;
       } else if (c == '\r') {
+	// Invalid header...
+	request->partial_header_name.clear();
 	request->state = RequestParseState::CR;
       } else  {
-	/* if this is the first character in this header name, then initialize the string pool */
-	if (NULL == request->headers[request->headersCount].name.contents) {
-	  poolStringStartNewString(&request->headers[request->headersCount].name, request);
-	}
-	/* store the header name in the string pool */
-	poolStringAppendChar(request, &request->headers[request->headersCount].name, c);
+	// Accumulate into temporary state, which is flushed when a complete
+	// header value is found.
+	request->partial_header_name += c;
       }
       break;
     case RequestParseState::HeaderValue:
-      assert(request->headersCount < REQUEST_MAX_HEADERS && "Parsing the request header value assumes we have space for more headers");
-      /* skip the first space if we are saving this to header */
-      if (c == ' ' && request->headers[request->headersCount].value.length == 0) {
+      // skip leading spaces.
+      if (c == ' ' && request->partial_header_value.empty()) {
 	/* intentionally skipped */
       } else if (c == '\r') {
-	/* only go to the next header if we were able to fill this one out - it is important to check both,
-	   especially in the case of a header like ": safdasdf" */
-	if (request->headers[request->headersCount].value.length > 0 && request->headers[request->headersCount].name.length > 0) {
-	  request->headersCount++;
+	// Only accept if we have non-empty data.
+	if (!request->partial_header_name.empty() &&
+	    !request->partial_header_value.empty()) {
+	  request->headers.emplace_back(request->partial_header_name,
+					request->partial_header_value);
 	}
+	request->partial_header_name.clear();
+	request->partial_header_value.clear();
 	request->state = RequestParseState::CR;
       } else {
-	assert(request->headersCount < REQUEST_MAX_HEADERS && "Parsing the request header value assumes we have space for more headers");
-	/* if this is the first character in this header name, then initialize the string pool */
-	if (NULL == request->headers[request->headersCount].value.contents) {
-	  poolStringStartNewString(&request->headers[request->headersCount].value, request);
-	}
-	/* store the header name in the string pool */
-	poolStringAppendChar(request, &request->headers[request->headersCount].value, c);
+	request->partial_header_value += c;
       }
       break;
     case RequestParseState::CR:
       if (c == '\n') {
 	request->state = RequestParseState::CRLF;
       } else {
-	request->state = stateHeaderNameIfSpaceLeft(request);
+	request->state = RequestParseState::HeaderName;
       }
       break;
     case RequestParseState::CRLF:
       if (c == '\r') {
 	request->state = RequestParseState::CRLFCR;
       } else {
-	request->state = stateHeaderNameIfSpaceLeft(request);
-	if (RequestParseState::HeaderName == request->state) {
-	  /* this is the first character of the header - replay the HeaderName case so this character gets appended */
-	  i--;
-	}
+	request->state = RequestParseState::HeaderName;
+	/* this is the first character of the header - replay the HeaderName case so 
+	   this character gets appended */
+	i--;
       }
       break;
     case RequestParseState::CRLFCR:
@@ -1287,13 +1197,14 @@ static void requestParse(struct Request* request, const char* requestFragment, s
 	/* assume the request state is done unless we have some Content-Length, 
 	   which would come from something like a JSON blob */
 	request->state = RequestParseState::Done;
-	const struct Header* contentLengthHeader = headerInRequest("Content-Length", request);
-	if (NULL != contentLengthHeader) {
+	const string* contentLengthHeader =
+	  headerInRequest("Content-Length", request);
+	if (nullptr != contentLengthHeader) {
 	  ews_printf_debug("Incoming request has a body of length %s\n",
-			   contentLengthHeader->value.contents);
+			   contentLengthHeader->c_str());
 	  /* Note that this limits content length to < 2GB on Windows */
 	  long contentLength = 0;
-	  if (1 == sscanf(contentLengthHeader->value.contents, "%ld", &contentLength)) {
+	  if (1 == sscanf(contentLengthHeader->c_str(), "%ld", &contentLength)) {
 	    if (contentLength > REQUEST_MAX_BODY_LENGTH) {
 	      request->warnings.bodyTruncated = true;
 	      contentLength = REQUEST_MAX_BODY_LENGTH;
@@ -1309,13 +1220,7 @@ static void requestParse(struct Request* request, const char* requestFragment, s
 	  }
 	}
       } else {
-	request->state = stateHeaderNameIfSpaceLeft(request);
-      }
-      break;
-    case RequestParseState::EatHeaders:
-      /* we have no more room for headers right now */
-      if (c == '\r') {
-	request->state = RequestParseState::CR;
+	request->state = RequestParseState::HeaderName;
       }
       break;
     case RequestParseState::Body:
@@ -1331,30 +1236,8 @@ static void requestParse(struct Request* request, const char* requestFragment, s
   }
 }
 
-static void requestPrintWarnings(const struct Request* request, const char* remoteHost, const char* remotePort) {
-  if (request->warnings.headersStringPoolExhausted) {
-    ews_printf("Warning: Request from %s:%s exhausted the header string pool so some "
-	       "information will be lost. You can try increasing REQUEST_HEADERS_MAX_MEMORY "
-	       "which is currently %ld bytes\n", remoteHost, remotePort,
-	       (long) REQUEST_HEADERS_MAX_MEMORY);
-  }
-  if (request->warnings.tooManyHeaders) {
-    ews_printf("Warning: Request from %s:%s had too many headers and we dropped some. "
-	       "You can try increasing REQUEST_MAX_HEADERS which is currently %ld\n",
-	       remoteHost, remotePort, (long) REQUEST_MAX_HEADERS);
-  }
-  if (request->warnings.methodTruncated) {
-    ews_printf("Warning: Request from %s:%s method was truncated to %s\n",
-	       remoteHost, remotePort, request->method);
-  }
-  if (request->warnings.pathTruncated) {
-    ews_printf("Warning: Request from %s:%s path was truncated to %s\n",
-	       remoteHost, remotePort, request->path);
-  }
-  if (request->warnings.versionTruncated) {
-    ews_printf("Warning: Request from %s:%s version was truncated to %s\n",
-	       remoteHost, remotePort, request->version);
-  }
+static void requestPrintWarnings(const struct Request* request,
+				 const char* remoteHost, const char* remotePort) {
   if (request->warnings.bodyTruncated) {
     ews_printf("Warning: Request from %s:%s body was truncated to %" PRIu64 " bytes\n",
 	       remoteHost, remotePort, (uint64_t)request->body.size());
@@ -1503,11 +1386,11 @@ static int sendResponse(struct Connection* connection, const struct Response* re
   if (response->body.length > 0) {
     return sendResponseBody(connection, response, bytesSent);
   }
-  if (NULL != response->filenameToSend) {
+  if (nullptr != response->filenameToSend) {
     return sendResponseFile(connection, response, bytesSent);
   }
   ews_printf("Error: the request for '%s' failed because there was neither a response "
-	     "body nor a filenameToSend\n", connection->request.path);
+	     "body nor a filenameToSend\n", connection->request.path.c_str());
   assert(0 && "See above ews_printf");
   return 1;
 }
@@ -1567,28 +1450,32 @@ static int sendResponseFile(struct Connection* connection,
      sendfile, memory map the file, or any number of exciting things. But
      here we just fread the first 100 bytes to figure out MIME type, then rewind
      and send the file ~16KB at a time. */
-  struct Response* errorResponse = NULL;
+  struct Response* errorResponse = nullptr;
   FILE* fp = fopen(response->filenameToSend, "rb");
   int result = 0;
   long fileLength;
   ssize_t sendResult;
   int headerLength;
   size_t actualMIMEReadSize;
-  const char* contentType = NULL;
+  const char* contentType = nullptr;
   const size_t MIMEReadSize = 100;
-  if (NULL == fp) {
-    ews_printf("Unable to satisfy request for '%s' because we could not open the file '%s' %s = %d\n", connection->request.path, response->filenameToSend, strerror(errno), errno);
-    errorResponse = responseAlloc404NotFoundHTML(connection->request.path);
+  if (nullptr == fp) {
+    ews_printf("Unable to satisfy request for '%s' "
+	       "because we could not open the file '%s' %s = %d\n",
+	       connection->request.path.c_str(), response->filenameToSend,
+	       strerror(errno), errno);
+    errorResponse = responseAlloc404NotFoundHTML(connection->request.path.c_str());
     goto exit;
   }
   /* If the MIME type if specified in the response->contentType, use that. Otherwise try to guess with MIMETypeFromFile */
-  if (NULL != response->contentType) {
+  if (nullptr != response->contentType) {
     contentType = response->contentType;
   } else {
     assert(sizeof(connection->sendRecvBuffer) >= MIMEReadSize);
     actualMIMEReadSize = fread(connection->sendRecvBuffer, 1, MIMEReadSize, fp);
     if (0 == actualMIMEReadSize) {
-      ews_printf("Unable to satisfy request for '%s' because we could read the first bunch of bytes to determine MIME type '%s' %s = %d\n", connection->request.path, response->filenameToSend, strerror(errno), errno);
+      ews_printf("Unable to satisfy request for '%s' because we could read the first bunch of bytes to determine MIME type '%s' %s = %d\n", connection->request.path.c_str(),
+		 response->filenameToSend, strerror(errno), errno);
       errorResponse = responseAlloc500InternalErrorHTML("fread for MIME type detection failed");
       goto exit;
     }
@@ -1598,19 +1485,19 @@ static int sendResponseFile(struct Connection* connection,
   /* get the file length, laboriously checking for errors */
   result = fseek(fp, 0, SEEK_END);
   if (0 != result) {
-    ews_printf("Unable to satisfy request for '%s' because we could not fseek to the end of the file '%s' %s = %d\n", connection->request.path, response->filenameToSend, strerror(errno), errno);
+    ews_printf("Unable to satisfy request for '%s' because we could not fseek to the end of the file '%s' %s = %d\n", connection->request.path.c_str(), response->filenameToSend, strerror(errno), errno);
     errorResponse = responseAlloc500InternalErrorHTML("fseek to end of file failed");
     goto exit;
   }
   fileLength = ftell(fp);
   if (fileLength < 0) {
-    ews_printf("Unable to satisfy request for '%s' because we could not ftell on the file '%s' %s = %d\n", connection->request.path, response->filenameToSend, strerror(errno), errno);
+    ews_printf("Unable to satisfy request for '%s' because we could not ftell on the file '%s' %s = %d\n", connection->request.path.c_str(), response->filenameToSend, strerror(errno), errno);
     errorResponse = responseAlloc500InternalErrorHTML("ftell to determine file length failed");
     goto exit;
   }
   result = fseek(fp, 0, SEEK_SET);
   if (0 != result) {
-    ews_printf("Unable to satisfy request for '%s' because we could not fseek to the beginning of the file '%s' %s = %d\n", connection->request.path, response->filenameToSend, strerror(errno), errno);
+    ews_printf("Unable to satisfy request for '%s' because we could not fseek to the beginning of the file '%s' %s = %d\n", connection->request.path.c_str(), response->filenameToSend, strerror(errno), errno);
     errorResponse = responseAlloc500InternalErrorHTML("fseek to beginning of file to start sending failed");
     goto exit;
   }
@@ -1619,7 +1506,7 @@ static int sendResponseFile(struct Connection* connection,
   headerLength = snprintfResponseHeader(connection->responseHeader, sizeof(connection->responseHeader), response->code, response->status, contentType, response->extraHeaders, fileLength);
   sendResult = send(connection->socketfd, connection->responseHeader, headerLength, 0);
   if (sendResult != headerLength) {
-    ews_printf("Unable to satisfy request for '%s' because we could not send the HTTP header '%s' %s = %d\n", connection->request.path, response->filenameToSend, strerror(errno), errno);
+    ews_printf("Unable to satisfy request for '%s' because we could not send the HTTP header '%s' %s = %d\n", connection->request.path.c_str(), response->filenameToSend, strerror(errno), errno);
     result = 1;
     goto exit;
   }
@@ -1630,18 +1517,18 @@ static int sendResponseFile(struct Connection* connection,
   /* read the whole file, just buffering into the connection buffer, and sending it out to the socket */
   while (!feof(fp)) {
     size_t bytesRead = fread(connection->sendRecvBuffer, 1, sizeof(connection->sendRecvBuffer), fp);
-    if (0 == bytesRead) { /* peacefull end of file */
+    if (0 == bytesRead) { /* peaceful end of file */
       break;
     }
     if (ferror(fp)) {
-      ews_printf("Unable to satisfy request for '%s' because there was an error freading. '%s' %s = %d\n", connection->request.path, response->filenameToSend, strerror(errno), errno);
+      ews_printf("Unable to satisfy request for '%s' because there was an error freading. '%s' %s = %d\n", connection->request.path.c_str(), response->filenameToSend, strerror(errno), errno);
       errorResponse = responseAlloc500InternalErrorHTML("Could not fread to send over socket");
       goto exit;
     }
     /* send the data out the socket to the network */
     sendResult = send(connection->socketfd, connection->sendRecvBuffer, bytesRead, 0);
     if (sendResult != (ssize_t) bytesRead) {
-      ews_printf("Unable to satisfy request for '%s' because there was an error sending bytes. '%s' %s = %d\n", connection->request.path, response->filenameToSend, strerror(errno), errno);
+      ews_printf("Unable to satisfy request for '%s' because there was an error sending bytes. '%s' %s = %d\n", connection->request.path.c_str(), response->filenameToSend, strerror(errno), errno);
       result = 1;
       goto exit;
     }
@@ -1652,11 +1539,11 @@ static int sendResponseFile(struct Connection* connection,
     *bytesSent = *bytesSent + sendResult;
   }
  exit:
-  if (NULL != fp) {
+  if (nullptr != fp) {
     fclose(fp);
   }
-  if (NULL != errorResponse) {
-    ews_printf("Instead of satisfying the request for '%s' we encountered an error and will return %d %s\n", connection->request.path, response->code, response->status);
+  if (nullptr != errorResponse) {
+    ews_printf("Instead of satisfying the request for '%s' we encountered an error and will return %d %s\n", connection->request.path.c_str(), response->code, response->status);
     ssize_t errorBytesSent = 0;
     result = sendResponseBody(connection, errorResponse, &errorBytesSent);
     *bytesSent = *bytesSent + errorBytesSent;
@@ -1701,9 +1588,9 @@ static void connectionHandlerThread(void* connectionPointer) {
       ews_printf_debug("Request from %s:%s: %s to %s HTTP version %s\n",
 		       connection->remoteHost,
 		       connection->remotePort,
-		       connection->request.method,
-		       connection->request.path,
-		       connection->request.version);
+		       connection->request.method.c_str(),
+		       connection->request.path.c_str(),
+		       connection->request.version.c_str());
       madeRequestPrintf = true;
     }
     if (connection->request.state == RequestParseState::Done) {
@@ -1715,7 +1602,7 @@ static void connectionHandlerThread(void* connectionPointer) {
   ssize_t bytesSent = 0;
   if (foundRequest) {
     struct Response* response = createResponseForRequestAutoreleased(&connection->request, connection);
-    if (NULL != response) {
+    if (nullptr != response) {
       int result = sendResponse(connection, response, &bytesSent);
       if (0 == result) {
 	ews_printf_debug("%s:%s: Responded with HTTP %d %s length %" PRId64 "\n", connection->remoteHost, connection->remotePort, response->code, response->status, (int64_t)bytesSent);
@@ -1725,7 +1612,7 @@ static void connectionHandlerThread(void* connectionPointer) {
       responseFree(response);
       connection->status.bytesSent = bytesSent;
     } else {
-      ews_printf("%s:%s: You have returned a NULL response - I'm assuming you took over the request handling yourself.\n", connection->remoteHost, connection->remotePort);
+      ews_printf("%s:%s: You have returned a nullptr response - I'm assuming you took over the request handling yourself.\n", connection->remoteHost, connection->remotePort);
     }
   } else {
     ews_printf("No request found from %s:%s? Closing connection. Here's the last bytes we received in the request (length %" PRIi64 "). The total bytes received on this connection: %" PRIi64 " :\n", connection->remoteHost, connection->remotePort, (int64_t) bytesRead, connection->status.bytesReceived);
@@ -1830,7 +1717,7 @@ static bool strEndsWith(const char* big, const char* endsWith) {
 static int snprintfResponseHeader(char* destination, size_t destinationCapacity,
 				  int code, const char* status, const char* contentType,
 				  const char* extraHeaders, size_t contentLength) {
-  if (NULL == extraHeaders) {
+  if (nullptr == extraHeaders) {
     extraHeaders = "";
   }
   return snprintf(destination,
@@ -1910,18 +1797,18 @@ static void callWSAStartupIfNecessary() {
 }
 
 static void printIPv4Addresses(uint16_t portInHostOrder) {
-  struct ifaddrs* addrs = NULL;
+  struct ifaddrs* addrs = nullptr;
   getifaddrs(&addrs);
   struct ifaddrs* p = addrs;
-  while (NULL != p) {
-    if (NULL != p->ifa_addr && p->ifa_addr->sa_family == AF_INET) {
+  while (nullptr != p) {
+    if (nullptr != p->ifa_addr && p->ifa_addr->sa_family == AF_INET) {
       char hostname[256];
-      getnameinfo(p->ifa_addr, sizeof(struct sockaddr_in), hostname, sizeof(hostname), NULL, 0, NI_NUMERICHOST);
+      getnameinfo(p->ifa_addr, sizeof(struct sockaddr_in), hostname, sizeof(hostname), nullptr, 0, NI_NUMERICHOST);
       ews_printf("Probably listening on http://%s:%u\n", hostname, portInHostOrder);
     }
     p = p->ifa_next;
   }
-  if (NULL != addrs) {
+  if (nullptr != addrs) {
     freeifaddrs(addrs);
   }
 }
