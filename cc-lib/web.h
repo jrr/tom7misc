@@ -7,21 +7,6 @@
 #include <utility>
 
 
-// XXX implementation detail to .cc
-  enum class RequestParseState  {
-    Method,
-    Path,
-    Version,
-    HeaderName,
-    HeaderValue,
-    CR,
-    CRLF,
-    CRLFCR,
-    Body,
-    Done,
-  };
-
-
 struct WebServer {
   static WebServer *Create();
   virtual ~WebServer();
@@ -57,10 +42,6 @@ struct WebServer {
     // Utilities
     // Find a header's value (case insensitive) or return nullptr.
     const std::string *GetHeader(const std::string &name);
-    
-    /* internal state for the request parser */
-    RequestParseState state = RequestParseState::Method;
-    std::string partial_header_name, partial_header_value;
   };
 
   /* You create one of these for the server to send. Use one of the responseAlloc functions.

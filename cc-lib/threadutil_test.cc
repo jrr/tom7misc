@@ -17,7 +17,7 @@ template<class T>
 static void CheckSameVec(const vector<T> &a,
 			 const vector<T> &b) {
   CHECK(a.size() == b.size()) << "\n" << a.size() << " != " << b.size();
-  for (int i = 0; i < a.size(); i++) {
+  for (int i = 0; i < (int)a.size(); i++) {
     CHECK(a[i] == b[i]) << "\n" << a[i] << " != " << b[i];
   }
 }

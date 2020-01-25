@@ -118,7 +118,7 @@ void TestMin(ArcFour *rc) {
   heap.CheckInvariants(Ptos);
   vector<TestValue> values = GetValues(rc);
   
-  for (int i = 0; i < values.size(); i++) {
+  for (int i = 0; i < (int)values.size(); i++) {
     heap.Insert(values[i].i, &values[i]);
     heap.CheckInvariants(Ptos);
   }
@@ -136,7 +136,7 @@ void TestMin(ArcFour *rc) {
     last = now;
   }
 
-  for (int i = 0; i < values.size(); i++) {
+  for (int i = 0; i < (int)values.size(); i++) {
     CHECK(values[i].location == -1) <<
       StringPrintf("FAIL! %d still in heap at %d\n", i, values[i].location);
   }
@@ -147,7 +147,7 @@ void TestMax(ArcFour *rc) {
   heap.CheckInvariants(Ptos);
   vector<TestValue> values = GetValues(rc);
   
-  for (int i = 0; i < values.size(); i++) {
+  for (int i = 0; i < (int)values.size(); i++) {
     heap.Insert(values[i].i, &values[i]);
     heap.CheckInvariants(Ptos);
   }
@@ -165,7 +165,7 @@ void TestMax(ArcFour *rc) {
     last = now;
   }
 
-  for (int i = 0; i < values.size(); i++) {
+  for (int i = 0; i < (int)values.size(); i++) {
     CHECK(values[i].location == -1) <<
       StringPrintf("FAIL! %d still in heap at %d\n", i, values[i].location);
   }
@@ -174,14 +174,14 @@ void TestMax(ArcFour *rc) {
 void TestClear(ArcFour *rc) {
   vector<TestValue> values = GetValues(rc);
   IntHeap heap;
-  for (int i = 0; i < values.size() / 2; i++) {
+  for (int i = 0; i < (int)values.size() / 2; i++) {
     heap.Insert(values[i].i, &values[i]);
   }
 
   heap.Clear();
   CHECK(heap.Empty()) << "FAIL: Heap not empty after clear?\n";
 
-  for (int i = 0; i < values.size() / 2; i++) {
+  for (int i = 0; i < (int)values.size() / 2; i++) {
     CHECK_EQ(values[i].location, -1) <<
       StringPrintf("FAIL (B)! %d still in heap at %d\n", i, values[i].location);
   }
