@@ -78,6 +78,7 @@ See web_test.cc for example.
 #include <cstring>
 #include <vector>
 #include <utility>
+#include <string_view>
 
 #ifdef WIN32
   #include <WinSock2.h>
@@ -98,6 +99,7 @@ See web_test.cc for example.
 #endif
 
 
+using string_view = std::string_view;
 using string = std::string;
 template<class T>
 using vector = std::vector<T>;
@@ -106,6 +108,7 @@ using pair = std::pair<A, B>;
 
 using Request = WebServer::Request;
 using Response = WebServer::Response;
+using Handler = WebServer::Handler;
 
 using int64 = int64_t;
 using uint64 = uint64_t;
@@ -184,6 +187,23 @@ struct ServerImpl : public WebServer {
   int AcceptConnectionsUntilStopped(const struct sockaddr* address,
 				    socklen_t addressLength);
 
+  vector<pair<string, Handler>> handlers;
+  void AddHandler(const string &prefix, Handler h) override {
+    handlers.emplace_back(prefix, h);
+  }
+  Handler GetHandler(const Request &request) const;
+
+  Handler GetDefaultHandler() const {
+    return [](const Request &ignored) {
+	Response fail;
+	fail.code = 404;
+	fail.status = "Not Found";
+	fail.content_type = "text/html; charset=UTF-8";
+	fail.body = "<!doctype html>Not found (no handler)\n";
+	return fail;
+      };
+  }
+  
   std::mutex globalMutex;
   bool shouldRun = true;
   sockettype listenerfd = 0;
@@ -199,7 +219,45 @@ struct ServerImpl : public WebServer {
   std::mutex connectionFinishedLock;
 };
 
-/* Internal implementation stuff */
+Handler ServerImpl::GetHandler(const Request &request) const {
+  // In c++20, can use s->starts_with(prefix).
+  auto StartsWith = [](string_view big, string_view little) {
+      if (big.size() < little.size()) return false;
+      return big.substr(0, little.size()) == little;
+    };
+  
+  for (const auto &p : handlers) {
+    const string &prefix = p.first;
+    // XXX use decoded path
+    if (StartsWith(request.path, prefix))
+      return p.second;
+  }
+  return GetDefaultHandler();
+}
+
+
+// TODO: Garbage?
+
+/* use these in createWebServer::ResponseForRequest */
+/* Allocate a response with an empty body and no headers */
+WebServer::Response* responseAlloc(int code, std::string status, std::string contentType);
+WebServer::Response* responseAllocHTML(std::string html);
+WebServer::Response* responseAllocHTMLWithStatus(int code, std::string status, std::string html);
+
+/* Error messages for when the request can't be handled properly */
+WebServer::Response* responseAlloc400BadRequestHTML(std::string error);
+WebServer::Response* responseAlloc404NotFoundHTML(const char* resourcePathOrNull);
+WebServer::Response* responseAlloc500InternalErrorHTML(const char* extraInformationOrNull);
+
+/* Wrappers around strdupDecodeGetorPOSTParam */
+char* strdupDecodeGETParam(const char* paramNameIncludingEquals, const struct WebServer::Request* request, const char* valueIfNotFound);
+char* strdupDecodePOSTParam(const char* paramNameIncludingEquals, const struct WebServer::Request* request, const char* valueIfNotFound);
+/* You can pass this the request->path for GET or request->body.contents for POST. Accepts nullptr for paramString for convenience */
+char* strdupDecodeGETorPOSTParam(const char* paramNameIncludingEquals, const char* paramString, const char* valueIfNotFound);
+/* If you want to echo back HTML into the value="" attribute or display some user output this will help you (like &gt; &lt;) */
+char* strdupEscapeForHTML(const char* stringToEscape);
+/* If you have a file you reading/writing across connections you can use this provided pthread mutex so you don't have to make your own */
+
 
 /* these counters exist solely for the purpose of the /status demo.
    TODO: Move these to Server object??
@@ -766,19 +824,19 @@ int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr* address,
 }
 
 
-static int sendResponse(Connection* connection, const Response* response,
+static int SendResponse(Connection* connection, const Response &response,
 			ssize_t* bytesSent) {
 
   string response_header = "HTTP/1.1 ";
-  response_header += Itoa(response->code);
+  response_header += Itoa(response.code);
   response_header += " ";
-  response_header += response->status;
+  response_header += response.status;
   response_header += "\r\nContent-Type: ";
-  response_header += response->content_type;
+  response_header += response.content_type;
   response_header += "\r\nContent-Length: ";
-  response_header += Itoa(response->body.size());
+  response_header += Itoa(response.body.size());
   response_header += "\r\nServer: cc-lib\r\n";
-  for (const auto &h : response->extra_headers) {
+  for (const auto &h : response.extra_headers) {
     response_header += h.first;
     response_header += ": ";
     response_header += h.second;
@@ -801,9 +859,9 @@ static int sendResponse(Connection* connection, const Response* response,
   *bytesSent = *bytesSent + sendResult;
   
   /* Second, if a response body exists, send that */
-  if (!response->body.empty()) {
-    sendResult = send(connection->socketfd, response->body.c_str(), response->body.size(), 0);
-    if (sendResult != (ssize_t) response->body.size()) {
+  if (!response.body.empty()) {
+    sendResult = send(connection->socketfd, response.body.c_str(), response.body.size(), 0);
+    if (sendResult != (ssize_t) response.body.size()) {
       ews_printf("Failed to respond to %s:%s because we could not send the HTTP "
 		 "response *body*. send returned %" PRId64 " with %s = %d\n",
 		 connection->remoteHost,
@@ -865,26 +923,21 @@ static void connectionHandlerThread(void* connectionPointer) {
 
   ssize_t bytesSent = 0;
   if (foundRequest) {
-    Response* response = createResponseForRequest(&connection->request);
-    if (nullptr != response) {
-      int result = sendResponse(connection, response, &bytesSent);
-      if (0 == result) {
-	ews_printf_debug("%s:%s: Responded with HTTP %d %s length %" PRId64 "\n",
-			 connection->remoteHost,
-			 connection->remotePort,
-			 response->code,
-			 response->status.c_str(),
-			 (int64)bytesSent);
-      } else {
-	/* sendResponse already printed something out, don't add another ews_printf */
-      }
-      delete response;
-      connection->bytes_sent = bytesSent;
-    } else {
-      ews_printf("%s:%s: You have returned a nullptr response - "
-		 "I'm assuming you took over the request handling yourself.\n",
-		 connection->remoteHost, connection->remotePort);
+    Handler handler = connection->server->GetHandler(connection->request);
+    Response response = handler(connection->request);
+
+    int result = SendResponse(connection, response, &bytesSent);
+    if (0 == result) {
+      ews_printf_debug("%s:%s: Responded with HTTP %d %s length %" PRId64 "\n",
+		       connection->remoteHost,
+		       connection->remotePort,
+		       response.code,
+		       response.status.c_str(),
+		       (int64)bytesSent);
     }
+    
+    connection->bytes_sent = bytesSent;
+
   } else {
     ews_printf("No request found from %s:%s? Closing connection. Here's the last "
 	       "bytes we received in the request (length %" PRIi64 "). The total "

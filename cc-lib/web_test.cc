@@ -9,20 +9,24 @@
 static void ServerThread() {
   // Note: Never stopped/deleted
   WebServer *server = WebServer::Create();
+  server->AddHandler("/",
+		     [](const WebServer::Request &request) {
+		       WebServer::Response response;
+		       response.code = 200;
+		       response.status = "OK";
+		       response.content_type = "text/html; charset=UTF-8";
+		       response.body =
+			 StringPrintf("<html><h1>The time is seconds is %lld</h1></html>",
+				      (int64)time(nullptr));
+		       return response;
+		     });
   server->ListenOn(8080);
   return;
-}
-
-WebServer::Response* createResponseForRequest(const WebServer::Request* request) {
-  string ret = StringPrintf("<html><h1>The time is seconds is %lld</h1></html>",
-			    (int64)time(nullptr));
-  return responseAllocHTML(ret);
 }
 
 int main() {
   std::thread server_thread(ServerThread);
   while (1) {
-    // using namespace std::chrono_literals;
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
   server_thread.join();
