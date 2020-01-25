@@ -54,6 +54,10 @@ struct WebServer {
     /* warning: request line strings truncated? */
     bool bodyTruncated = false;
 
+    // Utilities
+    // Find a header's value (case insensitive) or return nullptr.
+    const std::string *GetHeader(const std::string &name);
+    
     /* internal state for the request parser */
     RequestParseState state = RequestParseState::Method;
     std::string partial_header_name, partial_header_value;
@@ -74,7 +78,14 @@ struct WebServer {
     std::vector<std::pair<std::string, std::string>> extra_headers;
   };
 
+  // Utilities.
 
+  // Returns e.g. "text/html; charset=UTF-8" for a file whose name ends in ".html".
+  // This is quite incomplete; beyond simple stuff try apache2's module?
+  static std::string GuessMIMEType(const std::string &filename, const std::string &contents);
+  // Basic, slow: Replace " < & etc. with HTML entities.
+  static std::string HTMLEscape(const std::string &input);
+  
 protected:
   // Use factory method.
   WebServer() {};
