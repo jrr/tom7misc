@@ -4,6 +4,7 @@
 #include <thread>
 #include <chrono>
 
+#include "util.h"
 #include "base/stringprintf.h"
 
 static void ServerThread() {
@@ -11,6 +12,15 @@ static void ServerThread() {
   WebServer *server = WebServer::Create();
   WebServer::Counter *connections = server->GetCounter("(test connections)");
   server->AddHandler("/stats", server->GetStatsHandler());
+  server->AddHandler("/favicon.ico",
+		     [](const WebServer::Request &request) {
+		       WebServer::Response response;
+		       response.code = 200;
+		       response.status = "OK";
+		       response.content_type = "image/png";
+		       response.body = Util::ReadFile("favicon.png");
+		       return response;
+		     });
   server->AddHandler("/",
 		     [connections](const WebServer::Request &request) {
 		       connections->Increment();
