@@ -1,20 +1,15 @@
 
 /*
-
-  Experimental, maybe doomed, C++ing and simplification of of
-  EmbeddedWebServer. Doesn't work yet. License at the bottom
+  Experimental, in-progress C++ing and simplification of
+  'EmbeddedWebServer'. Works but is a mess. License at the bottom
   of the file.
 
  */
 
 #include "web.h"
 
-// TODO: header/cc
-
 /*
 Tom's notes:
- - looks like this could be gutted and turned into a simple portable
-   web server. main value here is socket stuff is done for us.
  - On mingw-64, -DWIN32
  - To link, needed -lws2_32.
 */
@@ -64,6 +59,18 @@ See web_test.cc for example.
 */
 
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <stdarg.h>
+#include <assert.h>
+#include <time.h>
+#include <signal.h>
+#include <stdint.h>
+#include <inttypes.h>
+#include <stdbool.h>
+
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -71,6 +78,25 @@ See web_test.cc for example.
 #include <cstring>
 #include <vector>
 #include <utility>
+
+#ifdef WIN32
+  #include <WinSock2.h>
+  #include <Ws2tcpip.h>
+  #include <Windows.h>
+
+  using ssize_t = int64_t;
+  using sockettype = SOCKET;
+#else
+  #include <unistd.h>
+  #include <sys/socket.h>
+  #include <netdb.h>
+  #include <ifaddrs.h>
+  #include <sys/stat.h>
+  #include <strings.h>
+
+  using sockettype = int;
+#endif
+
 
 using string = std::string;
 template<class T>
@@ -92,8 +118,6 @@ using uint64 = uint64_t;
 #define ews_printf_debug printf
 // #define ews_printf_debug(...)
 
-#include <stdbool.h>
-
 struct MutexLock {
   explicit MutexLock(std::mutex *m) : m(m) { m->lock(); }
   ~MutexLock() { m->unlock(); }
@@ -107,9 +131,6 @@ static constexpr bool OptionPrintWholeRequest = false;
    counters but it doesn't make much of a difference. This isn't
    something like Nginx or Haywire */
 static constexpr bool OptionIncludeStatusPageAndCounters = true;
-/* If using responseAllocServeFileFromRequestPath and no index.html is
-   found, serve up the directory */
-static constexpr bool OptionListDirectoryContents = true;
 
 /* These bound the memory used by a request. */
 #define REQUEST_MAX_BODY_LENGTH (128 * 1024 * 1024) /* (rather arbitrary) */
@@ -118,59 +139,12 @@ static constexpr bool OptionListDirectoryContents = true;
    big enough to fread(buffer) -> send(buffer) */
 #define SEND_RECV_BUFFER_SIZE (16 * 1024)
 
-#define EMBEDDABLE_WEB_SERVER_VERSION_STRING "1.1.2"
-// major = [31:16] minor = [15:8] build = [7:0]
-#define EMBEDDABLE_WEB_SERVER_VERSION 0x00010102
-
-/* has someone already enabled _CRT_SECURE_NO_WARNINGS? If so, don't
-   enable it again. If not, disable it for us. */
-#ifdef _CRT_SECURE_NO_WARNINGS
-#define UNDEFINE_CRT_SECURE_NO_WARNINGS 0
-#else
-#define UNDEFINE_CRT_SECURE_NO_WARNINGS 1
-#define _CRT_SECURE_NO_WARNINGS 1
-#endif //_CRT_SECURE_NO_WARNINGS
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-#include <stdarg.h>
-#include <assert.h>
-#include <time.h>
-#include <signal.h>
-#include <stdint.h>
-#include <inttypes.h>
-
-#ifdef WIN32
-#include <WinSock2.h>
-#include <Ws2tcpip.h>
-#include <Windows.h>
-
-typedef int64_t ssize_t;
-typedef SOCKET sockettype;
-#else
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <ifaddrs.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <strings.h>
-typedef int sockettype;
-#endif
-
 // Trying to avoid StringPrintf dependency in here, maybe unwisely...
 static string Itoa(int64 i) {
   char buf[32];
   sprintf(buf, "%lld", i);
   return buf;
 }
-
-struct ConnectionStatus {
-  int64 bytesSent = 0;
-  int64 bytesReceived = 0;
-};
 
 /* This contains a full HTTP connection. For every connection, a thread is spawned
    and passed this struct */
@@ -190,31 +164,15 @@ struct Connection {
   socklen_t remoteAddrLength = 0;
   char remoteHost[128] = {};
   char remotePort[16] = {};
-  struct ConnectionStatus status;
+  int64 bytes_sent = 0;
+  int64 bytes_received = 0;
   Request request;
   /* points back to the server, usually used for the server's globalMutex */
   struct ServerImpl* server = nullptr;
 };
 
 
-#ifdef WIN32
-static void ignoreSIGPIPE() {}
-#else
-static void SIGPIPEHandler(int signal) {
-  (void) signal;
-  /* SIGPIPE happens any time we try to send() and the connection is closed.
-     So we just ignore it and check the return code of send...*/
-  ews_printf_debug("Ignoring SIGPIPE\n");
-}
-
-static void ignoreSIGPIPE() {
-  void* previousSIGPIPEHandler = (void*) signal(SIGPIPE, &SIGPIPEHandler);
-  if (nullptr != previousSIGPIPEHandler && previousSIGPIPEHandler != &SIGPIPEHandler) {
-    ews_printf("Warning: Uninstalled previous SIGPIPE handler:%p and installed our "
-	       "handler which ignores SIGPIPE\n", previousSIGPIPEHandler);
-  }
-}
-#endif
+static void ignoreSIGPIPE();
 
 
 struct ServerImpl : public WebServer {
@@ -262,112 +220,88 @@ struct PathInformation {
 static void printIPv4Addresses(uint16_t portInHostOrder);
 static void requestParse(Request* request, const char* requestFragment,
 			 size_t requestFragmentLength);
-static bool strEndsWith(const char* big, const char* endsWith);
 static void callWSAStartupIfNecessary(void);
 
 #ifdef WIN32 /* Windows implementations of functions available on Linux/Mac OS X */
 
 /* windows function aliases */
-#define strdup(string) _strdup(string)
-#define unlink(file) _unlink(file)
 #define close(x) closesocket(x)
-#define gai_strerror_ansi(x) gai_strerrorA(x)
 
-#else // WIN32
+#endif
 
-/// linux/mac, just used in error reporting XXX delete
-
-#define gai_strerror_ansi(x) gai_strerror(x)
-
-#endif // Linux/Mac OS X
 
 static void connectionHandlerThread(void* connectionPointer);
 
-enum class URLDecodeType {
-  WholeURL,
-  Parameter,
-};
+static void URLDecode(const char* encoded, char* decoded, size_t decodedCapacity) {
+  enum URLDecodeState {
+    Normal,
+    PercentFirstDigit,
+    PercentSecondDigit
+  };
+  
+  /* We found a value. Unescape the URL. This is probably filled with bugs */
+  size_t deci = 0;
+  /* these three vars unescape % escaped things */
+  URLDecodeState state = Normal;
+  char firstDigit = '\0';
+  char secondDigit;
+  while (1) {
+    /* break out the exit conditions */
+    /* need to store a null char in decoded[decodedCapacity - 1] */
+    if (deci >= decodedCapacity - 1) {
+      break;
+    }
+    /* no encoding string left to process */
+    if (*encoded == '\0') {
+      break;
+    }
 
-static void URLDecode(const char* encoded, char* decoded, size_t decodedCapacity, URLDecodeType type);
+    switch (state) {
+    case Normal:
+      if ('%' == *encoded) {
+	state = PercentFirstDigit;
+      } else if ('+' == *encoded) {
+	decoded[deci] = ' ';
+	deci++;
+      } else {
+	decoded[deci] = *encoded;
+	deci++;
+      }
+      break;
+    case PercentFirstDigit:
+      // copy the first digit, get the second digit
+      firstDigit = *encoded;
+      state = PercentSecondDigit;
+      break;
+    case PercentSecondDigit: {
+      secondDigit = *encoded;
+      int decodedEscape;
+      char hexString[] = {firstDigit, secondDigit, '\0'};
+      int items = sscanf(hexString, "%02x", &decodedEscape);
+      if (1 == items) {
+	decoded[deci] = (char) decodedEscape;
+	deci++;
+      } else {
+	ews_printf("Warning: Unable to decode hex string 0x%s from %s", hexString, encoded);
+      }
+      state = Normal;
+    }
+      break;
+    }
+    encoded++;
+  }
+  decoded[deci] = '\0';
+}
 
-const string *headerInRequest(const char* headerName, const Request* request) {
-  for (const auto &p : request->headers) {
-    if (0 == strcasecmp(p.first.c_str(), headerName)) {
+
+const string *Request::GetHeader(const string &header_name) {
+  for (const auto &p : headers) {
+    if (0 == strcasecmp(p.first.c_str(), header_name.c_str())) {
       return &p.second;
     }
   }
   return nullptr;
 }
-
-static char* strdupIfNotNull(const char* strToDup) {
-    if (nullptr == strToDup) {
-        return nullptr;
-    }
-    return strdup(strToDup);
-}
-
-typedef enum {
-    URLDecodeStateNormal,
-    URLDecodeStatePercentFirstDigit,
-    URLDecodeStatePercentSecondDigit
-} URLDecodeState;
-
-/* Get a debug string representing this connection that's easy to print out. wrap it in HTML <pre> tags */
-// TODO: This is probably useful to restore
-// struct HeapString connectionDebugStringCreate(const struct Connection* connection);
-
-const char* MIMETypeFromFile(const char* filename, const uint8_t* contents, size_t contentsLength);
-
-
-
-char* strdupDecodeGETorPOSTParam(const char* paramNameIncludingEquals, const char* paramString, const char* valueIfNotFound) {
-  assert(strstr(paramNameIncludingEquals, "=") != nullptr && "You have to pass an equals sign after the param name, like 'name='");
-  /* The string passed is actually nullptr -- this is accepted because it's more convenient */
-  if (nullptr == paramString) {
-    return strdupIfNotNull(valueIfNotFound);
-  }
-  /* Find the paramString ("name=") */
-  const char* paramStart = strstr(paramString, paramNameIncludingEquals);
-  if (nullptr == paramStart) {
-    return strdupIfNotNull(valueIfNotFound);
-  }
-  /* Ok paramStart points at -->"name=" ; let's make it point at "=" */
-  paramStart = strstr(paramStart, "=");
-  if (nullptr == paramStart) {
-    ews_printf("It's very suspicious that we couldn't find an equals sign after searching for '%s' in '%s'\n", paramStart, paramString);
-    return strdupIfNotNull(valueIfNotFound);
-  }
-  /* We need to skip past the "=" */
-  paramStart++;
-  /* Oh man! End of string is right here */
-  if ('\0' == *paramStart) {
-    char* empty = (char*) malloc(1);
-    empty[0] = '\0';
-    return empty;
-  }
-  size_t maximumPossibleLength = strlen(paramStart);
-  char* decoded = (char*) malloc(maximumPossibleLength + 1);
-  URLDecode(paramStart, decoded, maximumPossibleLength + 1, URLDecodeType::Parameter);
-  return decoded;
-}
-
-char* strdupDecodeGETParam(const char* paramNameIncludingEquals, const Request* request,
-			   const char* valueIfNotFound) {
-  return strdupDecodeGETorPOSTParam(paramNameIncludingEquals, request->path.c_str(),
-				    valueIfNotFound);
-}
-
-char* strdupDecodePOSTParam(const char* paramNameIncludingEquals, const Request* request,
-			    const char* valueIfNotFound) {
-  return strdupDecodeGETorPOSTParam(paramNameIncludingEquals, request->body.c_str(),
-				    valueIfNotFound);
-}
-
-enum class PathState {
-  Normal,
-  Sep,
-  Dot,
-};
 
 #if 0
 // TODO: These are static utilties that can be exposed to the user. They're not
@@ -395,106 +329,35 @@ static char* strdupEscapeForURL(const char* stringToEscape) {
   }
   return escapedString.contents;
 }
-
-char* strdupEscapeForHTML(const char* stringToEscape) {
-  struct HeapString escapedString;
-  heapStringInit(&escapedString);
-  size_t stringToEscapeLength = strlen(stringToEscape);
-  if (0 == stringToEscapeLength) {
-    char* empty = (char*) malloc(1);
-    *empty = '\0';
-    return empty;
-  }
-  for (size_t i = 0; i < stringToEscapeLength; i++) {
-    // this is an excerpt of some things translated by the PHP htmlentities function
-    char c = stringToEscape[i];
-    switch (c) {
-    case '"':
-      heapStringAppendFormat(&escapedString, "&quot;");
-      break;
-    case '&':
-      heapStringAppendFormat(&escapedString, "&amp;");
-      break;
-    case '\'':
-      heapStringAppendFormat(&escapedString, "&#039;");
-      break;
-    case '<':
-      heapStringAppendFormat(&escapedString, "&lt;");
-      break;
-    case '>':
-      heapStringAppendFormat(&escapedString, "&gt;");
-      break;
-    case ' ':
-      heapStringAppendFormat(&escapedString, "&nbsp;");
-      break;
-    default:
-      heapStringAppendChar(&escapedString, c);
-      break;
-    }
-  }
-  return escapedString.contents;
-}
 #endif
 
-static void URLDecode(const char* encoded, char* decoded, size_t decodedCapacity,
-		      URLDecodeType type) {
-  /* We found a value. Unescape the URL. This is probably filled with bugs */
-  size_t deci = 0;
-  /* these three vars unescape % escaped things */
-  URLDecodeState state = URLDecodeStateNormal;
-  char firstDigit = '\0';
-  char secondDigit;
-  while (1) {
-    /* break out the exit conditions */
-    /* need to store a null char in decoded[decodedCapacity - 1] */
-    if (deci >= decodedCapacity - 1) {
+string WebServer::HTMLEscape(const string &input) {
+  string output;
+  output.reserve(input.size());
+  for (char c : input) {
+    switch (c) {
+    case '"':
+      output += "&quot;";
       break;
+    case '&':
+      output += "&amp;";
+      break;
+    case '\'':
+      output += "&#039;";
+      break;
+    case '<':
+      output += "&lt;";
+      break;
+    case '>':
+      output += "&gt;";
+      break;
+    default:
+      output.push_back(c);
     }
-    /* no encoding string left to process */
-    if (*encoded == '\0') {
-      break;
-    }
-    /* If we are decoding only a parameter then stop at & */
-    if (*encoded == '&' && URLDecodeType::Parameter == type) {
-      break;
-    }
-    switch (state) {
-    case URLDecodeStateNormal:
-      if ('%' == *encoded) {
-	state = URLDecodeStatePercentFirstDigit;
-      } else if ('+' == *encoded) {
-	decoded[deci] = ' ';
-	deci++;
-      } else {
-	decoded[deci] = *encoded;
-	deci++;
-      }
-      break;
-    case URLDecodeStatePercentFirstDigit:
-      // copy the first digit, get the second digit
-      firstDigit = *encoded;
-      state = URLDecodeStatePercentSecondDigit;
-      break;
-    case URLDecodeStatePercentSecondDigit:
-      {
-	secondDigit = *encoded;
-	int decodedEscape;
-	char hexString[] = {firstDigit, secondDigit, '\0'};
-	int items = sscanf(hexString, "%02x", &decodedEscape);
-	if (1 == items) {
-	  decoded[deci] = (char) decodedEscape;
-	  deci++;
-	} else {
-	  ews_printf("Warning: Unable to decode hex string 0x%s from %s", hexString, encoded);
-	}
-	state = URLDecodeStateNormal;
-      }
-      break;
-    }
-    encoded++;
   }
-  decoded[deci] = '\0';
+  return output;
 }
+
 
 #if 0
 struct HeapString connectionDebugStringCreate(const Connection* connection) {
@@ -524,7 +387,8 @@ struct HeapString connectionDebugStringCreate(const Connection* connection) {
   heapStringAppendFormat(&debugString, "\n*** Request Warnings ***\n");
   bool hadWarnings = false;
   if (connection->request.bodyTruncated) {
-    heapStringAppendString(&debugString, "bodyTruncated - you can increase REQUEST_MAX_BODY_LENGTH");
+    heapStringAppendString(&debugString,
+			   "bodyTruncated - you can increase REQUEST_MAX_BODY_LENGTH");
     hadWarnings = true;
   }
   if (!hadWarnings) {
@@ -614,8 +478,7 @@ static void requestParse(Request* request,
     case RequestParseState::Path:
       if (c == ' ') {
 	/* we are done parsing the path, decode it */
-	URLDecode(request->path.c_str(), request->pathDecoded, sizeof(request->pathDecoded),
-		  URLDecodeType::WholeURL);
+	URLDecode(request->path.c_str(), request->pathDecoded, sizeof(request->pathDecoded));
 	request->state = RequestParseState::Version;
       } else {
 	request->path += c;
@@ -681,8 +544,7 @@ static void requestParse(Request* request,
 	/* assume the request state is done unless we have some Content-Length,
 	   which would come from something like a JSON blob */
 	request->state = RequestParseState::Done;
-	const string* contentLengthHeader =
-	  headerInRequest("Content-Length", request);
+	const string* contentLengthHeader = request->GetHeader("Content-Length");
 	if (nullptr != contentLengthHeader) {
 	  ews_printf_debug("Incoming request has a body of length %s\n",
 			   contentLengthHeader->c_str());
@@ -749,9 +611,12 @@ int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr* address,
   /* resolve the local address we are binding to so we can print it out later */
   char addressHost[256];
   char addressPort[20];
-  int nameResult = getnameinfo(address, addressLength, addressHost, sizeof(addressHost), addressPort, sizeof(addressPort), NI_NUMERICHOST | NI_NUMERICSERV);
+  int nameResult = getnameinfo(address, addressLength, addressHost,
+			       sizeof(addressHost), addressPort, sizeof(addressPort),
+			       NI_NUMERICHOST | NI_NUMERICSERV);
   if (0 != nameResult) {
-    ews_printf("Warning: Could not get numeric host name and/or port for the address you passed to acceptConnectionsUntilStopped. getnameresult returned %d, which is %s. Not a huge deal but i really should have worked...\n", nameResult, gai_strerror_ansi(nameResult));
+    ews_printf("AcceptConnectionsUntilStopped: Could not get numeric host name "
+	       "and/or port for the argument address.\n");
     strcpy(addressHost, "Unknown");
     strcpy(addressPort, "Unknown");
   }
@@ -761,33 +626,41 @@ int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr* address,
     return 1;
   }
   /* SO_REUSEADDR tells the kernel to re-use the bind address in certain circumstances.
-     I've always found when making debug/test servers that I want this option, especially on Mac OS X */
-  int result;
+     I've always found when making debug/test servers that I want this option, 
+     especially on Mac OS X */
   int reuse = 1;
-  result = setsockopt(listenerfd, SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, sizeof(reuse));
+  int result = setsockopt(listenerfd, SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, sizeof(reuse));
   if (0 != result) {
-    ews_printf("Failed to setsockopt SO_REUSEADDR = true with %s = %d. Continuing because we might still succeed...\n", strerror(errno), errno);
+    ews_printf("Failed to setsockopt SO_REUSEADDR = true with %s = %d. "
+	       "Continuing because we might still succeed...\n",
+	       strerror(errno), errno);
   }
 
   if (address->sa_family == AF_INET6) {
     int ipv6only = 0;
-    result = setsockopt(listenerfd, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&ipv6only, sizeof(ipv6only));
+    result = setsockopt(listenerfd, IPPROTO_IPV6, IPV6_V6ONLY,
+			(char*)&ipv6only, sizeof(ipv6only));
     if (0 != result) {
-      ews_printf("Failed to setsockopt IPV6_V6ONLY = true with %s = %d. This is not supported on BSD/macOS\n", strerror(errno), errno);
+      ews_printf("Failed to setsockopt IPV6_V6ONLY = true with %s = %d. "
+		 "This is not supported on BSD/macOS\n", strerror(errno), errno);
     }
   }
 
   result = bind(listenerfd, address, addressLength);
   if (0 != result) {
-    ews_printf("Could not bind to %s:%s %s = %d\n", addressHost, addressPort, strerror(errno), errno);
+    ews_printf("Could not bind to %s:%s %s = %d\n",
+	       addressHost, addressPort, strerror(errno), errno);
     return 1;
   }
   /* listen for the maximum possible amount of connections */
   result = listen(listenerfd, SOMAXCONN);
   if (0 != result) {
-    ews_printf("Could not listen for SOMAXCONN (%d) connections. %s = %d. Continuing because we might still succeed...\n", SOMAXCONN, strerror(errno), errno);
+    ews_printf("Could not listen for SOMAXCONN (%d) connections. %s = %d. "
+	       "Continuing because we might still succeed...\n",
+	       SOMAXCONN, strerror(errno), errno);
   }
-  /* print out the addresses we're listening on. Special-case IPv4 0.0.0.0 bind-to-all-interfaces */
+  /* print out the addresses we're listening on. 
+     Special-case IPv4 0.0.0.0 bind-to-all-interfaces */
   bool printed = false;
   if (address->sa_family == AF_INET) {
     const struct sockaddr_in* addressIPv4 = (const struct sockaddr_in*) address;
@@ -799,7 +672,8 @@ int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr* address,
   if (!printed) {
     ews_printf("Listening for connections on %s:%s\n", addressHost, addressPort);
   }
-  /* allocate a connection (which sets connection->remoteAddrLength) and accept the next inbound connection */
+  /* allocate a connection (which sets connection->remoteAddrLength) and accept the
+     next inbound connection */
   Connection* nextConnection = new Connection(this);
   while (shouldRun) {
     nextConnection->remoteAddrLength = sizeof(nextConnection->remoteAddr);
@@ -814,10 +688,12 @@ int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr* address,
 	continue;
       }
       if (errno == EBADF) {
-	ews_printf("accept was stopped because the file descriptor is invalid (EBADF). This is probably because you closed it?\n");
+	ews_printf("accept was stopped because the file descriptor is invalid (EBADF). "
+		   "This is probably because you closed it?\n");
 	continue;
       }
-      ews_printf("exiting because accept failed (probably interrupted) %s = %d\n", strerror(errno), errno);
+      ews_printf("exiting because accept failed (probably interrupted) %s = %d\n",
+		 strerror(errno), errno);
       break;
     }
 
@@ -937,7 +813,7 @@ static void connectionHandlerThread(void* connectionPointer) {
     if (OptionPrintWholeRequest) {
       fwrite(connection->sendRecvBuffer, 1, bytesRead, stdout);
     }
-    connection->status.bytesReceived += bytesRead;
+    connection->bytes_received += bytesRead;
     requestParse(&connection->request, connection->sendRecvBuffer, bytesRead);
     if ((connection->request.state != RequestParseState::Method &&
 	 connection->request.state != RequestParseState::Path) &&
@@ -972,23 +848,29 @@ static void connectionHandlerThread(void* connectionPointer) {
 	/* sendResponse already printed something out, don't add another ews_printf */
       }
       delete response;
-      connection->status.bytesSent = bytesSent;
+      connection->bytes_sent = bytesSent;
     } else {
-      ews_printf("%s:%s: You have returned a nullptr response - I'm assuming you took over the request handling yourself.\n", connection->remoteHost, connection->remotePort);
+      ews_printf("%s:%s: You have returned a nullptr response - "
+		 "I'm assuming you took over the request handling yourself.\n",
+		 connection->remoteHost, connection->remotePort);
     }
   } else {
-    ews_printf("No request found from %s:%s? Closing connection. Here's the last bytes we received in the request (length %" PRIi64 "). The total bytes received on this connection: %" PRIi64 " :\n", connection->remoteHost, connection->remotePort, (int64) bytesRead, connection->status.bytesReceived);
+    ews_printf("No request found from %s:%s? Closing connection. Here's the last "
+	       "bytes we received in the request (length %" PRIi64 "). The total "
+	       "bytes received on this connection: %" PRIi64 " :\n",
+	       connection->remoteHost, connection->remotePort, (int64) bytesRead,
+	       connection->bytes_received);
     if (bytesRead > 0) {
       fwrite(connection->sendRecvBuffer, 1, bytesRead, stdout);
     }
   }
-  /* Alright - we're done */
+  /* we're done */
   close(connection->socketfd);
 
   {
     MutexLock ml(&counters_lock);
-    counters.bytesSent += (ssize_t) connection->status.bytesSent;
-    counters.bytesReceived += (ssize_t) connection->status.bytesReceived;
+    counters.bytesSent += (ssize_t) connection->bytes_sent;
+    counters.bytesReceived += (ssize_t) connection->bytes_received;
     counters.activeConnections--;
   }
   ews_printf_debug("Connection from %s:%s closed\n",
@@ -1003,65 +885,8 @@ static void connectionHandlerThread(void* connectionPointer) {
   return;
 }
 
-/* Apache2 has a module called MIME magic or something which does a
-   really good version of this. */
-const char* MIMETypeFromFile(const char* filename, const uint8_t* contents,
-			     size_t contentsLength) {
-  // http://libpng.org/pub/png/spec/1.2/PNG-Structure.html
-  static const uint8_t PNGMagic[] = {137, 80, 78, 71, 13, 10, 26, 10};
-  // http://www.onicos.com/staff/iz/formats/gif.html
-  static const uint8_t GIFMagic[] = {'G', 'I', 'F'};
-  // ehh pretty shaky http://www.fastgraph.com/help/jpeg_header_format.html
-  static const uint8_t JPEGMagic[] = {0xFF, 0xD8};
-
-  // PNG?
-  if (contentsLength >= 8) {
-    if (0 == memcmp(PNGMagic, contents, sizeof(PNGMagic))) {
-      return "image/png";
-    }
-  }
-  // GIF?
-  if (contentsLength >= 3) {
-    if (0 == memcmp(GIFMagic, contents, sizeof(GIFMagic))) {
-      return "image/gif";
-    }
-  }
-  // JPEG?
-  if (contentsLength >= 2) {
-    if (0 == memcmp(JPEGMagic, contents, sizeof(JPEGMagic))) {
-      return "image/jpeg";
-    }
-  }
-  /* just start guessing based on file extension */
-  if (strEndsWith(filename, "html") || strEndsWith(filename, "htm")) {
-    return "text/html; charset=UTF-8"; // kind of naughty: assume UTF-8
-  }
-  if (strEndsWith(filename, "css")) {
-    return "text/css";
-  }
-  if (strEndsWith(filename, "gz")) {
-    return "application/x-gzip";
-  }
-  if (strEndsWith(filename, "js")) {
-    return "application/javascript";
-  }
-  /* is it a plain text file? Just inspect the first 100 bytes or so for ASCII */
-  bool plaintext = true;
-  for (int i = 0; (size_t)i < contentsLength && i < 100; i++) {
-    if (contents[i] > 127) {
-      plaintext = false;
-      break;
-    }
-  }
-  if (plaintext) {
-    return "text/plain";
-  }
-  /* well that's pretty much all the different file types in existence */
-  return "application/binary";
-}
-
-static bool strEndsWith(const char* big, const char* endsWith) {
-  size_t bigLength = strlen(big);
+static bool StringEndsWith(const string &big, const char* endsWith) {
+  size_t bigLength = big.size();
   size_t endsWithLength = strlen(endsWith);
   if (bigLength < endsWithLength) {
     return false;
@@ -1074,6 +899,62 @@ static bool strEndsWith(const char* big, const char* endsWith) {
     }
   }
   return true;
+}
+
+string WebServer::GuessMIMEType(const string &filename, const string &contents) {
+  // http://libpng.org/pub/png/spec/1.2/PNG-Structure.html
+  static constexpr uint8_t PNGMagic[] = {137, 80, 78, 71, 13, 10, 26, 10};
+  // http://www.onicos.com/staff/iz/formats/gif.html
+  static constexpr uint8_t GIFMagic[] = {'G', 'I', 'F'};
+  // ehh pretty shaky http://www.fastgraph.com/help/jpeg_header_format.html
+  static constexpr uint8_t JPEGMagic[] = {0xFF, 0xD8};
+
+  // PNG?
+  if (contents.size() >= 8) {
+    if (0 == memcmp(PNGMagic, contents.c_str(), sizeof(PNGMagic))) {
+      return "image/png";
+    }
+  }
+  // GIF?
+  if (contents.size() >= 3) {
+    if (0 == memcmp(GIFMagic, contents.c_str(), sizeof(GIFMagic))) {
+      return "image/gif";
+    }
+  }
+  // JPEG?
+  if (contents.size() >= 2) {
+    if (0 == memcmp(JPEGMagic, contents.c_str(), sizeof(JPEGMagic))) {
+      return "image/jpeg";
+    }
+  }
+  /* just start guessing based on file extension.
+     assume utf-8 where it makes sense. */
+  if (StringEndsWith(filename, ".html") || StringEndsWith(filename, ".htm")) {
+    return "text/html; charset=UTF-8";
+  }
+  if (StringEndsWith(filename, ".css")) {
+    return "text/css";
+  }
+  if (StringEndsWith(filename, ".gz")) {
+    return "application/x-gzip";
+  }
+  if (StringEndsWith(filename, ".js")) {
+    return "application/javascript; charset=UTF-8";
+  }
+  /* is it a plain text file? Just inspect the first 100 bytes or so for ASCII */
+  bool plaintext = true;
+  for (int i = 0; (size_t)i < contents.size() && i < 100; i++) {
+    // XXX allows some low ascii
+    if (contents[i] < 9 || contents[i] > 127) {
+      plaintext = false;
+      break;
+    }
+  }
+  if (plaintext) {
+    return "text/plain";
+  }
+  /* well that's pretty much all the different file types in existence :) */
+  return "application/binary";
 }
 
 ServerImpl::ServerImpl() {
@@ -1107,10 +988,8 @@ WebServer::~WebServer() {}
 #ifdef WIN32
 
 static void printIPv4Addresses(uint16_t portInHostOrder){
-    /* I forgot how to do this */
-    ews_printf("(Printing bound interfaces is not supported on Windows. "
-	       "Try http://127.0.0.1:%u if you bound to all addresses or the "
-	       "localhost.)\n", portInHostOrder);
+  /* I forgot how to do this */
+  ews_printf("Listening on port %u\n", portInHostOrder);
 }
 
 
@@ -1131,7 +1010,25 @@ static void callWSAStartupIfNecessary() {
   }
 }
 
-#else /* Linux + Mac OS X*/
+static void ignoreSIGPIPE() {}
+
+#else
+// Linux, Mac, etc.
+
+static void SIGPIPEHandler(int signal) {
+  (void) signal;
+  /* SIGPIPE happens any time we try to send() and the connection is closed.
+     So we just ignore it and check the return code of send...*/
+  ews_printf_debug("Ignoring SIGPIPE\n");
+}
+
+static void ignoreSIGPIPE() {
+  void* previousSIGPIPEHandler = (void*) signal(SIGPIPE, &SIGPIPEHandler);
+  if (nullptr != previousSIGPIPEHandler && previousSIGPIPEHandler != &SIGPIPEHandler) {
+    ews_printf("Warning: Uninstalled previous SIGPIPE handler:%p and installed our "
+	       "handler which ignores SIGPIPE\n", previousSIGPIPEHandler);
+  }
+}
 
 static void callWSAStartupIfNecessary() {
 
@@ -1144,8 +1041,9 @@ static void printIPv4Addresses(uint16_t portInHostOrder) {
   while (nullptr != p) {
     if (nullptr != p->ifa_addr && p->ifa_addr->sa_family == AF_INET) {
       char hostname[256];
-      getnameinfo(p->ifa_addr, sizeof(struct sockaddr_in), hostname, sizeof(hostname), nullptr, 0, NI_NUMERICHOST);
-      ews_printf("Probably listening on http://%s:%u\n", hostname, portInHostOrder);
+      getnameinfo(p->ifa_addr, sizeof(struct sockaddr_in),
+		  hostname, sizeof(hostname), nullptr, 0, NI_NUMERICHOST);
+      ews_printf("Listening %s:%u\n", hostname, portInHostOrder);
     }
     p = p->ifa_next;
   }
@@ -1154,7 +1052,7 @@ static void printIPv4Addresses(uint16_t portInHostOrder) {
   }
 }
 
-#endif // WIN32 or Linux/Mac OS X
+#endif
 
 /*
 Based on EmbeddableWebServer, Copyrightg (c) 2016, 2019 Forrest
