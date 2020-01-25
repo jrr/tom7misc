@@ -10,16 +10,14 @@
 #include "web.h"
 
 // TODO: header/cc
-// heapstring -> std::string, at least in external interface
 
 /*
 Tom's notes:
  - looks like this could be gutted and turned into a simple portable
    web server. main value here is socket stuff is done for us.
- - On mingw-64, I -DWIN32 and -D__WIN32__ (not sure if both are necessary)
+ - On mingw-64, -DWIN32
  - To link, needed -lws2_32.
- - It successfully serves a connection and then aborts "terminate called without an active exception", perhaps fixed now (I think this was because I wasn't detaching the connection threads.)
-
+*/
 
 /*
 
@@ -27,6 +25,9 @@ This is a very simple web server that you can embed in your
 application to both handle requests dynamically and serve files. The
 idea is that it has no dependencies and is really easy to drop into a
 project. Here's the simplest way to get started:
+
+XXX UPDATE DOCS!
+deleted file stuff
 
 1. Call acceptConnectionsUntilStoppedFromEverywhereIPv4(nullptr), which
    will initialize a new server and block. Note: If you just want to
@@ -53,8 +54,6 @@ can still quickly be handled.
 
 Tips:
 
-* Use the heapStringAppend*(&response->body) functions to dynamically
-  build a body (see the HTML form POST demo)
 * For debugging use connectionDebugStringCreate
 * Gain extra debugging by enabling ews_print_debug
 * If you want a clean server shutdown you can use serverInit() +
@@ -82,13 +81,16 @@ using pair = std::pair<A, B>;
 using Request = WebServer::Request;
 using Response = WebServer::Response;
 
+using int64 = int64_t;
+using uint64 = uint64_t;
+
 /* You can turn these prints on/off. ews_printf generally prints
    warnings + errors while ews_print_debug prints mundane
    information */
 #define ews_printf printf
 //#define ews_printf(...)
-//#define ews_printf_debug printf
-#define ews_printf_debug(...)
+#define ews_printf_debug printf
+// #define ews_printf_debug(...)
 
 #include <stdbool.h>
 
@@ -115,8 +117,6 @@ static constexpr bool OptionListDirectoryContents = true;
 /* the buffer in connection used for sending and receiving. Should be
    big enough to fread(buffer) -> send(buffer) */
 #define SEND_RECV_BUFFER_SIZE (16 * 1024)
-/* contains the Response HTTP status and headers */
-#define RESPONSE_HEADER_SIZE 1024
 
 #define EMBEDDABLE_WEB_SERVER_VERSION_STRING "1.1.2"
 // major = [31:16] minor = [15:8] build = [7:0]
@@ -160,16 +160,16 @@ typedef SOCKET sockettype;
 typedef int sockettype;
 #endif
 
-/* just a calloc'd C string on the heap */
-struct HeapString {
-    char* contents; // null-terminated, at least length+1
-    size_t length; // this is updated by the heapString* functions
-    size_t capacity;
-};
+// Trying to avoid StringPrintf dependency in here, maybe unwisely...
+static string Itoa(int64 i) {
+  char buf[32];
+  sprintf(buf, "%lld", i);
+  return buf;
+}
 
 struct ConnectionStatus {
-  int64_t bytesSent = 0;
-  int64_t bytesReceived = 0;
+  int64 bytesSent = 0;
+  int64 bytesReceived = 0;
 };
 
 /* This contains a full HTTP connection. For every connection, a thread is spawned
@@ -184,7 +184,6 @@ struct Connection {
   /* Just allocate the buffers in the connection. These go at the beginning of
      the connection in the hopes that they are 'more aligned' */
   char sendRecvBuffer[SEND_RECV_BUFFER_SIZE] = {};
-  char responseHeader[RESPONSE_HEADER_SIZE] = {};
   sockettype socketfd = 0;
   /* Who connected? */
   struct sockaddr_storage remoteAddr;
@@ -201,6 +200,13 @@ struct Connection {
 #ifdef WIN32
 static void ignoreSIGPIPE() {}
 #else
+static void SIGPIPEHandler(int signal) {
+  (void) signal;
+  /* SIGPIPE happens any time we try to send() and the connection is closed.
+     So we just ignore it and check the return code of send...*/
+  ews_printf_debug("Ignoring SIGPIPE\n");
+}
+
 static void ignoreSIGPIPE() {
   void* previousSIGPIPEHandler = (void*) signal(SIGPIPE, &SIGPIPEHandler);
   if (nullptr != previousSIGPIPEHandler && previousSIGPIPEHandler != &SIGPIPEHandler) {
@@ -223,8 +229,6 @@ struct ServerImpl : public WebServer {
   std::mutex globalMutex;
   bool shouldRun = true;
   sockettype listenerfd = 0;
-  /* User field for whatever - if your request handler you can do connection->server->tag */
-  void* tag = nullptr;
 
   /* The rest of the vars just have to do with shutting down the server cleanly.
      It's a lot of work, actually! Much simpler when I just let it run forever */
@@ -239,22 +243,16 @@ struct ServerImpl : public WebServer {
 
 /* Internal implementation stuff */
 
-/* these counters exist solely for the purpose of the /status demo */
+/* these counters exist solely for the purpose of the /status demo.
+   TODO: Move these to Server object??
+ */
 static std::mutex counters_lock;
 static struct Counters {
-  int64_t bytesReceived = 0;
-  int64_t bytesSent = 0;
-  int64_t totalConnections = 0;
-  int64_t activeConnections = 0;
-  int64_t heapStringAllocations = 0;
-  int64_t heapStringReallocations = 0;
-  int64_t heapStringFrees = 0;
-  int64_t heapStringTotalBytesReallocated = 0;
+  int64 bytesReceived = 0;
+  int64 bytesSent = 0;
+  int64 totalConnections = 0;
+  int64 activeConnections = 0;
 } counters;
-
-#ifndef MIN
-#define MIN(a, b) ((a < b) ? a : b)
-#endif
 
 struct PathInformation {
   bool exists;
@@ -264,13 +262,8 @@ struct PathInformation {
 static void printIPv4Addresses(uint16_t portInHostOrder);
 static void requestParse(Request* request, const char* requestFragment,
 			 size_t requestFragmentLength);
-static size_t heapStringNextAllocationSize(size_t required);
 static bool strEndsWith(const char* big, const char* endsWith);
 static void callWSAStartupIfNecessary(void);
-static int pathInformationGet(const char* path, struct PathInformation* info);
-static int sendResponseBody(Connection* connection, const Response* response, ssize_t* bytesSent);
-static int sendResponseFile(Connection* connection, const Response* response, ssize_t* bytesSent);
-static int snprintfResponseHeader(char* destination, size_t destinationCapacity, int code, const char* status, const char* contentType, const char* extraHeaders, size_t contentLength);
 
 #ifdef WIN32 /* Windows implementations of functions available on Linux/Mac OS X */
 
@@ -320,17 +313,9 @@ typedef enum {
 } URLDecodeState;
 
 /* Get a debug string representing this connection that's easy to print out. wrap it in HTML <pre> tags */
-struct HeapString connectionDebugStringCreate(const struct Connection* connection);
-/* Some really basic dynamic string handling. AppendChar and AppendFormat allocate enough memory and
- these strings are null-terminated so you can pass them into regular string functions. */
-void heapStringInit(struct HeapString* string);
-void heapStringFreeContents(struct HeapString* string);
-void heapStringSetToCString(struct HeapString* heapString, const char* cString);
-void heapStringAppendChar(struct HeapString* string, char c);
-void heapStringAppendString(struct HeapString* string, const char* stringToAppend);
-void heapStringAppendFormatV(struct HeapString* string, const char* format, va_list ap);
-void heapStringAppendHeapString(struct HeapString* target, const struct HeapString* source);
-/* functions that help when serving files */
+// TODO: This is probably useful to restore
+// struct HeapString connectionDebugStringCreate(const struct Connection* connection);
+
 const char* MIMETypeFromFile(const char* filename, const uint8_t* contents, size_t contentsLength);
 
 
@@ -451,253 +436,67 @@ char* strdupEscapeForHTML(const char* stringToEscape) {
 }
 #endif
 
-/* Is someone using ../ to try to read a directory outside of the documentRoot? */
-static bool pathEscapesDocumentRoot(const char* path) {
-  int subdirDepth = 0;
-  PathState state = PathState::Normal;
-  bool isFirstChar = true;
-  while ('\0' != *path) {
-    switch (state) {
-    case PathState::Normal:
-      if ('/' == *path || '\\' == *path) {
-	state = PathState::Sep;
-      } else if (isFirstChar && '.' == *path) {
-	state = PathState::Dot;
-      } else if (isFirstChar) {
-	subdirDepth++;
-      }
-      isFirstChar = false;
-      break;
-    case PathState::Sep:
-      if ('.' == *path) {
-	state = PathState::Dot;
-      } else if ('/' != *path && '\\' != *path) {
-	subdirDepth++;
-	state = PathState::Normal;
-      }
-      break;
-    case PathState::Dot:
-      if ('/' == *path) {
-	state = PathState::Sep;
-      } else if ('.' == *path) {
-	subdirDepth--;
-	state = PathState::Normal;
-      } else {
-	state = PathState::Normal;
-      }
-      break;
-    }
-    path++;
-  }
-  if (subdirDepth < 0) {
-    return true;
-  }
-  return false;
-}
-
 static void URLDecode(const char* encoded, char* decoded, size_t decodedCapacity,
 		      URLDecodeType type) {
-    /* We found a value. Unescape the URL. This is probably filled with bugs */
-    size_t deci = 0;
-    /* these three vars unescape % escaped things */
-    URLDecodeState state = URLDecodeStateNormal;
-    char firstDigit = '\0';
-    char secondDigit;
-    while (1) {
-        /* break out the exit conditions */
-        /* need to store a null char in decoded[decodedCapacity - 1] */
-        if (deci >= decodedCapacity - 1) {
-            break;
-        }
-        /* no encoding string left to process */
-        if (*encoded == '\0') {
-            break;
-        }
-        /* If we are decoding only a parameter then stop at & */
-        if (*encoded == '&' && URLDecodeType::Parameter == type) {
-            break;
-        }
-        switch (state) {
-            case URLDecodeStateNormal:
-                if ('%' == *encoded) {
-                    state = URLDecodeStatePercentFirstDigit;
-                } else if ('+' == *encoded) {
-                    decoded[deci] = ' ';
-                    deci++;
-                } else {
-                    decoded[deci] = *encoded;
-                    deci++;
-                }
-                break;
-            case URLDecodeStatePercentFirstDigit:
-                // copy the first digit, get the second digit
-                firstDigit = *encoded;
-                state = URLDecodeStatePercentSecondDigit;
-                break;
-            case URLDecodeStatePercentSecondDigit:
-            {
-                secondDigit = *encoded;
-                int decodedEscape;
-                char hexString[] = {firstDigit, secondDigit, '\0'};
-                int items = sscanf(hexString, "%02x", &decodedEscape);
-                if (1 == items) {
-                    decoded[deci] = (char) decodedEscape;
-                    deci++;
-                } else {
-                    ews_printf("Warning: Unable to decode hex string 0x%s from %s", hexString, encoded);
-                }
-                state = URLDecodeStateNormal;
-            }
-                break;
-        }
-        encoded++;
+  /* We found a value. Unescape the URL. This is probably filled with bugs */
+  size_t deci = 0;
+  /* these three vars unescape % escaped things */
+  URLDecodeState state = URLDecodeStateNormal;
+  char firstDigit = '\0';
+  char secondDigit;
+  while (1) {
+    /* break out the exit conditions */
+    /* need to store a null char in decoded[decodedCapacity - 1] */
+    if (deci >= decodedCapacity - 1) {
+      break;
     }
-    decoded[deci] = '\0';
-}
-
-static void heapStringReallocIfNeeded(struct HeapString* string, size_t minimumCapacity) {
-    if (minimumCapacity <= string->capacity) {
-        return;
+    /* no encoding string left to process */
+    if (*encoded == '\0') {
+      break;
     }
-    /* to avoid many reallocations every time we call AppendChar, round up to the next power of two */
-    string->capacity = heapStringNextAllocationSize(minimumCapacity);
-    assert(string->capacity > 0 && "We are about to allocate a string with 0 capacity. We should have checked this condition above");
-    bool previouslyAllocated = string->contents != nullptr;
-    /* Sometimes string->contents is nullptr. realloc handles that case so no need for an extra if (nullptr) malloc else realloc */
-    string->contents = (char*) realloc(string->contents, string->capacity);
-	/* zero out the newly allocated memory */
-    memset(&string->contents[string->length], 0, string->capacity - string->length);
-    if (OptionIncludeStatusPageAndCounters) {
-      MutexLock ml(&counters_lock);
-      if (previouslyAllocated) {
-	counters.heapStringReallocations++;
+    /* If we are decoding only a parameter then stop at & */
+    if (*encoded == '&' && URLDecodeType::Parameter == type) {
+      break;
+    }
+    switch (state) {
+    case URLDecodeStateNormal:
+      if ('%' == *encoded) {
+	state = URLDecodeStatePercentFirstDigit;
+      } else if ('+' == *encoded) {
+	decoded[deci] = ' ';
+	deci++;
       } else {
-	counters.heapStringAllocations++;
+	decoded[deci] = *encoded;
+	deci++;
       }
-      counters.heapStringTotalBytesReallocated += string->capacity;
+      break;
+    case URLDecodeStatePercentFirstDigit:
+      // copy the first digit, get the second digit
+      firstDigit = *encoded;
+      state = URLDecodeStatePercentSecondDigit;
+      break;
+    case URLDecodeStatePercentSecondDigit:
+      {
+	secondDigit = *encoded;
+	int decodedEscape;
+	char hexString[] = {firstDigit, secondDigit, '\0'};
+	int items = sscanf(hexString, "%02x", &decodedEscape);
+	if (1 == items) {
+	  decoded[deci] = (char) decodedEscape;
+	  deci++;
+	} else {
+	  ews_printf("Warning: Unable to decode hex string 0x%s from %s", hexString, encoded);
+	}
+	state = URLDecodeStateNormal;
+      }
+      break;
     }
+    encoded++;
+  }
+  decoded[deci] = '\0';
 }
 
-static size_t heapStringNextAllocationSize(size_t required) {
-    /* start with something reasonalbe that responses could fit into. The idea here
-     is to avoid constant reallocation when dynamically building responses. */
-    size_t powerOf2 = 256;
-    while (powerOf2 < required) {
-        powerOf2 *= 2;
-    }
-    return powerOf2;
-}
-
-void heapStringAppendChar(struct HeapString* string, char c) {
-  heapStringReallocIfNeeded(string, string->length + 2);
-  string->contents[string->length] = c;
-  string->length++;
-  /* this should already be null-terminated but we'll be extra safe for web scale ^_^ */
-  string->contents[string->length] = '\0';
-}
-
-void heapStringAppendFormat(struct HeapString* string, const char* format, ...) {
-    va_list ap;
-    va_start(ap, format);
-    heapStringAppendFormatV(string, format, ap);
-    va_end(ap);
-}
-
-void heapStringSetToCString(struct HeapString* heapString, const char* cString) {
-    size_t cStringLength = strlen(cString);
-    heapStringReallocIfNeeded(heapString, cStringLength + 1);
-    memcpy(heapString->contents, cString, cStringLength);
-    heapString->length = cStringLength;
-    heapString->contents[heapString->length] = '\0';
-}
-
-void heapStringAppendString(struct HeapString* string, const char* stringToAppend) {
-    size_t stringToAppendLength = strlen(stringToAppend);
-    /* just exit early if the string length is too small */
-    if (0 == stringToAppendLength) {
-        return;
-    }
-    /* realloc and append the string */
-    size_t requiredCapacity = stringToAppendLength + string->length + 1;
-    heapStringReallocIfNeeded(string, requiredCapacity);
-    memcpy(&string->contents[string->length], stringToAppend, stringToAppendLength);
-    string->length += stringToAppendLength;
-    string->contents[string->length] = '\0';
-}
-
-void heapStringAppendHeapString(struct HeapString* target, const struct HeapString* source) {
-    heapStringReallocIfNeeded(target, target->length + source->length + 1);
-    memcpy(&target->contents[target->length], source->contents, source->length);
-    target->length += source->length;
-    target->contents[target->length] = '\0';
-}
-
-static bool heapStringIsSaneCString(const struct HeapString* heapString) {
-    if (nullptr == heapString->contents) {
-        if (heapString->capacity != 0) {
-            ews_printf("The heap string %p has a capacity of %" PRIu64 "but it's contents are nullptr\n", heapString, (uint64_t) heapString->capacity);
-            return false;
-        }
-        if (heapString->length != 0) {
-            ews_printf("The heap string %p has a length of %" PRIu64 " but capacity is 0 and contents are nullptr\n", heapString, (uint64_t) heapString->capacity);
-            return false;
-        }
-        return true;
-    }
-    if (heapString->capacity <= heapString->length) {
-        ews_printf("Heap string %p has probably overwritten invalid memory because the capacity (%" PRIu64 ") is <= length (%" PRIu64 "), which is a big nono. The capacity must always be 1 more than the length since the contents is null-terminated for convenience.\n",
-            heapString, (uint64_t) heapString->capacity, (uint64_t)heapString->length);
-        return false;
-    }
-
-    if (strlen(heapString->contents) != heapString->length) {
-        ews_printf("The %p strlen(heap string contents) (%" PRIu64 ") is not equal to heapString length (%" PRIu64 "), which is not correct for a C string. This can be correct if we're sending something like a PNG image which can contain '\\0' characters",
-               heapString,
-               (uint64_t) strlen(heapString->contents),
-               (uint64_t) heapString->length);
-        return false;
-    }
-    return true;
-}
-
-void heapStringAppendFormatV(struct HeapString* string, const char* format, va_list ap) {
-    /* Figure out how many characters it would take to print the string */
-    va_list apCopy;
-    va_copy(apCopy, ap);
-    size_t appendLength = vsnprintf(nullptr, 0, format, ap);
-    size_t requiredCapacity = string->length + appendLength + 1;
-    heapStringReallocIfNeeded(string, requiredCapacity);
-    assert(string->capacity >= string->length + appendLength + 1);
-    /* perform the actual vsnprintf that does the work */
-    size_t actualAppendLength = vsnprintf(&string->contents[string->length], string->capacity - string->length, format, apCopy);
-    string->length += appendLength;
-    assert(actualAppendLength == appendLength && "We called vsnprintf twice with the same format and value arguments and got different string lengths");
-    /* explicitly null terminate in case I messed up the vsnprinf logic */
-    string->contents[string->length] = '\0';
-}
-
-void heapStringInit(struct HeapString* string) {
-    string->capacity = 0;
-    string->contents = nullptr;
-    string->length = 0;
-}
-
-void heapStringFreeContents(struct HeapString* string) {
-    if (nullptr != string->contents) {
-        assert(string->capacity > 0 && "A heap string had a capacity > 0 with non-nullptr contents which implies a malloc(0)");
-        free(string->contents);
-        string->contents = nullptr;
-        string->capacity = 0;
-        string->length = 0;
-        if (OptionIncludeStatusPageAndCounters) {
-	  MutexLock ml(&counters_lock);
-	  counters.heapStringFrees++;
-        }
-    } else {
-        assert(string->capacity == 0 && "Why did a string with a nullptr contents have a capacity > 0? This is not correct and may indicate corruption");
-    }
-}
-
+#if 0
 struct HeapString connectionDebugStringCreate(const Connection* connection) {
   struct HeapString debugString;
   heapStringInit(&debugString);
@@ -707,7 +506,7 @@ struct HeapString connectionDebugStringCreate(const Connection* connection) {
   heapStringAppendFormat(&debugString, "Bytes received:%" PRId64 "\n", connection->status.bytesReceived);
   heapStringAppendFormat(&debugString, "Final request parse state:%d\n", connection->request.state);
   heapStringAppendFormat(&debugString, "Header count:%" PRIu64 "\n",
-			 (uint64_t) connection->request.headers.size());
+			 (uint64) connection->request.headers.size());
   bool firstHeader = true;
   heapStringAppendString(&debugString, "\n*** Request Headers ***\n");
   for (const auto &header : connection->request.headers) {
@@ -724,7 +523,7 @@ struct HeapString connectionDebugStringCreate(const Connection* connection) {
   }
   heapStringAppendFormat(&debugString, "\n*** Request Warnings ***\n");
   bool hadWarnings = false;
-  if (connection->request.warnings.bodyTruncated) {
+  if (connection->request.bodyTruncated) {
     heapStringAppendString(&debugString, "bodyTruncated - you can increase REQUEST_MAX_BODY_LENGTH");
     hadWarnings = true;
   }
@@ -733,181 +532,34 @@ struct HeapString connectionDebugStringCreate(const Connection* connection) {
   }
   return debugString;
 }
+#endif
 
 // allocates a response with content = malloc(contentLength + 1) so you can write
 // null-terminated strings to it
-Response* responseAlloc(int code, const char* status, const char* contentType) {
+Response* responseAlloc(int code, string status, string content_type) {
   Response* response = new Response;
   response->code = code;
-  response->status = strdupIfNotNull(status);
-  response->contentType = strdupIfNotNull(contentType);
+  response->status = std::move(status);
+  response->content_type = std::move(content_type);
   return response;
 }
 
-Response* responseAllocHTML(const char* html) {
-  return responseAllocHTMLWithStatus(200, "OK", html);
+Response* responseAllocHTML(string html) {
+  return responseAllocHTMLWithStatus(200, "OK", std::move(html));
 }
 
-Response* responseAllocHTMLWithStatus(int code, const char* status, string html) {
+Response* responseAllocHTMLWithStatus(int code, string status, string html) {
   Response* response = responseAlloc(code, status, "text/html; charset=UTF-8");
   response->body = std::move(html);
   return response;
 }
 
-static bool requestMatchesPathPrefix(const char* requestPathDecoded,
-				     const char* pathPrefix, size_t* matchLength) {
-  /* special case: pathPrefix is "" - matching everything*/
-  if (pathPrefix[0] == '\0') {
-    return true;
-  }
-  /* special case: requestPathDecoded is "" - match nothing */
-  if (requestPathDecoded[0] == '\0') {
-    return false;
-  }
-  /* cases to think about:
-     pathPrefix  = "/releases/current" OR  "/releases/current/"
-     requestPath = "/releases/current/" OR "/releases/current" */
-  size_t requestPathDecodedLength = strlen(requestPathDecoded);
-  size_t pathPrefixLength = strlen(pathPrefix);
-  /* we checked for zero-length strings above so it's afe to do this*/
-  bool pathPrefixEndsWithSlash = pathPrefix[pathPrefixLength - 1] == '/';
-  bool requestPathDecodedEndsWithSlash = requestPathDecoded[requestPathDecodedLength - 1] == '/';
-  if (requestPathDecoded == strstr(requestPathDecoded, pathPrefix)) {
-    /* if this code path finds a match, it will always be the full path prefix that's matched */
-    if (nullptr != matchLength) {
-      *matchLength = pathPrefixLength;
-    }
-    /* ok we just matched pathPrefix = "/releases/current" but what if requestPathDecoded is "/releases/currentXXX"? */
-    if (!pathPrefixEndsWithSlash) {
-      /* pathPrefix is equal to requestPathDecoded */
-      if (pathPrefixLength == requestPathDecodedLength) {
-	assert(0 == strcmp(pathPrefix, requestPathDecoded) && "I'm assuming that the strings match with the length check + strstr above and I hope that's true. If not, that check needs to be replaced with real (0 == strcmp)");
-	return true;
-      }
-      assert(requestPathDecodedLength > pathPrefixLength && "In the following code I am assuming that the requestPathDecoded is indeed longer than the path prefix because of the length check I did above (even though that was ==, the strstr has to match it)");
-      /* pathPrefix = "/releases/current" and requestPathDecoded = "/releases/currentX" - we needs X to be a /
-	 We want pathPrefix to match "/releases/current/" but not "/releases/current1"	*/
-      if (requestPathDecoded[pathPrefixLength] == '/') {
-	return true;
-      }
-      /* this is the case where pathPrefix = "/releases/current" and requestPathDecoded = "/releases/current1" */
-      return false;
-    }
-    return true;
-  }
-  /* It can still be the case that pathPrefix is "/releases/current/" and requestPathDecoded is "/releases/current".
-     It's tempting to just put an assert and make the user fix it but we'll use some extra code to handle it. */
-  if (requestPathDecodedLength == pathPrefixLength - 1) {
-    /* make sure we're specifically matchig "/releases/current/" with "/releases/current" and not something like "/releases/currentX" */
-    if (pathPrefixEndsWithSlash && !requestPathDecodedEndsWithSlash) {
-      if (0 == strncmp(requestPathDecoded, pathPrefix, requestPathDecodedLength)) {
-	if (nullptr != matchLength) {
-	  *matchLength = requestPathDecodedLength;
-	}
-	return true;
-      }
-    }
-  }
-  return false;
-}
-/*
-Here's how the path logic works:
-
-Let's say I want to serve traffic on the 'releases/current' path out of the 'EWS-1.1' directory. EWS-1.1 has no index.html
-pathPrefix = "/releases/current" OR "/releases/current/"
-requestPath = "/releases/current" OR "/releases/current/" OR "/releases/current/page.html"
-
-Performed in requestMatchesPathPrefix, which will give us the match length
-1. match pathPrefix with requestPath and figure out requestPathSuffix
-See requestMatchesPathPrefix for more information
-requestPathSuffix = requestPath - pathPrefix or rather:
-requestPathSuffix = (sometimes!) requestPath + strlen(pathPrefix)
-requestPathSuffix = (other times!) requestPath + strlen(pathPrefix) - 1
-
-requestPathSuffix will now sometimes have a leading "/" or not, depending on how requestMatchesPathPrefix went
-
-Some motivating cases:
-If requestPath = "/releases/current" then requestPathSuffix = ""
-If requestPath = "/releases/current/" then requestPathSuffix = "/"
-if requestPath = "/releases/current/page.html" then requestPathSuffix = "/page.html"
-Note:
-If requestPath = "/releases/currentX" (where X is not a slash character) then we need to reject this request
-
-2. It turns out that requestPathSuffix can sometimes start with a "/" or be empty or be something arbitrary
-If requestPathSuffix starts with a "/" or "\" go ahead and skip the initial / and \'s. So if requestPath
-is "/releases/current/page.html" then requestPathSuffix should be "page.html"
-If requestPath
-
-* Now requestPathSuffix is some arbitrary (and untrustable!) string (without the "/")
-
-3. We can check if requestPathSuffix will leave the document root with pathEscapesDocumentRoot(requestPathSuffix)
-
-4. We can form a file path with the documentRoot (which has no trailing / or \ !)
-documentRoot = "EWS-1.1"
-filePath = documentRoot + "/" + requestPathSuffix
-filePath = "EWS-1.1" + "/" + "page.html"
-filePath = "EWS-1.1" + "/" + ""
-filePath = "EWS-1.1" + "/" + "docs/blahblah/.."
-
-5. There is one tricky thing with directories. If filePath is a directory we will serve the
-directory contents with links to the files. We need to figure out how to link to the files
-If the browser sent a URL that ends in a / we can use totally relative links like:
-<a href="code.cpp">code.cpp</a> (for something like http://x.com/release/current/)
-But if the URL does not end in a / we need to do:
-<a href="/release/current/code.cpp">code.cpp</a>
-I'll call out this step below
-*/
-Response* responseAllocServeFileFromRequestPath(const char* pathPrefix,
-						       const char* requestPath,
-						       const char* requestPathDecoded,
-						       const char* documentRoot) {
-  if (nullptr == pathPrefix) {
-    ews_printf_debug("responseAllocServeFileFromRequestPath(): The user passed in nullptr for pathPrefix so we just defaulted to / for them. Whatever.\n");
-    pathPrefix = "/";
-  }
-  assert(nullptr != requestPath && "The requestPath should not be nullptr. It can be empty, but not nullptr. Pass request->path");
-  assert(nullptr != requestPathDecoded && "The requestPathDecoded should not be nullptr. It can be empty, but not nullptr. Pass request->requestPathDecoded");
-  // Step 1 (see above)
-  size_t matchLength = 0;
-  /* Do we even match this path? Also figure out the suffix (note the use of the _decoded_ path -- otherwise we would have %12s and stuff everywhere */
-  if (!requestMatchesPathPrefix(requestPathDecoded, pathPrefix, &matchLength)) {
-    return responseAlloc400BadRequestHTML("You requested the server to serve a path it doesn't know. Use the <code>requestMatchesPathPrefix</code> before passing this path. Or use a <code>pathPrefix</code> of <code>/</code> to have the server serve files from all URLs.");
-  }
-  const char* requestPathSuffix = requestPathDecoded + matchLength;
-  // Step 2 (see above)
-  while ('/' == *requestPathSuffix || '\\' == *requestPathSuffix) {
-    requestPathSuffix++;
-  }
-  // Step 3 (see above)
-  if (pathEscapesDocumentRoot(requestPathSuffix)) {
-    return responseAllocHTMLWithStatus(
-	403, "Forbidden",
-	"<html><head><title>Forbidden</title></head>"
-	"<body>You are not allowed to access this URL</body></html>");
-  }
-  // Step 4 (see above)
-  struct HeapString filePath;
-  heapStringInit(&filePath);
-  heapStringSetToCString(&filePath, documentRoot);
-  bool pathSuffixIsNotEmpty = '\0' != *requestPathSuffix;
-  if (pathSuffixIsNotEmpty) {
-    heapStringAppendChar(&filePath, '/');
-    heapStringAppendString(&filePath, requestPathSuffix);
-  }
-  struct PathInformation pathInfo;
-
-  return responseAllocHTMLWithStatus(200, "OK", "<!doctype html>You got it!\n");
-}
-
-Response* responseAlloc400BadRequestHTML(const char* errorMessage) {
-  if (nullptr == errorMessage) {
-    errorMessage = "An unspecified error occurred";
-  }
+Response* responseAlloc400BadRequestHTML(string error) {
   return responseAllocHTMLWithStatus(
       400, "Bad Request",
       (string)
       "<html><head><title>400 - Bad Request</title></head>"
-      "<body>The request made was invalid: " + (string)errorMessage +
+      "<body>The request made was invalid: " + error +
       (string)"</body></html>");
 }
 
@@ -943,19 +595,6 @@ Response* responseAlloc500InternalErrorHTML(const char* extraInformationOrNull) 
 	(string)extraInformationOrNull +
 	(string)"</body></html>");
   }
-}
-
-Response* responseAllocWithFile(const char* filename, const char* MIMETypeOrnullptr) {
-  Response* response = responseAlloc(200, "OK", MIMETypeOrnullptr);
-  response->filenameToSend = strdup(filename);
-  return response;
-}
-
-Response::~Response() {
-  free(status);
-  free(filenameToSend);
-  free(contentType);
-  free(extraHeaders);
 }
 
 /* parses a typical HTTP request looking for the first line: GET /path HTTP/1.0\r\n */
@@ -1048,19 +687,19 @@ static void requestParse(Request* request,
 	  ews_printf_debug("Incoming request has a body of length %s\n",
 			   contentLengthHeader->c_str());
 	  /* Note that this limits content length to < 2GB on Windows */
-	  long contentLength = 0;
-	  if (1 == sscanf(contentLengthHeader->c_str(), "%ld", &contentLength)) {
-	    if (contentLength > REQUEST_MAX_BODY_LENGTH) {
-	      request->warnings.bodyTruncated = true;
-	      contentLength = REQUEST_MAX_BODY_LENGTH;
+	  long content_length = 0;
+	  if (1 == sscanf(contentLengthHeader->c_str(), "%ld", &content_length)) {
+	    if (content_length > REQUEST_MAX_BODY_LENGTH) {
+	      request->bodyTruncated = true;
+	      content_length = REQUEST_MAX_BODY_LENGTH;
 	    }
-	    if (contentLength < 0) {
+	    if (content_length < 0) {
 	      ews_printf_debug("Warning: Incoming request has negative "
-			       "content length: %ld\n", contentLength);
-	      contentLength = 0;
+			       "content length: %ld\n", content_length);
+	      content_length = 0;
 	    }
-	    request->contentLength = contentLength;
-	    request->body.reserve(contentLength);
+	    request->content_length = content_length;
+	    request->body.reserve(content_length);
 	    request->state = RequestParseState::Body;
 	  }
 	}
@@ -1071,7 +710,7 @@ static void requestParse(Request* request,
     case RequestParseState::Body:
       // PERF can copy in bigger chunks...
       request->body.push_back(c);
-      if (request->body.size() == request->contentLength) {
+      if ((int64)request->body.size() == (int64)request->content_length) {
 	request->state = RequestParseState::Done;
       }
       break;
@@ -1083,17 +722,10 @@ static void requestParse(Request* request,
 
 static void requestPrintWarnings(const Request* request,
 				 const char* remoteHost, const char* remotePort) {
-  if (request->warnings.bodyTruncated) {
+  if (request->bodyTruncated) {
     ews_printf("Warning: Request from %s:%s body was truncated to %" PRIu64 " bytes\n",
-	       remoteHost, remotePort, (uint64_t)request->body.size());
+	       remoteHost, remotePort, (uint64)request->body.size());
   }
-}
-
-static void SIGPIPEHandler(int signal) {
-  (void) signal;
-  /* SIGPIPE happens any time we try to send() and the connection is closed.
-     So we just ignore it and check the return code of send...*/
-  ews_printf_debug("Ignoring SIGPIPE\n");
 }
 
 
@@ -1171,8 +803,12 @@ int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr* address,
   Connection* nextConnection = new Connection(this);
   while (shouldRun) {
     nextConnection->remoteAddrLength = sizeof(nextConnection->remoteAddr);
-    nextConnection->socketfd = accept(listenerfd, (struct sockaddr*) &nextConnection->remoteAddr, &nextConnection->remoteAddrLength);
-    if (-1 == nextConnection->socketfd) {
+    nextConnection->socketfd =
+      accept(listenerfd, (struct sockaddr*) &nextConnection->remoteAddr,
+	     &nextConnection->remoteAddrLength);
+    // XXX Apparently socketfd unsigned on win32? If so, this is not the right
+    // way to be testing this?
+    if (-1 == (int)nextConnection->socketfd) {
       if (errno == EINTR) {
 	ews_printf("accept was interrupted, continuing if server.shouldRun is true...\n");
 	continue;
@@ -1228,32 +864,27 @@ int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr* address,
 
 static int sendResponse(Connection* connection, const Response* response,
 			ssize_t* bytesSent) {
-  if (!response->body.empty()) {
-    return sendResponseBody(connection, response, bytesSent);
-  }
-  if (nullptr != response->filenameToSend) {
-    return sendResponseFile(connection, response, bytesSent);
-  }
-  ews_printf("Error: the request for '%s' failed because there was neither a response "
-	     "body nor a filenameToSend\n", connection->request.path.c_str());
-  assert(0 && "See above ews_printf");
-  return 1;
-}
 
-static int sendResponseBody(Connection* connection, const Response* response,
-			    ssize_t* bytesSent) {
-  /* First send the response HTTP headers */
-  int headerLength =
-    snprintfResponseHeader(connection->responseHeader,
-			   sizeof(connection->responseHeader),
-			   response->code,
-			   response->status,
-			   response->contentType,
-			   response->extraHeaders,
-			   response->body.size());
-  ssize_t sendResult =
-    send(connection->socketfd, connection->responseHeader, headerLength, 0);
-  if (sendResult != headerLength) {
+  string response_header = "HTTP/1.1 ";
+  response_header += Itoa(response->code);
+  response_header += " ";
+  response_header += response->status;
+  response_header += "\r\nContent-Type: ";
+  response_header += response->content_type;
+  response_header += "\r\nContent-Length: ";
+  response_header += Itoa(response->body.size());
+  response_header += "\r\nServer: cc-lib\r\n";
+  for (const auto &h : response->extra_headers) {
+    response_header += h.first;
+    response_header += ": ";
+    response_header += h.second;
+    response_header += "\r\n";
+  }
+  response_header += "\r\n";
+
+  int64 sendResult =
+    send(connection->socketfd, response_header.c_str(), response_header.size(), 0);
+  if (sendResult != (int64)response_header.size()) {
     ews_printf("Failed to respond to %s:%s because we could not send the HTTP "
 	       "response *header*. send returned %ld with %s = %d\n",
                connection->remoteHost,
@@ -1264,6 +895,7 @@ static int sendResponseBody(Connection* connection, const Response* response,
     return -1;
   }
   *bytesSent = *bytesSent + sendResult;
+  
   /* Second, if a response body exists, send that */
   if (!response->body.empty()) {
     sendResult = send(connection->socketfd, response->body.c_str(), response->body.size(), 0);
@@ -1272,7 +904,7 @@ static int sendResponseBody(Connection* connection, const Response* response,
 		 "response *body*. send returned %" PRId64 " with %s = %d\n",
 		 connection->remoteHost,
 		 connection->remotePort,
-		 (int64_t) sendResult,
+		 (int64) sendResult,
 		 strerror(errno),
 		 errno);
       return -1;
@@ -1280,108 +912,6 @@ static int sendResponseBody(Connection* connection, const Response* response,
     *bytesSent = *bytesSent + sendResult;
   }
   return 0;
-}
-
-static int sendResponseFile(Connection* connection,
-			    const Response* response,
-			    ssize_t* bytesSent) {
-  /* If you were writing a high-performance web server you could use
-     sendfile, memory map the file, or any number of exciting things. But
-     here we just fread the first 100 bytes to figure out MIME type, then rewind
-     and send the file ~16KB at a time. */
-  Response* errorResponse = nullptr;
-  FILE* fp = fopen(response->filenameToSend, "rb");
-  int result = 0;
-  long fileLength;
-  ssize_t sendResult;
-  int headerLength;
-  size_t actualMIMEReadSize;
-  const char* contentType = nullptr;
-  const size_t MIMEReadSize = 100;
-  if (nullptr == fp) {
-    ews_printf("Unable to satisfy request for '%s' "
-	       "because we could not open the file '%s' %s = %d\n",
-	       connection->request.path.c_str(), response->filenameToSend,
-	       strerror(errno), errno);
-    errorResponse = responseAlloc404NotFoundHTML(connection->request.path.c_str());
-    goto exit;
-  }
-  /* If the MIME type if specified in the response->contentType, use that. Otherwise try to guess with MIMETypeFromFile */
-  if (nullptr != response->contentType) {
-    contentType = response->contentType;
-  } else {
-    assert(sizeof(connection->sendRecvBuffer) >= MIMEReadSize);
-    actualMIMEReadSize = fread(connection->sendRecvBuffer, 1, MIMEReadSize, fp);
-    if (0 == actualMIMEReadSize) {
-      ews_printf("Unable to satisfy request for '%s' because we could read the first bunch of bytes to determine MIME type '%s' %s = %d\n", connection->request.path.c_str(),
-		 response->filenameToSend, strerror(errno), errno);
-      errorResponse = responseAlloc500InternalErrorHTML("fread for MIME type detection failed");
-      goto exit;
-    }
-    contentType = MIMETypeFromFile(response->filenameToSend, (const uint8_t*)connection->sendRecvBuffer, actualMIMEReadSize);
-    ews_printf_debug("Detected MIME type '%s' for file '%s'\n", contentType, response->filenameToSend);
-  }
-  /* get the file length, laboriously checking for errors */
-  result = fseek(fp, 0, SEEK_END);
-  if (0 != result) {
-    ews_printf("Unable to satisfy request for '%s' because we could not fseek to the end of the file '%s' %s = %d\n", connection->request.path.c_str(), response->filenameToSend, strerror(errno), errno);
-    errorResponse = responseAlloc500InternalErrorHTML("fseek to end of file failed");
-    goto exit;
-  }
-  fileLength = ftell(fp);
-  if (fileLength < 0) {
-    ews_printf("Unable to satisfy request for '%s' because we could not ftell on the file '%s' %s = %d\n", connection->request.path.c_str(), response->filenameToSend, strerror(errno), errno);
-    errorResponse = responseAlloc500InternalErrorHTML("ftell to determine file length failed");
-    goto exit;
-  }
-  result = fseek(fp, 0, SEEK_SET);
-  if (0 != result) {
-    ews_printf("Unable to satisfy request for '%s' because we could not fseek to the beginning of the file '%s' %s = %d\n", connection->request.path.c_str(), response->filenameToSend, strerror(errno), errno);
-    errorResponse = responseAlloc500InternalErrorHTML("fseek to beginning of file to start sending failed");
-    goto exit;
-  }
-
-  /* now we have the file length + MIME TYpe and we can send the header */
-  headerLength = snprintfResponseHeader(connection->responseHeader, sizeof(connection->responseHeader), response->code, response->status, contentType, response->extraHeaders, fileLength);
-  sendResult = send(connection->socketfd, connection->responseHeader, headerLength, 0);
-  if (sendResult != headerLength) {
-    ews_printf("Unable to satisfy request for '%s' because we could not send the HTTP header '%s' %s = %d\n", connection->request.path.c_str(), response->filenameToSend, strerror(errno), errno);
-    result = 1;
-    goto exit;
-  }
-  *bytesSent = sendResult;
-  /* read the whole file, just buffering into the connection buffer, and sending it out to the socket */
-  while (!feof(fp)) {
-    size_t bytesRead = fread(connection->sendRecvBuffer, 1, sizeof(connection->sendRecvBuffer), fp);
-    if (0 == bytesRead) { /* peaceful end of file */
-      break;
-    }
-    if (ferror(fp)) {
-      ews_printf("Unable to satisfy request for '%s' because there was an error freading. '%s' %s = %d\n", connection->request.path.c_str(), response->filenameToSend, strerror(errno), errno);
-      errorResponse = responseAlloc500InternalErrorHTML("Could not fread to send over socket");
-      goto exit;
-    }
-    /* send the data out the socket to the network */
-    sendResult = send(connection->socketfd, connection->sendRecvBuffer, bytesRead, 0);
-    if (sendResult != (ssize_t) bytesRead) {
-      ews_printf("Unable to satisfy request for '%s' because there was an error sending bytes. '%s' %s = %d\n", connection->request.path.c_str(), response->filenameToSend, strerror(errno), errno);
-      result = 1;
-      goto exit;
-    }
-    *bytesSent = *bytesSent + sendResult;
-  }
- exit:
-  if (nullptr != fp) {
-    fclose(fp);
-  }
-  if (nullptr != errorResponse) {
-    ews_printf("Instead of satisfying the request for '%s' we encountered an error and will return %d %s\n", connection->request.path.c_str(), response->code, response->status);
-    ssize_t errorBytesSent = 0;
-    result = sendResponseBody(connection, errorResponse, &errorBytesSent);
-    *bytesSent = *bytesSent + errorBytesSent;
-    return result;
-  }
-  return result;
 }
 
 
@@ -1432,7 +962,12 @@ static void connectionHandlerThread(void* connectionPointer) {
     if (nullptr != response) {
       int result = sendResponse(connection, response, &bytesSent);
       if (0 == result) {
-	ews_printf_debug("%s:%s: Responded with HTTP %d %s length %" PRId64 "\n", connection->remoteHost, connection->remotePort, response->code, response->status, (int64_t)bytesSent);
+	ews_printf_debug("%s:%s: Responded with HTTP %d %s length %" PRId64 "\n",
+			 connection->remoteHost,
+			 connection->remotePort,
+			 response->code,
+			 response->status.c_str(),
+			 (int64)bytesSent);
       } else {
 	/* sendResponse already printed something out, don't add another ews_printf */
       }
@@ -1442,7 +977,7 @@ static void connectionHandlerThread(void* connectionPointer) {
       ews_printf("%s:%s: You have returned a nullptr response - I'm assuming you took over the request handling yourself.\n", connection->remoteHost, connection->remotePort);
     }
   } else {
-    ews_printf("No request found from %s:%s? Closing connection. Here's the last bytes we received in the request (length %" PRIi64 "). The total bytes received on this connection: %" PRIi64 " :\n", connection->remoteHost, connection->remotePort, (int64_t) bytesRead, connection->status.bytesReceived);
+    ews_printf("No request found from %s:%s? Closing connection. Here's the last bytes we received in the request (length %" PRIi64 "). The total bytes received on this connection: %" PRIi64 " :\n", connection->remoteHost, connection->remotePort, (int64) bytesRead, connection->status.bytesReceived);
     if (bytesRead > 0) {
       fwrite(connection->sendRecvBuffer, 1, bytesRead, stdout);
     }
@@ -1512,7 +1047,7 @@ const char* MIMETypeFromFile(const char* filename, const uint8_t* contents,
   }
   /* is it a plain text file? Just inspect the first 100 bytes or so for ASCII */
   bool plaintext = true;
-  for (size_t i = 0; i < MIN(contentsLength, 100); i++) {
+  for (int i = 0; (size_t)i < contentsLength && i < 100; i++) {
     if (contents[i] > 127) {
       plaintext = false;
       break;
@@ -1540,28 +1075,6 @@ static bool strEndsWith(const char* big, const char* endsWith) {
   }
   return true;
 }
-
-static int snprintfResponseHeader(char* destination, size_t destinationCapacity,
-				  int code, const char* status, const char* contentType,
-				  const char* extraHeaders, size_t contentLength) {
-  if (nullptr == extraHeaders) {
-    extraHeaders = "";
-  }
-  return snprintf(destination,
-		  destinationCapacity,
-		  "HTTP/1.1 %d %s\r\n"
-		  "Content-Type: %s\r\n"
-		  "Content-Length: %" PRIu64 "\r\n"
-		  "Server: Embeddable Web Server/" EMBEDDABLE_WEB_SERVER_VERSION_STRING "\r\n"
-		  "%s"
-		  "\r\n",
-		  code,
-		  status,
-		  contentType,
-		  (uint64_t)contentLength,
-		  extraHeaders);
-}
-
 
 ServerImpl::ServerImpl() {
   ignoreSIGPIPE();
@@ -1605,22 +1118,18 @@ static void callWSAStartupIfNecessary() {
   // try to create a socket, and if that fails because of
   // uninitialized winsock, then initialize winsock
   SOCKET testsocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if (SOCKET_ERROR == testsocket && WSANOTINITIALISED == WSAGetLastError()) {
+  if (INVALID_SOCKET == testsocket && WSANOTINITIALISED == WSAGetLastError()) {
     WSADATA data = { 0 };
     int result = WSAStartup(MAKEWORD(2, 2), &data);
     if (0 != result) {
-      ews_printf("Calling WSAStartup failed! It returned %d with GetLastError() = %d\n",
-		 result, GetLastError());
+      ews_printf("Calling WSAStartup failed! It returned %d with GetLastError() = %lld\n",
+		 result, (int64)GetLastError());
       abort();
     }
   } else {
     close(testsocket);
   }
 }
-
-#if UNDEFINE_CRT_SECURE_NO_WARNINGS
-#undef _CRT_SECURE_NO_WARNINGS
-#endif
 
 #else /* Linux + Mac OS X*/
 
@@ -1643,29 +1152,6 @@ static void printIPv4Addresses(uint16_t portInHostOrder) {
   if (nullptr != addrs) {
     freeifaddrs(addrs);
   }
-}
-
-static int pathInformationGet(const char* path, struct PathInformation* info) {
-  struct stat st;
-  int result = stat(path, &st);
-  if (0 != result) {
-    /* There was an error. If the error is just "file not found" say
-       the file doesn't exist */
-    if (ENOENT == errno) {
-      info->exists = false;
-      info->isDirectory = false;
-      return 0;
-    }
-    return 1;
-  }
-  /* We know the path exists. Is it a directory? */
-  info->exists = true;
-  if (S_ISDIR(st.st_mode)) {
-    info->isDirectory = true;
-  } else {
-    info->isDirectory = false;
-  }
-  return 0;
 }
 
 #endif // WIN32 or Linux/Mac OS X
