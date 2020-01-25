@@ -36,7 +36,7 @@ int main () {
     values.push_back(TestValue(CrapHash(i)));
   }
 
-  for (int i = 0; i < values.size(); i++) {
+  for (int i = 0; i < (int)values.size(); i++) {
     heap.Insert(values[i].i, &values[i]);
   }
 
@@ -51,14 +51,14 @@ int main () {
     last = now;
   }
 
-  for (int i = 0; i < values.size(); i++) {
+  for (int i = 0; i < (int)values.size(); i++) {
     if (values[i].location != -1) {
       printf("FAIL! %d still in heap at %d\n", i, values[i].location);
       return -1;
     }
   }
   
-  for (int i = 0; i < values.size() / 2; i++) {
+  for (int i = 0; i < (int)values.size() / 2; i++) {
     heap.Insert(values[i].i, &values[i]);
   }
 
@@ -68,7 +68,7 @@ int main () {
     return -1;
   }
 
-  for (int i = 0; i < values.size() / 2; i++) {
+  for (int i = 0; i < (int)values.size() / 2; i++) {
     if (values[i].location != -1) {
       printf("FAIL (B)! %d still in heap at %d\n", i, values[i].location);
       return -1;

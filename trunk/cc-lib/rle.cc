@@ -39,7 +39,7 @@ vector<uint8> RLE::CompressEx(const vector<uint8> &in,
   // 255.
   const int max_antirun_length = (int)(255 - run_cutoff) + 1;
 
-  for (int i = 0; i < in.size(); /* in loop */) {
+  for (int i = 0; i < (int)in.size(); /* in loop */) {
     // Greedy: Grab the longest prefix of bytes that are the same,
     // up to max_run_length.
     const uint8 target = in[i];
@@ -47,7 +47,7 @@ vector<uint8> RLE::CompressEx(const vector<uint8> &in,
     // that this is legal.
     int run_length = 1;
     while (run_length < max_run_length &&
-	   i + run_length < in.size() &&
+	   i + run_length < (int)in.size() &&
 	   in[i + run_length] == target) {
       run_length++;
     }
@@ -71,7 +71,7 @@ vector<uint8> RLE::CompressEx(const vector<uint8> &in,
       // same.
       int anti_run_length = 1;
       while (anti_run_length < max_antirun_length &&
-	     i + anti_run_length + 1 < in.size() &&
+	     i + anti_run_length + 1 < (int)in.size() &&
 	     in[i + anti_run_length] != 
 	     in[i + anti_run_length + 1]) {
 	anti_run_length++;
@@ -112,14 +112,14 @@ bool RLE::DecompressEx(const vector<uint8> &in,
   // below).
   out->clear();
   
-  for (int i = 0; i < in.size(); /* in loop */) {
+  for (int i = 0; i < (int)in.size(); /* in loop */) {
     const uint8 control = in[i];
     i++;
     if (control <= run_cutoff) {
       // If less than the run cutoff, we treat it as a run.
       const int run_length = control + 1;
       
-      if (i >= in.size()) {
+      if (i >= (int)in.size()) {
 	// printf("Run of length %d, i now %d, in.size() is %d\n",
 	// run_length, i, (int)in.size());
 	return false;
@@ -139,7 +139,7 @@ bool RLE::DecompressEx(const vector<uint8> &in,
       // represented as 0) so we code starting at 2.
       const int antirun_length = control - run_cutoff + 1;
       
-      if (i + antirun_length >= in.size()) {
+      if (i + antirun_length >= (int)in.size()) {
 	// printf("Antirun of length %d, i now %d, in.size() is %d\n",
 	// antirun_length, i, (int)in.size());
 	return false;

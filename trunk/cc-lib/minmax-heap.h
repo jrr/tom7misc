@@ -94,7 +94,7 @@ class MinMaxHeap {
 
     // Need old priority to know which direction to percolate.
     Priority pold = cells[i].priority;
-
+    
     /* if a handle is valid, then heap size > 0 */
     Cell replacement = RemoveLast();
     if (replacement.value == v) {
@@ -149,9 +149,9 @@ class MinMaxHeap {
 #if 0
   // Given some "min" root, 
   //        0     min
-  //      /   \
+  //      /   \    ...
   //     1     2   max
-  //    / \   / \
+  //    / \   / \    ...
   //   3   4 5   6   min
   int MaxOfChildren(int root) {
     DCHECK(IsMinLayer(root));
@@ -242,11 +242,11 @@ class MinMaxHeap {
   // they do not.
   template<class F>
   void CheckInvariants(F Ptos) const {
-    for (int i = 0; i < cells.size(); i++) {
+    for (int i = 0; i < (int)cells.size(); i++) {
       CHECK_EQ(cells[i].value->location, i) << "Each cell in the heap should "
         "have its actual index in its location field (got " <<
-	cells[i].value->location << " for index=" << i << ")\nHeap:\n" <<
-	DebugString(Ptos);
+        cells[i].value->location << " for index=" << i << ")\nHeap:\n" <<
+        DebugString(Ptos);
       if (IsMinLayer(i)) {
         // (Maybe consider a slower but simpler alternative: Check
         // that all of the elements within its subtree have higher priority).
@@ -261,7 +261,7 @@ class MinMaxHeap {
         const int gc3 = LeftChild(c2);
         const int gc4 = RightChild(c2);
         auto CheckLe = [this, &Ptos, i](const char *which, int j) {
-          if (j < cells.size()) {
+          if (j < (int)cells.size()) {
             CHECK(!(cells[j].priority < cells[i].priority)) <<
               "Invariant violation on min layer: "
               "\nidx " << i << " with priority " << Ptos(cells[i].priority) <<
@@ -285,12 +285,12 @@ class MinMaxHeap {
         const int gc3 = LeftChild(c2);
         const int gc4 = RightChild(c2);
         auto CheckGe = [this, &Ptos, i](const char *which, int j) {
-          if (j < cells.size()) {
+          if (j < (int)cells.size()) {
             CHECK(!(cells[i].priority < cells[j].priority)) <<
               "Invariant violation on max layer: "
               "\nidx " << i << " with priority " << Ptos(cells[i].priority) <<
               "\nwas less than " << which << "child:" <<
-  	      "\nidx " << j << " with priority " << Ptos(cells[j].priority) <<
+              "\nidx " << j << " with priority " << Ptos(cells[j].priority) <<
               "\n" << DebugString(Ptos);
           }
         };
@@ -308,18 +308,18 @@ class MinMaxHeap {
   std::string DebugString(F Ptos) const {
     std::string ret = "digraph tree {\n";
 
-    for (int i = 0; i < cells.size(); i++) {
+    for (int i = 0; i < (int)cells.size(); i++) {
       const char *shape = IsMinLayer(i) ? " shape=box" : "";
       ret += StringPrintf(" n%d=%d [label=\"%s\"%s]\n", i,
-			  cells[i].value->location,
+                          cells[i].value->location,
                           Ptos(cells[i].priority).c_str(), shape);
     }
 
-    for (int i = 0; i < cells.size(); i++) {
+    for (int i = 0; i < (int)cells.size(); i++) {
       int lc = LeftChild(i), rc = RightChild(i);
-      if (lc < cells.size())
+      if (lc < (int)cells.size())
         ret += StringPrintf("n%d -> n%d\n", i, lc);
-      if (rc < cells.size())
+      if (rc < (int)cells.size())
         ret += StringPrintf("n%d -> n%d\n", i, rc);
     }
     ret += "}";
@@ -353,7 +353,7 @@ private:
   // assumes i is in range
   void SetElem(int i, const Cell &c) {
     DCHECK_GE(i, 0);
-    DCHECK_LT(i, cells.size());
+    DCHECK_LT(i, (int)cells.size());
     cells[i] = c;
     c.value->location = i;
   }
@@ -383,10 +383,10 @@ private:
     Priority bestp = cells[gc1].priority;
     for (int gc : { gc2, gc3, gc4 }) {
       if (gc >= cells.size())
-	break;
+        break;
       if (cells[gc].priority < bestp) {
-	besti = gc;
-	bestp = cells[gc].priority;
+        besti = gc;
+        bestp = cells[gc].priority;
       }
     }
     return besti;
@@ -398,7 +398,7 @@ private:
   int GetOutstandingRelativeC(int i) {
     // Comments as though cmp is <.
     const int c1 = LeftChild(i);
-    if (c1 >= cells.size()) {
+    if (c1 >= (int)cells.size()) {
       // No children, so no minimum
       return -1;
     }
@@ -412,11 +412,11 @@ private:
     int besti = c1;
     Priority bestp = cells[c1].priority;
     for (int d : { c2, gc1, gc2, gc3, gc4 }) {
-      if (d >= cells.size())
-	break;
+      if (d >= (int)cells.size())
+        break;
       if (cmp(cells[d].priority, bestp)) {
-	besti = d;
-	bestp = cells[d].priority;
+        besti = d;
+        bestp = cells[d].priority;
       }
     }
     return besti;
@@ -436,17 +436,17 @@ private:
       SwapElem(i, minc);
 
       if (minc == LeftChild(i) ||
-	  minc == RightChild(i)) {
-	// Immediate child. Done.
-	return;
+          minc == RightChild(i)) {
+        // Immediate child. Done.
+        return;
       } else {
-	// It's a grandchild.
-	int pminc = Parent(minc);
-	if (cmp(cells[pminc].priority, cells[minc].priority)) {
-	  // (Careful: the cell at minc changed when we swapped above.)
-	  SwapElem(pminc, minc);
-	}
-	TrickleDownC<cmp>(minc);
+        // It's a grandchild.
+        int pminc = Parent(minc);
+        if (cmp(cells[pminc].priority, cells[minc].priority)) {
+          // (Careful: the cell at minc changed when we swapped above.)
+          SwapElem(pminc, minc);
+        }
+        TrickleDownC<cmp>(minc);
       }
     }
   }
@@ -489,26 +489,26 @@ private:
 
     if (IsMinLayer(i)) {
       if (cells[p].priority < cells[i].priority) {
-	// Swap with parent.
-	Cell ci = cells[i];
-	Cell cp = cells[p];
-	SetElem(p, ci);
-	SetElem(i, cp);
-	BubbleUpC<Greater>(p);
+        // Swap with parent.
+        Cell ci = cells[i];
+        Cell cp = cells[p];
+        SetElem(p, ci);
+        SetElem(i, cp);
+        BubbleUpC<Greater>(p);
       } else {
-	BubbleUpC<Less>(i);
+        BubbleUpC<Less>(i);
       }
     } else {
       // max layer
       if (cells[i].priority < cells[p].priority) {
-	// Swap with parent.
-	Cell ci = cells[i];
-	Cell cp = cells[p];
-	SetElem(p, ci);
-	SetElem(i, cp);
-	BubbleUpC<Less>(p);
+        // Swap with parent.
+        Cell ci = cells[i];
+        Cell cp = cells[p];
+        SetElem(p, ci);
+        SetElem(i, cp);
+        BubbleUpC<Less>(p);
       } else {
-	BubbleUpC<Greater>(i);
+        BubbleUpC<Greater>(i);
       }
     }
   }
@@ -519,13 +519,13 @@ private:
   void PercolateDownMin(int i) {
     // Here we have a situation like
     //          8       MIN
-    //         / \
+    //         / \        .
     //        71  ...   MAX
-    //       /  \
+    //       /  \         .
     //     [31+] 10     MIN
-    //     / \  / \
+    //     / \  / \       .
     //   46 51 31 21    MAX
-    //   /\
+    //   /\               .
     //  33 37           MIN
     // 
     // where 31+ was just replaced with something larger than was

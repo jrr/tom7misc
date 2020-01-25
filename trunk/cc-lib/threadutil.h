@@ -302,7 +302,7 @@ auto UnParallelMap(const std::vector<T> &vec,
   std::vector<R> result;
   result.resize(vec.size());
 
-  for (int i = 0; i < vec.size(); i++) {
+  for (int64_t i = 0; i < (int64_t)vec.size(); i++) {
     result[i] = f(vec[i]);
   }
 

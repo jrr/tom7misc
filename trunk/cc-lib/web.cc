@@ -218,8 +218,6 @@ struct PathInformation {
 };
 
 static void printIPv4Addresses(uint16_t portInHostOrder);
-static void requestParse(Request* request, const char* requestFragment,
-			 size_t requestFragmentLength);
 static void callWSAStartupIfNecessary(void);
 
 #ifdef WIN32 /* Windows implementations of functions available on Linux/Mac OS X */
@@ -461,126 +459,156 @@ Response* responseAlloc500InternalErrorHTML(const char* extraInformationOrNull) 
   }
 }
 
-/* parses a typical HTTP request looking for the first line: GET /path HTTP/1.0\r\n */
-// TODO: Store internal stuff outside request
-static void requestParse(Request* request,
-			 const char* requestFragment, size_t requestFragmentLength) {
-  for (size_t i = 0; i < requestFragmentLength; i++) {
-    char c = requestFragment[i];
-    switch (request->state) {
-    case RequestParseState::Method:
-      if (c == ' ') {
-	request->state = RequestParseState::Path;
-      } else {
-	request->method += c;
-      }
-      break;
-    case RequestParseState::Path:
-      if (c == ' ') {
-	/* we are done parsing the path, decode it */
-	URLDecode(request->path.c_str(), request->pathDecoded, sizeof(request->pathDecoded));
-	request->state = RequestParseState::Version;
-      } else {
-	request->path += c;
-      }
-      break;
-    case RequestParseState::Version:
-      if (c == '\r') {
-	request->state = RequestParseState::CR;
-      } else {
-	request->version += c;
-      }
-      break;
-    case RequestParseState::HeaderName:
-      if (c == ':') {
-	request->state = RequestParseState::HeaderValue;
-      } else if (c == '\r') {
-	// Invalid header...
-	request->partial_header_name.clear();
-	request->state = RequestParseState::CR;
-      } else  {
-	// Accumulate into temporary state, which is flushed when a complete
-	// header value is found.
-	request->partial_header_name += c;
-      }
-      break;
-    case RequestParseState::HeaderValue:
-      // skip leading spaces.
-      if (c == ' ' && request->partial_header_value.empty()) {
-	/* intentionally skipped */
-      } else if (c == '\r') {
-	// Only accept if we have non-empty data.
-	if (!request->partial_header_name.empty() &&
-	    !request->partial_header_value.empty()) {
-	  request->headers.emplace_back(request->partial_header_name,
-					request->partial_header_value);
+/* parses a typical HTTP request looking for the first line: GET /path HTTP/1.0\r\n 
+   Data is passed incrementally to Parse, and the object keeps some internal state. */
+struct RequestParser { 
+  explicit RequestParser(Request *request) : request(request) {}
+  Request *request = nullptr;
+  
+  enum class RequestParseState  {
+    Method,
+    Path,
+    Version,
+    HeaderName,
+    HeaderValue,
+    CR,
+    CRLF,
+    CRLFCR,
+    Body,
+    Done,
+  };
+
+  /* internal state for the request parser */
+  RequestParseState state = RequestParseState::Method;
+  string partial_header_name, partial_header_value;
+
+  bool HaveFirstLine() const {
+    return state != RequestParseState::Method &&
+      state != RequestParseState::Path;
+  }
+
+  bool Finished() const {
+    return state == RequestParseState::Done;
+  }
+  
+  void Parse(const char* requestFragment, size_t requestFragmentLength) {
+    for (size_t i = 0; i < requestFragmentLength; i++) {
+      char c = requestFragment[i];
+      switch (state) {
+      case RequestParseState::Method:
+	if (c == ' ') {
+	  state = RequestParseState::Path;
+	} else {
+	  request->method += c;
 	}
-	request->partial_header_name.clear();
-	request->partial_header_value.clear();
-	request->state = RequestParseState::CR;
-      } else {
-	request->partial_header_value += c;
-      }
-      break;
-    case RequestParseState::CR:
-      if (c == '\n') {
-	request->state = RequestParseState::CRLF;
-      } else {
-	request->state = RequestParseState::HeaderName;
-      }
-      break;
-    case RequestParseState::CRLF:
-      if (c == '\r') {
-	request->state = RequestParseState::CRLFCR;
-      } else {
-	request->state = RequestParseState::HeaderName;
-	/* this is the first character of the header - replay the HeaderName case so
-	   this character gets appended */
-	i--;
-      }
-      break;
-    case RequestParseState::CRLFCR:
-      if (c == '\n') {
-	/* assume the request state is done unless we have some Content-Length,
-	   which would come from something like a JSON blob */
-	request->state = RequestParseState::Done;
-	const string* contentLengthHeader = request->GetHeader("Content-Length");
-	if (nullptr != contentLengthHeader) {
-	  ews_printf_debug("Incoming request has a body of length %s\n",
-			   contentLengthHeader->c_str());
-	  /* Note that this limits content length to < 2GB on Windows */
-	  long content_length = 0;
-	  if (1 == sscanf(contentLengthHeader->c_str(), "%ld", &content_length)) {
-	    if (content_length > REQUEST_MAX_BODY_LENGTH) {
-	      request->bodyTruncated = true;
-	      content_length = REQUEST_MAX_BODY_LENGTH;
-	    }
-	    if (content_length < 0) {
-	      ews_printf_debug("Warning: Incoming request has negative "
-			       "content length: %ld\n", content_length);
-	      content_length = 0;
-	    }
-	    request->content_length = content_length;
-	    request->body.reserve(content_length);
-	    request->state = RequestParseState::Body;
+	break;
+      case RequestParseState::Path:
+	if (c == ' ') {
+	  /* we are done parsing the path, decode it */
+	  URLDecode(request->path.c_str(), request->pathDecoded, sizeof(request->pathDecoded));
+	  state = RequestParseState::Version;
+	} else {
+	  request->path += c;
+	}
+	break;
+      case RequestParseState::Version:
+	if (c == '\r') {
+	  state = RequestParseState::CR;
+	} else {
+	  request->version += c;
+	}
+	break;
+      case RequestParseState::HeaderName:
+	if (c == ':') {
+	  state = RequestParseState::HeaderValue;
+	} else if (c == '\r') {
+	  // Invalid header...
+	  partial_header_name.clear();
+	  state = RequestParseState::CR;
+	} else  {
+	  // Accumulate into temporary state, which is flushed when a complete
+	  // header value is found.
+	  partial_header_name += c;
+	}
+	break;
+      case RequestParseState::HeaderValue:
+	// skip leading spaces.
+	if (c == ' ' && partial_header_value.empty()) {
+	  /* intentionally skipped */
+	} else if (c == '\r') {
+	  // Only accept if we have non-empty data.
+	  if (!partial_header_name.empty() &&
+	      !partial_header_value.empty()) {
+	    request->headers.emplace_back(partial_header_name,
+					  partial_header_value);
 	  }
+	  partial_header_name.clear();
+	  partial_header_value.clear();
+	  state = RequestParseState::CR;
+	} else {
+	  partial_header_value += c;
 	}
-      } else {
-	request->state = RequestParseState::HeaderName;
+	break;
+      case RequestParseState::CR:
+	if (c == '\n') {
+	  state = RequestParseState::CRLF;
+	} else {
+	  state = RequestParseState::HeaderName;
+	}
+	break;
+      case RequestParseState::CRLF:
+	if (c == '\r') {
+	  state = RequestParseState::CRLFCR;
+	} else {
+	  state = RequestParseState::HeaderName;
+	  /* this is the first character of the header - replay the HeaderName case so
+	     this character gets appended */
+	  i--;
+	}
+	break;
+      case RequestParseState::CRLFCR:
+	if (c == '\n') {
+	  /* assume the request state is done unless we have some Content-Length,
+	     which would come from something like a JSON blob */
+	  state = RequestParseState::Done;
+	  const string* contentLengthHeader = request->GetHeader("Content-Length");
+	  if (nullptr != contentLengthHeader) {
+	    ews_printf_debug("Incoming request has a body of length %s\n",
+			     contentLengthHeader->c_str());
+	    /* Note that this limits content length to < 2GB on Windows */
+	    long content_length = 0;
+	    if (1 == sscanf(contentLengthHeader->c_str(), "%ld", &content_length)) {
+	      if (content_length > REQUEST_MAX_BODY_LENGTH) {
+		request->bodyTruncated = true;
+		content_length = REQUEST_MAX_BODY_LENGTH;
+	      }
+	      if (content_length < 0) {
+		ews_printf_debug("Warning: Incoming request has negative "
+				 "content length: %ld\n", content_length);
+		content_length = 0;
+	      }
+	      request->content_length = content_length;
+	      request->body.reserve(content_length);
+	      state = RequestParseState::Body;
+	    }
+	  }
+	} else {
+	  state = RequestParseState::HeaderName;
+	}
+	break;
+      case RequestParseState::Body:
+	// PERF can copy in bigger chunks...
+	request->body.push_back(c);
+	if ((int64)request->body.size() == (int64)request->content_length) {
+	  state = RequestParseState::Done;
+	}
+	break;
+      case RequestParseState::Done:
+	break;
       }
-      break;
-    case RequestParseState::Body:
-      // PERF can copy in bigger chunks...
-      request->body.push_back(c);
-      if ((int64)request->body.size() == (int64)request->content_length) {
-	request->state = RequestParseState::Done;
-      }
-      break;
-    case RequestParseState::Done:
-      break;
     }
   }
-}
+};
 
 static void requestPrintWarnings(const Request* request,
 				 const char* remoteHost, const char* remotePort) {
@@ -804,20 +832,20 @@ static void connectionHandlerThread(void* connectionPointer) {
     counters.activeConnections++;
     counters.totalConnections++;
   }
+
   /* first read the request + request body */
   bool madeRequestPrintf = false;
   bool foundRequest = false;
   ssize_t bytesRead;
+  RequestParser parser(&connection->request);
   while ((bytesRead = recv(connection->socketfd, connection->sendRecvBuffer,
 			   SEND_RECV_BUFFER_SIZE, 0)) > 0) {
     if (OptionPrintWholeRequest) {
       fwrite(connection->sendRecvBuffer, 1, bytesRead, stdout);
     }
     connection->bytes_received += bytesRead;
-    requestParse(&connection->request, connection->sendRecvBuffer, bytesRead);
-    if ((connection->request.state != RequestParseState::Method &&
-	 connection->request.state != RequestParseState::Path) &&
-	!madeRequestPrintf) {
+    parser.Parse(connection->sendRecvBuffer, bytesRead);
+    if (parser.HaveFirstLine() && !madeRequestPrintf) {
       ews_printf_debug("Request from %s:%s: %s to %s HTTP version %s\n",
 		       connection->remoteHost,
 		       connection->remotePort,
@@ -826,12 +854,15 @@ static void connectionHandlerThread(void* connectionPointer) {
 		       connection->request.version.c_str());
       madeRequestPrintf = true;
     }
-    if (connection->request.state == RequestParseState::Done) {
+    if (parser.Finished()) {
       foundRequest = true;
       break;
     }
   }
+  
   requestPrintWarnings(&connection->request, connection->remoteHost, connection->remotePort);
+
+
   ssize_t bytesSent = 0;
   if (foundRequest) {
     Response* response = createResponseForRequest(&connection->request);

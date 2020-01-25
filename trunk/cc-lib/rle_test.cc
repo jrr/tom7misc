@@ -15,7 +15,7 @@ typedef uint8_t uint8;
 
 static string ShowVector(const vector<uint8> &v) {
   string s = "{";
-  for (int i = 0; i < v.size(); i++) {
+  for (int i = 0; i < (int)v.size(); i++) {
     s += StringPrintf("%d, ", v[i]);
   }
   return s + "}";
@@ -23,10 +23,9 @@ static string ShowVector(const vector<uint8> &v) {
 
 static void CheckSameVector(const vector<uint8> &a,
                             const vector<uint8> &b) {
-
   CHECK_EQ(a.size(), b.size()) << "\n" 
 			       << ShowVector(a) << "\n" << ShowVector(b);
-  for (int i = 0; i < a.size(); i++) {
+  for (int i = 0; i < (int)a.size(); i++) {
     CHECK_EQ(a[i], b[i]) << "\n" << ShowVector(a) << "\n" << ShowVector(b);
   }
 }
@@ -114,7 +113,7 @@ int main() {
       CHECK(RLE::DecompressEx(compressed, run_cutoff, &uncompressed))
 	<< " test_num " << test_num;
       CHECK_EQ(uncompressed.size(), bytes.size());
-      for (int i = 0; i < uncompressed.size(); i++) {
+      for (int i = 0; i < (int)uncompressed.size(); i++) {
 	CHECK_EQ(uncompressed[i], bytes[i]) << " test_num "
 					    << test_num
 					    << " byte #" << i;

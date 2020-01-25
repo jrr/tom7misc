@@ -178,7 +178,7 @@ class Heap {
      swap it with children until it doesn't. */
   void PercolateDown(int i) {
     // If we're at the end of the heap, nothing to do. */
-    if (2 * i + 1 >= cells.size()) return;
+    if (2 * i + 1 >= (int)cells.size()) return;
 
     const Cell &me = cells[i];
     // Left and right children.
@@ -190,7 +190,7 @@ class Heap {
 
     if (me.priority > cl.priority) {
       /* Need to swap, but with which child? */
-      if (ri >= cells.size()) {
+      if (ri >= (int)cells.size()) {
         // No right child.
         SwapPercDown(i, me, li, cl);
       } else {
@@ -203,7 +203,7 @@ class Heap {
       }
     } else {
       /* Consider swap with right then. */
-      if (ri >= cells.size()) {
+      if (ri >= (int)cells.size()) {
         // No right child, done.
         return;
       } else {

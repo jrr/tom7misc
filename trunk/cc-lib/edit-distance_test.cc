@@ -56,5 +56,6 @@ int main(int argc, char **argv) {
       // behavior as Distance().
       return EditDistance::Ukkonen(a, b, std::max(a.size(), b.size()) + 1);
     });
+  TestThreshold();
   return 0;
 }

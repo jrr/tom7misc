@@ -61,6 +61,7 @@ static void TestShuffle(int n, double absolute_error) {
 }
 
 int main(int argc, char **argv) {
+  TestShuffleCornerCases();
   TestShuffle(2, 0.0005);
   TestShuffle(3, 0.0005);
   TestShuffle(4, 0.0005);
