@@ -1,11 +1,13 @@
 
 /*
-  
+
   Experimental, maybe doomed, C++ing and simplification of of
   EmbeddedWebServer. Doesn't work yet. License at the bottom
   of the file.
 
  */
+
+#include "web.h"
 
 // TODO: header/cc
 // heapstring -> std::string, at least in external interface
@@ -19,7 +21,7 @@ Tom's notes:
  - It successfully serves a connection and then aborts "terminate called without an active exception", perhaps fixed now (I think this was because I wasn't detaching the connection threads.)
 
 
-/* 
+/*
 
 This is a very simple web server that you can embed in your
 application to both handle requests dynamically and serve files. The
@@ -77,6 +79,9 @@ using vector = std::vector<T>;
 template<class A, class B>
 using pair = std::pair<A, B>;
 
+using Request = WebServer::Request;
+using Response = WebServer::Response;
+
 /* You can turn these prints on/off. ews_printf generally prints
    warnings + errors while ews_print_debug prints mundane
    information */
@@ -95,16 +100,14 @@ struct MutexLock {
 
 
 /* Quick nifty options */
-static bool OptionPrintWholeRequest = false;
+static constexpr bool OptionPrintWholeRequest = false;
 /* /status page - makes quite a few things take a lock to update
    counters but it doesn't make much of a difference. This isn't
    something like Nginx or Haywire */
-static bool OptionIncludeStatusPageAndCounters = true;
+static constexpr bool OptionIncludeStatusPageAndCounters = true;
 /* If using responseAllocServeFileFromRequestPath and no index.html is
    found, serve up the directory */
-static bool OptionListDirectoryContents = true;
-/* Print the entire server response to every request */
-static bool OptionPrintResponse = false;
+static constexpr bool OptionListDirectoryContents = true;
 
 /* These bound the memory used by a request. */
 #define REQUEST_MAX_BODY_LENGTH (128 * 1024 * 1024) /* (rather arbitrary) */
@@ -117,7 +120,7 @@ static bool OptionPrintResponse = false;
 
 #define EMBEDDABLE_WEB_SERVER_VERSION_STRING "1.1.2"
 // major = [31:16] minor = [15:8] build = [7:0]
-#define EMBEDDABLE_WEB_SERVER_VERSION 0x00010102 
+#define EMBEDDABLE_WEB_SERVER_VERSION 0x00010102
 
 /* has someone already enabled _CRT_SECURE_NO_WARNINGS? If so, don't
    enable it again. If not, disable it for us. */
@@ -157,62 +160,11 @@ typedef SOCKET sockettype;
 typedef int sockettype;
 #endif
 
-
-// XXX enum class
-enum class RequestParseState  {
-  Method,
-  Path,
-  Version,
-  HeaderName,
-  HeaderValue,
-  CR,
-  CRLF,
-  CRLFCR,
-  Body,
-  Done,
-};
-
 /* just a calloc'd C string on the heap */
 struct HeapString {
     char* contents; // null-terminated, at least length+1
     size_t length; // this is updated by the heapString* functions
     size_t capacity;
-};
-
-/* a string pointing to the request->headerStringPool */
-struct PoolString {
-    char* contents; // null-terminated
-    size_t length;
-};
-
-/* You'll look directly at this struct to handle HTTP requests. It's initialized
-   by setting everything to 0 */
-struct Request {
-  /* HTTP method (GET, POST, PUT, ...) */
-  string method;
-  /* HTTP version string (HTTP/1.0) */
-  string version;
-  /* HTTP path/URI ( /index.html?name=Forrest%20Heller ) */
-  string path;
-  /* null-terminated HTTP path/URI that has been %-unescaped. Used for a file serving */
-  char pathDecoded[1024];
-  size_t pathDecodedLength = 0;
-
-  // Content length as sent by the client. 
-  int contentLength = 0;
-  /* the request body. Used for POST forms and JSON blobs */
-  string body;
-  /* HTTP request headers - use headerInRequest to find the header you're looking for. */
-  std::vector<std::pair<string, string>> headers;
-  /* Since this has many fixed fields, we report when we went over the limit */
-  struct Warnings {
-    /* request line strings truncated? */
-    bool bodyTruncated = false;
-  } warnings;
-
-  /* internal state for the request parser */
-  RequestParseState state = RequestParseState::Method;
-  string partial_header_name, partial_header_value;
 };
 
 struct ConnectionStatus {
@@ -222,17 +174,17 @@ struct ConnectionStatus {
 
 /* This contains a full HTTP connection. For every connection, a thread is spawned
    and passed this struct */
-struct Server;
+struct ServerImpl;
 struct Connection {
-  explicit Connection(Server *server) : server(server) {
+  explicit Connection(ServerImpl *server) : server(server) {
     // (original code calloc 0's everything which requestParse depends on)
     memset(&remoteAddr, 0, sizeof(struct sockaddr_storage));
   }
-  
+
   /* Just allocate the buffers in the connection. These go at the beginning of
      the connection in the hopes that they are 'more aligned' */
   char sendRecvBuffer[SEND_RECV_BUFFER_SIZE] = {};
-  char responseHeader[RESPONSE_HEADER_SIZE] {};
+  char responseHeader[RESPONSE_HEADER_SIZE] = {};
   sockettype socketfd = 0;
   /* Who connected? */
   struct sockaddr_storage remoteAddr;
@@ -242,21 +194,9 @@ struct Connection {
   struct ConnectionStatus status;
   Request request;
   /* points back to the server, usually used for the server's globalMutex */
-  struct Server* server = nullptr;
+  struct ServerImpl* server = nullptr;
 };
 
-/* You create one of these for the server to send. Use one of the responseAlloc functions.
- You can fill out the body field using the heapString* functions. You can also specify a
- filenameToSend which will be sent using regular file streaming. This is so you don't have
- to load the entire file into memory all at once to send it. */
-struct Response {
-  int code;
-  struct HeapString body;
-  char* filenameToSend;
-  char* status;
-  char* contentType;
-  char* extraHeaders; // can be nullptr
-};
 
 #ifdef WIN32
 static void ignoreSIGPIPE() {}
@@ -271,15 +211,14 @@ static void ignoreSIGPIPE() {
 #endif
 
 
+struct ServerImpl : public WebServer {
+  ServerImpl();
 
+  void Stop() override;
+  int ListenOn(uint16_t port) override;
 
-struct Server {
-  Server();
-    
-  void Stop();  
-  int AcceptConnectionsUntilStoppedFromEverywhereIPv4(uint16_t portInHostOrder);
-  int AcceptConnectionsUntilStopped(const struct sockaddr* address, socklen_t addressLength);
-
+  int AcceptConnectionsUntilStopped(const struct sockaddr* address,
+				    socklen_t addressLength);
 
   std::mutex globalMutex;
   bool shouldRun = true;
@@ -298,80 +237,19 @@ struct Server {
   std::mutex connectionFinishedLock;
 };
 
-#ifndef __printflike
-#define __printflike(...) // clang (and maybe GCC) has this macro that can check printf/scanf format arguments
-#endif
-
-
-/* You fill in this function. Look at request->path for the requested URI */
-struct Response* createResponseForRequest(const struct Request* request, struct Connection* connection);
-
-/* use these in createResponseForRequest */
-/* Allocate a response with an initial body size that you can strcpy to */
-struct Response* responseAlloc(int code, const char* status, const char* contentType, size_t contentsLength);
-/* Serve a file from documentRoot. If you just want to serve the current directory over HTTP just do "."
-To serve out the current directory like a normal web server do:
-responseAllocServeFileFromRequestPath("/", request->path, request->pathDecoded, ".")
-To serve files with a prefix do this:
-responseAllocServeFileFromRequestPath("/release/current", request->path, request->pathDecoded, "/var/root/www/release-5.0.0") so people will go to:
-http://55.55.55.55/release/current and be served /var/root/www/release-5.0.0 */
-struct Response* responseAllocServeFileFromRequestPath(const char* pathPrefix, const char* requestPath, const char* requestPathDecoded, const char* documentRoot);
-/* You can use heapStringAppend*(&response->body) to dynamically generate the body */
-struct Response* responseAllocHTML(const char* html);
-struct Response* responseAllocHTMLWithFormat(const char* format, ...) __printflike(1, 0);
-struct Response* responseAllocHTMLWithStatus(int code, const char* status, const char* html);
-struct Response* responseAllocJSON(const char* json);
-struct Response* responseAllocJSONWithStatus(int code, const char* status, const char* json);
-struct Response* responseAllocJSONWithFormat(const char* format, ...) __printflike(1, 0);
-struct Response* responseAllocWithFormat(int code, const char* status, const char* contentType, const char* format, ...) __printflike(3, 0);
-/* If you leave the MIMETypeOrNULL nullptr, the MIME type will be auto-detected */
-struct Response* responseAllocWithFile(const char* filename, const char* MIMETypeOrNULL);
-/* Error messages for when the request can't be handled properly */
-struct Response* responseAlloc400BadRequestHTML(const char* errorMessage);
-struct Response* responseAlloc404NotFoundHTML(const char* resourcePathOrNull);
-struct Response* responseAlloc500InternalErrorHTML(const char* extraInformationOrNull);
-
-/* Wrappers around strdupDecodeGetorPOSTParam */
-char* strdupDecodeGETParam(const char* paramNameIncludingEquals, const struct Request* request, const char* valueIfNotFound);
-char* strdupDecodePOSTParam(const char* paramNameIncludingEquals, const struct Request* request, const char* valueIfNotFound);
-/* You can pass this the request->path for GET or request->body.contents for POST. Accepts nullptr for paramString for convenience */
-char* strdupDecodeGETorPOSTParam(const char* paramNameIncludingEquals, const char* paramString, const char* valueIfNotFound);
-/* If you want to echo back HTML into the value="" attribute or display some user output this will help you (like &gt; &lt;) */
-char* strdupEscapeForHTML(const char* stringToEscape);
-/* If you have a file you reading/writing across connections you can use this provided pthread mutex so you don't have to make your own */
-/* Need to inspect a header in a request? */
-const string *headerInRequest(const char* headerName, const struct Request* request);
-/* Get a debug string representing this connection that's easy to print out. wrap it in HTML <pre> tags */
-struct HeapString connectionDebugStringCreate(const struct Connection* connection);
-/* Some really basic dynamic string handling. AppendChar and AppendFormat allocate enough memory and
- these strings are null-terminated so you can pass them into regular string functions. */
-void heapStringInit(struct HeapString* string);
-void heapStringFreeContents(struct HeapString* string);
-void heapStringSetToCString(struct HeapString* heapString, const char* cString);
-void heapStringAppendChar(struct HeapString* string, char c);
-void heapStringAppendFormat(struct HeapString* string, const char* format, ...) __printflike(2, 0);
-void heapStringAppendString(struct HeapString* string, const char* stringToAppend);
-void heapStringAppendFormatV(struct HeapString* string, const char* format, va_list ap);
-void heapStringAppendHeapString(struct HeapString* target, const struct HeapString* source);
-/* functions that help when serving files */
-const char* MIMETypeFromFile(const char* filename, const uint8_t* contents, size_t contentsLength);
-
-/* runs quick unit tests in the demo app */
-void EWSUnitTestsRun(void);
-
 /* Internal implementation stuff */
 
 /* these counters exist solely for the purpose of the /status demo */
 static std::mutex counters_lock;
 static struct Counters {
-    int64_t bytesReceived = 0;
-    int64_t bytesSent = 0;
-    int64_t totalConnections = 0;
-    int64_t activeConnections = 0;
-    int64_t heapStringAllocations = 0;
-    int64_t heapStringReallocations = 0;
-    int64_t heapStringFrees = 0;
-    int64_t heapStringTotalBytesReallocated = 0;
+  int64_t bytesReceived = 0;
+  int64_t bytesSent = 0;
+  int64_t totalConnections = 0;
+  int64_t activeConnections = 0;
+  int64_t heapStringAllocations = 0;
+  int64_t heapStringReallocations = 0;
+  int64_t heapStringFrees = 0;
+  int64_t heapStringTotalBytesReallocated = 0;
 } counters;
 
 #ifndef MIN
@@ -379,19 +257,19 @@ static struct Counters {
 #endif
 
 struct PathInformation {
-    bool exists;
-    bool isDirectory;
+  bool exists;
+  bool isDirectory;
 };
 
-static void responseFree(struct Response* response);
 static void printIPv4Addresses(uint16_t portInHostOrder);
-static void requestParse(struct Request* request, const char* requestFragment, size_t requestFragmentLength);
+static void requestParse(Request* request, const char* requestFragment,
+			 size_t requestFragmentLength);
 static size_t heapStringNextAllocationSize(size_t required);
 static bool strEndsWith(const char* big, const char* endsWith);
 static void callWSAStartupIfNecessary(void);
 static int pathInformationGet(const char* path, struct PathInformation* info);
-static int sendResponseBody(struct Connection* connection, const struct Response* response, ssize_t* bytesSent);
-static int sendResponseFile(struct Connection* connection, const struct Response* response, ssize_t* bytesSent);
+static int sendResponseBody(Connection* connection, const Response* response, ssize_t* bytesSent);
+static int sendResponseFile(Connection* connection, const Response* response, ssize_t* bytesSent);
 static int snprintfResponseHeader(char* destination, size_t destinationCapacity, int code, const char* status, const char* contentType, const char* extraHeaders, size_t contentLength);
 
 #ifdef WIN32 /* Windows implementations of functions available on Linux/Mac OS X */
@@ -411,7 +289,6 @@ static int snprintfResponseHeader(char* destination, size_t destinationCapacity,
 #endif // Linux/Mac OS X
 
 static void connectionHandlerThread(void* connectionPointer);
-static struct Response* createResponseForRequestAutoreleased(const struct Request* request, struct Connection* connection);
 
 enum class URLDecodeType {
   WholeURL,
@@ -420,7 +297,7 @@ enum class URLDecodeType {
 
 static void URLDecode(const char* encoded, char* decoded, size_t decodedCapacity, URLDecodeType type);
 
-const string *headerInRequest(const char* headerName, const struct Request* request) {
+const string *headerInRequest(const char* headerName, const Request* request) {
   for (const auto &p : request->headers) {
     if (0 == strcasecmp(p.first.c_str(), headerName)) {
       return &p.second;
@@ -442,35 +319,51 @@ typedef enum {
     URLDecodeStatePercentSecondDigit
 } URLDecodeState;
 
+/* Get a debug string representing this connection that's easy to print out. wrap it in HTML <pre> tags */
+struct HeapString connectionDebugStringCreate(const struct Connection* connection);
+/* Some really basic dynamic string handling. AppendChar and AppendFormat allocate enough memory and
+ these strings are null-terminated so you can pass them into regular string functions. */
+void heapStringInit(struct HeapString* string);
+void heapStringFreeContents(struct HeapString* string);
+void heapStringSetToCString(struct HeapString* heapString, const char* cString);
+void heapStringAppendChar(struct HeapString* string, char c);
+void heapStringAppendString(struct HeapString* string, const char* stringToAppend);
+void heapStringAppendFormatV(struct HeapString* string, const char* format, va_list ap);
+void heapStringAppendHeapString(struct HeapString* target, const struct HeapString* source);
+/* functions that help when serving files */
+const char* MIMETypeFromFile(const char* filename, const uint8_t* contents, size_t contentsLength);
+
+
+
 char* strdupDecodeGETorPOSTParam(const char* paramNameIncludingEquals, const char* paramString, const char* valueIfNotFound) {
-    assert(strstr(paramNameIncludingEquals, "=") != nullptr && "You have to pass an equals sign after the param name, like 'name='");
-    /* The string passed is actually nullptr -- this is accepted because it's more convenient */
-    if (nullptr == paramString) {
-        return strdupIfNotNull(valueIfNotFound);
-    }
-    /* Find the paramString ("name=") */
-    const char* paramStart = strstr(paramString, paramNameIncludingEquals);
-    if (nullptr == paramStart) {
-        return strdupIfNotNull(valueIfNotFound);
-    }
-    /* Ok paramStart points at -->"name=" ; let's make it point at "=" */
-    paramStart = strstr(paramStart, "=");
-    if (nullptr == paramStart) {
-        ews_printf("It's very suspicious that we couldn't find an equals sign after searching for '%s' in '%s'\n", paramStart, paramString);
-        return strdupIfNotNull(valueIfNotFound);
-    }
-    /* We need to skip past the "=" */
-    paramStart++;
-    /* Oh man! End of string is right here */
-    if ('\0' == *paramStart) {
-        char* empty = (char*) malloc(1);
-        empty[0] = '\0';
-        return empty;
-    }
-    size_t maximumPossibleLength = strlen(paramStart);
-    char* decoded = (char*) malloc(maximumPossibleLength + 1);
-    URLDecode(paramStart, decoded, maximumPossibleLength + 1, URLDecodeType::Parameter);
-    return decoded;
+  assert(strstr(paramNameIncludingEquals, "=") != nullptr && "You have to pass an equals sign after the param name, like 'name='");
+  /* The string passed is actually nullptr -- this is accepted because it's more convenient */
+  if (nullptr == paramString) {
+    return strdupIfNotNull(valueIfNotFound);
+  }
+  /* Find the paramString ("name=") */
+  const char* paramStart = strstr(paramString, paramNameIncludingEquals);
+  if (nullptr == paramStart) {
+    return strdupIfNotNull(valueIfNotFound);
+  }
+  /* Ok paramStart points at -->"name=" ; let's make it point at "=" */
+  paramStart = strstr(paramStart, "=");
+  if (nullptr == paramStart) {
+    ews_printf("It's very suspicious that we couldn't find an equals sign after searching for '%s' in '%s'\n", paramStart, paramString);
+    return strdupIfNotNull(valueIfNotFound);
+  }
+  /* We need to skip past the "=" */
+  paramStart++;
+  /* Oh man! End of string is right here */
+  if ('\0' == *paramStart) {
+    char* empty = (char*) malloc(1);
+    empty[0] = '\0';
+    return empty;
+  }
+  size_t maximumPossibleLength = strlen(paramStart);
+  char* decoded = (char*) malloc(maximumPossibleLength + 1);
+  URLDecode(paramStart, decoded, maximumPossibleLength + 1, URLDecodeType::Parameter);
+  return decoded;
 }
 
 char* strdupDecodeGETParam(const char* paramNameIncludingEquals, const Request* request,
@@ -491,6 +384,7 @@ enum class PathState {
   Dot,
 };
 
+#if 0
 // TODO: These are static utilties that can be exposed to the user. They're not
 // needed in this code. Should port to std::string etc.
 /* Aggressively escape strings for URLs. This adds the %12%0f stuff */
@@ -555,49 +449,50 @@ char* strdupEscapeForHTML(const char* stringToEscape) {
   }
   return escapedString.contents;
 }
+#endif
 
 /* Is someone using ../ to try to read a directory outside of the documentRoot? */
 static bool pathEscapesDocumentRoot(const char* path) {
-    int subdirDepth = 0;
-    PathState state = PathState::Normal;
-    bool isFirstChar = true;
-    while ('\0' != *path) {
-        switch (state) {
-            case PathState::Normal:
-                if ('/' == *path || '\\' == *path) {
-                    state = PathState::Sep;
-                } else if (isFirstChar && '.' == *path) {
-                    state = PathState::Dot;
-                } else if (isFirstChar) {
-                    subdirDepth++;
-                }
-                isFirstChar = false;
-                break;
-            case PathState::Sep:
-                if ('.' == *path) {
-                    state = PathState::Dot;
-                } else if ('/' != *path && '\\' != *path) {
-                    subdirDepth++;
-                    state = PathState::Normal;
-                }
-                break;
-            case PathState::Dot:
-                if ('/' == *path) {
-                    state = PathState::Sep;
-                } else if ('.' == *path) {
-                    subdirDepth--;
-                    state = PathState::Normal;
-                } else {
-                    state = PathState::Normal;
-                }
-                break;
-        }
-        path++;
+  int subdirDepth = 0;
+  PathState state = PathState::Normal;
+  bool isFirstChar = true;
+  while ('\0' != *path) {
+    switch (state) {
+    case PathState::Normal:
+      if ('/' == *path || '\\' == *path) {
+	state = PathState::Sep;
+      } else if (isFirstChar && '.' == *path) {
+	state = PathState::Dot;
+      } else if (isFirstChar) {
+	subdirDepth++;
+      }
+      isFirstChar = false;
+      break;
+    case PathState::Sep:
+      if ('.' == *path) {
+	state = PathState::Dot;
+      } else if ('/' != *path && '\\' != *path) {
+	subdirDepth++;
+	state = PathState::Normal;
+      }
+      break;
+    case PathState::Dot:
+      if ('/' == *path) {
+	state = PathState::Sep;
+      } else if ('.' == *path) {
+	subdirDepth--;
+	state = PathState::Normal;
+      } else {
+	state = PathState::Normal;
+      }
+      break;
     }
-    if (subdirDepth < 0) {
-        return true;
-    }
-    return false;
+    path++;
+  }
+  if (subdirDepth < 0) {
+    return true;
+  }
+  return false;
 }
 
 static void URLDecode(const char* encoded, char* decoded, size_t decodedCapacity,
@@ -803,7 +698,7 @@ void heapStringFreeContents(struct HeapString* string) {
     }
 }
 
-struct HeapString connectionDebugStringCreate(const struct Connection* connection) {
+struct HeapString connectionDebugStringCreate(const Connection* connection) {
   struct HeapString debugString;
   heapStringInit(&debugString);
   // heapStringAppendFormat(&debugString, "%s %s from %s:%s\n", connection->request.method, connection->request.path, connection->remoteHost, connection->remotePort);
@@ -841,73 +736,26 @@ struct HeapString connectionDebugStringCreate(const struct Connection* connectio
 
 // allocates a response with content = malloc(contentLength + 1) so you can write
 // null-terminated strings to it
-struct Response* responseAlloc(int code, const char* status, const char* contentType,
-			       size_t bodyCapacity) {
-  struct Response* response = (struct Response*) calloc(1, sizeof(*response));
+Response* responseAlloc(int code, const char* status, const char* contentType) {
+  Response* response = new Response;
   response->code = code;
-  heapStringInit(&response->body);
-  response->body.capacity = bodyCapacity;
-  response->body.length = 0;
-  if (response->body.capacity > 0) {
-    response->body.contents = (char*) calloc(1, response->body.capacity);
-    if (OptionIncludeStatusPageAndCounters) {
-      MutexLock ml(&counters_lock);
-      counters.heapStringAllocations++;
-    }
-  }
-  response->contentType = strdupIfNotNull(contentType);
   response->status = strdupIfNotNull(status);
+  response->contentType = strdupIfNotNull(contentType);
   return response;
 }
 
-struct Response* responseAllocHTML(const char* html) {
-    return responseAllocHTMLWithStatus(200, "OK", html);
+Response* responseAllocHTML(const char* html) {
+  return responseAllocHTMLWithStatus(200, "OK", html);
 }
 
-struct Response* responseAllocHTMLWithFormat(const char* format, ...) {
-    struct Response* response = responseAlloc(200, "OK", "text/html; charset=UTF-8", 0);
-    va_list ap;
-    va_start(ap, format);
-    heapStringAppendFormatV(&response->body, format, ap);
-    va_end(ap);
-    return response;
+Response* responseAllocHTMLWithStatus(int code, const char* status, string html) {
+  Response* response = responseAlloc(code, status, "text/html; charset=UTF-8");
+  response->body = std::move(html);
+  return response;
 }
 
-struct Response* responseAllocHTMLWithStatus(int code, const char* status, const char* html) {
-    struct Response* response = responseAlloc(code, status, "text/html; charset=UTF-8", 0);
-    heapStringSetToCString(&response->body, html);
-    return response;
-}
-
-struct Response* responseAllocJSON(const char* json) {
-    return responseAllocJSONWithStatus(200, "OK", json);
-}
-
-struct Response* responseAllocJSONWithFormat(const char* format, ...) {
-    struct Response* response = responseAlloc(200, "OK", "application/json", 0);
-    va_list ap;
-    va_start(ap, format);
-    heapStringAppendFormatV(&response->body, format, ap);
-    va_end(ap);
-    return response;
-}
-
-struct Response* responseAllocJSONWithStatus(int code, const char* status, const char* json) {
-    struct Response* response = responseAlloc(code, status, "application/json", 0);
-    heapStringSetToCString(&response->body, json);
-    return response;
-}
-
-struct Response* responseAllocWithFormat(int code, const char* status, const char* contentType, const char* format, ...) {
-    struct Response* response = responseAlloc(code, status, contentType, 0);
-    va_list ap;
-    va_start(ap, format);
-    heapStringAppendFormatV(&response->body, format, ap);
-    va_end(ap);
-    return response;
-}
-
-static bool requestMatchesPathPrefix(const char* requestPathDecoded, const char* pathPrefix, size_t* matchLength) {
+static bool requestMatchesPathPrefix(const char* requestPathDecoded,
+				     const char* pathPrefix, size_t* matchLength) {
   /* special case: pathPrefix is "" - matching everything*/
   if (pathPrefix[0] == '\0') {
     return true;
@@ -1009,7 +857,7 @@ But if the URL does not end in a / we need to do:
 <a href="/release/current/code.cpp">code.cpp</a>
 I'll call out this step below
 */
-struct Response* responseAllocServeFileFromRequestPath(const char* pathPrefix,
+Response* responseAllocServeFileFromRequestPath(const char* pathPrefix,
 						       const char* requestPath,
 						       const char* requestPathDecoded,
 						       const char* documentRoot) {
@@ -1051,71 +899,68 @@ struct Response* responseAllocServeFileFromRequestPath(const char* pathPrefix,
   return responseAllocHTMLWithStatus(200, "OK", "<!doctype html>You got it!\n");
 }
 
-struct Response* responseAlloc400BadRequestHTML(const char* errorMessage) {
+Response* responseAlloc400BadRequestHTML(const char* errorMessage) {
   if (nullptr == errorMessage) {
     errorMessage = "An unspecified error occurred";
   }
-  return responseAllocWithFormat(
-      400, "Bad Request", "text/html; charset=UTF-8",
+  return responseAllocHTMLWithStatus(
+      400, "Bad Request",
+      (string)
       "<html><head><title>400 - Bad Request</title></head>"
-      "<body>The request made was invalid. %s", errorMessage);
+      "<body>The request made was invalid: " + (string)errorMessage +
+      (string)"</body></html>");
 }
 
-struct Response* responseAlloc404NotFoundHTML(const char* resourcePathOrNull) {
+Response* responseAlloc404NotFoundHTML(const char* resourcePathOrNull) {
   if (nullptr == resourcePathOrNull) {
     return responseAllocHTMLWithStatus(
 	404, "Not Found",
 	"<html><head><title>404 Not Found</title></head><body>"
 	"The resource you specified could not be found</body></html>");
   } else {
-    return responseAllocWithFormat(
-	404, "Not Found", "text/html; charset=UTF-8",
+    return responseAllocHTMLWithStatus(
+	404, "Not Found",
+	(string)
 	"<html><head><title>404 Not Found</title></head><body>"
-	"The resource you specified ('%s') could not be found</body></html>",
-	resourcePathOrNull);
+	"The resource you specified ('" +
+	resourcePathOrNull
+	+ "') could not be found</body></html>");
   }
 }
 
-struct Response* responseAlloc500InternalErrorHTML(const char* extraInformationOrNull) {
+Response* responseAlloc500InternalErrorHTML(const char* extraInformationOrNull) {
   if (nullptr == extraInformationOrNull) {
     return responseAllocHTMLWithStatus(
 	500, "Internal Error",
 	"<html><head><title>500 Internal Error</title></head>"
 	"<body>There was an internal error while completing your request</body></html>");
   } else {
-    return responseAllocWithFormat(
-	500, "Internal Error", "text/html; charset=UTF-8",
+    return responseAllocHTMLWithStatus(
+	500, "Internal Error",
+	(string)
 	"<html><head><title>500 Internal Error</title></head>"
-	"<body>There was an internal error while completing your request. %s</body></html>",
-	extraInformationOrNull);
+	"<body>There was an internal error while completing your request. " +
+	(string)extraInformationOrNull +
+	(string)"</body></html>");
   }
 }
 
-struct Response* responseAllocWithFile(const char* filename, const char* MIMETypeOrnullptr) {
-  struct Response* response = responseAlloc(200, "OK", MIMETypeOrnullptr, 0);
+Response* responseAllocWithFile(const char* filename, const char* MIMETypeOrnullptr) {
+  Response* response = responseAlloc(200, "OK", MIMETypeOrnullptr);
   response->filenameToSend = strdup(filename);
   return response;
 }
 
-static void responseFree(struct Response* response) {
-  if (nullptr != response->status) {
-    free(response->status);
-  }
-  if (nullptr != response->filenameToSend) {
-    free(response->filenameToSend);
-  }
-  if (nullptr != response->contentType) {
-    free(response->contentType);
-  }
-  if (nullptr != response->extraHeaders) {
-    free(response->extraHeaders);
-  }
-  heapStringFreeContents(&response->body);
-  free(response);
+Response::~Response() {
+  free(status);
+  free(filenameToSend);
+  free(contentType);
+  free(extraHeaders);
 }
 
 /* parses a typical HTTP request looking for the first line: GET /path HTTP/1.0\r\n */
-static void requestParse(struct Request* request,
+// TODO: Store internal stuff outside request
+static void requestParse(Request* request,
 			 const char* requestFragment, size_t requestFragmentLength) {
   for (size_t i = 0; i < requestFragmentLength; i++) {
     char c = requestFragment[i];
@@ -1187,14 +1032,14 @@ static void requestParse(struct Request* request,
 	request->state = RequestParseState::CRLFCR;
       } else {
 	request->state = RequestParseState::HeaderName;
-	/* this is the first character of the header - replay the HeaderName case so 
+	/* this is the first character of the header - replay the HeaderName case so
 	   this character gets appended */
 	i--;
       }
       break;
     case RequestParseState::CRLFCR:
       if (c == '\n') {
-	/* assume the request state is done unless we have some Content-Length, 
+	/* assume the request state is done unless we have some Content-Length,
 	   which would come from something like a JSON blob */
 	request->state = RequestParseState::Done;
 	const string* contentLengthHeader =
@@ -1236,7 +1081,7 @@ static void requestParse(struct Request* request,
   }
 }
 
-static void requestPrintWarnings(const struct Request* request,
+static void requestPrintWarnings(const Request* request,
 				 const char* remoteHost, const char* remotePort) {
   if (request->warnings.bodyTruncated) {
     ews_printf("Warning: Request from %s:%s body was truncated to %" PRIu64 " bytes\n",
@@ -1246,13 +1091,13 @@ static void requestPrintWarnings(const struct Request* request,
 
 static void SIGPIPEHandler(int signal) {
   (void) signal;
-  /* SIGPIPE happens any time we try to send() and the connection is closed. 
+  /* SIGPIPE happens any time we try to send() and the connection is closed.
      So we just ignore it and check the return code of send...*/
   ews_printf_debug("Ignoring SIGPIPE\n");
 }
 
 
-int Server::AcceptConnectionsUntilStoppedFromEverywhereIPv4(uint16_t portInHostOrder) {
+int ServerImpl::ListenOn(uint16_t portInHostOrder) {
   /* In order to keep the code really short I've just assumed
      we want to bind to 0.0.0.0, which is all available interfaces.
      What you actually want to do is call getaddrinfo on command line arguments
@@ -1266,8 +1111,8 @@ int Server::AcceptConnectionsUntilStoppedFromEverywhereIPv4(uint16_t portInHostO
 				       sizeof(anyInterfaceIPv4));
 }
 
-int Server::AcceptConnectionsUntilStopped(const struct sockaddr* address,
-					  socklen_t addressLength) {
+int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr* address,
+					      socklen_t addressLength) {
   callWSAStartupIfNecessary();
   /* resolve the local address we are binding to so we can print it out later */
   char addressHost[256];
@@ -1370,7 +1215,7 @@ int Server::AcceptConnectionsUntilStopped(const struct sockaddr* address,
       connectionFinishedCond.wait(lock_count);
     }
   }
-  
+
   stoppedMutex.lock();
   stopped = true;
   // XXX PERF: "the notifying thread does not need to hold the lock on the same mutex...
@@ -1381,9 +1226,9 @@ int Server::AcceptConnectionsUntilStopped(const struct sockaddr* address,
 }
 
 
-static int sendResponse(struct Connection* connection, const struct Response* response,
+static int sendResponse(Connection* connection, const Response* response,
 			ssize_t* bytesSent) {
-  if (response->body.length > 0) {
+  if (!response->body.empty()) {
     return sendResponseBody(connection, response, bytesSent);
   }
   if (nullptr != response->filenameToSend) {
@@ -1395,7 +1240,7 @@ static int sendResponse(struct Connection* connection, const struct Response* re
   return 1;
 }
 
-static int sendResponseBody(struct Connection* connection, const struct Response* response,
+static int sendResponseBody(Connection* connection, const Response* response,
 			    ssize_t* bytesSent) {
   /* First send the response HTTP headers */
   int headerLength =
@@ -1405,7 +1250,7 @@ static int sendResponseBody(struct Connection* connection, const struct Response
 			   response->status,
 			   response->contentType,
 			   response->extraHeaders,
-			   response->body.length);
+			   response->body.size());
   ssize_t sendResult =
     send(connection->socketfd, connection->responseHeader, headerLength, 0);
   if (sendResult != headerLength) {
@@ -1418,14 +1263,11 @@ static int sendResponseBody(struct Connection* connection, const struct Response
                errno);
     return -1;
   }
-  if (OptionPrintResponse) {
-    fwrite(connection->responseHeader, 1, headerLength, stdout);
-  }
   *bytesSent = *bytesSent + sendResult;
   /* Second, if a response body exists, send that */
-  if (response->body.length > 0) {
-    sendResult = send(connection->socketfd, response->body.contents, response->body.length, 0);
-    if (sendResult != (ssize_t) response->body.length) {
+  if (!response->body.empty()) {
+    sendResult = send(connection->socketfd, response->body.c_str(), response->body.size(), 0);
+    if (sendResult != (ssize_t) response->body.size()) {
       ews_printf("Failed to respond to %s:%s because we could not send the HTTP "
 		 "response *body*. send returned %" PRId64 " with %s = %d\n",
 		 connection->remoteHost,
@@ -1435,22 +1277,19 @@ static int sendResponseBody(struct Connection* connection, const struct Response
 		 errno);
       return -1;
     }
-    if (OptionPrintResponse) {
-      fwrite(response->body.contents, 1, response->body.length, stdout);
-    }
     *bytesSent = *bytesSent + sendResult;
   }
   return 0;
 }
 
-static int sendResponseFile(struct Connection* connection,
-			    const struct Response* response,
+static int sendResponseFile(Connection* connection,
+			    const Response* response,
 			    ssize_t* bytesSent) {
   /* If you were writing a high-performance web server you could use
      sendfile, memory map the file, or any number of exciting things. But
      here we just fread the first 100 bytes to figure out MIME type, then rewind
      and send the file ~16KB at a time. */
-  struct Response* errorResponse = nullptr;
+  Response* errorResponse = nullptr;
   FILE* fp = fopen(response->filenameToSend, "rb");
   int result = 0;
   long fileLength;
@@ -1510,9 +1349,6 @@ static int sendResponseFile(struct Connection* connection,
     result = 1;
     goto exit;
   }
-  if (OptionPrintResponse) {
-    fwrite(connection->responseHeader, 1, headerLength, stdout);
-  }
   *bytesSent = sendResult;
   /* read the whole file, just buffering into the connection buffer, and sending it out to the socket */
   while (!feof(fp)) {
@@ -1532,10 +1368,6 @@ static int sendResponseFile(struct Connection* connection,
       result = 1;
       goto exit;
     }
-    if (OptionPrintResponse) {
-      fwrite(connection->sendRecvBuffer, 1, bytesRead, stdout);
-    }
-
     *bytesSent = *bytesSent + sendResult;
   }
  exit:
@@ -1552,14 +1384,9 @@ static int sendResponseFile(struct Connection* connection,
   return result;
 }
 
-static struct Response* createResponseForRequestAutoreleased(const struct Request* request,
-							     struct Connection* connection) {
-  // XXX?? this was a werid OBJC wrapper and can probably go?
-  return createResponseForRequest(request, connection);
-}
 
 static void connectionHandlerThread(void* connectionPointer) {
-  struct Connection* connection = (struct Connection*) connectionPointer;
+  Connection* connection = (Connection*) connectionPointer;
   getnameinfo((struct sockaddr*) &connection->remoteAddr, connection->remoteAddrLength,
 	      connection->remoteHost, sizeof(connection->remoteHost),
 	      connection->remotePort, sizeof(connection->remotePort),
@@ -1601,7 +1428,7 @@ static void connectionHandlerThread(void* connectionPointer) {
   requestPrintWarnings(&connection->request, connection->remoteHost, connection->remotePort);
   ssize_t bytesSent = 0;
   if (foundRequest) {
-    struct Response* response = createResponseForRequestAutoreleased(&connection->request, connection);
+    Response* response = createResponseForRequest(&connection->request);
     if (nullptr != response) {
       int result = sendResponse(connection, response, &bytesSent);
       if (0 == result) {
@@ -1609,7 +1436,7 @@ static void connectionHandlerThread(void* connectionPointer) {
       } else {
 	/* sendResponse already printed something out, don't add another ews_printf */
       }
-      responseFree(response);
+      delete response;
       connection->status.bytesSent = bytesSent;
     } else {
       ews_printf("%s:%s: You have returned a nullptr response - I'm assuming you took over the request handling yourself.\n", connection->remoteHost, connection->remotePort);
@@ -1736,11 +1563,11 @@ static int snprintfResponseHeader(char* destination, size_t destinationCapacity,
 }
 
 
-Server::Server() {
+ServerImpl::ServerImpl() {
   ignoreSIGPIPE();
 }
-  
-void Server::Stop() {
+
+void ServerImpl::Stop() {
   {
     MutexLock ml(&globalMutex);
     shouldRun = false;
@@ -1756,6 +1583,11 @@ void Server::Stop() {
 }
 
 
+WebServer *WebServer::Create() {
+  return new ServerImpl;
+}
+
+WebServer::~WebServer() {}
 
 /* Platform specific stubs/handlers */
 
@@ -1838,7 +1670,7 @@ static int pathInformationGet(const char* path, struct PathInformation* info) {
 
 #endif // WIN32 or Linux/Mac OS X
 
-/* 
+/*
 Based on EmbeddableWebServer, Copyrightg (c) 2016, 2019 Forrest
 Heller, Martin Pulec, Daniel Barry.
 https://www.forrestheller.com/embeddable-c-web-server/
