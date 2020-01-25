@@ -9,8 +9,11 @@
 static void ServerThread() {
   // Note: Never stopped/deleted
   WebServer *server = WebServer::Create();
+  WebServer::Counter *connections = server->GetCounter("(test connections)");
+  server->AddHandler("/stats", server->GetStatsHandler());
   server->AddHandler("/",
-		     [](const WebServer::Request &request) {
+		     [connections](const WebServer::Request &request) {
+		       connections->Increment();
 		       WebServer::Response response;
 		       response.code = 200;
 		       response.status = "OK";
