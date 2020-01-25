@@ -1,20 +1,22 @@
-#include "web.cc"  /// XXX
+#include "web.h"
+
 #include <time.h>
 #include <thread>
 #include <chrono>
 
+#include "base/stringprintf.h"
 
 static void ServerThread() {
-  Server server;
-  const uint16_t portInHostOrder = 8080;
-  server.AcceptConnectionsUntilStoppedFromEverywhereIPv4(portInHostOrder);
+  // Note: Never stopped/deleted
+  WebServer *server = WebServer::Create();
+  server->ListenOn(8080);
   return;
 }
 
-struct Response* createResponseForRequest(const struct Request* request, struct Connection* connection) {
-  time_t t;
-  time(&t);
-  return responseAllocHTMLWithFormat("<html><h1>The time is seconds is %ld</h1></html>", t);
+WebServer::Response* createResponseForRequest(const WebServer::Request* request) {
+  string ret = StringPrintf("<html><h1>The time is seconds is %lld</h1></html>",
+			    (int64)time(nullptr));
+  return responseAllocHTML(ret.c_str());
 }
 
 int main() {

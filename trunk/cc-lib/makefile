@@ -10,7 +10,7 @@ CXX=x86_64-w64-mingw32-g++
 CC=x86_64-w64-mingw32-g++
 # CXX=g++
 # CC=gcc
-CXXFLAGS=-I. --std=c++17 -O2 -static
+CXXFLAGS=-I. -DWIN32 --std=c++17 -O2 -static
 
 # For linux, others...
 # (pthreads can't be linked statically)
@@ -90,7 +90,7 @@ edit-distance_test.exe : edit-distance_test.o edit-distance.o $(BASE)
 re2_test.exe : re2_test.o $(RE2_OBJECTS) $(BASE) 
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-web_test.exe : web_test.o  $(BASE)
+web_test.exe : web_test.o web.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@ -lws2_32
 
 clean :
