@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 #include <utility>
-
+#include <functional>
 
 struct WebServer {
   static WebServer *Create();
@@ -16,6 +16,23 @@ struct WebServer {
   // XXX could just be destructor?
   virtual void Stop() = 0;
 
+  // Add a handler. Handlers are checked (in the order that they are added)
+  // for the path in a request. If a handler's prefix matches the request,
+  // the handler function is called on the request and must return a response.
+  //
+  // The handler function can 
+  //
+  // To do custom dispatching, just register the prefix "/" which starts all
+  // valid requests.
+  struct Request;
+  struct Response;
+  using Handler = std::function<Response(const Request &)>;
+  virtual void AddHandler(const std::string &prefix, Handler handler) = 0;
+  
+  // Built-in handler that displays server stats.
+  // e.g. server.AddHandler("/stats", server.StatsHandler());
+  // virtual Handler StatsHandler() const = 0;
+  // TODO: Static file handler, directory listing, that kinda stuff.
 
   /* You'll look directly at this struct to handle HTTP requests. It's initialized
      by setting everything to 0 */
@@ -71,30 +88,5 @@ protected:
   // Use factory method.
   WebServer() {};
 };
-
-/* You fill in this function. Look at request->path for the requested URI */
-WebServer::Response* createResponseForRequest(const WebServer::Request* request);
-
-/* use these in createWebServer::ResponseForRequest */
-/* Allocate a response with an empty body and no headers */
-WebServer::Response* responseAlloc(int code, std::string status, std::string contentType);
-WebServer::Response* responseAllocHTML(std::string html);
-WebServer::Response* responseAllocHTMLWithStatus(int code, std::string status, std::string html);
-
-/* Error messages for when the request can't be handled properly */
-WebServer::Response* responseAlloc400BadRequestHTML(std::string error);
-WebServer::Response* responseAlloc404NotFoundHTML(const char* resourcePathOrNull);
-WebServer::Response* responseAlloc500InternalErrorHTML(const char* extraInformationOrNull);
-
-/* Wrappers around strdupDecodeGetorPOSTParam */
-char* strdupDecodeGETParam(const char* paramNameIncludingEquals, const struct WebServer::Request* request, const char* valueIfNotFound);
-char* strdupDecodePOSTParam(const char* paramNameIncludingEquals, const struct WebServer::Request* request, const char* valueIfNotFound);
-/* You can pass this the request->path for GET or request->body.contents for POST. Accepts nullptr for paramString for convenience */
-char* strdupDecodeGETorPOSTParam(const char* paramNameIncludingEquals, const char* paramString, const char* valueIfNotFound);
-/* If you want to echo back HTML into the value="" attribute or display some user output this will help you (like &gt; &lt;) */
-char* strdupEscapeForHTML(const char* stringToEscape);
-/* If you have a file you reading/writing across connections you can use this provided pthread mutex so you don't have to make your own */
-/* Need to inspect a header in a request? */
-const std::string *headerInRequest(const char* headerName, const struct WebServer::Request* request);
 
 #endif
