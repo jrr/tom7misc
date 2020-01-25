@@ -95,7 +95,7 @@ edit-distance_test.exe : edit-distance_test.o edit-distance.o $(BASE)
 re2_test.exe : re2_test.o $(RE2_OBJECTS) $(BASE) 
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-web_test.exe : web_test.o web.o $(BASE)
+web_test.exe : web_test.o web.o util.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(SOCK_LFLAGS) -lpthread
 
 clean :
