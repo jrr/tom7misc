@@ -6,11 +6,16 @@ TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o simpledxf.o
 BASE=base/logging.o base/stringprintf.o
 
 # for 64 bits on windows
-CXX=x86_64-w64-mingw32-g++
-CC=x86_64-w64-mingw32-g++
-# CXX=g++
-# CC=gcc
-CXXFLAGS=-Wall -I. -DWIN32 --std=c++17 -O2 -static
+# CXX=x86_64-w64-mingw32-g++
+# CC=x86_64-w64-mingw32-g++
+# CXXFLAGS=-Wall -I. -DWIN32 --std=c++17 -O2 -static
+# SOCK_LFLAGS= -lws2_32
+
+# Linux
+CXX=g++
+CC=gcc
+CXXFLAGS=-Wall -I. --std=c++17 -O2
+SOCK_LFLAGS=
 
 # For linux, others...
 # (pthreads can't be linked statically)
@@ -91,7 +96,7 @@ re2_test.exe : re2_test.o $(RE2_OBJECTS) $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 web_test.exe : web_test.o web.o $(BASE)
-	$(CXX) $(CXXFLAGS) $^ -o $@ -lws2_32
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(SOCK_LFLAGS) -lpthread
 
 clean :
 	rm -f *.o *.exe
