@@ -5,7 +5,13 @@ Probably not that useful for others, but code is GPL (see COPYING).
 Local database server notes:
 
 Set router to only DHCP in 10.0.0.2 - 10.0.0.200.
-Set desktop computer to static IP 10.0.0.201 (check with ipconfig).
+Set desktop computer to static IP e.g. 10.0.0.202 (check with ipconfig).
+(In Windows 10, do this from "change adapter options", properties,
+ then Internet Protocol Version 4 Properties.)
+
+The windows mysql installer is 32 bit but can install 64 bit.
+Server-only installation still comes with command-line client, so this
+is all you need.
 
 Set up windows MySQL on port 3306, not open to internet
 (this seems to be the default without manual intervention).
@@ -18,34 +24,25 @@ grant select on tempo.* to 'tempo'@'10.0.0.%';
 grant delete on tempo.* to 'tempo'@'10.0.0.%';
 (Also create the tables in database.txt)
 
+You can change the storage location (etc.) in
+c:\programdata\mysql\mysql server 8.0\my.ini
+(Move the Data directory itself to the new location too!)
 
 On the pi:
 
-TODO:
- - wifi setup
- - packages for make, gcc, svn, emacs
-
-Wifi troubleshooting:
-  Looks like if the pi boots before the wireless router, it may come
-  up without internet and stay that way. Should probably periodically
-  do something like:
-  sudo ifconfig wlan0 down && sleep 2 && sudo ifconfig wlan0 up && sleep 5
-  (or maybe just reboot)
+Write latest raspbian lite to microsd card.
+On the boot partition:
 
 Add onewire support in /boot/config.txt:
 dtoverlay=w1-gpio,gpiopin=17
 
 Turn on console too for debugging:
+(probably not actually necessary)
 enable_uart=1
 
-Note that mysql support now seems to come via the "maria db"
-non-Oracle fork of MySQL.
+Add a file just called 'ssh' to enable ssh on the next boot.
 
-
-sudo apt-get install default-libmysqlclient-dev
-sudo apt-get install libmysql++-dev
-
-
+You also need to configure wifi by creating a file called
 wpa_supplicant.conf:
 country=US
 ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
@@ -55,3 +52,55 @@ network={
   psk="PASSWORD-HERE"
 }
 
+Boot. Check the router to find what IP address is assigned by DHCP (or
+scan, I guess). Raspberry pi starts with user "pi" and password
+"raspberry". Change it!
+
+sudo raspi-config
+ - Set locale to en_US.UTF-8
+ - Enable ssh (under "interfacing options")
+ - Advanced: Expand filesystem
+ - Boot options: Wait for network (?I think this is a good idea?)
+
+sudo apt-get update
+sudo apt-get dist-upgrade
+sudo apt-get autoclean
+
+sudo apt-get install subversion emacs-nox
+# sudo apt-get install default-libmysqlclient-dev libmysql++-dev
+#sudo apt-get install default-libmariaclient-dev libmaria++-dev
+sudo apt-get install libmariadb-dev-compat
+sudo apt-get install mariadb-client
+
+
+You should be able to connect using the command line client:
+mysql -u tempo -p -h 10.0.0.202
+
+
+Create the file database-config.txt:
+server 10.0.0.202  (?? CHECK)
+user tempo
+password PASSWORD
+
+
+Wifi troubleshooting:
+  Looks like if the pi boots before the wireless router, it may come
+  up without internet and stay that way. Should probably periodically
+  do something like:
+  sudo ifconfig wlan0 down && sleep 2 && sudo ifconfig wlan0 up && sleep 5
+  (or maybe just reboot)
+  (There is "wait for internet" boot option in raspi-config which may
+   address this.)
+
+
+Note that mysql support now seems to come via the "maria db"
+non-Oracle fork of MySQL.
+
+
+mysql++ is separate project from both mysql and maria, so it does not
+have a "maria version". In 2020 I couldn't find the ubuntu package to
+install, so I installed from source...
+
+./configure --prefix=/usr
+make -j 2
+sudo make install
