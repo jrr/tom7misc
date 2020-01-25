@@ -16,7 +16,7 @@ static void ServerThread() {
 WebServer::Response* createResponseForRequest(const WebServer::Request* request) {
   string ret = StringPrintf("<html><h1>The time is seconds is %lld</h1></html>",
 			    (int64)time(nullptr));
-  return responseAllocHTML(ret.c_str());
+  return responseAllocHTML(ret);
 }
 
 int main() {

@@ -10,7 +10,7 @@ CXX=x86_64-w64-mingw32-g++
 CC=x86_64-w64-mingw32-g++
 # CXX=g++
 # CC=gcc
-CXXFLAGS=-I. -DWIN32 --std=c++17 -O2 -static
+CXXFLAGS=-Wall -I. -DWIN32 --std=c++17 -O2 -static
 
 # For linux, others...
 # (pthreads can't be linked statically)
