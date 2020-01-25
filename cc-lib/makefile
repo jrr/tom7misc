@@ -6,16 +6,18 @@ TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o simpledxf.o
 BASE=base/logging.o base/stringprintf.o
 
 # for 64 bits on windows
-CXX=x86_64-w64-mingw32-g++
-CC=x86_64-w64-mingw32-g++
-CXXFLAGS=-Wall -I. -DWIN32 --std=c++17 -O2 -static
-SOCK_LFLAGS= -lws2_32
+# CXX=x86_64-w64-mingw32-g++
+# CC=x86_64-w64-mingw32-g++
+# CXXFLAGS=-Wall -I. -DWIN32 --std=c++17 -O2 -static
+# SOCK_LFLAGS= -lws2_32
 
 # Linux
-# CXX=g++
-# CC=gcc
-# CXXFLAGS=-Wall -I. --std=c++17 -O2
-# SOCK_LFLAGS=
+CXX=g++
+CC=gcc
+# no-psabi suppresses warnings all over STL in GCC 7.1 for ARM (e.g. pi)
+# it can probably be removed in a few years?
+CXXFLAGS=-Wall -I. --std=c++17 -O2 -Wno-psabi
+SOCK_LFLAGS=
 
 # For linux, others...
 # (pthreads can't be linked statically)
@@ -93,7 +95,7 @@ edit-distance_test.exe : edit-distance_test.o edit-distance.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 re2_test.exe : re2_test.o $(RE2_OBJECTS) $(BASE) 
-	$(CXX) $(CXXFLAGS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $^ -o $@ -lpthread
 
 web_test.exe : web_test.o web.o util.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(SOCK_LFLAGS) -lpthread
