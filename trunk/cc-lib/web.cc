@@ -79,6 +79,7 @@ See web_test.cc for example.
 #include <vector>
 #include <utility>
 #include <string_view>
+#include <unordered_map>
 
 #ifdef WIN32
   #include <WinSock2.h>
@@ -127,13 +128,51 @@ struct MutexLock {
   std::mutex *m;
 };
 
+struct CounterImpl final : public WebServer::Counter {
+  explicit CounterImpl(string s) : name(std::move(s)) {}
+
+  std::mutex m;
+  const string name;
+  void IncrementBy(int64 v) override {
+    MutexLock ml(&m);
+    value += v;
+  }
+  int64 value = 0LL;
+};
+
+struct Counters {
+  std::mutex m;
+  // Canonical order.
+  vector<CounterImpl *> counters;
+  // Fast access.
+  std::unordered_map<string, CounterImpl *> counter_map;
+
+  CounterImpl *GetCounter(const string &s) {
+    MutexLock ml(&m);
+    CounterImpl *&c = counter_map[s];
+    if (c == nullptr) {
+      c = new CounterImpl(s);
+      counters.push_back(c);
+    }
+    return c;
+  }
+};
+
+WebServer::Counter::Counter() {}
+
+// Get counters, allocating them if needed.
+Counters *GetCounters() {
+  static Counters *c = new Counters;
+  return c;
+}
+
+WebServer::Counter *WebServer::GetCounter(const string &name) {
+  return GetCounters()->GetCounter(name);
+}
+
 
 /* Quick nifty options */
 static constexpr bool OptionPrintWholeRequest = false;
-/* /status page - makes quite a few things take a lock to update
-   counters but it doesn't make much of a difference. This isn't
-   something like Nginx or Haywire */
-static constexpr bool OptionIncludeStatusPageAndCounters = true;
 
 /* These bound the memory used by a request. */
 #define REQUEST_MAX_BODY_LENGTH (128 * 1024 * 1024) /* (rather arbitrary) */
@@ -178,7 +217,7 @@ struct Connection {
 static void ignoreSIGPIPE();
 
 
-struct ServerImpl : public WebServer {
+struct ServerImpl final : public WebServer {
   ServerImpl();
 
   void Stop() override;
@@ -186,7 +225,7 @@ struct ServerImpl : public WebServer {
 
   int AcceptConnectionsUntilStopped(const struct sockaddr* address,
 				    socklen_t addressLength);
-
+  
   vector<pair<string, Handler>> handlers;
   void AddHandler(const string &prefix, Handler h) override {
     handlers.emplace_back(prefix, h);
@@ -203,6 +242,39 @@ struct ServerImpl : public WebServer {
 	return fail;
       };
   }
+
+  Handler GetStatsHandler() const {
+    return [](const Request &ignored) {
+	Response resp;
+	resp.code = 200;
+	resp.status = "OK";
+	resp.content_type = "text/html; charset=UTF-8";
+	resp.body = "<!doctype html>\n"
+	  "<style>\n"
+	  "  body { font: 12px Verdana,Helvetica,sans-serif; }\n"
+	  "</style>\n"
+	  "<body>\n"
+
+	  "<table><tr><th>Counter</th><th>Value</th></tr>\n";
+
+	{
+	  Counters *counters = GetCounters();
+	  MutexLock ml(&counters->m);
+	  for (CounterImpl *counter : counters->counters) {
+	    MutexLock mlc(&counter->m);
+	    resp.body += "<tr><td>";
+	    resp.body += counter->name;
+	    resp.body += "</td><td>";
+	    resp.body += Itoa(counter->value);
+	    resp.body += "</td><tr>\n";
+	  }
+	}
+
+	resp.body += "</table></body>\n";
+	
+	return resp;
+      };
+  }
   
   std::mutex globalMutex;
   bool shouldRun = true;
@@ -217,6 +289,11 @@ struct ServerImpl : public WebServer {
   int activeConnectionCount = 0;
   std::condition_variable connectionFinishedCond;
   std::mutex connectionFinishedLock;
+
+  Counter *total_connections = nullptr;
+  Counter *active_connections = nullptr;
+  Counter *bytes_sent = nullptr;
+  Counter *bytes_received = nullptr;
 };
 
 Handler ServerImpl::GetHandler(const Request &request) const {
@@ -225,6 +302,9 @@ Handler ServerImpl::GetHandler(const Request &request) const {
       if (big.size() < little.size()) return false;
       return big.substr(0, little.size()) == little;
     };
+
+  printf("Get handler for [%s]\n", request.path.c_str());
+  fflush(stdout);
   
   for (const auto &p : handlers) {
     const string &prefix = p.first;
@@ -257,18 +337,6 @@ char* strdupDecodeGETorPOSTParam(const char* paramNameIncludingEquals, const cha
 /* If you want to echo back HTML into the value="" attribute or display some user output this will help you (like &gt; &lt;) */
 char* strdupEscapeForHTML(const char* stringToEscape);
 /* If you have a file you reading/writing across connections you can use this provided pthread mutex so you don't have to make your own */
-
-
-/* these counters exist solely for the purpose of the /status demo.
-   TODO: Move these to Server object??
- */
-static std::mutex counters_lock;
-static struct Counters {
-  int64 bytesReceived = 0;
-  int64 bytesSent = 0;
-  int64 totalConnections = 0;
-  int64 activeConnections = 0;
-} counters;
 
 struct PathInformation {
   bool exists;
@@ -885,11 +953,9 @@ static void connectionHandlerThread(void* connectionPointer) {
 	      NI_NUMERICHOST | NI_NUMERICSERV);
   ews_printf_debug("New connection from %s:%s...\n",
 		   connection->remoteHost, connection->remotePort);
-  if (OptionIncludeStatusPageAndCounters) {
-    MutexLock ml(&counters_lock);
-    counters.activeConnections++;
-    counters.totalConnections++;
-  }
+  ServerImpl *server = connection->server;
+  server->active_connections->Increment();
+  server->total_connections->Increment();
 
   /* first read the request + request body */
   bool madeRequestPrintf = false;
@@ -951,12 +1017,10 @@ static void connectionHandlerThread(void* connectionPointer) {
   /* we're done */
   close(connection->socketfd);
 
-  {
-    MutexLock ml(&counters_lock);
-    counters.bytesSent += (ssize_t) connection->bytes_sent;
-    counters.bytesReceived += (ssize_t) connection->bytes_received;
-    counters.activeConnections--;
-  }
+  server->bytes_sent->IncrementBy(connection->bytes_sent);
+  server->bytes_received->IncrementBy(connection->bytes_received);
+  server->active_connections->IncrementBy(-1LL);
+  
   ews_printf_debug("Connection from %s:%s closed\n",
 		   connection->remoteHost, connection->remotePort);
   {
@@ -1042,6 +1106,11 @@ string WebServer::GuessMIMEType(const string &filename, const string &contents) 
 }
 
 ServerImpl::ServerImpl() {
+  total_connections = GetCounter("total connections");
+  active_connections = GetCounter("active connections");
+  bytes_sent = GetCounter("bytes sent");
+  bytes_received = GetCounter("bytes received");
+  
   ignoreSIGPIPE();
 }
 

@@ -30,8 +30,8 @@ struct WebServer {
   virtual void AddHandler(const std::string &prefix, Handler handler) = 0;
   
   // Built-in handler that displays server stats.
-  // e.g. server.AddHandler("/stats", server.StatsHandler());
-  // virtual Handler StatsHandler() const = 0;
+  // e.g. server.AddHandler("/stats", server.GetStatsHandler());
+  virtual Handler GetStatsHandler() const = 0;
   // TODO: Static file handler, directory listing, that kinda stuff.
 
   /* You'll look directly at this struct to handle HTTP requests. It's initialized
@@ -76,6 +76,19 @@ struct WebServer {
     std::vector<std::pair<std::string, std::string>> extra_headers;
   };
 
+  // Named counters (global to the process), revealed by StatsHandler.
+  // Thread-safe.
+  struct Counter {
+    virtual void IncrementBy(int64_t v) = 0;
+    inline void Increment() { IncrementBy(1LL); }
+
+  protected:
+    // Use WebServer::GetCounter.
+    Counter();
+  };
+
+  static Counter *GetCounter(const std::string &name);
+  
   // Utilities.
 
   // Returns e.g. "text/html; charset=UTF-8" for a file whose name ends in ".html".
