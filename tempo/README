@@ -104,3 +104,13 @@ install, so I installed from source...
 ./configure --prefix=/usr
 make -j 2
 sudo make install
+
+
+To create the SVG diagram in Illustrator:
+ - Layer names yield <g id="abc"> with the SVG export option enabled. Use a-z.
+   CSS selectors like #abc path { fill: #F00 !important } are used to set the
+   path colors from temp readings.
+ - If you get <tspan> elements in text this will interfere with substitution.
+   I switched to SansSerif font (from Myriad Pro) and set kerning to 0 instead
+   of Auto in Character panel, which seemed to help.
+   
