@@ -61,21 +61,25 @@ sudo raspi-config
  - Enable ssh (under "interfacing options")
  - Advanced: Expand filesystem
  - Boot options: Wait for network (?I think this is a good idea?)
+(reboot?)
 
 sudo apt-get update
 sudo apt-get dist-upgrade
 sudo apt-get autoclean
 
-sudo apt-get install subversion emacs-nox
+# these don't work any more?
 # sudo apt-get install default-libmysqlclient-dev libmysql++-dev
-#sudo apt-get install default-libmariaclient-dev libmaria++-dev
-sudo apt-get install libmariadb-dev-compat
-sudo apt-get install mariadb-client
+# sudo apt-get install default-libmariaclient-dev libmaria++-dev
 
+sudo apt-get install subversion emacs-nox libmariadb-dev-compat mariadb-client
 
 You should be able to connect using the command line client:
 mysql -u tempo -p -h 10.0.0.202
 
+
+svn co --username tom7 https://svn.code.sf.net/p/tom7misc/svn/trunk tom7misc
+(just cc-lib and tempo should be needed, but might as well back up all source
+code on every microsd card!)
 
 Create the file database-config.txt:
 server 10.0.0.202  (?? CHECK)
@@ -101,6 +105,8 @@ mysql++ is separate project from both mysql and maria, so it does not
 have a "maria version". In 2020 I couldn't find the ubuntu package to
 install, so I installed from source...
 
+cd /usr/src
+wget https://tangentsoft.com/mysqlpp/releases/mysql++-3.2.5.tar.gz
 ./configure --prefix=/usr
 make -j 2
 sudo make install
