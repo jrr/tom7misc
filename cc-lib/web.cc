@@ -137,6 +137,11 @@ struct CounterImpl final : public WebServer::Counter {
     MutexLock ml(&m);
     value += v;
   }
+  void SetTo(int64 v) override {
+    MutexLock ml(&m);
+    value = v;
+  }
+  
   int64 value = 0LL;
 };
 

@@ -81,7 +81,8 @@ struct WebServer {
   struct Counter {
     virtual void IncrementBy(int64_t v) = 0;
     inline void Increment() { IncrementBy(1LL); }
-
+    virtual void SetTo(int64_t v) = 0;
+    
   protected:
     // Use WebServer::GetCounter.
     Counter();
