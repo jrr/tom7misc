@@ -4,73 +4,25 @@
 #include <string>
 #include <cstdint>
 #include <unordered_map>
+#include <thread>
+#include <mutex>
 
 #include <mysql++.h>
+
+#include "onewire.h"
 
 #include "../cc-lib/base/stringprintf.h"
 #include "../cc-lib/base/logging.h"
 #include "../cc-lib/util.h"
+#include "../cc-lib/web.h"
+#include "../cc-lib/threadutil.h"
+
 
 using namespace std;
 using uint8 = uint8_t;
 using uint16 = uint16_t;
 using uint32 = uint32_t;
 using uint64 = uint64_t;
-
-struct OneWire {
-  const string dir = "/sys/bus/w1/devices";
-
-  // This will load all the probes it can find.
-  OneWire() {
-    vector<string> files = Util::ListFiles(dir);
-    for (const string &file : files) {
-      const string fullpath = dir + "/" + file + "/w1_slave";
-      printf("Trying %s...\n", fullpath.c_str());
-      string testread = Util::ReadFile(fullpath);
-      if (!testread.empty()) {
-	CHECK(probes.find(file) == probes.end())
-	  << file << " duplicate?";
-	probes[file].fullpath = fullpath;
-	printf("  ... OK\n");
-      } else {
-	printf("  ... (failed -- might be a master?)\n");
-      }
-    }
-
-    printf("Found %d probe(s).\n", (int)probes.size());
-  }
-
-  struct Probe {
-    // The path to the file. From /proc we only get a streaming read,
-    // so we need to freshly open and stream the entire file each
-    // time.
-    string fullpath;
-    // XXX Last reading, etc.
-
-    bool Temperature(uint32 *microdeg_c) {
-      // This is coming from the /proc filesystem, but still,
-      // this is a very bizarre format. Two lines, like so:
-      // 1c 01 4b 46 7f ff 04 10 e8 : crc=e8 YES
-      // 1c 01 4b 46 7f ff 04 10 e8 t=17750
-      // The hex dump is literally there in the file, and both
-      // lines seem to always be the same (so I guess this is
-      // like the raw data--but I don't see any way to get the
-      // data itself; just this dump!). The encoding is not
-      // obvious. Other than the last byte being the CRC, there
-      // aren't two bytes there representing 17750 (0x4556).
-      // But 17750 is 17.750 degrees C.
-      string data = Util::ReadFile(fullpath);
-      if (data.empty()) return false;
-      if (data.find("YES") == string::npos) return false;
-      size_t te = data.find("t=");
-      if (te == string::npos) return false;
-      *microdeg_c = atoi(&data[te + 2]);
-      return true;
-    }
-  };
-
-  std::unordered_map<string, Probe> probes;
-};
 
 // Manages database connection.
 struct Database {
@@ -84,7 +36,10 @@ struct Database {
     string desc;
     Probe() {}
   };
-  
+
+  std::mutex database_m; // Coarse locking.
+  WebServer::Counter *written = nullptr;
+  WebServer::Counter *failed = nullptr;
   map<string, string> config;
   map<string, Probe> probes;
   const string configfile = "database-config.txt";
@@ -93,6 +48,9 @@ struct Database {
   Connection conn{false};
 
   Database() {
+    written = WebServer::GetCounter("temps written");
+    failed = WebServer::GetCounter("failed queries");
+
     config = Util::ReadFileToMap(configfile);
     const string server = config["server"];
     const string user = config["user"];
@@ -120,10 +78,12 @@ struct Database {
       probes[code].desc = desc;
       printf("%d. %s: %s (%s)\n", id, code, name, desc);
     }
+    WebServer::GetCounter("probes in db")->IncrementBy((int64)probes.size());
   }
 
   // code should be like "28-000009ffbb20"
   string WriteTemp(const string &code, int microdegs_c) {
+    MutexLock ml(&database_m);
     auto it = probes.find(code);
     if (it == probes.end()) {
       // printf("Unknown probe %s!\n", code.c_str());
@@ -137,15 +97,168 @@ struct Database {
 			     "values (%llu, %d, %d)",
 			     now, id, microdegs_c);
     Query q = conn.query(qs.c_str());
-    (void)q.store();
+    if (q.exec()) {
+      written->Increment();
+    } else {
+      failed->Increment();
+    }
     return it->second.name;
   }
+
+  // Get all the temperatures (collated by probe name) in the given interval.
+  std::unordered_map<string, vector<pair<int64, uint32>>> AllTempsIn(int64 time_start,
+								     int64 time_end) {
+    std::unordered_map<int, string> probe_by_id;
+    for (auto &p : probes) probe_by_id[p.second.id] = p.second.name;
+
+    // This can be done as one query of course, but we can make smaller queries by
+    // performing a separate one for each probe. (Not obvious which way is better?)
+    std::unordered_map<string, vector<pair<int64, uint32>>> out;
+    for (const auto &p : probe_by_id) {
+      MutexLock ml(&database_m);
+
+      string qs = StringPrintf("select timestamp, microdegsc "
+			       "from tempo.reading "
+			       "where probeid = %d "
+			       "and timestamp >= %lld "
+			       "and timestamp <= %lld "
+			       "order by timestamp",
+			       p.first,
+			       time_start,
+			       time_end);
+      Query q = conn.query(qs.c_str());
+      StoreQueryResult res = q.store();
+      if (!res) {
+	failed->Increment();
+	continue;
+      }
+
+      vector<pair<int64, uint32>> vec;
+      vec.reserve(res.num_rows());
+      for (size_t i = 0; i < res.num_rows(); i++) {
+	const int64 id = res[i]["timestamp"];
+	const uint32 microdegsc = res[i]["microdegsc"];
+	vec.emplace_back(id, microdegsc);
+      }
+      out[p.second] = std::move(vec);
+    }
+
+    return out;
+  }
+
+  // Get all the temperatures (collated by probe name) in the given interval.
+  std::unordered_map<string, pair<int64, uint32>> LastTemp() {
+    std::unordered_map<int, string> probe_by_id;
+    for (auto &p : probes) probe_by_id[p.second.id] = p.second.name;
+
+    std::unordered_map<string, pair<int64, uint32>> out;
+    for (const auto &p : probe_by_id) {
+      MutexLock ml(&database_m);
+
+      string qs = StringPrintf("select timestamp, microdegsc "
+			       "from tempo.reading "
+			       "where probeid = %d "
+			       "order by timestamp desc "
+			       "limit 1",
+			       p.first);
+      printf("%s\n", qs.c_str());
+      Query q = conn.query(qs.c_str());
+      StoreQueryResult res = q.store();
+      if (!res || res.num_rows() != 1) {
+	failed->Increment();
+	continue;
+      }
+
+      const int64 id = res[0]["timestamp"];
+      const uint32 microdegsc = res[0]["microdegsc"];
+      out[p.second] = make_pair(id, microdegsc);
+    }
+
+    return out;
+  }
+
 };
 
-int main(int argc, char **argv) {
-  OneWire onewire;
-  Database db;
+struct Server {
+  Server(Database *db) : db(db) {
+    server = WebServer::Create();
+    CHECK(server);
+    favicon = Util::ReadFile("favicon.png");
 
+    server->AddHandler("/stats", server->GetStatsHandler());
+    server->AddHandler("/favicon.ico",
+		       [this](const WebServer::Request &request) {
+			 WebServer::Response response;
+			 response.code = 200;
+			 response.status = "OK";
+			 response.content_type = "image/png";
+			 response.body = this->favicon;
+			 return response;
+		       });
+    server->AddHandler("/diagram",
+		       [this](const WebServer::Request &req) {
+			 return Diagram(req);
+		       });
+    
+    // TODO!
+    server->AddHandler("/",
+		       [this](const WebServer::Request &req) {
+			 return Diagram(req);
+		       });
+
+    // Detach listening thread.
+    listen_thread = std::thread([this](){
+	this->server->ListenOn(8080);
+      });
+  }
+
+  WebServer::Response Diagram(const WebServer::Request &request) {
+    std::unordered_map<string, pair<int64, uint32>> temps = db->LastTemp();
+    WebServer::Response r;
+    r.code = 200;
+    r.status = "OK";
+    r.content_type = "text/html; charset=UTF-8";
+    r.body =
+      StringPrintf("<!doctype html>\n"
+		   "<style>\n"
+		   " body { font: 12px verdana,helvetica,sans-serif }\n"
+		   "</style>\n");
+
+    StringAppendF(&r.body, "<table>\n");
+    for (const auto &p : temps) {
+      float celsius = (float)p.second.second / 1000.0f;
+      float fahrenheit = celsius * (9.0f / 5.0f) + 32.0f;
+      StringAppendF(&r.body,
+		    "<tr><td>%s</td><td>%lld</td><td>%.2f &deg;C</td><td>%.2f &deg;F</tr>\n",
+		    p.first.c_str(),
+		    p.second.first,
+		    celsius,
+		    fahrenheit);
+    }
+    StringAppendF(&r.body, "</table>\n");
+
+    return r;
+  }
+
+  ~Server() {
+    server->Stop();
+    listen_thread.join();
+  }
+
+  WebServer *server = nullptr;
+  Database *db = nullptr;
+  string favicon;
+  std::thread listen_thread;
+};
+
+
+int main(int argc, char **argv) {
+  Database db;
+  Server server(&db);
+
+  OneWire onewire;
+  WebServer::GetCounter("probes found")->IncrementBy((int64)onewire.probes.size());
+  
   int64 start = time(nullptr);
   int64 readings = 0LL;
   for (;;) {
@@ -158,12 +271,16 @@ int main(int argc, char **argv) {
 	printf("%s (%s): %u  (%.2f/sec)\n",
 	       p.first.c_str(), s.c_str(), microdegs_c,
 	       readings / elapsed);
+	// Perf could save these in probe struct?
+	WebServer::GetCounter(s + " last")->SetTo(microdegs_c);
+	WebServer::GetCounter(s + " #")->Increment();
       } else {
 	printf("%s: ERROR\n", p.first.c_str());
       }
     }
   }
-    
+
   printf("SERVER OK\n");
+
   return 0;
 }
