@@ -34,17 +34,21 @@ static constexpr bool DRY_RUN = false;
 // bytes 11 Jan 2020: 1823238643
 // bytes 12 Jan 2020: 1823206228
 // bytes 18 Jan 2020: 1822694213
+// bytes 27 Jan 2020: 1822238513
 
 // metadata 8 Jan 2020: 125276
 // metadata 10 Jan 2020: 129047
 // metadata 11 Jan 2020: 129738
 // metadata 12 Jan 2020: 130880
 // metadata 18 Jan 2020: 134800
+// metadata 27 Jan 2020: 136237
 
+// TODO: untabify
 // TODO: Remove duplicate files!
 // TODO: Remove date header
 // TODO: remove various boring email headers
 // TODO: Title or Artist field matches "from the album ..."
+// TODO: Strip block leading whitespace after headers
 
 // Title is just ================
 // (seems to be some common corruption?)
@@ -311,7 +315,8 @@ struct Parser {
       }
       
       if (!ok) {
-	if (RE2::Consume(&tmp, tabbedby, &value)) {
+	if (RE2::Consume(&tmp, tabbedby, &value) ||
+	    RE2::Consume(&tmp, transcribedby, &value)) {
 	  key = "Tabbed by";
 	  ok = true;
 	}
@@ -325,11 +330,15 @@ struct Parser {
       key = Util::LoseWhiteR(key);
       value = Util::LoseWhiteR(value);
 
+      auto OkEmpty = [](const string &lk) {
+	  return lk == "subject";
+	};
+      
       string lkey = Util::lcase(key);
       int dashes = 0;
       for (char c : value) if (c == '-') dashes++;
       if (dashes > 6 ||
-	  value.empty() ||
+	  (value.empty() && !OkEmpty(lkey)) ||
 	  lkey == "http" ||
 	  (lkey.size() == 1 &&
 	   lkey[0] >= 'a' && lkey[0] < 'g') || // note/chord names
@@ -527,7 +536,7 @@ struct Parser {
   void NormalizeHeaders(const string &filename,
 			vector<pair<string, string>> *hdrs) const {
     vector<pair<string, string>> addme;
-    auto Clean = [this](const string &v) {
+    auto Clean = [this](const string &v, bool parens) {
 	string ret;
 	if (RE2::FullMatch(v, cleanvalue1, &ret))
 	  return ret;
@@ -538,6 +547,9 @@ struct Parser {
 	if (RE2::FullMatch(v, cleanvalue4, &ret))
 	  return ret;
 
+	if (parens && v.size() > 2 && v[0] == '(' && v[v.size() - 1] == ')')
+	  return v.substr(1, v.size() - 2);
+	
 	return v;
       };
 
@@ -548,10 +560,11 @@ struct Parser {
 	  lkey == "itle" || lkey == "track name" || lkey == "song tittle" ||
 	  lkey == "track title" || lkey == "tilte" || lkey == "titel" ||
 	  lkey == "titre" || lkey == "song title" || lkey == "song name" ||
+	  lkey == "tittel" ||
 	  lkey == "tittle" || lkey == "titulo" || lkey == "-title"
 	  ) {
 	p.first = "Title";
-	p.second = Clean(p.second);
+	p.second = Clean(p.second, true);
 
 	string cleaned, album;
 	if (RE2::FullMatch(p.second, "(.+)[ \t]+from +the +album[ \t]+(.+)",
@@ -561,6 +574,7 @@ struct Parser {
 	}
 
       } else if (lkey == "artist" || lkey == "band" ||
+		 lkey == "artist(s)" ||
 		 lkey == "band name" || lkey == "group" ||
 		 lkey == "artists" || lkey == "arist" ||
 		 lkey == "band/performed by" || lkey == "autor" ||
@@ -571,13 +585,14 @@ struct Parser {
 		 lkey == "song artist" || lkey == "auther/artist" ||
 		 lkey == "author/band" || lkey == "artista" ||
 		 lkey == "artisit" || lkey == "artsit" ||
+		 lkey == "artist(s)" ||
 		 lkey == "artsist" || lkey == "autore" ||
 		 lkey == "banda" || lkey == "atrist" ||
 		 lkey == "band/singer" || lkey == "original artist" ||
 		 lkey == "artiest" || lkey == "groupe" ||
 		 lkey == "rtist" || lkey =="artist/ band") {
 	p.first = "Artist";
-	p.second = Clean(p.second);
+	p.second = Clean(p.second, true);
 
 	string cleaned, album;
 	if (RE2::FullMatch(p.second, "(.+)[ \t]+from +the +album[ \t]+(.+)",
@@ -601,7 +616,7 @@ struct Parser {
 		 
 		 lkey == "album title" || lkey == "from album") {
 	p.first = "Album";
-	p.second = Clean(p.second);
+	p.second = Clean(p.second, false);
 
 	string cleaned, year;
 	if (RE2::FullMatch(p.second, "(.+)[ \t]+\\(((?:19|20)[0-9][0-9])\\)",
@@ -624,8 +639,29 @@ struct Parser {
 		 lkey == "tab author" || lkey == "tabbed out by" ||
 		 lkey == "transcribe by" || lkey == "original tab by" ||
 		 lkey == "tabbeb by" || lkey == "transcibed by" ||
+		 lkey == "transcripted by" ||
 		 lkey == "transcribed by" || lkey == "transcriber") {
 	p.first = "Tabbed by";
+
+	string email, name;
+	// Rewrite both:
+	//   name@example.com (My Name)
+	//   My Name (name@example.com)
+	if (RE2::FullMatch(p.second,
+			   "([^ ]+@[^ ]+\\.[^ ]+)[ \t]+\\(([A-Z][a-z]+ [A-Z][a-z]+)\\)\\.? *",
+			   &email, &name)) {
+	  p.first = "E-mail";
+	  p.second = email;
+	  
+	  addme.emplace_back("Tabbed by", name);
+	} else if (RE2::FullMatch(
+		       p.second,
+		       "([A-Z][a-z]+ [A-Z][a-z]+)[ \t]+\\(([^ ]+@[^ ]+\\.[^ ]+)\\)\\.? *",
+		       &name, &email)) {
+	  p.second = name;
+	  addme.emplace_back("E-mail", email);
+	}
+		       
       } else if (lkey == "email" || lkey == "e-mail" || lkey == "mail" ||
 		 lkey == "email address" || lkey == "e-mail address" ||
 		 lkey == "tabbers email" || lkey == "my email" ||
@@ -716,19 +752,15 @@ struct Parser {
 		  // since we discard this header anyway.
                   "(Received): ((?:from|by) .+)\n"
 		  "[ \t]+.+\n"};
-  /*TODO ??
-  "Received: from animal-farm.nevada.edu by redrock.nevada.edu (5.65c/M1.4)\n"
-"	with SMTP id <AA22995>; Mon, 12 Apr 1993 10:39:03 -0700\n"
-"Received: from madrone.eecs.ucdavis.edu by animal-farm.nevada.edu id <AA03540@animal-farm.nevada.edu>; Mon, 12 Apr 1993 10:39:00 -0700\n"
-"Received: by madrone.eecs.ucdavis.edu (5.57/Ultrix3.0-C/eecs 1.1)\n"
-"	id AA21762; Mon, 12 Apr 93 10:38:58 -0700\n"
-  */
 
   RE2 standardtuning{HEADER_BLANKLINES
 		     "(?i)[ \t]*standard +tuning\n"};
 
   RE2 tabbedby{HEADER_BLANKLINES
 	       "(?i)[ \t]*tabbed +by +(.+)\n"};
+
+  RE2 transcribedby{HEADER_BLANKLINES
+		    "(?i)[ \t]*transcri(?:pt|b)ed +by +(.+)\n"};
   
   RE2 knownheader{
     // "[*]*\n*"
@@ -739,6 +771,7 @@ struct Parser {
     "[Tt]itle|"
     "[Aa]lbum|"
     "[Aa]rtist|"
+    "[Aa]rtist\\(s\\)|"    
     "[Bb]and|"
     "[Bb]y|"
     "[Nn]ote|"
@@ -806,6 +839,7 @@ static void AddAllFilesRec(const string &dir, vector<string> *all_files) {
     } else {
       if (!filename.empty() &&
 	  // Should perhaps just delete emacs backups..?
+	  filename[0] != '#' &&
 	  filename[filename.size() - 1] != '~') {
 	all_files->push_back(filename);
       }
@@ -1019,6 +1053,16 @@ string AdHocSubstitutions(string s) {
 		     "Artist: \\2\n");
   */
 
+  RE2::GlobalReplace(&s,
+		     "\n>From the album: ",
+		     "\nAlbum: ");
+  
+  /*
+  RE2::GlobalReplace(&s,
+		     "#----+Created with Taborama Tab Creator----+-----#\n",
+		     "");
+  */
+  
   /*
   re2::StringPiece cont(s);
   if (RE2::Consume(&cont, "The Black Crowes\n"))
