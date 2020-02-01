@@ -434,11 +434,73 @@ static void OpenWithEditor(const string &pass,
   CHECK(Util::remove(tmpname));
 }
 
-int main(int argc, char **argv) {
-  CHECK(argc >= 3);
+// Generate a strong password which sacrificies a little bit of
+// entropy for readability.
+string RandomEZ(int len) {
+  CryptRand cr;
 
-  string cmd = argv[1];
-  string file = argv[2];
+  auto CharFrom = [&cr](const string &s) -> char {
+    auto RandTo8 = [&cr](int n) -> uint8 {
+	CHECK(n > 0) << "Must be non-empty!";
+	CHECK(n <= 256) << "Only implemented for one-byte stream";
+	uint8 mask = (uint8)(n - 1);
+	mask |= mask >> 1;
+	mask |= mask >> 2;
+	mask |= mask >> 4;
+	mask |= mask >> 8;
+
+	for (;;) {
+	  const uint32 x = cr.Byte() & mask;
+	  if (x < n) return x;
+	}
+      };
+
+    int idx = RandTo8(s.size());
+    CHECK(idx >= 0 && idx < s.size()) << idx;
+    return s[idx];
+  };
+  
+  const string chars =
+    // Avoiding l, I, 1, O, 0
+    "ABCDEFGHJKLMNPQRSTUVWXYZ"
+    "abcdefghijkmnopqrstuvwxyz"
+    "23456789";
+  const string seps = ".-_";
+  const int spansize = 5;
+  string out;
+  out.reserve(len);
+  int cur_span = 0;
+  while (out.size() < len) {
+    if (cur_span == spansize) {
+      out += CharFrom(seps);
+      cur_span = 0;
+    } else {
+      out += CharFrom(chars);
+      cur_span++;
+    }
+  }
+  return out;
+}
+
+int main(int argc, char **argv) {
+  CHECK(argc >= 2);
+
+  const string cmd = argv[1];
+  // Commands without arguments...
+  if (cmd == "gen") {
+    // Generate a strong random password.
+    const string pass = Base64::EncodeV(CryptRandom(24));
+    printf("%s\n", pass.c_str());
+    return 0;
+  } else if (cmd == "ezgen") {
+    const string pass = RandomEZ(29);
+    printf("%s\n", pass.c_str());
+    return 0;
+  }
+
+  CHECK(argc >= 3);
+  
+  const string file = argv[2];
   if (cmd == "enc") {
     const string pass = ReadPass();
 
@@ -473,7 +535,16 @@ int main(int argc, char **argv) {
     
   } else if (cmd == "emacs") {
     const string pass = ReadPass();
-    OpenWithEditor(pass, file, "emacs -nw");
+    OpenWithEditor(pass, file,
+		   "emacs -nw "
+		   // Disable some default emacs behavior that can make
+		   // temporary of permanent copies of the plaintext
+		   // file! Good chance of emacs leaking data via some
+		   // other means, so perhaps better to avoid complex
+		   // editors like this.
+		   "--execute=\"(setq create-lockfiles nil)\" "
+		   "--execute=\"(setq auto-save-default nil)\" "
+		   "--execute=\"(setq make-backup-files nil)\" ");
 
   } else if (cmd == "notepad") {
     const string pass = ReadPass();
@@ -494,11 +565,6 @@ int main(int argc, char **argv) {
 				   salt64.c_str(), preimage64.c_str());
     string enc = Encrypt(pass, contents);
     Util::WriteFile(file, enc);
-
-  } else if (cmd == "gen") {
-    // Generate a strong random password.
-    const string pass = Base64::EncodeV(CryptRandom(24));
-    printf("%s\n", pass.c_str());
     
   } else if (cmd == "wipe") {
 

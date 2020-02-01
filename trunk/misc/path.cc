@@ -16,9 +16,12 @@ enum class Rules {
   ZOMBIE,
   // Health resets health
   NORMAL,
+  // Same as normal except dracula is always asleep,
+  // and poison/snake eggs don't work (N/A here)
+  ROBOT,
 };
 
-static constexpr Rules rules = Rules::NORMAL;
+static constexpr Rules rules = Rules::ROBOT;
 
 static constexpr int MAX_DAMAGE = 3;
 static constexpr int EXIT_X = 4;
@@ -67,6 +70,8 @@ struct State {
     FLOWER,
 
     DRACULA,
+    // MUSHROOM, // TODO
+    // TODO: Green turtles
   };
   
   Tile tiles[WIDTH * HEIGHT];
@@ -156,7 +161,7 @@ struct State {
       break;
 
     case DRACULA:
-      if (damage == MAX_DAMAGE) {
+      if (rules == Rules::ROBOT || damage == MAX_DAMAGE) {
 	// is this right?
 	if (rules == Rules::ZOMBIE) damage = 0;
 	xp += 5;
@@ -291,9 +296,9 @@ struct State {
 
     // Check to make sure the exit is still reachable, or else
     // prune.
-    // TODO: We could also insist that there is enough XP
-    // still reachable, assuming perfect kills (streaks are a little
-    // hard, but we could do like 3*floor(num_entities/3)?
+    // We also insist that there is enough XP still reachable,
+    // assuming perfect kills (and assuming we can streak
+    // every entity regardless of where they are).
     
     // is v<b> actually good here?
     vector<int> reachable(WIDTH * HEIGHT, false);
@@ -369,6 +374,7 @@ struct State {
 	  case TW:
 	    reachable_xp += 3;
 	    reachable_ents++;
+	    break;
 	  default:
 	    // Need to cover this case for correctness.
 	    CHECK(false) << "unimplemented!";
@@ -488,6 +494,16 @@ struct State {
     auto W = WALL;
     auto O = SMALL;
     auto D = DRACULA;
+    auto R = SOLDIER;
+    auto K = SKING;
+    (void)O;
+    (void)H;
+    (void)S;
+    (void)D;
+    (void)R;
+    (void)K;
+    
+    /*
     Tile init[] = {
       S, S, H, _, _, O, S, _, S,
       S, _, _, S, _, D, S, _, H,
@@ -497,6 +513,31 @@ struct State {
       S, _, _, O, O, S, _, H, _,
       S, _, H, _, _, _, S, S, S,
     };
+    */
+
+    /*
+    Tile init[] = {
+      S, S, D, _, _, _, _, _, _,
+      S, _,TN, _, S, S, S, _, _,
+      _, W, S, D, _, _, _, W, _,
+      _, S, S, _, W, _,TW, S, S,
+      _, _, _, _, W, _, _, D, S,
+      _, _, _, _, _, S, S, _, _,
+      S, S, S, _, _, _, S, _, _,
+    };
+    */
+
+    Tile init[] = {
+      S, S, H, _, _, S, S, _, H,
+      S, _, _, R, K, R, S, _, O,
+      _, W, _, _, _, _, _, W, O,
+      _, _, _, S, W, _, _, _, S,
+      _, _, S, O, W, H, _, _, _,
+      O, H, R, _, _, _, R, S, _,
+      S, S, _, _, _, _, S, S, H,
+    };
+
+    static_assert(sizeof(init) == WIDTH * HEIGHT);
     
     State start;
     for (int i = 0; i < WIDTH * HEIGHT; i++) {
@@ -622,6 +663,9 @@ using StateHeap = Heap<int, Item>;
 using StateTable = unordered_map<State, Item *, StateHash>;
 
 int main(int argc, char **argv) {
+  printf("Hi?\n");
+  fflush(stdout);
+  
   (void)Tests;
   (void)Tests2;
   (void)Tests3;
@@ -635,6 +679,8 @@ int main(int argc, char **argv) {
 
   State start = State::StartState();
   printf("Start:\n%s\n", start.ToString().c_str());
+  fflush(stdout);
+  
   Item *start_item = new Item(start, {});
   table[start] = start_item;
   heap.Insert(0, start_item);
