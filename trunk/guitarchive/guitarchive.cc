@@ -21,7 +21,7 @@
 
 using namespace std;
 
-static constexpr bool DRY_RUN = false;
+static constexpr bool DRY_RUN = true;
 
 // Can improve duplicate artist/title/album heuristics,
 // or perhaps just force taking the first one now
@@ -35,6 +35,7 @@ static constexpr bool DRY_RUN = false;
 // bytes 12 Jan 2020: 1823206228
 // bytes 18 Jan 2020: 1822694213
 // bytes 27 Jan 2020: 1822238513
+// bytes 1 Feb 2020:  1822182696
 
 // metadata 8 Jan 2020: 125276
 // metadata 10 Jan 2020: 129047
@@ -49,9 +50,6 @@ static constexpr bool DRY_RUN = false;
 // TODO: remove various boring email headers
 // TODO: Title or Artist field matches "from the album ..."
 // TODO: Strip block leading whitespace after headers
-
-// Title is just ================
-// (seems to be some common corruption?)
 
 static constexpr const char *DIRS[] = {
   "c:\\code\\electron-guitar\\tabscrape\\tabs",
@@ -847,6 +845,234 @@ static void AddAllFilesRec(const string &dir, vector<string> *all_files) {
   }
 }
 
+void FindDuplicates(const vector<pair<string, string>> &db) {
+  // Each file can be identified by is index in the database.
+  // Compute all the non-degenerate lines that occur in every file.
+  // We'll only test for duplicates (and perhaps similarity later)
+  // if the files share a line exactly.
+
+  const int64 start = time(nullptr);
+  printf("Get all lines...\n");
+  fflush(stdout);
+  std::mutex m;
+  std::unordered_map<string, vector<int>> all_lines;
+  ParallelAppi(db,
+	       [&m, &all_lines](int idx, const pair<string, string> &row) {
+		 vector<string> lines = Util::SplitToLines(row.second);
+		 std::unordered_set<string> lines_local;
+		 for (const string &line : lines) {
+		   if (!line.empty() &&
+		       lines_local.find(line) == lines_local.end()) {
+		     // TODO: Could normalize here, or reject other
+		     // really common lines that are worth skipping.
+
+		     {
+		       MutexLock ml(&m);
+		       all_lines[line].push_back(idx);
+		     }
+		     lines_local.insert(line);
+		   }
+		 }
+	       }, 12);
+  const int64 took = time(nullptr) - start;
+  printf("[Took %lld sec.] %lld distinct lines...\n",
+	 took,
+	 (int64)all_lines.size());
+
+  
+  struct HashPair {
+    size_t operator()(const std::pair<int, int> &v) const {
+      return (int64)v.first * 65537LL + (int64)v.second;
+    }
+  };
+  
+  std::unordered_set<pair<int, int>, HashPair> to_compare;
+  auto Insert = [&to_compare](int a, int b) {
+      if (a == b) {
+	// Should not happen, but anyway, skip.
+	return;
+      } else if (a < b) {
+	to_compare.insert(make_pair(a, b));
+      } else {
+	to_compare.insert(make_pair(b, a));
+      }
+    };
+
+  int64 non_singleton = 0;
+  int64 huge = 0;
+  for (const auto &p : all_lines) {
+    const vector<int> &hits = p.second;
+    if (hits.size() > 1) {
+      non_singleton++;
+
+      if (hits.size() > 20) {
+	huge++;
+	continue;
+      }
+
+
+      for (int i = 0; i < (int)hits.size(); i++) {
+	const int fst = hits[i];
+	for (int j = i + 1; j < (int)hits.size(); j++) {
+	  const int snd = hits[j];
+	  CHECK(fst != snd) << fst;
+	  Insert(fst, snd);
+	}
+      }
+    }
+  }
+  
+  printf("%lld occur more than once. %lld are too common.\n"
+	 "%lld pairs remain to compare!\n",
+	 non_singleton, huge, (int64)to_compare.size());
+  fflush(stdout);
+  
+  vector<pair<int, int>> to_compare_vec;
+  to_compare_vec.reserve(to_compare.size());
+  for (const auto p : to_compare) {
+    CHECK(p.first != p.second) << p.first;
+    to_compare_vec.emplace_back(p.first, p.second);
+  }
+  to_compare.clear();
+  
+  // Score based on filename.
+  // Note: Make sure these comparisons are actually a total order, or
+  // it is possible to delete ALL versions of a file (e.g. when rock.txt,
+  // paper.txt, and scissors.txt contain the same data)!
+  enum FileType {
+    UNKNOWN = 0,
+    NUMBERED = 1,
+    OLGA_BARE = 2,
+    OLGA_LETTER = 3,
+    OLGA_ARTIST = 4,
+    TABS = 5,
+  };
+
+  auto Classify = [](const string &file) {
+      if (RE2::FullMatch(
+	      file,
+	      R"(c:[\\/]code[\\/]electron-guitar[\\/]tabscrape[\\/].+)"))
+	return NUMBERED;
+      if (RE2::FullMatch(
+	      file,
+	      R"(d:[\\/]temp[/\\]olga[\\/][a-z0-9][\\/][-a-z0-9_]+[\\/].+)"))
+	return OLGA_ARTIST;
+      if (RE2::FullMatch(
+	      file,
+	      R"(d:[\\/]temp[\\/]olga[\\/][a-z0-9][\\/].+)"))
+	return OLGA_LETTER;
+      if (RE2::FullMatch(
+	      file,
+	      R"(d:[\\/]temp[\\/]olga[\\/].+)"))
+	return OLGA_BARE;
+      if (RE2::FullMatch(
+	      file,
+	      R"(d:[\\/]temp[\\/]tabs[\\/][a-z0-9][\\/][-a-z0-9_]+[\\/].+)"))
+	return TABS;
+      return UNKNOWN;
+    };
+
+  enum FileScore {
+    HAS_VERSION = 1,
+    HAS_DIGIT = 2,
+    CLEAN = 3,
+  };
+
+  auto Score = [](const string &file) {
+      if (RE2::PartialMatch(file, R"(_ver[0-9]+)")) return HAS_VERSION;
+      if (RE2::PartialMatch(file, R"(_[0-9]+\.)")) return HAS_DIGIT;
+      return CLEAN;
+    };
+
+  printf("%d elts in to_compare_vec\n", (int)to_compare_vec.size());
+  fflush(stdout);
+  
+  const int compare_start = time(nullptr);
+  vector<string> info;
+  int deleted = 0;
+  ParallelApp(to_compare_vec,
+	      [&db, &m, &info, &Classify, &Score, &deleted](
+		  std::pair<int, int> p) {
+		// auto [a, b] = p;
+		const int a = p.first;
+		const int b = p.second;
+		CHECK(a != b) << a;
+		const string &file_a = db[a].first;
+		const string &file_b = db[b].first;
+		CHECK(file_a != file_b) << file_a;
+		const string &contents_a = db[a].second;
+		const string &contents_b = db[b].second;
+
+		if (contents_a == contents_b) {
+		  FileType type_a = Classify(file_a);
+		  // if (type_a == UNKNOWN) return;
+		  FileType type_b = Classify(file_b);
+		  // if (type_b == UNKNOWN) return;
+
+		  const FileScore score_a = Score(file_a);
+		  const FileScore score_b = Score(file_b);
+		  // FileScore score_a = CLEAN,  score_b = CLEAN;
+
+		  bool delete_a = false, delete_b = false;
+		  if (type_a < type_b ||
+		      (type_a == type_b && score_a < score_b)) delete_a = true;
+		  if (type_a > type_b ||
+		      (type_a == type_b && score_a > score_b)) delete_b = true;
+
+		  auto TryRemove = [&m, &deleted](const string &f) {
+		      string ff = Util::Replace(f, "/", "\\");
+		      if (remove(ff.c_str()) == 0) {
+			MutexLock ml(&m);
+			deleted++;
+		      } else {
+			MutexLock ml(&m);
+			printf("Unable to remove [%s]; this can happen if "
+			       "it was already removed for another reason!\n",
+			       ff.c_str());
+		      }
+		    };
+		  
+		  if (false && !DRY_RUN) {
+		    if (delete_a) {
+		      TryRemove(file_a);
+		    }
+		  
+		    if (delete_b) {
+		      TryRemove(file_b);
+		    }
+		  }
+
+		  if (true || delete_a || delete_b) {
+		    MutexLock ml(&m);
+		    info.push_back(
+			StringPrintf("Exact duplicates (%d bytes):\n"
+				     "  %s%s\n"
+				     "  %s%s\n",
+				     (int)contents_a.size(),
+				     file_a.c_str(),
+				     delete_a ? " (DELETE)" : "",
+				     file_b.c_str(),
+				     delete_b ? " (DELETE)" : ""));
+		  }
+		}
+	      },
+	      16);
+  {
+    FILE *ff = fopen("dups.txt", "wb");
+    for (const string &line : info) {
+      fprintf(ff, "%s\n", line.c_str());
+    }
+    fclose(ff);
+  }
+  const int compare_sec = time(nullptr) - compare_start;
+  printf("[%lld sec] Possible duplicates in dups.txt: %d\n",
+	 compare_sec,
+	 (int)info.size());
+  if (deleted > 0)
+    printf("Actually deleted %d files.\n", deleted);
+  fflush(stdout);
+}
+
 static constexpr int SIMILAR_DISTANCE = 200;
 
 void ComputeDistances(const vector<pair<string, string>> &contents) {
@@ -1052,7 +1278,7 @@ string AdHocSubstitutions(string s) {
   RE2::GlobalReplace(&s, *chordsof, "\nTitle: \\1\n"
 		     "Artist: \\2\n");
   */
-
+  
   RE2::GlobalReplace(&s,
 		     "\n>From the album: ",
 		     "\nAlbum: ");
@@ -1063,12 +1289,6 @@ string AdHocSubstitutions(string s) {
 		     "");
   */
   
-  /*
-  re2::StringPiece cont(s);
-  if (RE2::Consume(&cont, "The Black Crowes\n"))
-    s = (string)"Artist: The Black Crowes\n" + cont.ToString();
-  */
-
     
   /*
   string rest;
@@ -1306,12 +1526,14 @@ int main(int argc, char **argv) {
     ParallelApp(files,
 		[&p, &m, &has_marker, &todo](const pair<string, string> &row) {
 		  // Skip "album tabs"
-		  if (row.first.find("album") != string::npos)
+		  if (row.first.find("album") != string::npos ||
+		      row.first.find("compilatio") != string::npos)
 		    return;
+		  
 		  
 		  const string &cont = row.second;
 		  /*
-		  bool accept =
+		    bool accept =
 		    cont.find("-PLEASE NOTE-") != string::npos ||
 		    cont.find("scholarship, or research") != string::npos ||
 		    cont.find("Have fun, DAIRYBEAT on") != string::npos ||
@@ -1323,15 +1545,20 @@ int main(int argc, char **argv) {
 		  */
 
 		  /*
-		  string title, artist;
-		  bool accept =
+		    string title, artist;
+		    bool accept =
 		    !p.GetMetadata(row.first, cont, &title, &artist);
 		  */
 
 		  string contents = cont;
-		  (void)p.ExtractHeaders(&contents);
+		  auto hdrs = p.ExtractHeaders(&contents);
 		  bool accept = RE2::PartialMatch(contents, "(?i)\ntitle:.+\n");
-
+		  for (const auto &[key, val] : hdrs) {
+		    if (// key == "Title" &&
+			val.find("====") != string::npos)
+		      accept = true;
+		  }
+		  
 		  // p.ExtractFile(row.first, &title, &artist);
 
 
@@ -1414,10 +1641,12 @@ int main(int argc, char **argv) {
     int has_extraction = 0;
     vector<string> examples;
     ParallelApp(files,
-		[&p, &m, &has_extraction, &examples](const pair<string, string> &row) {
+		[&p, &m, &has_extraction, &examples](
+		    const pair<string, string> &row) {
 		  string title, artist;
 		  string contents = row.second;
-		  vector<pair<string, string>> orig_hdrs = p.ExtractHeaders(&contents);
+		  vector<pair<string, string>> orig_hdrs =
+		    p.ExtractHeaders(&contents);
 		  if (!orig_hdrs.empty()) {
 		    vector<pair<string, string>> hdrs = orig_hdrs;
 		    p.FilterHeaders(&hdrs);
@@ -1427,7 +1656,8 @@ int main(int argc, char **argv) {
 		    if (orig_hdrs != hdrs) {
 		      string ex = row.first + (string)"\n";
 		      for (const auto &p : hdrs) {
-			ex += StringPrintf("  [%s] = [%s]\n", p.first.c_str(), p.second.c_str());
+			ex += StringPrintf("  [%s] = [%s]\n",
+					   p.first.c_str(), p.second.c_str());
 		      }
 
 		      MutexLock ml(&m);
@@ -1453,7 +1683,8 @@ int main(int argc, char **argv) {
 		[&p, &m, &keys](const pair<string, string> &row) {
 		  string title, artist;
 		  string contents = row.second;
-		  vector<pair<string, string>> orig_hdrs = p.ExtractHeaders(&contents);
+		  vector<pair<string, string>>
+		    orig_hdrs = p.ExtractHeaders(&contents);
 		  if (!orig_hdrs.empty()) {
 		    vector<pair<string, string>> hdrs = orig_hdrs;
 		    p.FilterHeaders(&hdrs);
@@ -1482,7 +1713,8 @@ int main(int argc, char **argv) {
       std::tie(count, value, file) = r.second;
       sorted.emplace_back(count,
 			  StringPrintf("[%s] = [%s] %s",
-				       key.c_str(), value.c_str(), file.c_str()));
+				       key.c_str(), value.c_str(),
+				       file.c_str()));
     }
 
     std::sort(sorted.begin(), sorted.end(),
@@ -1499,8 +1731,9 @@ int main(int argc, char **argv) {
   }
 
   // return 0;
-  
-  if (true) {
+
+  // XXX re-enable this
+  if (false) {
     Parser p;
     std::mutex m;
     vector<string> previews;
@@ -1537,12 +1770,12 @@ int main(int argc, char **argv) {
 			end++;
 		      }
 		      /*
-		      while (!s1.empty() && !s2.empty() &&
-			     s1.back() == s2.back()) {
+			while (!s1.empty() && !s2.empty() &&
+			s1.back() == s2.back()) {
 			s1.pop_back();
 			s2.pop_back();
 			same_end++;
-		      }
+			}
 		      */
 
 		      {
@@ -1612,10 +1845,13 @@ int main(int argc, char **argv) {
     }
     fflush(stdout);
   }
+
+  FindDuplicates(files);
   
   printf("Done.\n");
   fflush(stdout);
 
+  
   // ComputeDistances(files);
   
   return 0;
