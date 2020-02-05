@@ -21,7 +21,7 @@
 
 using namespace std;
 
-static constexpr bool DRY_RUN = true;
+static constexpr bool DRY_RUN = false;
 
 // Can improve duplicate artist/title/album heuristics,
 // or perhaps just force taking the first one now
@@ -945,7 +945,8 @@ void FindDuplicates(const vector<pair<string, string>> &db) {
     OLGA_BARE = 2,
     OLGA_LETTER = 3,
     OLGA_ARTIST = 4,
-    TABS = 5,
+    TABS_MISC = 5,
+    TABS = 6,
   };
 
   auto Classify = [](const string &file) {
@@ -967,18 +968,26 @@ void FindDuplicates(const vector<pair<string, string>> &db) {
 	return OLGA_BARE;
       if (RE2::FullMatch(
 	      file,
-	      R"(d:[\\/]temp[\\/]tabs[\\/][a-z0-9][\\/][-a-z0-9_]+[\\/].+)"))
-	return TABS;
+	      R"(d:[\\/]temp[\\/]tabs[\\/][a-z0-9][\\/][-a-z0-9_]+[\\/].+)")) {
+	if (file.find("misc") != string::npos ||
+	    file.find("unknown") != string::npos) {
+	  return TABS_MISC;
+	} else {
+	  return TABS;
+	}
+      }
       return UNKNOWN;
     };
 
   enum FileScore {
-    HAS_VERSION = 1,
-    HAS_DIGIT = 2,
-    CLEAN = 3,
+    HAS_SPACE = 1,
+    HAS_VERSION = 2,
+    HAS_DIGIT = 3,
+    CLEAN = 4,
   };
 
   auto Score = [](const string &file) {
+      if (RE2::PartialMatch(file, " ")) return HAS_SPACE;
       if (RE2::PartialMatch(file, R"(_ver[0-9]+)")) return HAS_VERSION;
       if (RE2::PartialMatch(file, R"(_[0-9]+\.)")) return HAS_DIGIT;
       return CLEAN;
@@ -992,10 +1001,10 @@ void FindDuplicates(const vector<pair<string, string>> &db) {
   int deleted = 0;
   ParallelApp(to_compare_vec,
 	      [&db, &m, &info, &Classify, &Score, &deleted](
-		  std::pair<int, int> p) {
+		  std::pair<int, int> cand) {
 		// auto [a, b] = p;
-		const int a = p.first;
-		const int b = p.second;
+		const int a = cand.first;
+		const int b = cand.second;
 		CHECK(a != b) << a;
 		const string &file_a = db[a].first;
 		const string &file_b = db[b].first;
@@ -1003,22 +1012,138 @@ void FindDuplicates(const vector<pair<string, string>> &db) {
 		const string &contents_a = db[a].second;
 		const string &contents_b = db[b].second;
 
-		if (contents_a == contents_b) {
+
+		// If files are not exactly equal, we should probably
+		// be smarter here...?
+		string body_a = contents_a, body_b = contents_b;
+		Parser p;
+		vector<pair<string, string>> hdrs_a =
+		  p.ExtractHeaders(&body_a);
+		vector<pair<string, string>> hdrs_b =
+		  p.ExtractHeaders(&body_b);
+
+		string hdr_artist, hdr_title;
+		{
+		  auto Get = [](const vector<pair<string, string>> &hdrs) {
+		      string artist, title;
+		      for (const auto &[key, val] : hdrs) {
+			if (key == "Title") title = Util::lcase(val);
+			else if (key == "Artist") artist = Util::lcase(val);
+		      }
+		      return make_pair(artist, title);
+		    };
+
+		  auto [artist_a, title_a] = Get(hdrs_a);
+		  auto [artist_b, title_b] = Get(hdrs_b);
+		  
+		  if (artist_a == artist_b)
+		    hdr_artist = artist_a;
+		  if (title_a == title_b)
+		    hdr_title = title_a;
+		}
+		
+		
+		if (body_a == body_b) {
 		  FileType type_a = Classify(file_a);
 		  // if (type_a == UNKNOWN) return;
 		  FileType type_b = Classify(file_b);
 		  // if (type_b == UNKNOWN) return;
 
+		  
 		  const FileScore score_a = Score(file_a);
 		  const FileScore score_b = Score(file_b);
 		  // FileScore score_a = CLEAN,  score_b = CLEAN;
 
 		  bool delete_a = false, delete_b = false;
-		  if (type_a < type_b ||
-		      (type_a == type_b && score_a < score_b)) delete_a = true;
-		  if (type_a > type_b ||
-		      (type_a == type_b && score_a > score_b)) delete_b = true;
+		  [&](){
+		      if (type_a < type_b ||
+			  (type_a == type_b && score_a < score_b)) {
+			delete_a = true;
+			return;
+		      }
 
+		      if (type_a > type_b ||
+			  (type_a == type_b && score_a > score_b)) {
+			delete_b = true;
+			return;
+		      }
+
+		      if (type_a == type_b &&
+			  score_a == score_b) {
+			RE2 onenum{"([^0-9]+)([0-9]+)([^0-9]+)"};
+			string pfx_a, pfx_b, sfx_a, sfx_b;
+			int num_a, num_b;
+			if (RE2::FullMatch(file_a, onenum,
+					   &pfx_a, &num_a, &sfx_a) &&
+			    RE2::FullMatch(file_b, onenum,
+					   &pfx_b, &num_b, &sfx_b) &&
+			    pfx_a == pfx_b &&
+			    sfx_a == sfx_b) {
+			  // They just differ in one number, like ver1 and ver2.
+			  // Choose the smaller one.
+			  CHECK(num_a != num_b) << pfx_a << " " << pfx_b << "\n"
+						<< num_a << " " << num_b << "\n"
+						<< sfx_a << " " << sfx_b;
+			  if (num_a < num_b) delete_b = true;
+			  else delete_a = true;
+			  return;
+			}
+
+			// Good artist / title match.
+			string ftitle_a, fartist_a, ftitle_b, fartist_b;
+			if (p.ExtractLFile(file_a, &ftitle_a, &fartist_a) &&
+			    p.ExtractLFile(file_b, &ftitle_b, &fartist_b) &&
+			    !fartist_a.empty() && !fartist_b.empty()) {
+
+			  if (EditDistance::Ukkonen(fartist_a,
+						    fartist_b, 5) < 3) {
+			    // Same artist. Which title is better?
+			    if (!hdr_title.empty()) {
+			      int da = EditDistance::Distance(ftitle_a,
+							      hdr_title);
+			      int db = EditDistance::Distance(ftitle_b,
+							      hdr_title);
+			      if (da < db) {
+				delete_b = true;
+			      } else {
+				delete_a = true;
+			      }
+			      return;
+			    }
+			  }
+
+			  if (EditDistance::Ukkonen(ftitle_a,
+						    ftitle_b, 8) < 6) {
+			    // Same-ish title. Which artist is better?
+			    if (!hdr_artist.empty()) {
+			      int da = EditDistance::Distance(fartist_a,
+							      hdr_artist);
+			      int db = EditDistance::Distance(fartist_b,
+							      hdr_artist);
+			      if (da < db) {
+				delete_b = true;
+			      } else {
+				delete_a = true;
+			      }
+			      return;
+			    }
+			  }
+			}
+
+			// Filenames are very close anyway...
+			int dist = EditDistance::Ukkonen(file_a, file_b, 6);
+			if (dist <= 5) {
+			  // Just pick one arbitrarily if they are very close.
+			  // (Again, be careful to have a total order!)
+			  if (a < b) delete_a = true;
+			  else delete_b = true;
+			  return;
+			} 
+		      }
+		    }();
+
+		  CHECK(!(delete_a && delete_b));
+		      
 		  auto TryRemove = [&m, &deleted](const string &f) {
 		      string ff = Util::Replace(f, "/", "\\");
 		      if (remove(ff.c_str()) == 0) {
@@ -1032,7 +1157,7 @@ void FindDuplicates(const vector<pair<string, string>> &db) {
 		      }
 		    };
 		  
-		  if (false && !DRY_RUN) {
+		  if (!DRY_RUN) {
 		    if (delete_a) {
 		      TryRemove(file_a);
 		    }
@@ -1044,10 +1169,17 @@ void FindDuplicates(const vector<pair<string, string>> &db) {
 
 		  if (true || delete_a || delete_b) {
 		    MutexLock ml(&m);
+
+		    string match = "Near";
+		    if (contents_a == contents_b)
+		      match = "Exact";
+		    if (body_a == body_b)
+		      match = "Body";
 		    info.push_back(
-			StringPrintf("Exact duplicates (%d bytes):\n"
+			StringPrintf("%s duplicates (%d bytes):\n"
 				     "  %s%s\n"
 				     "  %s%s\n",
+				     match.c_str(),
 				     (int)contents_a.size(),
 				     file_a.c_str(),
 				     delete_a ? " (DELETE)" : "",
@@ -1064,7 +1196,7 @@ void FindDuplicates(const vector<pair<string, string>> &db) {
     }
     fclose(ff);
   }
-  const int compare_sec = time(nullptr) - compare_start;
+  const int64 compare_sec = time(nullptr) - compare_start;
   printf("[%lld sec] Possible duplicates in dups.txt: %d\n",
 	 compare_sec,
 	 (int)info.size());
@@ -1466,6 +1598,29 @@ int main(int argc, char **argv) {
     return 0;
   }
 
+  // Remove windows file.txt -> file (2).txt disambiguation.
+  if (false) {
+    int num_mangled = 0;
+    RE2 mangled{"(.+) \\(([0-9]+)\\)\\.(.+)"};
+    for (const string &f : all_filenames) {
+      int num = 0;
+      string start, ext;
+      if (RE2::FullMatch(f, mangled, &start, &num, &ext)) {
+	num_mangled++;
+	string norm = StringPrintf("%s_%d.%s", start.c_str(), num, ext.c_str());
+	if (filename_set.find(norm) != filename_set.end()) {
+	  printf("[!!] Has both %s and %s\n", norm.c_str(), f.c_str());
+	  continue;
+	}
+	printf("[%d] [%s] -> [%s]\n", num_mangled, f.c_str(), norm.c_str());
+	CHECK(Util::move(f, norm)) << f;
+      }
+    }
+    printf("Num mangled: %d\n", num_mangled);
+    // After moving files, we have the wrong filenames, so force exit.
+    return 0;
+  }
+
   
   printf("Read files..\n");
   fflush(stdout);
@@ -1554,6 +1709,7 @@ int main(int argc, char **argv) {
 		  auto hdrs = p.ExtractHeaders(&contents);
 		  bool accept = RE2::PartialMatch(contents, "(?i)\ntitle:.+\n");
 		  for (const auto &[key, val] : hdrs) {
+		    (void)key;
 		    if (// key == "Title" &&
 			val.find("====") != string::npos)
 		      accept = true;
@@ -1733,7 +1889,7 @@ int main(int argc, char **argv) {
   // return 0;
 
   // XXX re-enable this
-  if (false) {
+  if (true) {
     Parser p;
     std::mutex m;
     vector<string> previews;
