@@ -80,7 +80,7 @@ static void TestJoin() {
 }
 
 static void TestCdup() {
-  CHECK_EQ("abc/de", Util::cdup("abc/de/f"));
+  CHECK_EQ("abc" DIRSEP "de", Util::cdup("abc" DIRSEP "de" DIRSEP "f"));
   CHECK_EQ(".", Util::cdup("abc"));
 }
 

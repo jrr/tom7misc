@@ -233,9 +233,10 @@ struct ServerImpl final : public WebServer {
   
   vector<pair<string, Handler>> handlers;
   void AddHandler(const string &prefix, Handler h) override {
+    MutexLock ml(&globalMutex);
     handlers.emplace_back(prefix, h);
   }
-  Handler GetHandler(const Request &request) const;
+  Handler GetHandler(const Request &request);
 
   Handler GetDefaultHandler() const {
     return [](const Request &ignored) {
@@ -301,7 +302,8 @@ struct ServerImpl final : public WebServer {
   Counter *bytes_received = nullptr;
 };
 
-Handler ServerImpl::GetHandler(const Request &request) const {
+Handler ServerImpl::GetHandler(const Request &request) {
+  MutexLock ml(&globalMutex);
   // In c++20, can use s->starts_with(prefix).
   auto StartsWith = [](string_view big, string_view little) {
       if (big.size() < little.size()) return false;

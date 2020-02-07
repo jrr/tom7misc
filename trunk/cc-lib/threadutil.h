@@ -146,9 +146,10 @@ Res ParallelAccumulate(int64_t num,
 // Do progress meter.
 // It should be thread safe and have a way for a thread to register a sub-meter.
 
-// Run the function f on each element of vec in parallel, with its
-// index. The caller must of course synchronize any accesses to shared
-// data structures. Return value of function is ignored.
+// Run the function f(idx, item) for each item in the vector in up to
+// max_concurrency parallel threads. The caller must of course
+// synchronize any accesses to shared data structures. Return value of
+// function is ignored.
 //
 // TODO: Implement this in terms of ParallelComp
 template<class T, class F>

@@ -55,8 +55,13 @@ struct Util {
   
   static vector<string> ListFiles(const string &dir);
 
-  // For v = ["a", "b", "cde"] and sep = "YY", returns "aYYbYYcde".
-  static string Join(const std::vector<string> &v, const string &sep);
+  // Join the strings in the input vector with the given delimiter.
+  // Join({"a", "b", "c"}, ".") = "a.b.c"
+  // Join({"z"}, ".") = "z"
+  // Join({}, ".") = ""
+  static string Join(const std::vector<std::string> &pieces,
+		     const std::string &sep);
+
   
   // XXX terrible names
   static int shout(int, string, unsigned int &);
@@ -194,7 +199,7 @@ struct Util {
   /* replace all occurrences of 'findme' with 'replacewith' in 'src' */
   static string Replace(string src, const string &findme,
 			const string &replacewith);
-
+  
   /* called minimum, maximum because some includes
      define these with macros, ugh */
   static int minimum(int a, int b) {

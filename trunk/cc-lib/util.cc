@@ -195,17 +195,6 @@ string Util::ptos(void *p) {
   return (string)s;
 }
 
-string Util::Join(const vector<string> &v, const string &sep) {
-  if (v.empty()) return "";
-  // PERF can pre-allocate the output string, for one thing.
-  string out = v[0];
-  for (int i = 1; i < (int)v.size(); i++) {
-    out += sep;
-    out += v[i];
-  }
-  return out;
-}
-
 // Internal helper used by ReadFile, ReadFileMagic, ReadFileBytes.
 // T is string or vector<uint8>.
 // If magic_opt is non-null, it is copied to the start of the
@@ -993,6 +982,10 @@ bool Util::library_matches(char k, const string &s) {
 /* try a few methods to remove a file.
    An executable can't remove itself in
    Windows 98, though.
+
+   XXX Remove escape-specific logic in here.
+   Can just use remove from stdio.h
+   
 */
 bool Util::remove(const string &f) {
   if (!ExistsFile(f.c_str())) return true;
@@ -1111,6 +1104,26 @@ void Util::CreatePathFor(const string &f) {
 FILE *Util::fopenp(const string &f, const string &m) {
   CreatePathFor(f);
   return fopen(f.c_str(), m.c_str());
+}
+
+string Util::Join(const vector<string> &parts,
+		  const string &sep) {
+  if (parts.empty()) return "";
+  if (parts.size() == 1) return parts[0];
+  size_t result_len = 0;
+  for (const string &part : parts)
+    result_len += part.size();
+  result_len += sep.size() * (parts.size() - 1);
+
+  string out;
+  out.reserve(result_len);
+  out += parts[0];
+  // PERF could blit directly and avoid += capacity checks?
+  for (size_t i = 1; i < parts.size(); i++) {
+    out += sep;
+    out += parts[i];
+  }
+  return out;
 }
 
 string Util::Replace(string src,
