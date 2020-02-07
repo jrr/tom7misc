@@ -743,15 +743,17 @@ static const char *HEADER115 =
 "/---------------------------------\\\n"
 "|The Music Shop BBS (619)423-4970 |\n"
   "\\---------------------------------/\n";
-  
-static const char *HEADERXX = R"(
---
-                          ^  ^  ^
-regards,         EXTRA   / \/ \/ \ NULLA
-Ludwig          BAVARIAM \ /\ /\ / VITA
-                          v  v  v
-)";
-  
+
+static const char *HEADER116 =
+  "_______________________________________________________\n"
+"Get 100% FREE Internet Access powered by Excite\n"
+  "Visit http://freelane.excite.com/freeisp\n";
+
+static const char *HEADER117 =
+"_________________________________________________________________\n"
+  "Send and receive Hotmail on your mobile device: http://mobile.msn.com\n";
+
+
 
 
 
@@ -819,9 +821,8 @@ std::initializer_list<const char *> Headers::headers = {
   HEADER93, HEADER94, HEADER95, HEADER96, HEADER97, HEADER98,
   HEADER99, HEADER100, HEADER101, HEADER102, HEADER103, HEADER104,
   HEADER105, HEADER106, HEADER107, HEADER108, HEADER109, HEADER110,
-  HEADER111, HEADER112, HEADER113, HEADER114, HEADER115,
-
-  HEADERXX,
+  HEADER111, HEADER112, HEADER113, HEADER114, HEADER115, HEADER116,
+  HEADER117,
   
   LINE1, LINE2, LINE3, LINE4, LINE5, LINE6, LINE7, LINE8, LINE9,
   LINE10, LINE11, LINE12, LINE13, LINE14, LINE15, LINE16,
