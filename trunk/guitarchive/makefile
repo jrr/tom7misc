@@ -1,5 +1,5 @@
 
-default : guitarchive.exe
+default : clean.exe chords.exe
 
 OPT=-O2
 CXXFLAGS=--std=c++17 -Wall $(OPT)
@@ -33,7 +33,10 @@ $(CCLIB)/%.o : $(CCLIB)/%.cc
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(OPT) -c -o $@ $<
 	@bash -c "echo -n '_'"
 
-guitarchive.exe : guitarchive.o headers.o $(CCLIB_OBJECTS) $(RE2_OBJECTS)
+clean.exe : clean.o guitarchive.o headers.o $(CCLIB_OBJECTS) $(RE2_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+chords.exe : chords.o guitarchive.o $(CCLIB_OBJECTS) $(RE2_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 clean :
