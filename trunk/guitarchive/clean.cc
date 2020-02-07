@@ -36,6 +36,7 @@ static constexpr bool DRY_RUN = false;
 // bytes 18 Jan 2020: 1822694213
 // bytes 27 Jan 2020: 1822238513
 // bytes 1 Feb 2020:  1822182696
+// bytes 7 Feb 2020:  1808539054
 
 // metadata 8 Jan 2020: 125276
 // metadata 10 Jan 2020: 129047
@@ -43,13 +44,15 @@ static constexpr bool DRY_RUN = false;
 // metadata 12 Jan 2020: 130880
 // metadata 18 Jan 2020: 134800
 // metadata 27 Jan 2020: 136237
+// metadata 7 Feb 2020: 136907
 
 // TODO: untabify
 // TODO: Remove duplicate files!
 // TODO: Remove date header
 // TODO: remove various boring email headers
 // TODO: Title or Artist field matches "from the album ..."
-// TODO: Strip block leading whitespace after headers
+// TODO: Strip (bass), (guitar), (intro) etc. from title/artist
+// " From the 1993 Album "The Sign""
 
 static constexpr const char *DIRS[] = {
   "c:\\code\\electron-guitar\\tabscrape\\tabs",
@@ -113,7 +116,7 @@ struct Parser {
 	*artist == "unknown" || *artist == "various_artists") {
       return false;
     }
-    
+
     // remove _ver3 etc.
     RE2::GlobalReplace(title, remove_ver, "");
     return true;
@@ -124,18 +127,18 @@ struct Parser {
     re2::StringPiece cont(*contents);
     string h1, h2;
     if (RE2::Consume(&cont, dashedheader, &h1, title, artist, &h2)) {
-      if (h1.size() != h2.size()) return false;
+      if (EditDistance::Ukkonen(h1, h2, 5) > 3) return false;
       *title = Util::LoseWhiteR(*title);
       *artist = Util::LoseWhiteR(*artist);
       string ltitle = Util::lcase(*title);
       string lartist = Util::lcase(*artist);
       if (ltitle.find("http:") != string::npos) return false;
-      if (lartist.find("http:") != string::npos) return false;      
+      if (lartist.find("http:") != string::npos) return false;
       if (ltitle.find(" - ") != string::npos) return false;
       if (lartist.find(" - ") != string::npos) return false;
-      
+
       if (ltitle == "band name" || ltitle == "song name") return false;
-      if (lartist == "band name" || lartist == "song name") return false;      
+      if (lartist == "band name" || lartist == "song name") return false;
 
       // Require corroboration with filenames.
       // Both artist - title and title - artist appear in real data, alas.
@@ -166,7 +169,7 @@ struct Parser {
       *artist = Util::LoseWhiteR(*artist);
 
       RE2::GlobalReplace(title, "[- ,\t]*$", "");
-      RE2::GlobalReplace(artist, "[- ,\t]*$", "");      
+      RE2::GlobalReplace(artist, "[- ,\t]*$", "");
 
       if (RE2::FullMatch(*title, ".* [Tt]ab$"))
 	return false;
@@ -177,16 +180,16 @@ struct Parser {
 	return false;
       if (RE2::FullMatch(*title, "^Song[ :].*"))
 	return false;
-      
+
       string ltitle = Util::lcase(*title);
       string lartist = Util::lcase(*artist);
       if (ltitle.find("http:") != string::npos) return false;
-      if (lartist.find("http:") != string::npos) return false;      
+      if (lartist.find("http:") != string::npos) return false;
       if (ltitle.find(" - ") != string::npos) return false;
       if (lartist.find(" - ") != string::npos) return false;
-      
+
       if (ltitle == "band name" || ltitle == "song name") return false;
-      if (lartist == "band name" || lartist == "song name") return false;      
+      if (lartist == "band name" || lartist == "song name") return false;
 
       // Require corroboration with filenames.
       // Here since we have "title by artist", it should really match that way.
@@ -200,7 +203,7 @@ struct Parser {
 	  };
 	ftitle = ReplaceUnder(Util::lcase(ftitle));
 	fartist = ReplaceUnder(Util::lcase(fartist));
-	
+
 	int same_loss = EditDistance::Distance(ftitle, ltitle) +
 	  EditDistance::Distance(fartist, lartist);
 	int diff_loss = EditDistance::Distance(ftitle, lartist) +
@@ -227,7 +230,7 @@ struct Parser {
       *artist = Util::LoseWhiteR(*artist);
 
       RE2::GlobalReplace(title, "[- ,|\t]*$", "");
-      RE2::GlobalReplace(artist, "[- ,|\t]*$", "");      
+      RE2::GlobalReplace(artist, "[- ,|\t]*$", "");
 
       if (RE2::FullMatch(*title, ".* (?:[Bb]ass )?[Tt]ab$"))
 	return false;
@@ -238,11 +241,11 @@ struct Parser {
 	return false;
       if (RE2::FullMatch(*title, "^Song[ :].*"))
 	return false;
-      
+
       string ltitle = Util::lcase(*title);
       string lartist = Util::lcase(*artist);
       if (ltitle.find("http:") != string::npos) return false;
-      if (lartist.find("http:") != string::npos) return false;      
+      if (lartist.find("http:") != string::npos) return false;
       if (ltitle.find(" - ") != string::npos) return false;
       if (lartist.find(" - ") != string::npos) return false;
 
@@ -256,7 +259,7 @@ struct Parser {
       // Here since we have "title by artist", it should really match that way.
       string ftitle, fartist;
       if (ExtractLFile(filename, &ftitle, &fartist)) {
-	
+
 	int same_loss = EditDistance::Distance(ftitle, ltitle) +
 	  EditDistance::Distance(fartist, lartist);
 	int diff_loss = EditDistance::Distance(ftitle, lartist) +
@@ -289,7 +292,7 @@ struct Parser {
     }
     return false;
   }
-  
+
   // Extract Key: Value headers starting the file.
   vector<pair<string, string>> ExtractHeaders(string *contents) const {
     vector<pair<string, string>> hdrs;
@@ -311,7 +314,7 @@ struct Parser {
 	  ok = true;
 	}
       }
-      
+
       if (!ok) {
 	if (RE2::Consume(&tmp, tabbedby, &value) ||
 	    RE2::Consume(&tmp, transcribedby, &value)) {
@@ -319,19 +322,19 @@ struct Parser {
 	  ok = true;
 	}
       }
-      
+
       ok = ok || (RE2::Consume(&tmp, knownheader, &key, &value) &&
 		  value.find(" - ") == string::npos);
 
       if (!ok) break;
-      
+
       key = Util::LoseWhiteR(key);
       value = Util::LoseWhiteR(value);
 
       auto OkEmpty = [](const string &lk) {
 	  return lk == "subject";
 	};
-      
+
       string lkey = Util::lcase(key);
       int dashes = 0;
       for (char c : value) if (c == '-') dashes++;
@@ -346,7 +349,7 @@ struct Parser {
 	  (lkey.find("chords") == 0 && lkey != "chords by") ||
 	  lkey.find("chorus") == 0 ||
 	  lkey.find("intro") == 0 ||
-	  lkey.find("define") == 0 ||	  
+	  lkey.find("define") == 0 ||
 	  lkey.find("guitar") == 0 ||
 	  lkey.find("verse") == 0 ||
 	  lkey.find("note") == 0) {
@@ -359,7 +362,7 @@ struct Parser {
       hdrs.emplace_back(key, value);
       cont = tmp;
     } while (true);
-    
+
     *contents = cont.as_string();
     return hdrs;
   }
@@ -383,7 +386,7 @@ struct Parser {
 	}
       }
       already[p.first] = p.second;
-      
+
       string lkey = Util::lcase(p.first);
       if (lkey == "content-transfer-encoding" ||
 	  lkey == "message-id" ||
@@ -441,7 +444,7 @@ struct Parser {
 	double paren_score = -parens;
 
 	double punc_score = (good_punc > 0) ? 2.0 : 0.0;
-	
+
 	double case_score = (has_lcase && has_ucase) ? 10.0 : 0.0;
 	double underscore_score = has_uscore ? -5.0 : 0.0;
 	return by_score + from_score + paren_score + http_score +
@@ -455,7 +458,7 @@ struct Parser {
 	  *s = rest;
 	}
       };
-    
+
     // Try to make sure that there is just one of these key fields.
     for (const string &key : original_order) {
       if (key == "Title" || key == "Artist" || key == "Album") {
@@ -472,7 +475,7 @@ struct Parser {
 	  StripParenthetical(&lv1);
 	  StripParenthetical(&lv2);
 
-	  
+
 	  int loss = EditDistance::Distance(lv1, lv2);
 	  int mlen = std::min(lv1.size(), lv2.size());
 	  if (loss <= (int)(mlen / 3)) {
@@ -492,7 +495,7 @@ struct Parser {
 	}
       }
     }
-    
+
     vector<pair<string, string>> ret;
     for (const string &key : original_order) {
       for (const string &value : collated[key]) {
@@ -501,7 +504,7 @@ struct Parser {
     }
     ret.swap(*hdrs);
   }
-  
+
   // Puts the headers in the canonical Title/Artist/Album order if possible,
   // but otherwise leaves them intact. Must be exactly capital-t Title, etc.
   void SortHeaders(vector<pair<string, string>> *hdrs) const {
@@ -513,7 +516,7 @@ struct Parser {
 		       const string &keyb = b.first;
 		       if (keya == keyb)
 			 return false;
-		       
+
 		       if (keya == "Title") return true;
 		       if (keyb == "Title") return false;
 		       if (keya == "Artist") return true;
@@ -530,7 +533,7 @@ struct Parser {
   RE2 cleanvalue2{"\"([^\"]+)\""};
   RE2 cleanvalue3{"'(.+)'"};
   RE2 cleanvalue4{"(.+),"};
-  
+
   void NormalizeHeaders(const string &filename,
 			vector<pair<string, string>> *hdrs) const {
     vector<pair<string, string>> addme;
@@ -547,7 +550,7 @@ struct Parser {
 
 	if (parens && v.size() > 2 && v[0] == '(' && v[v.size() - 1] == ')')
 	  return v.substr(1, v.size() - 2);
-	
+
 	return v;
       };
 
@@ -611,7 +614,7 @@ struct Parser {
 		 // Release includes years.
 		 // Taken from includes stuff like http://youtube...
 		 // lkey == "release" || lkey == "taken from" ||
-		 
+
 		 lkey == "album title" || lkey == "from album") {
 	p.first = "Album";
 	p.second = Clean(p.second, false);
@@ -650,7 +653,7 @@ struct Parser {
 			   &email, &name)) {
 	  p.first = "E-mail";
 	  p.second = email;
-	  
+
 	  addme.emplace_back("Tabbed by", name);
 	} else if (RE2::FullMatch(
 		       p.second,
@@ -659,7 +662,7 @@ struct Parser {
 	  p.second = name;
 	  addme.emplace_back("E-mail", email);
 	}
-		       
+
       } else if (lkey == "email" || lkey == "e-mail" || lkey == "mail" ||
 		 lkey == "email address" || lkey == "e-mail address" ||
 		 lkey == "tabbers email" || lkey == "my email" ||
@@ -713,12 +716,12 @@ struct Parser {
       p.second = Util::losewhitel(p.second);
       p.second = Util::LoseWhiteR(p.second);
     }
-    
+
     for (const auto &p : addme) {
       hdrs->push_back(p);
     }
   }
-  
+
   string FixHeaders(const string &filename,
 		    string contents) const {
     string out;
@@ -736,8 +739,8 @@ struct Parser {
     return out;
   }
 
-# define HEADER_BLANKLINES "(?: *[-=*#]*\n)*"
-  
+# define HEADER_BLANKLINES "(?: *[-=*#_]*\n)*"
+
   RE2 mischeader{
     // Allow totally blank lines.
     // HEADER_BLANKLINES
@@ -759,17 +762,20 @@ struct Parser {
 
   RE2 transcribedby{HEADER_BLANKLINES
 		    "(?i)[ \t]*transcri(?:pt|b)ed +by +(.+)\n"};
-  
+
   RE2 knownheader{
     // "[*]*\n*"
     HEADER_BLANKLINES
     "(?i)" // case insensitive
     "[ \t]*("
     "[Ss]ong|"
+    "song title|"
     "[Tt]itle|"
     "[Aa]lbum|"
     "[Aa]rtist|"
-    "[Aa]rtist\\(s\\)|"    
+    "[Aa]rtist\\(s\\)|"
+    "artist/group|"
+    "transcribed +by|"
     "[Bb]and|"
     "[Bb]y|"
     "[Nn]ote|"
@@ -778,6 +784,7 @@ struct Parser {
     "[Cc]apo|"
     "[Ss]ubmitted +[Bb]y|"
     "[Tt]abbed|"
+    "tabber|"
     "[Yy]ear|"
     "[Ww]ritten +[Bb]y|"
     "[Tt]ab|"
@@ -787,8 +794,8 @@ struct Parser {
     "[Ee]-?[Mm]ail"
     ")"
     " *[-:=]+ *(.*)\n"};
-  
-  
+
+
   // Preferred explicit form at the beginning of the file.
   RE2 explicit_meta{"Title: (.*)\n"
                     "Artist: (.*)\n"};
@@ -802,9 +809,10 @@ struct Parser {
   RE2 authorartist{"^[Aa]uthor/[Aa]rtist *: *(.*)\n", MultiLine()};
 
   RE2 dashedheader{"^"
-		   "------------(-*)\n"
-		   "[ \t]*([A-Za-z0-9].*)[ \t]* - [ \t]*([A-Za-z0-9].*)\n"
-		   "------------(-*)\n", MultiLine()};
+		   " *([-=_*][-=_*][-=_*][-=_*][-=_*]+)\n+"
+		   "[ \t]*([A-Za-z0-9].*)[ \t]+-[ \t]+([A-Za-z0-9].*)\n+"
+		   " *([-=_*][-=_*][-=_*][-=_*][-=_*]+)\n",
+		   MultiLine()};
   RE2 byline{"^[ \t]*([\"']?[A-Za-z0-9].*[\"']?)[ \t]+"
 	     "[Bb]y[ \t]+([A-Za-z0-9].*)\n",
 	     MultiLine()};
@@ -813,7 +821,7 @@ struct Parser {
   RE2 quotedmultiby{"^[ \t]*[\"']([^\"]+)[\"']\n"
 		    "[ \t]*[Bb][Yy]\n"
 		    "[ \t]*([A-Za-z0-9].*)\n", MultiLine()};
-  
+
   RE2 remove_ver{"(?:_ver[0-9]+)?$"};
 
   // for "tabs" directory
@@ -879,13 +887,13 @@ void FindDuplicates(const vector<pair<string, string>> &db) {
 	 took,
 	 (int64)all_lines.size());
 
-  
+
   struct HashPair {
     size_t operator()(const std::pair<int, int> &v) const {
       return (int64)v.first * 65537LL + (int64)v.second;
     }
   };
-  
+
   std::unordered_set<pair<int, int>, HashPair> to_compare;
   auto Insert = [&to_compare](int a, int b) {
       if (a == b) {
@@ -921,12 +929,12 @@ void FindDuplicates(const vector<pair<string, string>> &db) {
       }
     }
   }
-  
+
   printf("%lld occur more than once. %lld are too common.\n"
 	 "%lld pairs remain to compare!\n",
 	 non_singleton, huge, (int64)to_compare.size());
   fflush(stdout);
-  
+
   vector<pair<int, int>> to_compare_vec;
   to_compare_vec.reserve(to_compare.size());
   for (const auto p : to_compare) {
@@ -934,7 +942,7 @@ void FindDuplicates(const vector<pair<string, string>> &db) {
     to_compare_vec.emplace_back(p.first, p.second);
   }
   to_compare.clear();
-  
+
   // Score based on filename.
   // Note: Make sure these comparisons are actually a total order, or
   // it is possible to delete ALL versions of a file (e.g. when rock.txt,
@@ -995,7 +1003,7 @@ void FindDuplicates(const vector<pair<string, string>> &db) {
 
   printf("%d elts in to_compare_vec\n", (int)to_compare_vec.size());
   fflush(stdout);
-  
+
   const int compare_start = time(nullptr);
   vector<string> info;
   int deleted = 0;
@@ -1035,21 +1043,21 @@ void FindDuplicates(const vector<pair<string, string>> &db) {
 
 		  auto [artist_a, title_a] = Get(hdrs_a);
 		  auto [artist_b, title_b] = Get(hdrs_b);
-		  
+
 		  if (artist_a == artist_b)
 		    hdr_artist = artist_a;
 		  if (title_a == title_b)
 		    hdr_title = title_a;
 		}
-		
-		
+
+
 		if (body_a == body_b) {
 		  FileType type_a = Classify(file_a);
 		  // if (type_a == UNKNOWN) return;
 		  FileType type_b = Classify(file_b);
 		  // if (type_b == UNKNOWN) return;
 
-		  
+
 		  const FileScore score_a = Score(file_a);
 		  const FileScore score_b = Score(file_b);
 		  // FileScore score_a = CLEAN,  score_b = CLEAN;
@@ -1138,12 +1146,12 @@ void FindDuplicates(const vector<pair<string, string>> &db) {
 			  if (a < b) delete_a = true;
 			  else delete_b = true;
 			  return;
-			} 
+			}
 		      }
 		    }();
 
 		  CHECK(!(delete_a && delete_b));
-		      
+
 		  auto TryRemove = [&m, &deleted](const string &f) {
 		      string ff = Util::Replace(f, "/", "\\");
 		      if (remove(ff.c_str()) == 0) {
@@ -1156,12 +1164,12 @@ void FindDuplicates(const vector<pair<string, string>> &db) {
 			       ff.c_str());
 		      }
 		    };
-		  
+
 		  if (!DRY_RUN) {
 		    if (delete_a) {
 		      TryRemove(file_a);
 		    }
-		  
+
 		    if (delete_b) {
 		      TryRemove(file_b);
 		    }
@@ -1228,7 +1236,7 @@ void ComputeDistances(const vector<pair<string, string>> &contents) {
 		     int dist = EditDistance::Distance(contents[x].second,
 						       contents[y].second);
 		     */
-		     
+
 		     distances[y * n + x] = dist;
 		     bool pr = false;
 		     int td = 0;
@@ -1269,7 +1277,7 @@ void ComputeDistances(const vector<pair<string, string>> &contents) {
     }
   }
   fclose(f);
-  
+
   fflush(stdout);
 }
 
@@ -1310,6 +1318,12 @@ string StripOuterWhitespace(const string &contents) {
   while (!lines.empty() && lines[lines.size() - 1].empty()) {
     lines.resize(lines.size() - 1);
   }
+
+  // ad hoc
+  while (!lines.empty() &&
+	 RE2::FullMatch(lines[lines.size() - 1], "_________+")) {
+    lines.resize(lines.size() - 1);
+  }
   
   // Now if every non-empty line starts with space, remove it.
   if (min_spaces > 0) {
@@ -1341,6 +1355,32 @@ string StripOuterWhitespace(const string &contents) {
   return out;
 }
 
+// Same, but not taking headers into account (and incidentally, doing
+// some normalization of them). Main thing is that the body is sometimes
+// indented, and this unindents it.
+string StripHeaderOuterWhitespace(const Parser &p, string body) {
+  vector<pair<string, string>> hdrs =
+    p.ExtractHeaders(&body);
+
+  // Save leading blank lines.
+  // TODO: Perhaps normalize this to exactly one line (if headers
+  // are not blank?)
+  int num_leading = 0;
+  while (num_leading < (int)body.size() && body[num_leading] == '\n')
+    num_leading++;
+  body = body.substr(num_leading, string::npos);
+  body = StripOuterWhitespace(body);
+
+  string out;
+  for (const auto &[key, val] : hdrs) {
+    out += StringPrintf("%s: %s\n", key.c_str(), val.c_str());
+  }
+  while (num_leading--) out += "\n";
+
+  out += body;
+  return out;
+}
+
 bool TryStripSuffix(string_view suffix,
 		    string_view *s) {
   // In c++20, can use s->ends_with(suffix).
@@ -1369,7 +1409,7 @@ string StripFooter(const string &contents) {
   if (TryStripSuffix("\nenjoy!\n"sv, &cont)) {
     return (string)cont;
   }
-  
+
   return contents;
 }
 
@@ -1410,25 +1450,29 @@ string AdHocSubstitutions(string s) {
   RE2::GlobalReplace(&s, *chordsof, "\nTitle: \\1\n"
 		     "Artist: \\2\n");
   */
+
+  RE2::GlobalReplace(&s,
+		     "\n *Copyright \\(c\\) [12][90][0-9][0-9] by OLGA\n",
+		     "\n");
   
   RE2::GlobalReplace(&s,
 		     "\n>From the album: ",
 		     "\nAlbum: ");
-  
+
   /*
   RE2::GlobalReplace(&s,
 		     "#----+Created with Taborama Tab Creator----+-----#\n",
 		     "");
   */
-  
-    
+
+
   /*
   string rest;
   re2::StringPiece cont(s);
   if (RE2::Consume(&cont, "#-------------------------+#\n"))
     s = cont.ToString();
   */
-  
+
   /*
   static LazyRE2 recordedby = {
     "[ \t]*[Aa]s recorded by (.+)\n"
@@ -1464,7 +1508,7 @@ string AdHocSubstitutions(string s) {
 		     "Artist: \\4\n"
 		     "Album: \\5\n");
   */
-  
+
   RE2 fullrecby3{
     "([ \t]*[-=]+\n)?"
     "^[ \t]*([^( \t\n].*[A-Za-z0-9].+[^) \t\n])\n"
@@ -1562,7 +1606,7 @@ string FixBadEncoding(const string &s) {
 }
 
 int main(int argc, char **argv) {
- 
+
   vector<string> all_filenames;
   for (const char *d : DIRS) {
     AddAllFilesRec(d, &all_filenames);
@@ -1621,7 +1665,7 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  
+
   printf("Read files..\n");
   fflush(stdout);
   vector<pair<string, string>> files =
@@ -1672,7 +1716,7 @@ int main(int argc, char **argv) {
     printf("Non-ascii files: %d\n", non_ascii);
     fflush(stdout);
   }
-  
+
   {
     Parser p;
     std::mutex m;
@@ -1684,8 +1728,8 @@ int main(int argc, char **argv) {
 		  if (row.first.find("album") != string::npos ||
 		      row.first.find("compilatio") != string::npos)
 		    return;
-		  
-		  
+
+
 		  const string &cont = row.second;
 		  /*
 		    bool accept =
@@ -1705,6 +1749,7 @@ int main(int argc, char **argv) {
 		    !p.GetMetadata(row.first, cont, &title, &artist);
 		  */
 
+		  /*
 		  string contents = cont;
 		  auto hdrs = p.ExtractHeaders(&contents);
 		  bool accept = RE2::PartialMatch(contents, "(?i)\ntitle:.+\n");
@@ -1714,7 +1759,11 @@ int main(int argc, char **argv) {
 			val.find("====") != string::npos)
 		      accept = true;
 		  }
-		  
+		  */
+		  bool accept = RE2::PartialMatch(
+		      cont,
+		      "\n[=_*#][=_*#][=_*#][=_*#]+\n");
+
 		  // p.ExtractFile(row.first, &title, &artist);
 
 
@@ -1722,7 +1771,7 @@ int main(int argc, char **argv) {
 		  // cont.find("www.Ultimate-Guitar.com") != string::npos;
 
 		  // bool accept = cont.find("&quot;") != string::npos;
-		  
+
 		  if (accept) {
 		    MutexLock ml(&m);
 		    todo.push_back(row.first);
@@ -1742,8 +1791,8 @@ int main(int argc, char **argv) {
     fclose(ff);
     fflush(stdout);
   }
-  
-  
+
+
   {
     Parser p;
     std::mutex m;
@@ -1879,16 +1928,14 @@ int main(int argc, char **argv) {
 		return a.first > b.first;
 	      });
 
-    FILE *f = fopen("keys.txt", "wb");    
+    FILE *f = fopen("keys.txt", "wb");
     for (const auto &r : sorted) {
       fprintf(f, "%d %s\n", r.first, r.second.c_str());
     }
     fclose(f);
   }
 
-  // return 0;
 
-  // XXX re-enable this
   if (true) {
     Parser p;
     std::mutex m;
@@ -1904,11 +1951,12 @@ int main(int argc, char **argv) {
 		  c = p.FixMetadata(row.first, c);
 		  c = p.FixHeaders(row.first, c);
 		  c = StripFooter(c);
+		  c = StripHeaderOuterWhitespace(p, c);
 
 		  if (c.find("#\n") == 0) {
 		    c = c.substr(2, string::npos);
 		  }
-		  
+
 		  if (c != row.second) {
 		    string filename = Backslash(row.first);
 		    if (DRY_RUN) {
@@ -1936,13 +1984,13 @@ int main(int argc, char **argv) {
 
 		      {
 			int trim_end = end - CONTEXT;
-			while (trim_end > 0) { 
+			while (trim_end > 0) {
 			  s1.pop_back();
 			  s2.pop_back();
 			  trim_end--;
 			}
 		      }
-		      
+
 		      int start = 0;
 		      while (start < (int)s1.size() &&
 			     start < (int)s2.size() &&
@@ -1955,8 +2003,8 @@ int main(int argc, char **argv) {
 			s2.erase(s2.begin(), s2.begin() + (start - CONTEXT));
 		      }
 
-		      
-		      
+
+
 		      MutexLock ml(&m);
 		      string out = StringPrintf("** %s\n"
 						"(+%d before)\n",
@@ -2002,13 +2050,13 @@ int main(int argc, char **argv) {
     fflush(stdout);
   }
 
-  FindDuplicates(files);
-  
+  // FindDuplicates(files);
+
   printf("Done.\n");
   fflush(stdout);
 
-  
+
   // ComputeDistances(files);
-  
+
   return 0;
 }
