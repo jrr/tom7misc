@@ -8,7 +8,7 @@ LFLAGS=`mysql_config --libs` -lmysqlpp -lpthread
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 	@bash -c "echo -n '.'"
 
-CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/web.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o
+CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/web.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o ../cc-lib/stb_image_write.o ../cc-lib/stb_image.o ../cc-lib/image.o
 
 tempo.exe : tempo.o database.o onewire.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)

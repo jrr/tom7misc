@@ -129,7 +129,7 @@ std::unordered_map<string, pair<int64, uint32>> Database::LastTemp() {
 			     "order by timestamp desc "
 			     "limit 1",
 			     p.first);
-    printf("%s\n", qs.c_str());
+    // printf("%s\n", qs.c_str());
     Query q = conn.query(qs.c_str());
     StoreQueryResult res = q.store();
     if (!res || res.num_rows() != 1) {

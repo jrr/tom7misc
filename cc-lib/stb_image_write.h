@@ -76,11 +76,25 @@ CREDITS:
 #ifndef INCLUDE_STB_IMAGE_WRITE_H
 #define INCLUDE_STB_IMAGE_WRITE_H
 
-extern int stbi_write_png(char const *filename, int w, int h, int comp, const void  *data,
+#include <vector>
+#include <cstdint>
+
+extern int stbi_write_png(char const *filename,
+			  int w, int h, int comp, const void  *data,
 			  int stride_in_bytes);
-extern int stbi_write_bmp(char const *filename, int w, int h, int comp, const void  *data);
-extern int stbi_write_tga(char const *filename, int w, int h, int comp, const void  *data);
-extern int stbi_write_hdr(char const *filename, int w, int h, int comp, const float *data);
+extern int stbi_write_bmp(char const *filename,
+			  int w, int h, int comp, const void  *data);
+extern int stbi_write_tga(char const *filename,
+			  int w, int h, int comp, const void  *data);
+extern int stbi_write_hdr(char const *filename,
+			  int w, int h, int comp, const float *data);
+
+// Simpler interface for rgba pixels.
+extern int stbi_write_png_rgba(const char *filename,
+			       int w, int h, const uint8_t *rgba);
+// Generate the file in-memory.
+extern std::vector<uint8_t> stbi_make_png_rgba(int w, int h,
+					       const uint8_t *rgba);
 
 #endif //INCLUDE_STB_IMAGE_WRITE_H
 

@@ -21,7 +21,9 @@ struct ImageRGBA {
   
   static ImageRGBA *Load(const std::string &filename);
   void Save(const std::string &filename) const;
-
+  std::vector<uint8_t> SaveToVec() const;
+  std::string SaveToString() const;
+  
   ImageRGBA *Copy() const;
 
   // In RGBA order, where R value is MSB. x/y must be in bounds.
@@ -36,7 +38,7 @@ struct ImageRGBA {
   // Blend pixel with existing data.
   // Note: Currently assumes existing alpha is 0xFF.
   void BlendPixel(int x, int y, uint8 r, uint8 g, uint8 b, uint8 a);
-  // void BlendPixel32(int x, int y, uint32 rgba);
+  void BlendPixel32(int x, int y, uint32 rgba);
   
   const int width, height;
   // Size width * height * 4.

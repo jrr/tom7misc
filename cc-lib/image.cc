@@ -12,6 +12,7 @@
 #include "base/logging.h"
 
 using namespace std;
+using uint8 = uint8_t;
 
 // static
 ImageRGBA *ImageRGBA::Load(const string &filename) {
@@ -42,6 +43,20 @@ ImageRGBA::ImageRGBA(int width, int height)
 void ImageRGBA::Save(const std::string &filename) const {
   CHECK((int)rgba.size() == width * height * 4);
   stbi_write_png(filename.c_str(), width, height, 4, rgba.data(), 4 * width);
+}
+
+vector<uint8> ImageRGBA::SaveToVec() const {
+  CHECK((int)rgba.size() == width * height * 4);
+  return stbi_make_png_rgba(width, height, rgba.data());
+}
+
+string ImageRGBA::SaveToString() const {
+  CHECK((int)rgba.size() == width * height * 4);
+  const vector<uint8> v = stbi_make_png_rgba(width, height, rgba.data());
+  string ret;
+  ret.resize(v.size());
+  memcpy(ret.data(), v.data(), v.size());
+  return ret;
 }
 
 ImageRGBA *ImageRGBA::Copy() const {
@@ -130,6 +145,10 @@ void ImageRGBA::BlendPixel(int x, int y,
   rgba[i + 3] = 0xFF;
 }
 
+void ImageRGBA::BlendPixel32(int x, int y, uint32 color) {
+  BlendPixel(x, y, (color >> 24) & 255, (color >> 16) & 255,
+	     (color >> 8) & 255, color & 255);
+}
 
 ImageA::ImageA(const vector<uint8> &alpha, int width, int height)
     : width(width), height(height), alpha(alpha) {
