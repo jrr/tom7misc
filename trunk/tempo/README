@@ -71,7 +71,7 @@ sudo apt-get autoclean
 # sudo apt-get install default-libmysqlclient-dev libmysql++-dev
 # sudo apt-get install default-libmariaclient-dev libmaria++-dev
 
-sudo apt-get install subversion emacs-nox libmariadb-dev-compat mariadb-client
+sudo apt-get install subversion emacs-nox libmariadb-dev-compat mariadb-client dos2unix
 
 You should be able to connect using the command line client:
 mysql -u tempo -p -h 10.0.0.202
