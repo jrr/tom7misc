@@ -14,6 +14,7 @@
 #include "../cc-lib/util.h"
 #include "../cc-lib/web.h"
 #include "../cc-lib/threadutil.h"
+#include "../cc-lib/image.h"
 
 #include "onewire.h"
 #include "database.h"
@@ -47,13 +48,19 @@ struct Server {
 		       [this](const WebServer::Request &req) {
 			 return Diagram(req);
 		       });
+
+
+    server->AddHandler("/graph.png",
+		       [this](const WebServer::Request &req) {
+			 return Graph(req);
+		       });
     
-    // TODO!
+    // Fallback handler.
+    // TODO: Make a good default home-page here?
     server->AddHandler("/",
 		       [this](const WebServer::Request &req) {
 			 return Table(req);
 		       });
-
     // Detach listening thread.
     listen_thread = std::thread([this](){
 	this->server->ListenOn(8080);
@@ -110,6 +117,51 @@ struct Server {
     return r;
   }
 
+  WebServer::Response Graph(const WebServer::Request &request) {
+    // TODO: Make these settable by url params!
+    int64 time_end = time(nullptr);
+    int64 time_start = time_end - 3600;
+
+    // TODO: Dynamic size
+    int width = 1920;
+    int height = 1080;
+    
+    std::unordered_map<string, vector<pair<int64, uint32>>> temps =
+      db->AllTempsIn(time_start, time_end);
+
+
+    ImageRGBA graph(width, height);
+    graph.Clear32(0xF7F7F7FF);
+
+    // TODO: Grid, axis labels, etc.
+    const int64 time_width = time_end - time_start;
+    for (const auto &[name, values] : temps) {
+      // TODO pick different colors!
+      uint32 color = 0x003377AA;
+      for (const auto &[timestamp, microdegsc] : values) {
+	double fx = (timestamp - time_start) / (double)time_width;
+	int x = fx * width;
+	double fy = 1.0f - (microdegsc / 100000.0f);
+	int y = fy * height;
+	graph.BlendPixel32(x, y, color);
+	graph.BlendPixel32(x + 1, y, color & 0xFFFFFF7F);
+	graph.BlendPixel32(x - 1, y, color & 0xFFFFFF7F);
+	graph.BlendPixel32(x, y + 1, color & 0xFFFFFF7F);
+	graph.BlendPixel32(x, y - 1, color & 0xFFFFFF7F);
+      }
+    }
+
+    // TODO also render a key? Or this can be in a container html
+    // page perhaps.
+    
+    WebServer::Response r;
+    r.code = 200;
+    r.status = "OK";
+    r.content_type = "image/png";
+    r.body = graph.SaveToString();
+    return r;
+  }
+  
   WebServer::Response Table(const WebServer::Request &request) {
     std::unordered_map<string, pair<int64, uint32>> temps = db->LastTemp();
     WebServer::Response r;
@@ -127,7 +179,8 @@ struct Server {
       float celsius = (float)p.second.second / 1000.0f;
       float fahrenheit = celsius * (9.0f / 5.0f) + 32.0f;
       StringAppendF(&r.body,
-		    "<tr><td>%s</td><td>%lld</td><td>%.2f &deg;C</td><td>%.2f &deg;F</tr>\n",
+		    "<tr><td>%s</td><td>%lld</td><td>%.2f &deg;C</td>"
+		    "<td>%.2f &deg;F</tr>\n",
 		    p.first.c_str(),
 		    p.second.first,
 		    celsius,
