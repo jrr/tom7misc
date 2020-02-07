@@ -18,6 +18,7 @@
 #include "edit-distance.h"
 
 #include "headers.h"
+#include "guitarchive.h"
 
 using namespace std;
 
@@ -835,24 +836,6 @@ struct Parser {
 };
 
 
-static void AddAllFilesRec(const string &dir, vector<string> *all_files) {
-  for (const string &f : Util::ListFiles(dir)) {
-    const string filename = Util::dirplus(dir, f);
-    // printf("%s + %s = %s\n", dir.c_str(), f.c_str(), filename.c_str());
-    if (Util::isdir(filename)) {
-      // printf("Dir: [%s]\n", filename.c_str());
-      AddAllFilesRec(filename, all_files);
-    } else {
-      if (!filename.empty() &&
-	  // Should perhaps just delete emacs backups..?
-	  filename[0] != '#' &&
-	  filename[filename.size() - 1] != '~') {
-	all_files->push_back(filename);
-      }
-    }
-  }
-}
-
 void FindDuplicates(const vector<pair<string, string>> &db) {
   // Each file can be identified by is index in the database.
   // Compute all the non-degenerate lines that occur in every file.
@@ -1281,7 +1264,7 @@ void ComputeDistances(const vector<pair<string, string>> &contents) {
   fflush(stdout);
 }
 
-string StripCR(const string &contents) {
+static string StripCR(const string &contents) {
   string ret;
   ret.reserve(contents.size());
   for (const char c : contents) {
@@ -1292,7 +1275,7 @@ string StripCR(const string &contents) {
   return ret;
 }
 
-int CountSpaces(const string &line) {
+static int CountSpaces(const string &line) {
   for (int i = 0; i < (int)line.size(); i++) {
     if (line[i] != ' ') return i;
   }
@@ -1358,55 +1341,43 @@ string StripOuterWhitespace(const string &contents) {
 // Same, but not taking headers into account (and incidentally, doing
 // some normalization of them). Main thing is that the body is sometimes
 // indented, and this unindents it.
-string StripHeaderOuterWhitespace(const Parser &p, string body) {
+static string NormalizeHeaderOuterWhitespace(const Parser &p, string body) {
   vector<pair<string, string>> hdrs =
     p.ExtractHeaders(&body);
 
-  // Save leading blank lines.
-  // TODO: Perhaps normalize this to exactly one line (if headers
-  // are not blank?)
-  int num_leading = 0;
-  while (num_leading < (int)body.size() && body[num_leading] == '\n')
-    num_leading++;
-  body = body.substr(num_leading, string::npos);
+  // (old code to preserve leading blanks after headers)
+  // int num_leading = 0;
+  // while (num_leading < (int)body.size() && body[num_leading] == '\n')
+  // num_leading++;
+  // body = body.substr(num_leading, string::npos);
   body = StripOuterWhitespace(body);
 
   string out;
   for (const auto &[key, val] : hdrs) {
     out += StringPrintf("%s: %s\n", key.c_str(), val.c_str());
   }
-  while (num_leading--) out += "\n";
+
+  // Exactly one blank line after headers. Leading blanks were stripped
+  // from body.
+  if (!out.empty()) out += "\n";
+  // while (num_leading--) out += "\n";
 
   out += body;
   return out;
 }
 
-bool TryStripSuffix(string_view suffix,
-		    string_view *s) {
-  // In c++20, can use s->ends_with(suffix).
-  auto EndsWith = [](string_view big, string_view little) {
-      if (big.size() < little.size()) return false;
-      return big.substr(big.size() - little.size()) == little;
-    };
-  if (EndsWith(*s, suffix)) {
-    s->remove_suffix(suffix.length());
-    return true;
-  }
-  return false;
-}
-
 string StripFooter(const string &contents) {
   string_view cont(contents);
-  if (TryStripSuffix("\nset8\n"sv, &cont)) {
+  if (Guitarchive::TryStripSuffix("\nset8\n"sv, &cont)) {
     return (string)cont;
   }
-  if (TryStripSuffix("\nSet8\n"sv, &cont)) {
+  if (Guitarchive::TryStripSuffix("\nSet8\n"sv, &cont)) {
     return (string)cont;
   }
-  if (TryStripSuffix("\nEnjoy!\n"sv, &cont)) {
+  if (Guitarchive::TryStripSuffix("\nEnjoy!\n"sv, &cont)) {
     return (string)cont;
   }
-  if (TryStripSuffix("\nenjoy!\n"sv, &cont)) {
+  if (Guitarchive::TryStripSuffix("\nenjoy!\n"sv, &cont)) {
     return (string)cont;
   }
 
@@ -1534,29 +1505,6 @@ string StripHeader(const string &contents) {
   return contents;
 }
 
-string Frontslash(const string &s) {
-  string ret;
-  for (const char c : s)
-    ret += (c == '\\' ? '/' : c);
-
-  if (ret.find("d:/") == 0) {
-    ret[0] = '/';
-    ret[1] = 'd';
-  } else if (ret.find("c:/") == 0) {
-    ret[0] = '/';
-    ret[1] = 'c';
-  }
-
-  return ret;
-}
-
-string Backslash(const string &s) {
-  string ret;
-  for (const char c : s)
-    ret += (c == '/' ? '\\' : c);
-  return ret;
-}
-
 bool HasNonAscii(const string &s) {
   for (const char c : s) {
     switch (c) {
@@ -1609,7 +1557,7 @@ int main(int argc, char **argv) {
 
   vector<string> all_filenames;
   for (const char *d : DIRS) {
-    AddAllFilesRec(d, &all_filenames);
+    Guitarchive::AddAllFilesRec(d, &all_filenames);
   }
 
   printf("Num files: %lld\n", (int64)all_filenames.size());
@@ -1951,14 +1899,10 @@ int main(int argc, char **argv) {
 		  c = p.FixMetadata(row.first, c);
 		  c = p.FixHeaders(row.first, c);
 		  c = StripFooter(c);
-		  c = StripHeaderOuterWhitespace(p, c);
-
-		  if (c.find("#\n") == 0) {
-		    c = c.substr(2, string::npos);
-		  }
+		  c = NormalizeHeaderOuterWhitespace(p, c);
 
 		  if (c != row.second) {
-		    string filename = Backslash(row.first);
+		    string filename = Guitarchive::Backslash(row.first);
 		    if (DRY_RUN) {
 		      static constexpr int CONTEXT = 1;
 		      vector<string> s1 = Util::SplitToLines(row.second);
