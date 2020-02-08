@@ -95,8 +95,7 @@ int main(int argc, char **argv) {
     return 0 != (words[b >> 6] & (1ULL << (63 - (b & 63))));
   }
 
-  // SetPixel and ClearPixel called like SetPixel(x, y)
-  // (if not null).
+  // SetPixel and ClearPixel called like SetPixel(x, y).
   template<class FS, class FC>
   static void Blit(int c, int x, int y, 
 	           FS SetPixel, FC ClearPixel = [](int, int){}) {

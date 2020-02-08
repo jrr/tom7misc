@@ -39,6 +39,12 @@ struct ImageRGBA {
   // Note: Currently assumes existing alpha is 0xFF.
   void BlendPixel(int x, int y, uint8 r, uint8 g, uint8 b, uint8 a);
   void BlendPixel32(int x, int y, uint32 rgba);
+
+  // Embedded 9x9 pixel font.
+  // TODO: Support a 2x option.
+  void BlendText32(int x, int y, const std::string &s, uint32 color);
+  void BlendText(int x, int y, const std::string &s,
+		 uint8 r, uint8 g, uint8 b, uint8 a);
   
   const int width, height;
   // Size width * height * 4.
@@ -51,6 +57,8 @@ struct ImageA {
   ImageA(const std::vector<uint8> &alpha, int width, int height);
 
   ImageA *Copy() const;
+
+  // TODO: Text drawing is easy here!
   
   const int width, height;
   // Size width * height.
