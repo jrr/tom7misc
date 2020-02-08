@@ -120,3 +120,7 @@ To create the SVG diagram in Illustrator:
    I switched to SansSerif font (from Myriad Pro) and set kerning to 0 instead
    of Auto in Character panel, which seemed to help.
    
+LED off:
+
+echo none | sudo tee /sys/class/leds/led0/trigger
+echo 1 | sudo tee /sys/class/leds/led0/brightness
