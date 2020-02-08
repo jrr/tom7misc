@@ -239,7 +239,7 @@ void ImageRGBA::BlendPixel32(int x, int y, uint32 color) {
 	     (color >> 8) & 255, color & 255);
 }
 
-void ImageRGBA::BlendText32(int x, int y, const string &s, uint32 color) {
+void ImageRGBA::BlendText32(int x, int y, uint32 color, const string &s) {
   auto SetPixel = [this, color](int xx, int yy) {
       this->SetPixel32(xx, yy, color);
     };
@@ -253,11 +253,13 @@ void ImageRGBA::BlendText32(int x, int y, const string &s, uint32 color) {
   }
 }
 
-void ImageRGBA::BlendText(int x, int y, const string &s,
-			  uint8 r, uint8 g, uint8 b, uint8 a) {
-  BlendText32(x, y, s,
+void ImageRGBA::BlendText(int x, int y,
+			  uint8 r, uint8 g, uint8 b, uint8 a,
+			  const string &s) {
+  BlendText32(x, y,
 	      ((uint32)r << 24) | ((uint32)g << 16) |
-	      ((uint32)b << 8) | (uint32)a);
+	      ((uint32)b << 8) | (uint32)a,
+	      s);
 }
   
 ImageA::ImageA(const vector<uint8> &alpha, int width, int height)
