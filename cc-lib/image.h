@@ -42,9 +42,10 @@ struct ImageRGBA {
 
   // Embedded 9x9 pixel font.
   // TODO: Support a 2x option.
-  void BlendText32(int x, int y, const std::string &s, uint32 color);
-  void BlendText(int x, int y, const std::string &s,
-		 uint8 r, uint8 g, uint8 b, uint8 a);
+  void BlendText32(int x, int y, uint32 color, const std::string &s);
+  void BlendText(int x, int y,
+		 uint8 r, uint8 g, uint8 b, uint8 a,
+		 const std::string &s);
   
   const int width, height;
   // Size width * height * 4.
