@@ -1,5 +1,6 @@
 // Self-contained bitmap font.
 // Only use C++ builtins/std.
+// XXX export to cc-lib?
 // XXX Still need to figure out the right interface for loading these guys,
 // and probably a version where W/H are not fixed (... rename this to FixedBitmapFont?)
 
@@ -30,11 +31,12 @@ struct BitmapFont {
       }
     }
   }
-
+  
   explicit BitmapFont(std::vector<bool> bits) : bits(std::move(bits)) {}
 
 private:
-  // Bits are arranged as if each character in one tall column.
+  // Bits are arranged as if all the characters are in one tall column
+  // with width W.
   // This improves cache locality somewhat.
   const std::vector<bool> bits;
 };
