@@ -20,7 +20,10 @@ struct BitmapFont {
   // callable like SetPixel(int x, int y).
   template<class FS, class FC>
   void Blit(int c, int x, int y, 
-	    FS SetPixel, FC ClearPixel = [](int, int){}) const {
+	    FS SetPixel,
+	    // TODO: Looks like supplying a default lambda here does not
+	    // actually work (can't infer type parameter?)
+	    FC ClearPixel = [](int, int){}) const {
     for (int sy = 0; sy < CHAR_HEIGHT; sy++) {
       for (int sx = 0; sx < CHAR_WIDTH; sx++) {
 	if (GetBit(c, sx, sy)) {
