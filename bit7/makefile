@@ -1,5 +1,5 @@
 
-default : makegrid.exe resize.exe testpattern.exe
+default : makegrid.exe resize.exe testpattern.exe embedcc.exe testembed.exe
 
 CXX=x86_64-w64-mingw32-g++
 CC=x86_64-w64-mingw32-gcc
@@ -20,6 +20,19 @@ resize.exe : resize.o $(CCLIB_OBJECTS)
 	$(CXX) $(LFLAGS) $^ -o $@
 
 testpattern.exe : testpattern.o $(CCLIB_OBJECTS)
+	$(CXX) $(LFLAGS) $^ -o $@
+
+embedcc.exe : embedcc.o $(CCLIB_OBJECTS)
+	$(CXX) $(LFLAGS) $^ -o $@
+
+embed9x9.h : embedcc.exe test9x9.png
+	./embedcc.exe 9 9 > embed9x9.h
+
+testembed.o : testembed.cc embed9x9.h
+	@$(CXX) $(CXXFLAGS) -c testembed.cc -o $@
+	@echo -n ","
+
+testembed.exe : testembed.o $(CCLIB_OBJECTS)
 	$(CXX) $(LFLAGS) $^ -o $@
 
 clean :
