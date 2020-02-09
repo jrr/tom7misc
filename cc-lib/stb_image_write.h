@@ -89,10 +89,10 @@ extern int stbi_write_tga(char const *filename,
 extern int stbi_write_hdr(char const *filename,
 			  int w, int h, int comp, const float *data);
 
-// Simpler interface for rgba pixels.
+// Simpler interface for common case, with rgba pixels.
 extern int stbi_write_png_rgba(const char *filename,
 			       int w, int h, const uint8_t *rgba);
-// Generate the file in-memory.
+// Same but generate the file in-memory.
 extern std::vector<uint8_t> stbi_make_png_rgba(int w, int h,
 					       const uint8_t *rgba);
 

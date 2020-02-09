@@ -153,7 +153,9 @@ void Line<Int>::iterator::operator ++() {
 }
 
 
-
+// TODO: There may be some problem with the endpoint drawing;
+// there seem to be discontinuities when drawing a polyline.
+// (Could also be a problem with ImageRGBA::BlendPixel?)
 template<class Int, class Float, class Fn>
 void LineAA::Draw(Float x0, Float y0, Float x1, Float y1, Fn drawpixel) {
   static_assert(std::is_integral<Int>::value,

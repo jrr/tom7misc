@@ -15,11 +15,22 @@ using stbiw_uint32 = uint32_t;
 static_assert (sizeof (stbiw_uint32) == 4, "impossible!");
 using uint8 = uint8_t;
 
-// Local changes for cc-lib:
-//  Use 'uint8' instead of 'unsigned char'
-//  Avoid some unnecessary const-casts
-//  Add convenience versions with std::vec at bottom
 
+//  Tom 7 modified this to:
+//    - Clarify intro (it writes to files, not stdio).
+//    - Assume C++11
+//    - Make it more likely to be threadsafe (no non-const static buffers)
+//    - Break into header and CC file separately.
+//    - Clean up warnings from unused variables
+//    - Made unexported functions static linkage
+//    - Use 'uint8' instead of 'unsigned char'
+//    - Avoid some unnecessary const-casts
+//    - Add convenience versions with std::vec at bottom
+
+
+//   Sean notes:
+//    Will probably not work correctly with strict-aliasing optimizations.
+   
 
 static void writefv(FILE *f, const char *fmt, va_list v)
 {
