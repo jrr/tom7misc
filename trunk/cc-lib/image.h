@@ -38,14 +38,28 @@ struct ImageRGBA {
   // Blend pixel with existing data.
   // Note: Currently assumes existing alpha is 0xFF.
   void BlendPixel(int x, int y, uint8 r, uint8 g, uint8 b, uint8 a);
-  void BlendPixel32(int x, int y, uint32 rgba);
+  void BlendPixel32(int x, int y, uint32 color);
 
   // Embedded 9x9 pixel font.
   // TODO: Support a 2x option.
-  void BlendText32(int x, int y, uint32 color, const std::string &s);
   void BlendText(int x, int y,
 		 uint8 r, uint8 g, uint8 b, uint8 a,
 		 const std::string &s);
+  void BlendText32(int x, int y, uint32 color, const std::string &s);
+
+  // Clipped. Alpha blending.
+  // This draws a crisp pixel line using Bresenham's algorithm.
+  void BlendLine(int x1, int y1, int x2, int y2,
+		 uint8 r, uint8 g, uint8 b, uint8 a);
+  void BlendLine32(int x1, int y1, int x2, int y2, uint32 color);
+
+  // Clipped. Alpha blending.
+  // Blends an anti-aliased line using Wu's algorithm; slower.
+  // Endpoints are pixel coordinates, but can be sub-pixel.
+  void BlendLineAA(float x1, float y1, float x2, float y2,
+		   uint8 r, uint8 g, uint8 b, uint8 a);
+  void BlendLineAA32(float x1, float y1, float x2, float y2, uint32 color);
+
   
   const int width, height;
   // Size width * height * 4.

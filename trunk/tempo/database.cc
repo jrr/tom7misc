@@ -51,6 +51,12 @@ Database::Database() {
   WebServer::GetCounter("probes in db")->IncrementBy((int64)probes.size());
 }
 
+const Database::Probe *Database::GetProbe(const string &code) {
+  auto it = probes.find(code);
+  if (it == probes.end()) return nullptr;
+  return &it->second;
+}
+
 string Database::WriteTemp(const string &code, int microdegs_c) {
   MutexLock ml(&database_m);
   auto it = probes.find(code);
@@ -74,16 +80,14 @@ string Database::WriteTemp(const string &code, int microdegs_c) {
   return it->second.name;
 }
 
-std::unordered_map<string, vector<pair<int64, uint32>>>
+std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>>
 Database::AllTempsIn(int64 time_start, int64 time_end) {
-  std::unordered_map<int, string> probe_by_id;
-  for (auto &p : probes) probe_by_id[p.second.id] = p.second.name;
-
   // This can be done as one query of course, but we can make
   // smaller queries by performing a separate one for each probe.
   // (Not obvious which way is better?)
-  std::unordered_map<string, vector<pair<int64, uint32>>> out;
-  for (const auto &p : probe_by_id) {
+  std::vector<pair<Probe, vector<pair<int64, uint32>>>> out;
+  for (const auto &p : probes) {
+    const Probe &probe = p.second;
     MutexLock ml(&database_m);
 
     string qs = StringPrintf("select timestamp, microdegsc "
@@ -92,7 +96,7 @@ Database::AllTempsIn(int64 time_start, int64 time_end) {
 			     "and timestamp >= %lld "
 			     "and timestamp <= %lld "
 			     "order by timestamp",
-			     p.first,
+			     probe.id,
 			     time_start,
 			     time_end);
     Query q = conn.query(qs.c_str());
@@ -109,18 +113,16 @@ Database::AllTempsIn(int64 time_start, int64 time_end) {
       const uint32 microdegsc = res[i]["microdegsc"];
       vec.emplace_back(id, microdegsc);
     }
-    out[p.second] = std::move(vec);
+    out.emplace_back(probe, std::move(vec));
   }
 
   return out;
 }
 
-std::unordered_map<string, pair<int64, uint32>> Database::LastTemp() {
-  std::unordered_map<int, string> probe_by_id;
-  for (auto &p : probes) probe_by_id[p.second.id] = p.second.name;
-
-  std::unordered_map<string, pair<int64, uint32>> out;
-  for (const auto &p : probe_by_id) {
+vector<pair<Database::Probe, pair<int64_t, uint32_t>>> Database::LastTemp() {
+  vector<pair<Database::Probe, pair<int64_t, uint32_t>>> out;
+  for (const auto &p : probes) {
+    const Probe &probe = p.second;
     MutexLock ml(&database_m);
 
     string qs = StringPrintf("select timestamp, microdegsc "
@@ -128,7 +130,7 @@ std::unordered_map<string, pair<int64, uint32>> Database::LastTemp() {
 			     "where probeid = %d "
 			     "order by timestamp desc "
 			     "limit 1",
-			     p.first);
+			     probe.id);
     // printf("%s\n", qs.c_str());
     Query q = conn.query(qs.c_str());
     StoreQueryResult res = q.store();
@@ -139,7 +141,7 @@ std::unordered_map<string, pair<int64, uint32>> Database::LastTemp() {
 
     const int64 id = res[0]["timestamp"];
     const uint32 microdegsc = res[0]["microdegsc"];
-    out[p.second] = make_pair(id, microdegsc);
+    out.emplace_back(probe, make_pair(id, microdegsc));
   }
 
   return out;
