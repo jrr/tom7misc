@@ -1,0 +1,45 @@
+#include "tdd.h"
+
+#include <tuple>
+
+int main(int argc, char **argv) {
+  constexpr Stream<int> is(0);
+  constexpr auto a = is.Next();
+  static_assert(a);
+  static_assert(a->first == 0);
+  constexpr auto b = a->second.Next();
+  static_assert(b);
+  static_assert(b->first == 1);
+
+  constexpr auto even = [](int i) { return (i & 1) == 0; };
+  constexpr Filter<int, even> filter(is);
+
+  constexpr auto aa = filter.Next();
+  static_assert(aa);
+  constexpr auto bb = aa->second.Next();
+  static_assert(bb);
+
+  static_assert(aa->first == 0);
+  static_assert(bb->first == 2);
+  
+#if 0
+  // oldy
+  constexpr auto f = [](int i) { return (i & 1) == 0; };
+  constexpr Filter<int, f> filter(is);
+
+  constexpr auto aa = filter.Next();
+  constexpr auto bb = aa.second.Next();
+
+  static_assert(aa.first == 0);
+  static_assert(bb.first == 2);
+
+  /*
+  std::tuple<char, bool> t = {'a', true};
+
+  if (std::get<bb.first>(t)) {
+    return std::get<aa.first>(t);
+  }
+  */
+#endif  
+  return 0;
+}
