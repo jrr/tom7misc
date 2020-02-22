@@ -2,7 +2,7 @@
 default : tdd.exe
 
 tdd.o : tdd.cc tdd.h
-	g++ -c --std=c++17 tdd.cc -O -o $@
+	g++ -c --std=c++2a tdd.cc -O -o $@
 
 tdd.exe : tdd.o
-	g++ --std=c++17 $^ -o $@
+	g++ --std=c++2a $^ -o $@

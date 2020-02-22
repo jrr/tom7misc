@@ -19,68 +19,6 @@
 
 using namespace std;
 
-#if 0
-template<typename T>
-struct Stream {
-  constexpr bool HasNext() const;
-  constexpr std::pair<T, Stream<T>> Next() const;
-};
-
-// Here's a really simple demonstration that you can enumerate
-// integers with constexpr.
-template<>
-struct Stream<int> {
-  constexpr Stream(int z) : z(z) {}
-  constexpr bool HasNext() const { return true; }
-  constexpr std::pair<int, Stream<int>> Next() const {
-    return make_pair(z, Stream<int>(z + 1));
-  }
- private:
-  int z = 0;
-};
-
-// Here's an example of constructing a 
-template<typename T, bool (*F)(T)>
-struct Filter {
-  constexpr Filter(Stream<T> s) : s(s) {}
-
-  // Note: We can write HasNext using the same approach below,
-  // but this requires us to repeat the loop (in the idiom where
-  // you repeatedly call HasNext() and Next(), we do twice as
-  // much work as necessary). So probably better to structure
-  // the streams around std::optional or something.
-  
-  constexpr std::pair<T, Filter> Next() const {
-    // We can't assign to s, but we can make local copies.
-    auto ss = s;
-    for (;;) {
-      auto p = ss.Next();
-      if (F(p.first)) return make_pair(p.first, Filter(p.second));
-      else ss = p.second;
-    }
-  }
-  private:
-  Stream<T> s;
-};
-
-
-/*
-struct IntStream {
-  constexpr int Next() {
-    return x++;
-  }
-  constexpr int x = 0;
-};
-*/
-  
-/*
-template<typename T, typename Env>
-constexpr T Get() {
-  return T();
-}
-*/
-#endif
-
 // Using optional. This is better because than HasNext/Next because we
 // can statically connect the two. It also avoids cases where we have
 // to duplicate work in the two functions.
@@ -132,5 +70,83 @@ struct Filter {
 //
 // Note that even without changing the interface, it would be possible to
 // extract properties from the test as sort of "hints." We can pass functions
-// that just record their arguments, for example (at least if we allow
-// 
+// that just record their arguments, for example (at least if we allow some
+// kind of effects?)
+
+// Clearly some kinds of effects are allowed...
+constexpr int Test(int x) {
+  int res = 0;
+  for (int i = 0; i < x; i++) {
+    res += i;
+  }
+  return res;
+}
+
+static_assert(Test(3) == 0 + 1 + 2);
+
+// And calling functions...
+template<class F>
+constexpr int TestC(F f) {
+  return f(0);
+}
+
+static_assert(TestC([](int _){ return 1; }) == 1);
+
+template<class F>
+constexpr int Record(F f) {
+  int x = 0;
+  auto Leak = [&x](int arg) { x = arg; return 0; };
+  f(Leak);
+  return x;
+}
+
+template<template<typename> class F, class A>
+struct Recorder {
+  static int Savey(F<A> f) {
+    int z = 0;
+    f([&z](int arg) { z = arg; return 2; });
+    return z;
+  }
+  /*
+  constexpr Recorder(F f) { f([this](int arg) { this->x = arg; return 1; }); }
+  constexpr int Leak(int arg) {
+    x = arg;
+    return 0;
+  }
+  int x;
+  */
+};
+
+// "template deduction guides"?
+// template<class F>
+// Recorder(F f) -> Recorder(F
+
+#if 0
+template<class F>
+constexpr bool IsFactLike(F f) {
+  return f(3) == 3 * 2 * 1;
+}
+#endif
+template<class F>
+struct IsFactLike {
+  constexpr bool operator()(F f) {
+    return f(3) == 3 * 2 * 1;
+  }
+};
+
+// static_assert(IsFactLike([](int x) { return 6; }));
+
+template<class A>
+constexpr int Zzz() {
+  // Recorder r(IsFactLike);
+  Recorder<IsFactLike, A>::Savey(IsFactLike());
+  return 0;
+}
+
+#if 0
+constexpr int Hmm() {
+  return Record(IsFactLike);
+}
+static_assert(Hmm() == 3);
+#endif
+  
