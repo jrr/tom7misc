@@ -86,6 +86,11 @@ struct Server {
     listen_thread = std::thread([this](){
 	this->server->ListenOn(8080);
       });
+
+    // And keepalive.
+    keepalive_thread = std::thread([this](){
+	this->KeepAlive();
+      });
   }
 
   string GetRGB(float f) {
@@ -325,17 +330,39 @@ struct Server {
     return r;
   }
 
+  void KeepAlive() {
+    for (;;) {
+      // Wait 30 seconds between pings, but not before checking should_die...
+      for (int i = 0; i < 30; i++) {
+	{
+	  MutexLock ml(&should_die_m);
+	  if (should_die) return;
+	}
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+      }
+      printf("(ping)\n");
+      db->Ping();
+    }
+  }
   
   ~Server() {
+    {
+      MutexLock ml(&should_die_m);
+      should_die = true;
+    }
     server->Stop();
     listen_thread.join();
+    keepalive_thread.join();
   }
 
   WebServer *server = nullptr;
   Database *db = nullptr;
+  std::mutex should_die_m;
+  bool should_die = false;
   string favicon;
   string diagram_svg;
   std::thread listen_thread;
+  std::thread keepalive_thread;
 };
 
 

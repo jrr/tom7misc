@@ -17,22 +17,20 @@ using uint32 = uint32_t;
 using uint64 = uint64_t;
 using int64 = int64_t;
 
+// TODO: It's possible that this program is using mysql++ incorrectly
+// despite the coarse locking. See advice from the documentation:
+//   https://tangentsoft.com/mysqlpp/doc/html/userman/threads.html
+// ... that says you must call thread_start in each thread before
+// using the connection object (though this is at odds with the
+// thread-per-request approach that WebServer takes, ugh).
+
 Database::Database() {
   written = WebServer::GetCounter("temps written");
   failed = WebServer::GetCounter("failed queries");
 
   config = Util::ReadFileToMap(configfile);
-  const string server = config["server"];
-  const string user = config["user"];
-  const string password = config["password"];
-  CHECK(!server.empty()) << "Specify in " << configfile;
-  CHECK(!user.empty()) << "Specify in " << configfile;
-  CHECK(!user.empty()) << "Specify in " << configfile;
-  CHECK(conn.connect(database_name.c_str(),
-		     server.c_str(),
-		     user.c_str(),
-		     password.c_str()));
-
+  CHECK(Connect());
+  
   // Just read all the probes into a local map.
   Query q = conn.query(
       "select id, code, name, description from probe order by id");
@@ -49,6 +47,36 @@ Database::Database() {
     printf("%d. %s: %s (%s)\n", id, code, name, desc);
   }
   WebServer::GetCounter("probes in db")->IncrementBy((int64)probes.size());
+}
+
+void Database::Ping() {
+  MutexLock ml(&database_m);
+  bool ok = conn.ping();
+  if (ok) {
+    WebServer::GetCounter("successful ping")->Increment();
+  } else {
+    conn.disconnect();
+    if (Connect()) {
+      WebServer::GetCounter("reconnected")->Increment();
+    } else {
+      WebServer::GetCounter("failed to reconnect")->Increment();
+    }
+  }
+}
+
+// Internal. Should hold the lock or otherwise guarantee exclusive
+// access to the connection object.
+bool Database::Connect() {
+  const string server = config["server"];
+  const string user = config["user"];
+  const string password = config["password"];
+  CHECK(!server.empty()) << "Specify in " << configfile;
+  CHECK(!user.empty()) << "Specify in " << configfile;
+  CHECK(!user.empty()) << "Specify in " << configfile;
+  return conn.connect(database_name.c_str(),
+		      server.c_str(),
+		      user.c_str(),
+		      password.c_str());
 }
 
 const Database::Probe *Database::GetProbe(const string &code) {
