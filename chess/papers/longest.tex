@@ -1,0 +1,151 @@
+\documentclass[twocolumn]{article}
+\usepackage[top=0.25in, left=0.25in, right=0.25in, bottom=0.25in]{geometry}
+
+\usepackage{chessboard}
+\usepackage{setspace}
+\usepackage{seqsplit}
+\usepackage{amsmath}
+\usepackage{amssymb}
+% \usepackage{code}
+\usepackage{graphicx}
+\usepackage{fancyvrb}
+\usepackage{url}
+\usepackage{textcomp}
+
+\pagestyle{empty}
+
+\renewcommand\comment[1]{}
+
+\newcommand\st{$^{\mathrm{st}}$}
+\newcommand\nd{$^{\mathrm{nd}}$}
+\newcommand\rd{$^{\mathrm{rd}}$}
+\renewcommand\th{$^{\mathrm{th}}$}
+\newcommand\tm{$^{\mbox{\tiny \textsc{tm}}}$}
+
+\newcommand\sfrac[2]{{}\,$^{#1}$\!/{}\!$_{#2}$}
+
+\newcommand\citef[1]{\addtocounter{footnote}{1}\footnotetext{\cite{#1}}\ensuremath{^{\mbox{\footnotesize [\thefootnote]}}}}
+
+\setchessboard{showmover=false}
+
+\begin{document} 
+
+\title{Is this the longest Chess game?}
+\author{Dr.~Tom~Murphy~VII~Ph.D.\thanks{
+Copyright \copyright\ 2020 the Regents of the Wikiplia
+Foundation. Appears in SIGBOVIK 2015 with the {\tt ShortMoveString} of the
+Association for Computational Heresy; {\em IEEEEEE!} press,
+Verlag-Verlag volume no.~0x40-2A.
+\textcurrency 17696
+}
+}
+
+\renewcommand\>{$>$}
+\newcommand\<{$<$}
+
+\date{1 April 2020}
+
+\maketitle
+
+\section{Introduction}
+
+In my experience, most chess games end in a few moves. Players who
+seek longevity typically do so by playing many games of chess, rather
+than a protracted
+
+
+Although many people ``know how to play'' chess, almost nobody fully
+understands the rules of chess, most authoritatively given by
+FIDE~\cite{fiderules}. (See for example Figure~\ref{fig:castle960} for
+a minor chess scandal that erupted in 2019 over an obscure corner case
+in the rules.) Several of these ``deep cuts'' have to do with game-ending
+conditions that were introduced to keep the game from going on forever.
+
+Many chess moves are reversible (e.g. moving the knight forward and
+back to its starting position~\cite{survival}), so informal games of
+chess could last forever with the players repeating a short cycle. In
+AD~1561, Ruy L\'opez added the ``fifty-move rule'' to prevent infinite
+games.\footnote{This rule only applied to games started after its
+  introduction, so it is possible that some pre-1561 games are still
+  in progress and may never end.} This rule (detailed below) ensures
+that irreversible moves are regularly played, and so the game always
+makes progress towards an end state. Another rule, ``threefold
+repetition'' also guarantees termination as a sort of backup plan
+(either of these rules would suffice on its own).
+
+% This is good for the insurers and reinsurers of chess tournaments
+% (games are guaranteed to end, rather than simply ending with
+% probability 1).
+So, chess is formally a finite game. This good for computer
+scientists, since it means that chess has a trivial O(1) optimal
+solution. This allows us to move onto other important questions, like:
+What is the longest chess game? In this paper I show how to compute
+such a game, and then gratuitously present all of its
+% XXX CHECK
+17,696 
+%
+half-moves. Even if you are a chess expert (``chexpert''), I bet you
+will be surprised at some of the corner cases in the rules that are
+involved.
+
+Speaking of rules, let's first detail the two main rules that limit the
+length of the game.
+
+\begin{figure}
+  \begin{center}
+    \chessboard[setfen=2nr1r1k/pb1n1pqp/1p2p1p1/1N1pN3/5P2/1P4P1/P2PPQ1P/2R1K1RB,showmover=false]
+  \end{center}
+  \caption{ ({\it Nepomniachtchi -- So, 2019.}) White to move during
+    a speed Chess960 (aka ``Fischer Random'') tournament. In this
+    variant, the pieces start in different positions, but castling
+    rules are such that the king and rook end up on the same squares
+    that they would in normal chess. As a result, it is possible for
+    the king or rook to not move during castling, or for the
+    destination square for the king to already be occupied by the
+    rook. Attempting to castle in the position depicted,
+    (Figure~\ref{fig:castle960}), grandmaster Ian Nepomniachtchi
+    first touched the rook to move it out of the way. However,
+    piece-touching rules require that when castling, the player
+    first moves the king; but how? The rook is occupying g1! One
+    commenter suggested tossing the king into the air, then sliding
+    the rook to f1 while the king is airborne, and then watching the
+    king land dead center on its target. The arbiter required Nepo
+    to make a rook move instead, but this was later appealed, and
+    the game replayed. } \label{fig:castle960}
+\end{figure}
+
+(Players are collaborating, perhaps playing chess to the death)
+
+\subsection{The seventy-five move rule}
+
+The ``fifty-move rule'' 
+
+Although usually known by the name ``fifty-move rule'' ()
+
+\subsection{Fivefold repetition}
+
+Although only 
+
+% \begin{figure}[htp]
+% \input{table-two}
+% \caption{Minimal joining strings for every letter (rows) to every other letter (columns).} \label{fig:table}
+% \end{figure}
+
+\begin{sloppypar}
+\tiny
+\setstretch{0.1}
+\hyphenpenalty=1
+\pretolerance=2
+\tolerance=2
+
+\noindent \input{slow}
+0--0
+
+\end{sloppypar}
+
+\nocite{chesstego}
+
+\bibliography{chess}{}
+\bibliographystyle{plain}
+
+\end{document}
