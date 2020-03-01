@@ -1,5 +1,5 @@
-default : weak.pdf
-all : survival.pdf blind.pdf weak.pdf
+default : longest.pdf
+all : survival.pdf blind.pdf weak.pdf longest.pdf
 
 PIECE_PDFS=piece0.pdf piece1.pdf piece2.pdf piece3.pdf piece4.pdf piece5.pdf piece6.pdf piece7.pdf piece8.pdf piece9.pdf piece10.pdf piece11.pdf piece12.pdf piece13.pdf piece14.pdf piece15.pdf  piece16.pdf piece17.pdf piece18.pdf piece19.pdf piece20.pdf piece21.pdf piece22.pdf piece23.pdf piece24.pdf piece25.pdf piece26.pdf piece27.pdf piece28.pdf piece29.pdf piece30.pdf piece31.pdf
 
@@ -22,6 +22,12 @@ weak.pdf : weak.tex chess.bib
 	bibtex weak
 	pdflatex weak
 	pdflatex weak
+
+longest.pdf : longest.tex chess.bib
+	pdflatex longest
+	bibtex longest
+	pdflatex longest
+	pdflatex longest
 
 %.pdf : pieces_good/%.svg
 	${MAKEPDF} $< -o $@
