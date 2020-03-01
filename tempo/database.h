@@ -36,6 +36,10 @@ struct Database {
 
   Database();
 
+  // Ping the server, and try to reconnect if it fails.
+  // Should just call this periodically (every few minutes).
+  void Ping();
+  
   // Returns a pointer to the probe or nullptr if not found.
   // (Note that the pointer can be invalidated by map operations.)
   const Probe *GetProbe(const string &code);
@@ -49,5 +53,8 @@ struct Database {
 
   // Get all the temperatures (collated by probe) in the given interval.
   vector<pair<Probe, pair<int64_t, uint32_t>>> LastTemp();
+
+private:
+  bool Connect();
 };
   
