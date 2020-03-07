@@ -1,0 +1,3 @@
+sudo insmod flags.ko
+dmesg to get the major device number NUM
+sudo mknod /dev/flags c NUM 0
