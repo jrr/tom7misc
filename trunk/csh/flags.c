@@ -1,3 +1,6 @@
+// Creates /proc/flags with a file for each non-reserved bit in the
+// x86 FLAGS register (16-bit version, but requires 64-bit OS).
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -9,7 +12,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dr. Tom Murphy VII Ph.D.");
-MODULE_DESCRIPTION("Test");
+MODULE_DESCRIPTION("Direct access to x86 FLAGS register");
 MODULE_VERSION("NaN");
 
 #define DECL_OPS(name, mask) \

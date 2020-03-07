@@ -1,8 +1,15 @@
+// make
+// sudo insmod flagsdevice.ko
+// dmesg to get the major device number NUM
+// sudo mknod /dev/flags c NUM 0
+
+// (Note: This is basically just a demo; it doesn't even read flags,
+// it just writes 'hi' forever.)
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-// #include <asm/uaccess.h>
 #include <linux/uaccess.h>
 
 MODULE_LICENSE("GPL");
