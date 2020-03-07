@@ -7,28 +7,23 @@
 #include <linux/bug.h>
 #include <linux/seq_file.h>
 
-typedef unsigned short uint16;
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dr. Tom Murphy VII Ph.D.");
 MODULE_DESCRIPTION("Test");
 MODULE_VERSION("NaN");
 
-static void Assertions(void) {
-  BUILD_BUG_ON(sizeof (uint16) != 2);
-  (void)Assertions;
-}
-
 #define DECL_OPS(name, mask) \
   static int show_ ## name (struct seq_file *sf, void *v) {             \
-  int flags = 0;                                                        \
-  __asm__ (                                                             \
-    "pushf\n"                                                           \
-    "xorq %%rax, %%rax\n"                                               \
-    "popq %%rax\n"                                                      \
-    "mov %%eax, %0\n" :                                                 \
-    "=r"(flags) /* output */ : /* input */ : "%rax" /* clobbered */);   \
-    seq_printf(sf, #name "=%d\n", flags & mask);                        \
+    int flags = 0;                                                      \
+    __asm__ ("pushf\n"                                                  \
+             "xorq %%rax, %%rax\n"                                      \
+             "popq %%rax\n"                                             \
+             "mov %%eax, %0\n" :                                        \
+             "=r"(flags) /* output */ :                                 \
+             /* input */ :                                              \
+             "%rax" /* clobbered */);                                   \
+    if (flags & mask) seq_printf(sf, "1");                              \
+    /* else seq_printf(sf, ""); */                                      \
     return 0;                                                           \
   }                                                                     \
   static int open_ ## name (struct inode *inode, struct file *file) {   \
@@ -63,7 +58,6 @@ static struct proc_dir_entry* flags_dir = 0;
   } while (0)
 
 static int __init Initialize(void) {
-  (void)Assertions;
   printk(KERN_INFO "proc/flags initialize\n");
 
   flags_dir = proc_mkdir("flags", NULL);
