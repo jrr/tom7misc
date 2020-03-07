@@ -25,8 +25,7 @@ MODULE_VERSION("NaN");
              "=r"(flags) /* output */ :                                 \
              /* input */ :                                              \
              "%rax" /* clobbered */);                                   \
-    if (flags & mask) seq_printf(sf, "1");                              \
-    /* else seq_printf(sf, ""); */                                      \
+    seq_printf(sf, "%c", (flags & mask) ? '1' : '0');                   \
     return 0;                                                           \
   }                                                                     \
   static int open_ ## name (struct inode *inode, struct file *file) {   \

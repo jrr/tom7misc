@@ -23,10 +23,7 @@ should produce:
 -r--r--r--   1 root root 0 Mar  7 17:26 zf
 
 Each file represents a bit in the flags register, and contains "1" if
-the bit is set, and is empty otherwise. (Note that the file size will
-always appear to be 0, so e.g. [ -s /proc/flags/zf ] does not do what
-you want, alas.)
-
+the bit is set, and "0" otherwise.
 
 You can remove this module with
 
