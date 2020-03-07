@@ -4,90 +4,119 @@
 #include <linux/fs.h>
 // #include <asm/uaccess.h>
 #include <linux/uaccess.h>
+#include <linux/proc_fs.h>
+#include <linux/bug.h>
+#include <linux/seq_file.h>
+
+typedef unsigned short uint16;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dr. Tom Murphy VII Ph.D.");
 MODULE_DESCRIPTION("Test");
 MODULE_VERSION("NaN");
 
+static void Assertions(void) {
+  BUILD_BUG_ON(sizeof (uint16) != 2);
+  (void)Assertions;
+}
+
 #define DEVICE_NAME "flags"
 
-// 16 bits
-#define SIZE 2
+#define DECL_OPS(name, mask) \
+  static int show_ ## name (struct seq_file *sf, void *v) {             \
+    seq_printf(sf, #name "\n");                                         \
+    return 0;                                                           \
+  }                                                                     \
+  static int open_ ## name (struct inode *inode, struct file *file) {   \
+    return single_open(file, show_ ## name , NULL);                     \
+  }                                                                     \
+  static const struct file_operations fops_ ## name = {                 \
+    .owner = THIS_MODULE,                                               \
+    .open = open_ ## name,                                              \
+    .read = seq_read,                                                   \
+    .llseek = seq_lseek,                                                \
+    .release = single_release,                                          \
+  };
 
-static int Open(struct inode *, struct file *);
-static int Release(struct inode *, struct file *);
-static ssize_t Read(struct file *, char *, size_t, loff_t *);
-static ssize_t Write(struct file *, const char *, size_t, loff_t *);
-static int major_num = 0;
-static int device_open_count = 0;
+DECL_OPS(cf, 0x0001);
+DECL_OPS(pf, 0x0004);
 
-// XXX how to behave as though the file is 2 bytes long, rather than allowing
-// reading forever? I guess we can return at most 2?
-static ssize_t Read(struct file *flip, char *buffer, size_t len, loff_t *offset) {
-  int bytes_read = 0;
-  /* Put data in the buffer */
-  while (len) {
-    // Must use put_user to write to userspace.
-    if (bytes_read & 1) {
-      put_user('i', buffer++);
-    } else {
-      put_user('h', buffer++);
+#if 0
+typedef struct Flag {
+  const char *name;
+  const uint16_t mask;
+  struct proc_dir_entry *entry;
+} Flag;
+
+
+#define NUM_FLAGS 2
+static Flag flags[NUM_FLAGS] = {
+{"cf", 0x0001, 0},
+// 0002 reserved
+{"pf", 0x0004, 0},
+};
+#endif
+
+
+static struct proc_dir_entry* flags_dir = 0;
+
+#define REGISTER(name)                                  \
+  do {                                                  \
+    proc_create(#name, 0, flags_dir, &fops_ ## name);   \
+  } while (0)
+
+static int __init Initialize(void) {
+  (void)Assertions;
+  printk(KERN_INFO "proc/flags initialize\n");
+
+  flags_dir = proc_mkdir("flags", NULL);
+  if (!flags_dir) {
+    printk("Failed to create directory\n");
+    return -ENOMEM;
+  }
+
+  REGISTER(cf);
+  REGISTER(pf);
+
+#if 0
+  {
+    int i;
+    for (i = 0; i < NUM_FLAGS; i++) {
+      #define MODE 0444
+      proc_create(flags[i].name, 0, flags_dir, &hello_proc_fops);
+      struct proc_file_entry *entry = create_proc_entry(flags[i].name, MODE, flags_dir);
+      if (entry == NULL) {
+        // XXX should clean up entries allocated so far (remove_proc_entry(name, dir)).
+        continue;
+      }
+
+      flags[i].entry = entry;
+
+      entry->read_proc = Read;
+      entry->write_proc = Write;
+      entry->owner = THIS_MODULE;
+      entry->mode = MODE;
+      entry->uid = 0;
+      entry->gid = 0;
+      entry->size = 2;
+
     }
-    len--;
-    bytes_read++;
   }
-  return bytes_read;
-}
+#endif
 
-static ssize_t Write(struct file *flip, const char *buffer, size_t len, loff_t *offset) {
- printk(KERN_ALERT "This operation is not supported.\n");
- return -EINVAL;
-}
-
-/* Called when a process opens our device */
-static int Open(struct inode *inode, struct file *file) {
-  // XXX Is it necessary to prohibit concurrent access?
-  if (device_open_count) {
-    return -EBUSY;
-  }
-  device_open_count++;
-  // XXX What does this do?
-  try_module_get(THIS_MODULE);
   return 0;
 }
 
-/* Called when a process closes our device */
-static int Release(struct inode *inode, struct file *file) {
- /* Decrement the open counter and usage count. Without this, the module would not unload. */
- device_open_count--;
- module_put(THIS_MODULE);
- return 0;
-}
-
-// Function pointers implementing the "file."
-static struct file_operations file_ops = {
-  .read = &Read,
-  .write = &Write,
-  .open = &Open,
-  .release = &Release,
-};
-
-static int __init Initialize(void) {
-  major_num = register_chrdev(0, DEVICE_NAME, &file_ops);
-  if (major_num < 0) {
-    printk(KERN_ALERT "Could not register device: %d\n", major_num);
-    return major_num;
-  } else {
-    printk(KERN_INFO "flags mod device major number %d\n", major_num);
-    return 0;
-  }
-}
+#define UNREGISTER(name) \
+  do { remove_proc_entry(#name, flags_dir); } while (0)
 
 static void __exit Cleanup(void) {
-  unregister_chrdev(major_num, DEVICE_NAME);
-  printk(KERN_INFO "(flags mod exit)\n");
+  UNREGISTER(cf);
+  UNREGISTER(pf);
+  remove_proc_entry("flags", NULL);
+  printk(KERN_INFO "(proc/flags mod exit)\n");
 }
 
 module_init(Initialize);
 module_exit(Cleanup);
+
