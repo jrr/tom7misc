@@ -2,7 +2,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-// #include <asm/uaccess.h>
 #include <linux/uaccess.h>
 #include <linux/proc_fs.h>
 #include <linux/bug.h>
@@ -20,11 +19,16 @@ static void Assertions(void) {
   (void)Assertions;
 }
 
-#define DEVICE_NAME "flags"
-
 #define DECL_OPS(name, mask) \
   static int show_ ## name (struct seq_file *sf, void *v) {             \
-    seq_printf(sf, #name "\n");                                         \
+  int flags = 0;                                                        \
+  __asm__ (                                                             \
+    "pushf\n"                                                           \
+    "xorq %%rax, %%rax\n"                                               \
+    "popq %%rax\n"                                                      \
+    "mov %%eax, %0\n" :                                                 \
+    "=r"(flags) /* output */ : /* input */ : "%rax" /* clobbered */);   \
+    seq_printf(sf, #name "=%d\n", flags & mask);                        \
     return 0;                                                           \
   }                                                                     \
   static int open_ ## name (struct inode *inode, struct file *file) {   \
@@ -40,23 +44,16 @@ static void Assertions(void) {
 
 DECL_OPS(cf, 0x0001);
 DECL_OPS(pf, 0x0004);
-
-#if 0
-typedef struct Flag {
-  const char *name;
-  const uint16_t mask;
-  struct proc_dir_entry *entry;
-} Flag;
-
-
-#define NUM_FLAGS 2
-static Flag flags[NUM_FLAGS] = {
-{"cf", 0x0001, 0},
-// 0002 reserved
-{"pf", 0x0004, 0},
-};
-#endif
-
+DECL_OPS(af, 0x0010);
+DECL_OPS(zf, 0x0040);
+DECL_OPS(sf, 0x0080);
+DECL_OPS(tf, 0x0100);
+DECL_OPS(if, 0x0200);
+DECL_OPS(df, 0x0400);
+DECL_OPS(of, 0x0800);
+DECL_OPS(iopl0, 0x1000);
+DECL_OPS(iopl1, 0x2000);
+DECL_OPS(nt, 0x4000);
 
 static struct proc_dir_entry* flags_dir = 0;
 
@@ -77,32 +74,16 @@ static int __init Initialize(void) {
 
   REGISTER(cf);
   REGISTER(pf);
-
-#if 0
-  {
-    int i;
-    for (i = 0; i < NUM_FLAGS; i++) {
-      #define MODE 0444
-      proc_create(flags[i].name, 0, flags_dir, &hello_proc_fops);
-      struct proc_file_entry *entry = create_proc_entry(flags[i].name, MODE, flags_dir);
-      if (entry == NULL) {
-        // XXX should clean up entries allocated so far (remove_proc_entry(name, dir)).
-        continue;
-      }
-
-      flags[i].entry = entry;
-
-      entry->read_proc = Read;
-      entry->write_proc = Write;
-      entry->owner = THIS_MODULE;
-      entry->mode = MODE;
-      entry->uid = 0;
-      entry->gid = 0;
-      entry->size = 2;
-
-    }
-  }
-#endif
+  REGISTER(af);
+  REGISTER(zf);
+  REGISTER(sf);
+  REGISTER(tf);
+  REGISTER(if);
+  REGISTER(df);
+  REGISTER(of);
+  REGISTER(iopl0);
+  REGISTER(iopl1);
+  REGISTER(nt);
 
   return 0;
 }
@@ -113,6 +94,17 @@ static int __init Initialize(void) {
 static void __exit Cleanup(void) {
   UNREGISTER(cf);
   UNREGISTER(pf);
+  UNREGISTER(af);
+  UNREGISTER(zf);
+  UNREGISTER(sf);
+  UNREGISTER(tf);
+  UNREGISTER(if);
+  UNREGISTER(df);
+  UNREGISTER(of);
+  UNREGISTER(iopl0);
+  UNREGISTER(iopl1);
+  UNREGISTER(nt);
+
   remove_proc_entry("flags", NULL);
   printk(KERN_INFO "(proc/flags mod exit)\n");
 }
