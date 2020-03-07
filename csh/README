@@ -1,3 +1,8 @@
-sudo insmod flags.ko
+
+To install /dev/flags:
+
+make
+sudo insmod flagsdevice.ko
 dmesg to get the major device number NUM
 sudo mknod /dev/flags c NUM 0
+
