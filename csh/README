@@ -1,8 +1,35 @@
 
-To install /dev/flags:
+To install /proc/flags:
 
 make
-sudo insmod flagsdevice.ko
-dmesg to get the major device number NUM
-sudo mknod /dev/flags c NUM 0
+sudo insmod flags.ko
 
+
+Now
+ls -al /proc/flag
+should produce:
+
+-r--r--r--   1 root root 0 Mar  7 17:26 af
+-r--r--r--   1 root root 0 Mar  7 17:26 cf
+-r--r--r--   1 root root 0 Mar  7 17:26 df
+-r--r--r--   1 root root 0 Mar  7 17:26 if
+-r--r--r--   1 root root 0 Mar  7 17:26 iopl0
+-r--r--r--   1 root root 0 Mar  7 17:26 iopl1
+-r--r--r--   1 root root 0 Mar  7 17:26 nt
+-r--r--r--   1 root root 0 Mar  7 17:26 of
+-r--r--r--   1 root root 0 Mar  7 17:26 pf
+-r--r--r--   1 root root 0 Mar  7 17:26 sf
+-r--r--r--   1 root root 0 Mar  7 17:26 tf
+-r--r--r--   1 root root 0 Mar  7 17:26 zf
+
+Each file represents a bit in the flags register, and contains "1" if
+the bit is set, and is empty otherwise. (Note that the file size will
+always appear to be 0, so e.g. [ -s /proc/flags/zf ] does not do what
+you want, alas.)
+
+
+You can remove this module with
+
+sudo rmmod flags.ko
+
+... but why would you want to do that?
