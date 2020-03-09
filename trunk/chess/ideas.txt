@@ -21,7 +21,8 @@ find interesting games
  - rarest mate pattens
  - triple check checkmate
  - highest number of king moves with queens still on the board
- - longest consecutive series of checks
+ - longest consecutive series of checks (see "cross-check")
+    cf this game: https://www.chessgames.com/perl/chessgame?gid=1063968
  - longest forced sequence (with literally just one legal move)
  - 
 

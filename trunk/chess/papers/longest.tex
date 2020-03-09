@@ -12,6 +12,16 @@
 \usepackage{url}
 \usepackage{textcomp}
 
+% XXX search for common typo "movies" 
+
+% lets me explicitly set a. or 1. etc. as enum label
+\usepackage{enumitem}
+
+\usepackage[pdftex,
+            pdfauthor={Dr. Tom Murphy VII Ph.D.},
+            pdftitle={Is this the longest chess game?},
+            pdfkeywords={SIGBOVIK, chess}]{hyperref}
+
 \pagestyle{empty}
 
 \renewcommand\comment[1]{}
@@ -28,6 +38,27 @@
 
 \setchessboard{showmover=false}
 
+% Define black versions of pieces for inline use. Gross, but it works.
+\newcommand{\Pawn}[1][1.3ex]{%
+\adjustbox{Trim=4.3pt 2.6pt 4.3pt 0pt,width=#1,margin=0.2ex 0ex 0.2ex 0ex}{\BlackPawnOnWhite}%
+}%
+\newcommand{\Rook}[1][1.58ex]{%
+\adjustbox{Trim=3.2pt 2.2pt 3.2pt 0pt,width=#1,raise=0ex,margin=0.1ex 0ex 0.1ex 0ex}{\BlackRookOnWhite}%
+}%
+\newcommand{\Knight}[1][1.85ex]{%
+\adjustbox{Trim=2.3pt 2.35pt 2.5pt 0pt,width=#1,raise=-0.03ex,margin=0.14ex 0ex 0.14ex 0ex}{\BlackKnightOnWhite}%
+}%
+\newcommand{\Bishop}[1][1.79ex]{%
+\adjustbox{Trim=2.3pt 2pt 2.3pt 0pt,width=#1,raise=-0.12ex,margin=0.1ex 0ex 0.1ex 0ex}{\BlackBishopOnWhite}%
+}%
+\newcommand{\Queen}[1][2.05ex]{%
+\adjustbox{Trim=1.2pt 2.2pt 1.2pt 0pt,width=#1,raise=-0.08ex,margin=0.1ex 0ex 0.1ex 0ex}{\BlackQueenOnWhite}%
+}%
+\newcommand{\King}[1][1.95ex]{%
+\adjustbox{Trim=2pt 2pt 2pt 0pt,width=#1,raise=-0.06ex,margin=0.13ex 0ex 0.13ex 0ex}{\BlackKingOnWhite}%
+}%
+
+
 \begin{document} 
 
 \title{Is this the longest Chess game?}
@@ -36,7 +67,8 @@ Copyright \copyright\ 2020 the Regents of the Wikiplia
 Foundation. Appears in SIGBOVIK 2015 with the {\tt ShortMoveString} of the
 Association for Computational Heresy; {\em IEEEEEE!} press,
 Verlag-Verlag volume no.~0x40-2A.
-\textcurrency 17696
+% XXX should match the length of the game
+\textcurrency 17697
 }
 }
 
@@ -51,7 +83,7 @@ Verlag-Verlag volume no.~0x40-2A.
 
 In my experience, most chess games end in a few moves. Players who
 seek longevity typically do so by playing many games of chess, rather
-than a protracted
+than a protracted XXX
 
 
 Although many people ``know how to play'' chess, almost nobody fully
@@ -81,8 +113,8 @@ scientists, since it means that chess has a trivial O(1) optimal
 solution. This allows us to move onto other important questions, like:
 What is the longest chess game? In this paper I show how to compute
 such a game, and then gratuitously present all of its
-% XXX CHECK
-17,696 
+% XXX check that this is the final one
+17,697 
 %
 half-moves. Even if you are a chess expert (``chexpert''), I bet you
 will be surprised at some of the corner cases in the rules that are
@@ -93,43 +125,484 @@ length of the game.
 
 \begin{figure}
   \begin{center}
-    \chessboard[setfen=2nr1r1k/pb1n1pqp/1p2p1p1/1N1pN3/5P2/1P4P1/P2PPQ1P/2R1K1RB,showmover=false]
+    \chessboard[
+      % fillarea=a3-h1,printarea=a3-h1,
+      setfen=2nr1r1k/pb1n1pqp/1p2p1p1/1N1pN3/5P2/1P4P1/P2PPQ1P/2R1K1RB,
+      pgfstyle=curvemove,markmoves={e1-g1},
+      pgfstyle=straightmove,markmoves={g1-f1},
+      showmover=false]
   \end{center}
-  \caption{ ({\it Nepomniachtchi -- So, 2019.}) White to move during
-    a speed Chess960 (aka ``Fischer Random'') tournament. In this
+  \caption{ ({\it Nepomniachtchi -- So, 2019.}) White to move during a
+    speed Chess960 (aka ``Fischer Random'') tournament. In this
     variant, the pieces start in different positions, but castling
     rules are such that the king and rook end up on the same squares
     that they would in normal chess. As a result, it is possible for
     the king or rook to not move during castling, or for the
     destination square for the king to already be occupied by the
-    rook. Attempting to castle in the position depicted,
-    (Figure~\ref{fig:castle960}), grandmaster Ian Nepomniachtchi
-    first touched the rook to move it out of the way. However,
-    piece-touching rules require that when castling, the player
-    first moves the king; but how? The rook is occupying g1! One
-    commenter suggested tossing the king into the air, then sliding
-    the rook to f1 while the king is airborne, and then watching the
-    king land dead center on its target. The arbiter required Nepo
-    to make a rook move instead, but this was later appealed, and
-    the game replayed. } \label{fig:castle960}
+    rook. Attempting to castle in the position depicted, grandmaster
+    Ian Nepomniachtchi first touched the rook to move it out of the
+    way. However, piece-touching rules require that when castling, the
+    player first moves the king (and ``Each move must be played with
+    one hand only''); but how? The rook is occupying g1! One commenter
+    suggested tossing the king into the air, then sliding the rook to
+    f1 while the king is airborne, and then watching the king land
+    dead center on its target. The arbiter required Nepo to make a
+    rook move instead, but this was later appealed, and the game
+    replayed. } \label{fig:castle960}
 \end{figure}
 
-(Players are collaborating, perhaps playing chess to the death)
+% TODO: (Players are collaborating, perhaps playing chess to the death)
 
-\subsection{The seventy-five move rule}
+\subsection{The seventy-five move rule} \label{sec:75}
 
-The ``fifty-move rule'' 
+The ``fifty-move rule,''~\cite{wikipedia50move} as it is usually
+known, requires that an irreversible move is played at a minimum pace.
+For the sake of this rule, irreversible moves are considered captures
+and pawn moves,%
+\footnote{ Other irreversible moves include: Castling, moving a piece
+  so as to lose castling rights, and declining to capture {\it en
+    passant} (such capture must be made immediately, so if the option
+  is not taken, it cannot be regained). The fifty-move rule could be
+  soundly expanded to include these, but, that's just like, not the
+  rule, man.}
+%
+including promotion and {\it en passant} (which is also a capturing
+move) but not the movement of a previously promoted piece.
+Specifically~\cite{fiderules}:
 
-Although usually known by the name ``fifty-move rule'' ()
+\begin{quote}
+{\bf 9.3}.\quad The game is drawn, upon a correct claim by the player having
+the move, if:
+  \begin{enumerate}[label=\alph*.]
+    \item he writes his move on his scoresheet and declares to the
+      arbiter his intention to make this move, which shall result in
+      the last 50 moves having been made by each player without the
+      movement of any pawn and without any capture, or
+    \item the last 50 consecutive moves have been made by each player
+      without the movement of any pawn and without any capture.
+  \end{enumerate}
+\end{quote}
 
-\subsection{Fivefold repetition}
+Note that what is provided here is the option for a player to {\em
+  claim} a draw (and the two provisions essentially allow either player
+to claim the draw at the moment of the 50\th\ move). If neither player
+is interested in a draw, either because they think their position is
+still winning, or are just trying to create the longest ever chess game,
+the game legally continues. That's why what is actually relevant for this
+paper is provision 9.6, which defines a draw:
 
-Although only 
+\begin{quote}
+  {\bf 9.6}.\quad If one or both of the following occur(s) then the
+  game is drawn:
 
-% \begin{figure}[htp]
-% \input{table-two}
-% \caption{Minimal joining strings for every letter (rows) to every other letter (columns).} \label{fig:table}
-% \end{figure}
+  \ldots 9.6.2. any series of at least 75 moves have been made by each
+  player without the movement of any pawn and without any capture. If
+  the last move resulted in checkmate, that shall take precedence.
+\end{quote}
+
+\begin{figure}[htp]
+  \begin{center}
+    \chessboard[setfen=8/r6n/8/8/5k2/3K4/7N/3b3Q b - - 0 1]
+  \end{center}
+  \caption{Black to move and mate in 545 moves (!). The position was
+    found (by Zakharov and Makhnichev~\cite{tablebase7}) while
+    building an endgame tablebase of all possible 7-piece positions.
+    Of course, the game ends prematurely in a draw because of the
+    75-move rule. } \label{fig:matein545}
+\end{figure}
+
+Draws after 75 moves (per player, so really 150 half-moves) are
+compulsory.
+
+Interestingly (at least as interesting as anything in this dubious
+affair) it is known that some otherwise winning endgame positions
+require more than 50 moves to execute (Figure~\ref{fig:matein545}).
+The rules of chess have at various times allowed for longer timers in
+such known situations, but were later simplified to the fixed 50 (and
+75) move limit.
+
+\subsection{Fivefold repetition} \label{sec:fivefold}
+
+The 75-move rule is rarely applied in practice, but its
+counterpart, ``threefold repetition''~\cite{wikipediathreefold} is often
+the cause of draws in modern chess. This rule states that if the same
+position appears three times, the players can claim a draw:
+
+\begin{quote}
+\begin{itemize}
+  \item[9.2.2.] Positions are considered the same if and only if the
+same player has the move, pieces of the same kind and colour occupy
+the same squares and the possible moves of all the pieces of both
+players are the same. Thus positions are not the same if:
+\begin{itemize}
+\item[9.2.2.1.]	at the start of the sequence a pawn could have been captured en passant
+\item[9.2.2.2.]	a king had castling rights with a rook that has not been moved, but forfeited these after moving. The castling rights are lost only after the king or rook is moved.
+\end{itemize}
+\end{itemize}
+\end{quote}
+
+Like the 75-move rule, this rule has an optional version (upon
+three repetitions) and a mandatory one in 9.6:
+
+\begin{quote}
+  [The game is a draw if \ldots] \\
+  9.6.1. the same position has appeared, as in 9.2.2, at least five times.
+\end{quote}
+
+% (I seem to remember that this rule used to be about moves, not positions,
+% but someone discovered infinite sequences of moves that don't repeat, right?
+% I can't find this citation. Maybe can recreat those sequences.)
+%
+% Fascinatingly (at least as fascinating as anything in this
+% questionable undertaking), this rule 
+
+\medskip
+Many implementations of chess ignore these rules or treat them
+incorrectly. Implementation of the seventy-five move rule simply
+requires a count of how many moves have transpired since a pawn move
+or capture, but programs typically do not force a draw after 75 moves.
+Repetition requires more work, since the program must keep track of
+each of the states reached since the last irreversible move. There are
+also some corner cases, such as ambiguity as to whether the starting
+position has ``appeared'' before the first move~\cite{survival}. The
+ubiquitous FEN notation for describing chess positions does not even
+include any information about states previously reached.
+
+
+\subsection{Dead position} \label{sec:insufficient}
+
+The informal version of this rule (``insufficient material'') states
+that if neither side has enough pieces to mate the opponent (for
+example, a king and bishop can never mate a bare king) then the game
+is draw. Again, the formal rule is more subtle:
+
+\begin{quote}
+5.2.2. The game is drawn when a position has arisen in which neither
+player can checkmate the opponent's king with any series of legal
+moves. The game is said to end in a `dead position'. This immediately
+ends the game \ldots
+\end{quote}
+
+This clearly includes the well-known material-based cases like king
+and knight vs.~king, but it also surprisingly includes many other
+specific positions, especially those with forced captures
+(Figure~\ref{fig:insufficient}).
+
+\begin{figure}[htp]
+  \begin{center}
+    \chessboard[setfen=8/8/5K2/8/8/8/Q7/k7 b - - 0 1]
+  \end{center}
+  \caption{Black to move and draw in 0 (!). Most players and even
+    chexperts believe that the only legal move is Kxa2, and
+    that the game then ends in a draw with ``insufficient material.''
+    However, this game is {\em already over}. Since neither black
+    nor white can win via any series of legal moves, by rule 5.2.2
+    the game immediately ends in a `dead position'. (Although see
+    Section~\ref{sec:ambiguity} for possible ambiguity in this
+    rule.)} \label{fig:insufficient}
+\end{figure}
+
+The insufficient material rule is curious in that it requires
+nontrivial computation to implement. In order to know whether the
+position is a draw, an implementation needs to be able to decide
+whether or not a series of moves that results in checkmate exists.
+Note that this is not nearly as bad as normal game tree search because
+the two sides can collaborate to produce the mate (it is not a
+$\exists \forall \exists \forall \ldots$ but rather $\exists \exists
+\exists \exists \ldots$). Still, such ``helpmates'' can still be
+quite deep (dozens of moves) and are interesting enough to be a
+common source of chess puzzles. Proving the non-existence of a
+helpmate can be very difficult indeed (Figure~\ref{fig:nohelp}).
+
+\begin{figure}[htp]
+  \begin{center}
+    \chessboard[setfen=k1bB4/8/2p1p1p1/1pPpPpP1/1P1P1P2/8/8/K1Bb4 w - - 0 1]
+  \end{center}
+  \caption{Thinking of implementing the rules of chess? To be correct,
+    you'll need your program to be able to deduce that no helpmates are
+    possible in this position and thus the game is over. Stockfish rates
+    this as +0.4 for white, even searching to depth 92.
+    (Position is due to user {\tt supercat} on Chess StackExchange.)
+  } \label{fig:nohelp}
+\end{figure}
+
+
+% XXX might be a good place to talk about the self-referential "maximal"
+% and "minimal" interpretations of this rule?
+
+
+\medskip
+For completeness, note that there are other routes to a draw
+(stalemate, draw offers) which we can ignore; it is easy to avoid
+these situations when generating the longest game.
+
+
+\section{Generating the longest game}
+
+It is generally not hard to avoid repeating positions, so the main
+obstacle we'll face is the 75-move rule. Let's call an irreversible
+move that resets the 75-move counter a {\em critical move}; this is
+a pawn move or capturing move (or both). The structure of the game
+will be a series of critical moves (I will call these ``critical''
+moves) with a maximal sequence of pointless reversible moves in
+between them. If we execute the maximum number of critical moves and
+make 149 half-moves (just shy of triggering the compulsory version of
+the 75-move rule) between them, then this will be fairly easily
+seen as a maximal game.
+
+In fact, for most positions, it is easy to waste 149 moves and return
+to the exact same position. So, the strategy for generating the
+longest game can mostly be broken into two phases: Make a game with a
+maximum number of critical moves (it can also contain other moves) and
+then pad that game out to maximum-length excursions in between its
+critical moves.
+
+\subsection{Maximal critical moves}
+
+Critical moves are pawn moves and captures. There are 16 pawns, each
+of which has 6 squares to move into before promoting, so this is
+$16\times 6$ critical moves. There are 14 capturable pieces, plus the
+16 pawns (they can be captured after promoting) so this nets an
+additional $16+14$ critical moves for a total of $126$. Each critical
+move can be made after a maximum of $75+74$ reversible moves, giving
+$(75+74+1) \times 126 = 18900$ moves. The final move would capture the
+last piece, yielding a draw due to the remaining kings being insufficient
+material (``dead position''). This is the upper bound.
+
+We will not quite be able to use the entire critical move budget. If
+pawns only move forward in single steps, they will eventually get
+blocked by the opposing pawn on the same file. Pawns can move
+diagonally off their starting file only by capturing. We have plenty
+of capturing to do anyway, so this in no problem. With four captures
+per side, the pawns can be doubled, with a clear route to promotion,
+like so:
+
+\begin{center}
+\chessboard[setfen=2bqkb2/1p1p1p1p/1p1p1p1p/8/8/P1P1P1P1/P1P1P1P1/2BQKB2 w - - 0 1]
+\end{center}
+
+Each of these captures is {\em both} a pawn move {\em and} a capturing
+move, however. This means that we lose $4+4$ critical moves off our
+total budget. $150 \times 118 = 17700$ is the new upper bound.
+
+\paragraph{Parity.} If a critical move (such as a pawn move) is made by
+white, then the first pointless excursion is made by black. The
+players alternate these pointless moves until black has made 75 and
+white 74. Now it is white's move, and white must make a critical move
+or the game ends due to the 75-move rule. If instead we wanted black
+to make the next critical move, this would happen after black has made
+74 and white 74 non-critical moves. Any time this happens we lose one
+move against the upper bound. So, we want to minimize the number of
+times we switch which player is making the critical moves. Obviously
+we must switch at least once, because both black and white must
+make critical moves (upper bound $17699$).
+
+\paragraph{Starting condition.} The first critical move should be made
+by black. The starting position (with white to move) is analogous to
+the situation just described, as if black has just made a critical move,
+and it's white's turn. White will play 75 reversible moves, black plays
+74, and the 150th move is black making the first critical move.
+
+Note that white is quite constrained during this beginning phase,
+unable to make any pawn moves. Only the white knights can escape the
+back rank. When we try to insert $149$ pointless moves, we'll only be
+able to move the knights and rooks, and doing this 75 times must leave
+e.g. one of the knights on an opposite-colored square.\footnote{Knight
+  moves always change the color of the knight's square, and same for
+  rook moves constrained to the a1/b1 or g1/h1 squares.} So we have to
+be a little careful about the position in which we make black's first
+critical move.
+
+Since white can only free their two knights, it will not be possible
+for black to double four sets of their pawns (each requires capturing
+a white piece). Executing as many critical moves as possible get us
+to a position like
+
+\begin{center}
+\chessboard[setfen=r1bqkb2/8/5r2/p1pn4/5p1p/1p1p1p1p/PPPPPPPP/n3K3 w q - 0 47]
+\end{center}
+
+\ldots at which point we need to switch to making critical moves by white ({\bf Switch 1}).
+White can promote their unblocked pawns,\footnote{White could promote all their pawns, but this would require.. actually maybe this is possible? Try...
+  % In this game you get stuck at:
+  % 1N1NN1RQ/4k3/7N/p1p2b1Q/5p1p/1p1p1p1p/1P6/3K4 b - - 0 95
+
+  )
+}
+making progress to a position
+like
+
+\begin{center}
+  \chessboard[setfen=2krQ3/8/7N/p1p2b2/PRPQ1p1p/PpPp1p1p/8/5K2 b - - 2 86]
+\end{center}
+
+\ldots and then we switch back to black again ({\bf Switch 2}). Black
+promotes the remaining pawns, giving something like
+
+\begin{center}
+  \chessboard[setfen=2krbK2/8/7r/8/P1P5/PnP5/1n1n1n2/1n1n1n2 w - - 0 118]
+\end{center}
+
+\ldots with nothing left to do. We need to promote the white pawns
+before capturing them. So we switch back to white ({\bf Switch 3}) and
+promote them all. White can capture all of black's remaining pieces
+during this phase of critical moves, resulting in a board like
+
+\begin{center}
+  \chessboard[setfen=N2Q1K2/N7/N7/8/8/7k/8/8 b - - 0 149]
+\end{center}
+
+\comment{
+  position after above: N2Q1K2/N7/N7/8/8/7k/8/8 b - - 0 149
+
+   proof game:
+  1. Nf3 h6 2. Ng1 h5 3. Nf3 f5 4. Nc3 d5
+5. Ne4 b5 6. Ne5 Rh6 7. Ng4 Rc6 8. Nh6 gxh6
+9. Nf6+ exf6 10. Rb1 Na6 11. Ra1 Nb4 12. Rb1 Ne7
+13. Ra1 Ng6 14. Rb1 Nf4 15. Ra1 Nh3 16. Rg1 Nxg1
+17. Rb1 Nh3 18. Ra1 Nf4 19. Rb1 d4 20. Ra1 Nbd5
+21. Rb1 Ne3 22. Ra1 Nxf1 23. Rb1 Ne3 24. Ra1 Nxd1
+25. Rb1 Ne3 26. Ra1 Ned5 27. Rb1 Nd3+ 28. Kf1 Nxc1
+29. Ra1 h4 30. Rb1 h3 31. Ra1 h5 32. Rb1 h4
+33. Ra1 f4 34. Rb1 f5 35. Ra1 f3 36. Rb1 f4
+37. Ra1 d3 38. Rb1 b4 39. Ra1 Nb3 40. Rb1 a6
+41. Ra1 a5 42. Rb1 Rf6 43. Ra1 c6 44. Rb1 c5
+45. Ra1 Nxa1 46. Ke1 b3 47. g3 Re6 48. g4 Rf6
+49. g5 Re6 50. g6 Rf6 51. g7 Re6 52. g8=Q Rf6
+53. Qg5 Re6 54. Qe5 Bg7 55. Qd4 Qg5 56. Kd1 Qg3
+57. hxg3 Bh6 58. g4 Bg7 59. g5 Bh6 60. g6 Bg5
+61. g7 Bh6 62. g8=N Bd7 63. e3 O-O-O 64. e4 Rd6
+65. e5 Rc6 66. e6 Rb6 67. e7 Rc6 68. e8=Q Rg6
+69. c3 Rg3 70. fxg3 Bc6 71. Nxh6 Bd7 72. g4 Bc6
+73. g5 Bd7 74. g6 Bc6 75. g7 Bd7 76. g8=R Nf6
+77. a3 Nd5 78. a4 Nf6 79. c4 Nd5 80. Rg6 Nc3+
+81. Ke1 Nc2+ 82. Kf1 Na3 83. dxc3 Bf5 84. Rb6 Bd7
+85. bxa3 Bf5 86. Rb4 axb4 87. Qf8 cxd4 88. Qe8 b2
+89. Qf8 b1=N 90. Qe8 d2 91. Qf8 d1=N 92. Qe8 b3
+93. Qf8 b2 94. Qe8 Nd2+ 95. Kg1 b1=N 96. Qf8 Nb2
+97. Qe8 Nb3 98. Qf8 d3 99. Qe8 d2 100. Qf8 d1=N
+101. Kf1 f2 102. Ke2 f1=N 103. Kf3 h2 104. Qe8 Bd7
+105. Ke4 f3 106. Qf7 Nfd2+ 107. Kf4 f2 108. Kg5 f1=N
+109. Kg6 h1=N 110. Kf6 h3 111. Kg6 h2 112. Kf6 Nhf2
+113. Kg6 h1=R 114. Kg7 Be6 115. Kh7 Bxf7 116. Kg7 Be8
+117. Kf8 Rxh6 118. a5 Rh5 119. a6 Rh4 120. a7 Rh3
+121. a8=N Rh2 122. a4 Rh3 123. a5 Rh4 124. a6 Rh5
+125. a7 Rh4 126. Nc7 Rh3 127. a8=N Kd7 128. Na6 Ke6
+129. c5 Kf6 130. c6 Kg6 131. c7 Kh5 132. c8=N Rh2
+133. c4 Rh3 134. c5 Rh2 135. c6 Rh1 136. c7 Rh2
+137. Na7 Rh1 138. c8=Q Nc5 139. Qxc5+ Kh4 140. Qxf2+ Kh5
+141. Qxf1 Kh6 142. Qxd1 Kh7 143. Qxd2 Kg6 144. Qxb2 Kg5
+145. Qxb1 Kh4 146. Qxh1+ Kg5 147. Qc6 Kh4 148. Qxe8 Kh3
+149. Qxd8
+  }
+
+But !
+
+// The way we'll find this game is to manually generate a slow game,
+// that is, one where we make make 16*6 pawn moves (but 8 are
+captures) // and capture all the pieces except for a single queen, and
+then // capture it, too. Then all that remains is to artificially slow
+// down this game even more, by inserting 75+74 half-moves that get us
+back // to the position we're already in (without repeating 5 times).
+The // hypothesis is that such sequences are numerous, so we can find
+// them easily (perhaps by just randomly moving a piece around, or //
+perhaps by lazily generating some kind of graph structure).
+
+
+\subsection{Better approach}
+
+OK, need to rewrite the above for this superior game:
+
+1. Nf3 b6 2. Nc3 g6 3. Ne5 g5 4. Nd5 b5
+5. Nc4 bxc4 6. Nf4 gxf4 7. Rg1 c6 8. Rh1 c5
+9. Rg1 f6 10. Rh1 f5 11. b3 Nc6 12. b4 Nd4
+13. b5 Nb3 14. cxb3 Bb7 15. a3 Rc8 16. a4 Rc6
+17. a5 Rd6 18. a6 Re6 19. axb7 Rd6 20. b8=N Re6
+21. b6 Nh6 22. b7 Ng4 23. Nc6 Bh6 24. b8=Q Kf8
+25. b4 Ke8 26. b5 Kf8 27. Qe5 Ke8 28. b6 Kf8
+29. b7 Ke8 30. b8=N Bg5 31. h3 Bh4 32. hxg4 Bg3
+33. fxg3 Qc8 34. g5 Qa6 35. Nb4 Kd8 36. Qe3 Kc7
+37. g6 Kb6 38. g7 Rf6 39. g8=Q Re6 40. g4 Rf6
+41. g5 Re6 42. g6 Rf6 43. g7 Re6 44. Qf8 Rf6
+45. g8=N Rd6 46. Nf6 Qb5 47. Nh5 Rg8 48. g3 Rgg6
+49. g4 Rge6 50. g5 Rf6 51. g6 Rc6 52. g7 Qa6
+53. g8=N Qa5 54. d3 Qa6 55. d4 Qa5 56. d5 Qa6
+57. dxc6 Qa5 58. c7 Qa6 59. c8=R Qa4 60. Qh3 Qa6
+61. e3 Qa5 62. e4 Qa6 63. e5 Qa5 64. exf6 Qa6
+65. Qg7 Qa5 66. f7 Qa6 67. Re8 Qa5 68. f8=R Qa6
+69. Qdg4 Qa5 70. Nc6 Qa6 71. Ne5 Qa5 72. Nf3 Qa6
+73. Nd3 Qa5+ 74. Ke2 Qa6 75. Nf2 Qa5 76. Qh8 Qa3
+77. Nd1 Qa2+ 78. Nd2 Qa3 79. Kf2 Qa2 80. Kg1 Qa3
+81. Rxa3 f3 82. Kh2 f2 83. Bd3 f1=R 84. Qf4 Rxf4
+85. Ng7 h6 86. Be4 Rxe4 87. Ne6 f4 88. Nf6 f3
+89. Ng8 f2 90. Nf6 f1=B 91. Rd3 Bxd3 92. Bb2 a6
+93. Bc3 a5 94. Bb2 a4 95. Bc3 a3 96. Bb2 a2
+97. Bc3 a1=R 98. Ba5+ Rxa5 99. Nf4 c3 100. Ne2 c2
+101. Nf4 c1=N 102. Ne2 c4 103. Ng4 Nxe2 104. Nge3 c3
+105. Nf5 c2 106. Nfe3 c1=R 107. Re1 h5 108. Qf3 h4
+109. Kg2 h3+ 110. Kf2 h2 111. Qfh5 h1=R 112. Ng4 Rxg4
+113. Nc4+ Bxc4 114. Nb2 d6 115. Rg1 d5 116. Rg2 d4
+117. Kf3 d3 118. Kf2 d2 119. Qh2 d1=R 120. Kf3 Nc3
+121. Kf2 Rg8 122. Kf3 e6 123. Kf4 e5+ 124. Kf5 e4+
+125. Kf6 e3 126. Rg3 e2 127. Rg2 e1=Q 128. Nd3 Rxd3
+129. Rg1 Rgxg1 130. Q8h3 Rxh3 131. Ra8 Rxa8 132. Rb8+ Rxb8
+133. Qxb8+ Ka5 134. Qg3 Bf7 135. Qxe1 Rg5 136. Qxc1 Ka6
+137. Qxc3 Kb6 138. Qxh3 Kc5 139. Kxf7 Kc6 140. Qxh1+ Kd7
+141. Kf6 Ke8 142. Qg2 Rg8 143. Ke6 Rg7 144. Qxg7 Kd8
+145. Qd7\#
+
+
+
+Black's first phase results in this:
+\chessboard[setfen=rnbqkbnr/p2pp2p/8/2p2p2/2p2p2/8/PPPPPPPP/R1BQKB1R w Qkq - 0 11]
+
+We made two captures, and each of white's pawns can be freed with
+at most one capture, and two are already clear. So this totals 8 pawn
+captures, the (conjectured) minimum. (Switch 1) Now white's phase:
+
+
+White's first phase then ends here:
+
+\chessboard[setfen=4RRNQ/p2pp2p/1k6/2p2p1N/2p2pQ1/R6Q/3N4/2BN1BKR b - - 0 81]
+
+We promoted all of white's pieces, and captured all of black's. (Switch 2).
+Black again. Black promotes all his pawns:
+
+\chessboard[setfen=4RRrQ/8/1k3K2/r7/2b5/2n5/1N4RQ/2rrq2r w - - 0 128]
+
+... and then proceeds to capture all of white's remaining pieces:
+
+\chessboard[setfen=1r6/8/1k3K2/8/2b5/7r/4n3/2r1q1rr w - - 0 134]
+
+Now we switch back to white making critical moves (Switch 3). White mops up
+all black's pieces with the king, which is the only piece left.
+
+... this ends up not working; when black mates the white queen is
+black's 75th move, but white has only made 74. So it should really be
+white that mates black! (this is kinda like the asymmetry in the starting
+condition.)
+
+So instead at this moment...
+
+\chessboard[setfen=1r6/8/1k3K2/8/2b5/2n4r/7Q/2r1q1rr w - - 0 133]
+
+.. we leave the white queen alive, and capture all black's pieces for real!
+then mate with the white queen
+
+\chessboard[setfen=3k4/3Q4/4K3/8/8/8/8/8 b - - 2 145]
+
+
+%8/8/2k5/4K3/7q/8/8/8 w - - 1 1
+% 8846. Ke6 [72 72] Kc7 [72 73] 8847. Kf7 [73 73] Kd6 [73 74] 8848. Ke8 [74 74] Q
+% e7 [74 75]Slack 0: 114 time(s)
+
+
+
+\subsection{Inserting excursions} \label{sec:excursions}
+
+
+
+\section{A longest game}
 
 \begin{sloppypar}
 \tiny
@@ -138,8 +611,19 @@ Although only
 \pretolerance=2
 \tolerance=2
 
-\noindent \input{slow}
-0--0
+
+(a long game goes here)
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad
+minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+aliquip ex ea commodo consequat. Duis aute irure dolor in
+reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
+pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
+culpa qui officia deserunt mollit anim id est laborum.
+
+ \noindent \input{slow}
+\quad 1-0
 
 \end{sloppypar}
 
