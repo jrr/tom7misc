@@ -25,6 +25,11 @@ using uint32 = std::uint32_t;
 //    with. In the middle two ranks, it represents
 //    a pawn that just did a double move and is
 //    eligible for en passant capture.
+//  - Get rid of C_ROOK and just store castling state
+//    directly. With index_king we have bits for it anyway.
+//    Instead, provide Pack/Unpack routines that do these
+//    kinds of representation tricks, when the user wants
+//    to favor compactness over speed.
 
 // For PGN spec, see https://www.chessclub.com/help/PGN-spec
 
@@ -254,19 +259,10 @@ struct Position {
   // function with that state applied. Return the return value
   // of the function after undoing the applied move. As above,
   // the move must be legal.
-#if 0
   template<class F>
   auto MoveExcursion(Move m, const F &f) -> decltype(f()) {
-    // PERF: Modify in place.
-    Position copy = *this;
-    ApplyMove(m);
-    auto ret = f();
-    *this = copy;
-    return ret;
-  }
-#endif
-  template<class F>
-  auto MoveExcursion(Move m, const F &f) -> decltype(f()) {
+    // Blindly copy/restore, but only the part of the state that may
+    // be affected.
     const uint32 old_src_row = rows[m.src_row];
     const uint32 old_dst_row = rows[m.dst_row];
     const uint8 old_bits = bits;

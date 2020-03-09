@@ -1,6 +1,9 @@
 
 // SIGBOVIK: "Is this the longest chess game?"
 
+// FIXME did I actually implement 75 moves by EITHER player, rather than
+// by BOTH players?
+
 // XXX TODO: Note that formally, "the game is drawn when
 // a position has arisen in which neither player can checkmate
 // the opponent's king with any series of legal moves."
@@ -17,8 +20,17 @@
 //    is actually the 75th one, then all legal moves draw the game:
 //    Either by capturing (now insufficient material) or by reaching 75
 //    moves without a capture or pawn move.
+//    (Not clear that this applies, though. "Legal move" is defined in
+//    3.10.1, which is just about how each piece moves, the rules of
+//    check, and so on. But it does not say anything to preclude
+//    moving a white piece twice in a row, or even capturing the opponent
+//    king (although this is prohibited by 1.4.1.). So it seems that the
+//    intention of the rule is to at least involve other information on
+//    the game state, such as whose move it is, and perhaps the 75-move
+//    counter.)
 // So, the specific slow game below is probably technically wrong, since
-// it ends with the king taking an adjacent queen.
+// it ends with the king taking an adjacent queen. (But what do we do?
+// Instead the game should end in mate, I guess?)
 //
 // Expert mode here would be the longest draw? Can it be as long as the
 // longest win?
@@ -69,7 +81,9 @@ using PositionMap = std::unordered_map<Position, T, PositionHash, PositionEq>;
 // intervening positions, and the threefold repetion claim does not
 // require them to be consecutive. Anyway: We'll just produce a game
 // where no position appears 5 times, which would also mean that
-// "consecutive alternate" would not apply, whatever it is.)
+// "consecutive alternate" would not apply, whatever it is. Note "consecutive"
+// seems to be gone from the rules in 2018. It's just
+// "... the same position has appeared, as in 9.2.2 at least five times.")
 //
 // Note in rule 2 that pawn moves and captures are examples of
 // irreversible moves, and also ones that we can only perform a finite
@@ -102,11 +116,12 @@ using PositionMap = std::unordered_map<Position, T, PositionHash, PositionEq>;
 // naive maximum. It doesn't seem that we can avoid this, since a pawn
 // can only move out of its column by capturing (including en passant)
 // and there would be no way for a pawn to pass through the opposing
-// pawn without one of them moving out of the column. Note that when
-// the white pawn moves from the A file to the B file, it should do so
-// behind the black B pawn. In this case it clears itself to promote
-// and clears the black A pawn too. So it would seem that we need to
-// do this 8 times, each freeing two pawns. That gives us (30 + 16*6 -
+// pawn without one of them moving out of the column.
+// Just doubling up pawns into pairs, with white on even files and black
+// on odd (or vice versa), will clear all of them. (The previous thought
+// here about capturing "behind" a pawn was not necessary/correct.)
+// This is 4 captures for each side to free all the pawns.
+// That gives us (30 + 16*6 -
 // 8) * 150 moves, (+/- off-by-one problems), which is 17700 half-moves.
 // Pretty good.
 
@@ -120,15 +135,16 @@ using PositionMap = std::unordered_map<Position, T, PositionHash, PositionEq>;
 // them easily (perhaps by just randomly moving a piece around, or
 // perhaps by lazily generating some kind of graph structure).
 
-// Split into critical segments.
-// Critical moves are the moments where we either move a pawn or
-// capture a piece (and sometimes both; see above). We don't need to
-// care about what these are. We just want to put the board in
-// exactly the position before the move, and then execute it. We
-// don't need to worry about repeating a position that occurred
-// before or after a critical move, because this is impossible.
-// Therefore, we'll be able to work on each critical section
-// independently.
+// Split into critical segments. Critical moves are the moments where
+// we either move a pawn or capture a piece (and sometimes both; see
+// above). (Checkmate is also allowed as a critical move, since if the
+// 75th move by both players is checkmate, the game ends in mate, not
+// a draw.) We don't need to care about what these are. We just want
+// to put the board in exactly the position before the move, and then
+// execute it. We don't need to worry about repeating a position that
+// occurred before or after a critical move, because this is
+// impossible. Therefore, we'll be able to work on each critical
+// section independently.
 struct Critical {
   // The position before executing any moves.
   Position start_pos;
@@ -137,73 +153,203 @@ struct Critical {
   vector<Move> moves;
   // The position immediately before executing the critical move.
   Position end_pos;
-  // The critical move, which will be a capture or pawn move.
+  // The critical move, which will be a capture or pawn move (or mate).
   Move critical_move;
 };
 
 
 static vector<Critical> MakeCritical() {
   // Made manually.
-  // XXX it seems that for parity's sake, we might need to either
-  // alternate which side is making the critical move, or minimize
-  // the number of switches?
-  //
-  // TODO:
-  // Looks like it's the latter; critical moves should be made 
-  // consecutively by the same player.
-  // Since we need to move all of black's pawns and all of white's
-  // (plus the captures), we will need to switch from one player
-  // doing consecutive critical moves to the other at least once.
-  // But due to the way pawns interact, it seems it must be more
-  // than that?
+  // 
+  // To minimize the amount of slack we incur later, we should make
+  // critical moves consecutively by the same player as much as possible.
+  // Each time we switch back and forth, it costs us one move.
   // 
   // Also looks like the first pawn move should be made by black with
   // white having moved one knight to an opposite color. So the first
   // phase of critical moves should be made by black.
-  string slowgame_fen = 
-    "1. Nf3 e6 2. Rg1 e5 3. Rh1 e4 4. Rg1 g6 5. Rh1 g5 6. Rg1 g4 "
-    "7. Rh1 c6 8. Rg1 c5 9. Rh1 c4 10. Rg1 a6 11. Rh1 a5 12. Rg1 a4 "
-    "13. Rh1 Ra7 14. Rg1 Na6 15. Rh1 Nc7 16. Rg1 Bg7 17. Rh1 Qf6 "
-    "18. Rg1 Qg6 19. Rh1 Ra5 20. Rg1 Rb5 21. Rh1 Rb3 22. Rg1 Nf6 "
-    "23. Rh1 Nh5 24. Rg1 Nf4 25. Rh1 Nh3 26. Rg1 Bf8 27. Nd4 Qf5 "
-    "28. Rh1 Qf3 29. Rg1 Rg8 30. Rh1 Rg5 31. Nb5 Rd5 32. Na7 Rdd3 "
-    "33. Nc6 b6 34. Na5 bxa5 35. axb3 Ne6 36. cxd3 Nc7 37. exf3 Ne6 "
-    "38. gxh3 Ng7 39. b4 Ne6 40. b5 Ng7 41. b6 Ne6 42. b7 Ng7 "
-    "43. b8=R Ne6 44. Rb5 Ng7 45. b3 Ne6 46. b4 Ng7 47. Rg5 Ne6 "
-    "48. b5 Ng7 49. b6 Ne6 50. b7 Ng7 51. b8=B Ne6 52. Be5 Nc7 "
-    "53. Ba3 Ne6 54. Bxf8 Ng7 55. Nc3 Ne6 56. Nd5 Ng7 57. Nb6 Ne6 "
-    "58. Nxc8 Ng7 59. Bfxg7 Kd8 60. Rb1 Ke8 61. Rb5 Kd8 62. Rc5 Ke8 "
-    "63. Qb3 Kd8 64. Be2 Ke8 65. Bd1 Kd8 66. Bc2 d6 67. Qb8 dxc5 "
-    "68. Bb3 f6 69. Bc2 fxe5 70. Bb3 h6 71. Bc2 hxg5 72. Bb3 a3 "
-    "73. Bc2 a2 74. Bb3 a1=N 75. Bh6 Nxb3 76. Bg7 a4 77. Bh6 a3 "
-    "78. Bg7 a2 79. Bh6 a1=N 80. Bg7 Na5 81. Qb7 Nxb7 82. Bh6 c3 "
-    "83. Bg7 c2 84. Bh6 c1=N 85. Bg7 c4 86. Bh6 c3 87. Bg7 c2 "
-    "88. Bh6 Ncb3 89. Bg7 c1=N 90. Bf8 N3a5 91. Kd1 Na2 92. Bb4 Nxb4 "
-    "93. Kc1 Nd5 94. Kb2 Nf4 95. Ka2 Ng2 96. Re1 Nxe1 97. Ka3 Ng2 "
-    "98. Ka4 e3 99. Ka3 e2 100. Ka4 e1=N 101. Ka3 e4 102. Ka4 Nec2 "
-    "103. Kb5 Nce3 104. Ka4 Nf5 105. Kb4 Nc4 106. Kb5 Ne5 107. Ka4 Nbd6 "
-    "108. Ka5 Nxc8 109. Ka4 Nc2 110. Ka5 Ncd4 111. Ka4 Ne6 112. Ka5 e3 "
-    "113. Ka4 e2 114. Ka5 e1=R 115. Ka4 Ngh4 116. Ka5 g3 117. Ka4 Nhg6 "
-    "118. Ka5 g4 119. Ka4 g2 120. Ka5 g1=R 121. Ka4 g3 122. Ka5 Rgf1 "
-    "123. Ka4 g2 124. Ka5 g1=R 125. h4 Kc7 126. h5 Kb8 127. h6 Ka8 "
-    "128. h7 Kb8 129. h8=B Ka8 130. Bxe5 Rg3 131. Bxg3 Ne5 132. Bxe5 Neg7 "
-    "133. Bxg7 Nd4 134. Bxd4 Rg1 135. f4 Ref1 136. f3 Re1 137. f5 Ref1 "
-    "138. f6 Re1 139. f7 Ref1 140. f8=R Re1 141. Re8 Ref1 142. Bxg1 Re1 "
-    "143. f4 Rf1 144. f5 Re1 145. f6 Rf1 146. f7 Re1 147. f8=N Re2 "
-    "148. h3 Re1 149. h4 Re2 150. h5 Re1 151. h6 Re2 152. h7 Re1 "
-    "153. h8=Q Re2 154. d4 Re1 155. d5 Re2 156. d6 Re1 157. d7 Re2 "
-    "158. d8=B Re3 159. d3 Re2 160. Bh4 Re3 161. d4 Re2 162. d5 Re3 "
-    "163. d6 Re2 164. d7 Re3 165. d8=N Ka7 166. Ka4 Ka6 167. Kb4 Ne7 "
-    "168. Kc4 Rg3 169. Bxg3 Ng8 170. Qxg8 Ka5 171. Kd3 Ka6 172. Ke2 Ka5 "
-    "173. Kf2 Ka6 174. Kg2 Ka5 175. Bc5 Kb5 176. Bh2 Kxc5 177. Re6 Kd5 "
-    "178. Nh7 Kc5 179. Rd6 Kb5 180. Ra6 Kxa6 181. Nb7 Kxb7 182. Qa2 Kc6 "
-    "183. Bd6 Kxd6 184. Nf6 Ke7 185. Nd7 Kxd7 186. Kf3 Ke7 187. Kf4 Kf6 "
-    "188. Qf2 Kg6 189. Qg2+ Kh5 190. Ke3 Kh6 191. Qg7+ Kxg7";
+#if 0
+  string slowgame_pgn = R"(
+    1. Nf3 e6 2. Rg1 e5 3. Rh1 e4 4. Rg1 g6 5. Rh1 g5 6. Rg1 g4 
+    7. Rh1 c6 8. Rg1 c5 9. Rh1 c4 10. Rg1 a6 11. Rh1 a5 12. Rg1 a4 
+    13. Rh1 Ra7 14. Rg1 Na6 15. Rh1 Nc7 16. Rg1 Bg7 17. Rh1 Qf6 
+    18. Rg1 Qg6 19. Rh1 Ra5 20. Rg1 Rb5 21. Rh1 Rb3 22. Rg1 Nf6 
+    23. Rh1 Nh5 24. Rg1 Nf4 25. Rh1 Nh3 26. Rg1 Bf8 27. Nd4 Qf5 
+    28. Rh1 Qf3 29. Rg1 Rg8 30. Rh1 Rg5 31. Nb5 Rd5 32. Na7 Rdd3 
+    33. Nc6 b6 34. Na5 bxa5 35. axb3 Ne6 36. cxd3 Nc7 37. exf3 Ne6 
+    38. gxh3 Ng7 39. b4 Ne6 40. b5 Ng7 41. b6 Ne6 42. b7 Ng7 
+    43. b8=R Ne6 44. Rb5 Ng7 45. b3 Ne6 46. b4 Ng7 47. Rg5 Ne6 
+    48. b5 Ng7 49. b6 Ne6 50. b7 Ng7 51. b8=B Ne6 52. Be5 Nc7 
+    53. Ba3 Ne6 54. Bxf8 Ng7 55. Nc3 Ne6 56. Nd5 Ng7 57. Nb6 Ne6 
+    58. Nxc8 Ng7 59. Bfxg7 Kd8 60. Rb1 Ke8 61. Rb5 Kd8 62. Rc5 Ke8 
+    63. Qb3 Kd8 64. Be2 Ke8 65. Bd1 Kd8 66. Bc2 d6 67. Qb8 dxc5 
+    68. Bb3 f6 69. Bc2 fxe5 70. Bb3 h6 71. Bc2 hxg5 72. Bb3 a3 
+    73. Bc2 a2 74. Bb3 a1=N 75. Bh6 Nxb3 76. Bg7 a4 77. Bh6 a3 
+    78. Bg7 a2 79. Bh6 a1=N 80. Bg7 Na5 81. Qb7 Nxb7 82. Bh6 c3 
+    83. Bg7 c2 84. Bh6 c1=N 85. Bg7 c4 86. Bh6 c3 87. Bg7 c2 
+    88. Bh6 Ncb3 89. Bg7 c1=N 90. Bf8 N3a5 91. Kd1 Na2 92. Bb4 Nxb4 
+    93. Kc1 Nd5 94. Kb2 Nf4 95. Ka2 Ng2 96. Re1 Nxe1 97. Ka3 Ng2 
+    98. Ka4 e3 99. Ka3 e2 100. Ka4 e1=N 101. Ka3 e4 102. Ka4 Nec2 
+    103. Kb5 Nce3 104. Ka4 Nf5 105. Kb4 Nc4 106. Kb5 Ne5 107. Ka4 Nbd6 
+    108. Ka5 Nxc8 109. Ka4 Nc2 110. Ka5 Ncd4 111. Ka4 Ne6 112. Ka5 e3 
+    113. Ka4 e2 114. Ka5 e1=R 115. Ka4 Ngh4 116. Ka5 g3 117. Ka4 Nhg6 
+    118. Ka5 g4 119. Ka4 g2 120. Ka5 g1=R 121. Ka4 g3 122. Ka5 Rgf1 
+    123. Ka4 g2 124. Ka5 g1=R 125. h4 Kc7 126. h5 Kb8 127. h6 Ka8 
+    128. h7 Kb8 129. h8=B Ka8 130. Bxe5 Rg3 131. Bxg3 Ne5 132. Bxe5 Neg7 
+    133. Bxg7 Nd4 134. Bxd4 Rg1 135. f4 Ref1 136. f3 Re1 137. f5 Ref1 
+    138. f6 Re1 139. f7 Ref1 140. f8=R Re1 141. Re8 Ref1 142. Bxg1 Re1 
+    143. f4 Rf1 144. f5 Re1 145. f6 Rf1 146. f7 Re1 147. f8=N Re2 
+    148. h3 Re1 149. h4 Re2 150. h5 Re1 151. h6 Re2 152. h7 Re1 
+    153. h8=Q Re2 154. d4 Re1 155. d5 Re2 156. d6 Re1 157. d7 Re2 
+    158. d8=B Re3 159. d3 Re2 160. Bh4 Re3 161. d4 Re2 162. d5 Re3 
+    163. d6 Re2 164. d7 Re3 165. d8=N Ka7 166. Ka4 Ka6 167. Kb4 Ne7 
+    168. Kc4 Rg3 169. Bxg3 Ng8 170. Qxg8 Ka5 171. Kd3 Ka6 172. Ke2 Ka5 
+    173. Kf2 Ka6 174. Kg2 Ka5 175. Bc5 Kb5 176. Bh2 Kxc5 177. Re6 Kd5 
+    178. Nh7 Kc5 179. Rd6 Kb5 180. Ra6 Kxa6 181. Nb7 Kxb7 182. Qa2 Kc6 
+    183. Bd6 Kxd6 184. Nf6 Ke7 185. Nd7 Kxd7 186. Kf3 Ke7 187. Kf4 Kf6 
+    188. Qf2 Kg6 189. Qg2+ Kh5 190. Ke3 Kh6 191. Qg7+ Kxg7
+  )";
+#endif
+
+#if 0
+  // This one is close, but black mates white on their 75th move, with
+  // white having played 74 non-critical moves. So we have 1 slack.
+  string slowgame_pgn = R"(
+    1. Nf3 b6 2. Nc3 g6 3. Ne5 g5 4. Nd5 b5
+    5. Nc4 bxc4 6. Nf4 gxf4 7. Rg1 c6 8. Rh1 c5
+    9. Rg1 f6 10. Rh1 f5 11. b3 Nc6 12. b4 Nd4
+    13. b5 Nb3 14. cxb3 Bb7 15. a3 Rc8 16. a4 Rc6
+    17. a5 Rd6 18. a6 Re6 19. axb7 Rd6 20. b8=N Re6
+    21. b6 Nh6 22. b7 Ng4 23. Nc6 Bh6 24. b8=Q Kf8
+    25. b4 Ke8 26. b5 Kf8 27. Qe5 Ke8 28. b6 Kf8
+    29. b7 Ke8 30. b8=N Bg5 31. h3 Bh4 32. hxg4 Bg3
+    33. fxg3 Qc8 34. g5 Qa6 35. Nb4 Kd8 36. Qe3 Kc7
+    37. g6 Kb6 38. g7 Rf6 39. g8=Q Re6 40. g4 Rf6
+    41. g5 Re6 42. g6 Rf6 43. g7 Re6 44. Qf8 Rf6
+    45. g8=N Rd6 46. Nf6 Qb5 47. Nh5 Rg8 48. g3 Rgg6
+    49. g4 Rge6 50. g5 Rf6 51. g6 Rc6 52. g7 Qa6
+    53. g8=N Qa5 54. d3 Qa6 55. d4 Qa5 56. d5 Qa6
+    57. dxc6 Qa5 58. c7 Qa6 59. c8=R Qa4 60. Qh3 Qa6
+    61. e3 Qa5 62. e4 Qa6 63. e5 Qa5 64. exf6 Qa6
+    65. Qg7 Qa5 66. f7 Qa6 67. Re8 Qa5 68. f8=R Qa6
+    69. Qdg4 Qa5 70. Nc6 Qa6 71. Ne5 Qa5 72. Nf3 Qa6
+    73. Nd3 Qa5+ 74. Ke2 Qa6 75. Nf2 Qa5 76. Qh8 Qa3
+    77. Nd1 Qa2+ 78. Nd2 Qa3 79. Kf2 Qa2 80. Kg1 Qa3
+    81. Rxa3 f3 82. Kh2 f2 83. Bd3 f1=R 84. Qf4 Rxf4
+    85. Ng7 h6 86. Be4 Rxe4 87. Ne6 f4 88. Nf6 f3
+    89. Ng8 f2 90. Nf6 f1=B 91. Rd3 Bxd3 92. Bb2 a6
+    93. Bc3 a5 94. Bb2 a4 95. Bc3 a3 96. Bb2 a2
+    97. Bc3 a1=R 98. Ba5+ Rxa5 99. Nf4 c3 100. Ne2 c2
+    101. Nf4 c1=N 102. Ne2 c4 103. Ng4 Nxe2 104. Nge3 c3
+    105. Nf5 c2 106. Nfe3 c1=R 107. Re1 h5 108. Qf3 h4
+    109. Kg2 h3+ 110. Kf2 h2 111. Qfh5 h1=R 112. Ng4 Rxg4
+    113. Nc4+ Bxc4 114. Nb2 d6 115. Rg1 d5 116. Rg2 d4
+    117. Kf3 d3 118. Kf2 d2 119. Qh2 d1=R 120. Kf3 Nc3
+    121. Kf2 Rg8 122. Kf3 e6 123. Kf4 e5+ 124. Kf5 e4+
+    125. Kf6 e3 126. Rg3 e2 127. Rg2 e1=Q 128. Nd3 Rxd3
+    129. Rg1 Rgxg1 130. Q8h3 Rxh3 131. Ra8 Rxa8 132. Rb8+ Rxb8
+    133. Qe2 Nxe2 134. Ke5 Be6 135. Kxe6 Nc3+ 136. Kd6 Nd5
+    137. Kxd5 Qh4 138. Ke5 Ka5 139. Kd5 Rc6 140. Kxc6 Rb7
+    141. Kxb7 Rc3 142. Kb8 Rc7 143. Kxc7 Rd1 144. Kc6 Rd7
+    145. Kxd7 Re1 146. Kd6 Re5 147. Kxe5 Kb6 148. Kd5 Qh2
+    149. Ke6 Qh4 150. Ke5 Kc6 151. Ke6 Kc7 152. Kf7 Kd6
+    153. Ke8 Qe7#
+  )";
+#endif
+
+  string slowgame_pgn = R"(
+    1. Nf3 b6 2. Nc3 g6 3. Ne5 g5 4. Nd5 b5
+    5. Nc4 bxc4 6. Nf4 gxf4 7. Rg1 c6 8. Rh1 c5
+    9. Rg1 f6 10. Rh1 f5 11. b3 Nc6 12. b4 Nd4
+    13. b5 Nb3 14. cxb3 Bb7 15. a3 Rc8 16. a4 Rc6
+    17. a5 Rd6 18. a6 Re6 19. axb7 Rd6 20. b8=N Re6
+    21. b6 Nh6 22. b7 Ng4 23. Nc6 Bh6 24. b8=Q Kf8
+    25. b4 Ke8 26. b5 Kf8 27. Qe5 Ke8 28. b6 Kf8
+    29. b7 Ke8 30. b8=N Bg5 31. h3 Bh4 32. hxg4 Bg3
+    33. fxg3 Qc8 34. g5 Qa6 35. Nb4 Kd8 36. Qe3 Kc7
+    37. g6 Kb6 38. g7 Rf6 39. g8=Q Re6 40. g4 Rf6
+    41. g5 Re6 42. g6 Rf6 43. g7 Re6 44. Qf8 Rf6
+    45. g8=N Rd6 46. Nf6 Qb5 47. Nh5 Rg8 48. g3 Rgg6
+    49. g4 Rge6 50. g5 Rf6 51. g6 Rc6 52. g7 Qa6
+    53. g8=N Qa5 54. d3 Qa6 55. d4 Qa5 56. d5 Qa6
+    57. dxc6 Qa5 58. c7 Qa6 59. c8=R Qa4 60. Qh3 Qa6
+    61. e3 Qa5 62. e4 Qa6 63. e5 Qa5 64. exf6 Qa6
+    65. Qg7 Qa5 66. f7 Qa6 67. Re8 Qa5 68. f8=R Qa6
+    69. Qdg4 Qa5 70. Nc6 Qa6 71. Ne5 Qa5 72. Nf3 Qa6
+    73. Nd3 Qa5+ 74. Ke2 Qa6 75. Nf2 Qa5 76. Qh8 Qa3
+    77. Nd1 Qa2+ 78. Nd2 Qa3 79. Kf2 Qa2 80. Kg1 Qa3
+    81. Rxa3 f3 82. Kh2 f2 83. Bd3 f1=R 84. Qf4 Rxf4
+    85. Ng7 h6 86. Be4 Rxe4 87. Ne6 f4 88. Nf6 f3
+    89. Ng8 f2 90. Nf6 f1=B 91. Rd3 Bxd3 92. Bb2 a6
+    93. Bc3 a5 94. Bb2 a4 95. Bc3 a3 96. Bb2 a2
+    97. Bc3 a1=R 98. Ba5+ Rxa5 99. Nf4 c3 100. Ne2 c2
+    101. Nf4 c1=N 102. Ne2 c4 103. Ng4 Nxe2 104. Nge3 c3
+    105. Nf5 c2 106. Nfe3 c1=R 107. Re1 h5 108. Qf3 h4
+    109. Kg2 h3+ 110. Kf2 h2 111. Qfh5 h1=R 112. Ng4 Rxg4
+    113. Nc4+ Bxc4 114. Nb2 d6 115. Rg1 d5 116. Rg2 d4
+    117. Kf3 d3 118. Kf2 d2 119. Qh2 d1=R 120. Kf3 Nc3
+    121. Kf2 Rg8 122. Kf3 e6 123. Kf4 e5+ 124. Kf5 e4+
+    125. Kf6 e3 126. Rg3 e2 127. Rg2 e1=Q 128. Nd3 Rxd3
+    129. Rg1 Rgxg1 130. Q8h3 Rxh3 131. Ra8 Rxa8 132. Rb8+ Rxb8
+    133. Qxb8+ Ka5 134. Qg3 Bf7 135. Qxe1 Rg5 136. Qxc1 Ka6
+    137. Qxc3 Kb6 138. Qxh3 Kc5 139. Kxf7 Kc6 140. Qxh1+ Kd7
+    141. Kf6 Ke8 142. Qg2 Rg8 143. Ke6 Rg7 144. Qxg7 Kd8
+    145. Qd7#
+)";
+  
+
+  #if 0
+  // Draw game, just 3 slack! But this game ends with the
+  // last move being forced...
+  string slowgame_pgn = R"(
+    1. Nf3 b6 2. Nc3 g6 3. Ne5 g5 4. Nd5 b5
+    5. Nc4 bxc4 6. Nf4 gxf4 7. Rg1 c6 8. Rh1 c5
+    9. Rg1 f6 10. Rh1 f5 11. b3 Nc6 12. b4 Nd4
+    13. b5 Nb3 14. cxb3 Bb7 15. a3 Rc8 16. a4 Rc6
+    17. a5 Rd6 18. a6 Re6 19. axb7 Rd6 20. b8=N Re6
+    21. b6 Nh6 22. b7 Ng4 23. Nc6 Bh6 24. b8=Q Kf8
+    25. b4 Ke8 26. b5 Kf8 27. Qe5 Ke8 28. b6 Kf8
+    29. b7 Ke8 30. b8=N Bg5 31. h3 Bh4 32. hxg4 Bg3
+    33. fxg3 Qc8 34. g5 Qa6 35. Nb4 Kd8 36. Qe3 Kc7
+    37. g6 Kb6 38. g7 Rf6 39. g8=Q Re6 40. g4 Rf6
+    41. g5 Re6 42. g6 Rf6 43. g7 Re6 44. Qf8 Rf6
+    45. g8=N Rd6 46. Nf6 Qb5 47. Nh5 Rg8 48. g3 Rgg6
+    49. g4 Rge6 50. g5 Rf6 51. g6 Rc6 52. g7 Qa6
+    53. g8=N Qa5 54. d3 Qa6 55. d4 Qa5 56. d5 Qa6
+    57. dxc6 Qa5 58. c7 Qa6 59. c8=R Qa4 60. Qh3 Qa6
+    61. e3 Qa5 62. e4 Qa6 63. e5 Qa5 64. exf6 Qa6
+    65. Qg7 Qa5 66. f7 Qa6 67. Re8 Qa5 68. f8=R Qa6
+    69. Qdg4 Qa5 70. Nc6 Qa6 71. Ne5 Qa5 72. Nf3 Qa6
+    73. Nd3 Qa5+ 74. Ke2 Qa6 75. Nf2 Qa5 76. Qh8 Qa3
+    77. Nd1 Qa2+ 78. Nd2 Qa3 79. Kf2 Qa2 80. Kg1 Qa3
+    81. Rxa3 f3 82. Kh2 f2 83. Bd3 f1=R 84. Qf4 Rxf4
+    85. Ng7 h6 86. Be4 Rxe4 87. Ne6 f4 88. Nf6 f3
+    89. Ng8 f2 90. Nf6 f1=B 91. Rd3 Bxd3 92. Bb2 a6
+    93. Bc3 a5 94. Bb2 a4 95. Bc3 a3 96. Bb2 a2
+    97. Bc3 a1=R 98. Ba5+ Rxa5 99. Nf4 c3 100. Ne2 c2
+    101. Nf4 c1=N 102. Ne2 c4 103. Ng4 Nxe2 104. Nge3 c3
+    105. Nf5 c2 106. Nfe3 c1=R 107. Re1 h5 108. Qf3 h4
+    109. Kg2 h3+ 110. Kf2 h2 111. Qfh5 h1=R 112. Ng4 Rxg4
+    113. Nc4+ Bxc4 114. Nb2 d6 115. Rg1 d5 116. Rg2 d4
+    117. Kf3 d3 118. Kf2 d2 119. Qh2 d1=R 120. Kf3 Nc3
+    121. Kf2 Rg8 122. Kf3 e6 123. Kf4 e5+ 124. Kf5 e4+
+    125. Kf6 e3 126. Rg3 e2 127. Rg2 e1=Q 128. Nd3 Rxd3
+    129. Rg1 Rgxg1 130. Q8h3 Rxh3 131. Ra8 Rxa8 132. Rb8+ Rxb8
+    133. Qe2 Nxe2 134. Ke5 Be6 135. Kxe6 Nc3+ 136. Kd6 Nd5
+    137. Kxd5 Qh4 138. Ke5 Ka5 139. Kd5 Rc6 140. Kxc6 Rb7
+    141. Kxb7 Rc3 142. Kb8 Rc7 143. Kxc7 Rd1 144. Kc6 Rd7
+    145. Kxd7 Re1 146. Kd6 Re5 147. Kxe5 Kb4 148. Kd5 Kc3
+    149. Kc5 Qd8 150. Kc6 Kc4 151. Kb7 Kc5 152. Ka7 Kb4
+    153. Kb7 Qh4 154. Ka7 Qd8 155. Ka6 Kc5 156. Kb7 Kd6
+    157. Ka7 Kc7 158. Ka6 Qa8+ 159. Kb5 Qc6+ 160. Ka5 Qc5+
+    161. Ka4 Qb4+ 162. Kxb4
+)";
+#endif
   
   vector<Move> moves;
   {
     vector<PGN::Move> movestrings;
-    CHECK(PGN::ParseMoves(slowgame_fen, &movestrings));
+    CHECK(PGN::ParseMoves(slowgame_pgn, &movestrings));
     Position pos;
     for (const auto &ms : movestrings) {
       Move m;
@@ -219,13 +365,18 @@ static vector<Critical> MakeCritical() {
   Position pos;
   Critical crit;
   crit.start_pos = pos;
+  bool has_checkmate = false;
   for (const Move &m : moves) {
     const bool is_pawn = pos.IsPawnMove(m);
     const bool is_capturing = pos.IsCapturing(m);
+    const bool is_checkmate = pos.MoveExcursion(m, [&](){
+	return pos.IsMated();
+      });
     if (is_pawn) pawn_moves++;
     if (is_capturing) captures++;
-
-    const bool is_critical = is_pawn || is_capturing;
+    if (is_checkmate) has_checkmate = true;
+    
+    const bool is_critical = is_pawn || is_capturing || is_checkmate;
     if (is_critical) {
       crit.end_pos = pos;
       crit.critical_move = m;
@@ -240,16 +391,22 @@ static vector<Critical> MakeCritical() {
   }
   // The last move should have been critical.
   CHECK(crit.moves.empty());
+  #if 0
   // This particular game ends with a draw from insufficient material.
   CHECK(!pos.IsInCheck());
   CHECK(!pos.IsMated());
-
-
+  #endif
+  
+  const char *maybe_checkmate = "";
+  if (has_checkmate) maybe_checkmate = "(ends in checkmate)\n";
+  
   printf("Slow game: %d pawn moves, %d captures\n"
+	 "%s"
 	 "Critical sections: %d\n",
 	 pawn_moves, captures,
+	 maybe_checkmate,
 	 (int)crits.size());
-  CHECK(crits.size() == 118);
+  CHECK(crits.size() == 118) << crits.size();
   return crits;
 }
 
@@ -337,7 +494,7 @@ static bool MakeEvenExcursion(const Position &orig_pos,
 	       pos2.ShortMoveString(opp_move).c_str(),
 	       pos3.ShortMoveString(rcur_move).c_str(),
 	       pos4.ShortMoveString(ropp_move).c_str());
-
+	
 	(*seen)[pos2]++;
 	(*seen)[pos3]++;
 	(*seen)[pos4]++;
@@ -516,7 +673,9 @@ static void Expand(Critical *crit) {
 
   // Also note some subtlety with the starting position: It does not
   // formally count as having "appeared," but we insert it anyway.
-  // This just causes us our game to be a little more conservative.
+  // This just causes us our game to be a little more conservative
+  // about what positions it's willing to visit, but it will have the
+  // same final length.
   {
     Position pos = crit->start_pos;
     seen[pos]++;
@@ -617,7 +776,6 @@ static void MakeLongest() {
   Position pos;
   
   vector<Move> final_moves;
-  // XXX more verification to do here, like 75-move counter
 
   for (const Critical &crit : crits) {
     CHECK(PositionEq{}(pos, crit.start_pos));
@@ -638,11 +796,25 @@ static void MakeLongest() {
     }
     CHECK(PositionEq{}(pos, crit.end_pos));
     CHECK(pos.IsLegal(crit.critical_move));
-    CHECK(pos.IsPawnMove(crit.critical_move) ||
-	  pos.IsCapturing(crit.critical_move));
-    printf("Critical move with w %d, b %d\n",
-	   white_noncritical, black_noncritical);
+
+    // Check that the critical move is indeed critical, which
+    // licenses us to reset the noncritical counters.
+    const bool is_pawn_move = pos.IsPawnMove(crit.critical_move);
+    const bool is_capturing = pos.IsCapturing(crit.critical_move);
+    const bool is_checkmate = pos.MoveExcursion(crit.critical_move,
+						[&](){
+						  return pos.IsMated();
+						});
+
+    CHECK(is_pawn_move || is_capturing || is_checkmate);
     int move_slack = 149 - (white_noncritical + black_noncritical);
+    printf("Critical move (%s%s%s) with w %d, b %d",
+	   (is_pawn_move ? "p" : ""),
+	   (is_capturing ? "x" : ""),
+	   (is_checkmate ? "++" : ""),
+	   white_noncritical, black_noncritical);
+    if (move_slack > 0) printf(" (slack %d)\n", move_slack);
+    else printf("\n");
     slack_histo[move_slack]++;
     total_slack += move_slack;
     
@@ -670,6 +842,38 @@ static void MakeLongest() {
     }
   }
   Util::WriteFile("slow.pgn", pgn);
+
+  if (false) {
+    int move_num = 1;
+    Position p;
+    int white_noncritical = 0, black_noncritical = 0;
+    for (int i = 0; i < final_moves.size(); i++) {
+      const Move &m = final_moves[i];
+      const bool is_pawn_move = p.IsPawnMove(m);
+      const bool is_capturing = p.IsCapturing(m);
+      const bool critical = is_pawn_move || is_capturing;
+      if (critical) white_noncritical = black_noncritical = 0;
+      
+      if (i % 10 == 0) {
+	printf("\n%s\n%s\n", p.BoardString().c_str(),
+	       p.ToFEN(1, 1).c_str());
+      }
+      
+      if (!p.BlackMove()) {
+	if (!critical) white_noncritical++;
+	printf(" %d. %s [%d %d]", move_num,
+	       p.ShortMoveString(m).c_str(),
+	       white_noncritical, black_noncritical);
+      } else {
+	if (!critical) black_noncritical++;
+	printf(" %s [%d %d]",
+	       p.ShortMoveString(m).c_str(),
+	       white_noncritical, black_noncritical);
+	move_num++;
+      }
+      p.ApplyMove(m);
+    }
+  }
   
   for (const auto &p : slack_histo)
     printf("Slack %d: %d time(s)\n", p.first, p.second);
