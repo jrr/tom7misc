@@ -68,7 +68,7 @@ Foundation. Appears in SIGBOVIK 2015 with the {\tt ShortMoveString} of the
 Association for Computational Heresy; {\em IEEEEEE!} press,
 Verlag-Verlag volume no.~0x40-2A.
 % XXX should match the length of the game
-\textcurrency 17697
+\textcurrency 17,697
 }
 }
 
@@ -85,6 +85,7 @@ In my experience, most chess games end in a few moves. Players who
 seek longevity typically do so by playing many games of chess, rather
 than a protracted XXX
 
+(shortest game is well known)
 
 Although many people ``know how to play'' chess, almost nobody fully
 understands the rules of chess, most authoritatively given by
@@ -329,6 +330,7 @@ helpmate can be very difficult indeed (Figure~\ref{fig:nohelp}).
 
 % XXX might be a good place to talk about the self-referential "maximal"
 % and "minimal" interpretations of this rule?
+% Need to have a  \label{sec:ambiguity} somewhere.
 
 
 \medskip
@@ -375,147 +377,78 @@ blocked by the opposing pawn on the same file. Pawns can move
 diagonally off their starting file only by capturing. We have plenty
 of capturing to do anyway, so this in no problem. With four captures
 per side, the pawns can be doubled, with a clear route to promotion,
-like so:
+like in Figure~\ref{fig:doubled}.
 
+\begin{figure}[h]
 \begin{center}
-\chessboard[setfen=2bqkb2/1p1p1p1p/1p1p1p1p/8/8/P1P1P1P1/P1P1P1P1/2BQKB2 w - - 0 1]
+  \chessboard[setfen=2bqkb2/1p1p1p1p/1p1p1p1p/8/8/P1P1P1P1/P1P1P1P1/2BQKB2 w - - 0 1]
+  \caption{One way to clear the promotion routes for all pawns with
+    eight captures. } \label{fig:doubled}
 \end{center}
+\end{figure}
 
 Each of these captures is {\em both} a pawn move {\em and} a capturing
 move, however. This means that we lose $4+4$ critical moves off our
-total budget. $150 \times 118 = 17700$ is the new upper bound.
+total budget. $150 \times (126 - 8) = 17700$ is the new upper bound.
 
 \paragraph{Parity.} If a critical move (such as a pawn move) is made by
-white, then the first pointless excursion is made by black. The
-players alternate these pointless moves until black has made 75 and
-white 74. Now it is white's move, and white must make a critical move
+white, then the first non-critical move is made by black. The
+players alternate these pointless moves until black has made $75$ and
+white $74$. Now it is white's move, and white must make a critical move
 or the game ends due to the 75-move rule. If instead we wanted black
 to make the next critical move, this would happen after black has made
-74 and white 74 non-critical moves. Any time this happens we lose one
+$74$ and white $74$ non-critical moves. Any time this happens we lose one
 move against the upper bound. So, we want to minimize the number of
 times we switch which player is making the critical moves. Obviously
 we must switch at least once, because both black and white must
-make critical moves (upper bound $17699$).
+make critical moves. This reduces the upper bound to $17699$.
 
 \paragraph{Starting condition.} The first critical move should be made
 by black. The starting position (with white to move) is analogous to
 the situation just described, as if black has just made a critical move,
-and it's white's turn. White will play 75 reversible moves, black plays
-74, and the 150th move is black making the first critical move.
+and it's white's turn. White will play $75$ reversible moves, black plays
+$74$, and the 150\th\ move is black making the first critical move.
 
-Note that white is quite constrained during this beginning phase,
-unable to make any pawn moves. Only the white knights can escape the
-back rank. When we try to insert $149$ pointless moves, we'll only be
-able to move the knights and rooks, and doing this 75 times must leave
-e.g. one of the knights on an opposite-colored square.\footnote{Knight
-  moves always change the color of the knight's square, and same for
-  rook moves constrained to the a1/b1 or g1/h1 squares.} So we have to
-be a little careful about the position in which we make black's first
-critical move.
+Note that white is quite constrained during this beginning phase, as
+pawn moves are critical moves and must be avoided. Only the white
+knights can escape the back rank. When we try to insert $149$
+pointless moves, we'll only be able to move the knights and rooks, and
+doing this $75$ times must leave e.g. one of the knights on an
+opposite-colored square.\footnote{Knight moves always change the color
+  of the knight's square, and same for rook moves constrained to the
+  a1/b1 or g1/h1 squares.} So we have to be a little careful about the
+position in which we make black's first critical move.
 
-Since white can only free their two knights, it will not be possible
-for black to double four sets of their pawns (each requires capturing
-a white piece). Executing as many critical moves as possible get us
-to a position like
+Since white can only free their two knights, these are the only pieces
+that can be captured by black pawns. So it will not be possible for
+black to double four sets of their pawns as in
+Figure~\ref{fig:doubled}. This would require white to have a phase of
+critical moves to free moves to capture, then black again to finish
+doubling pawns, then white again to promote its freed pawns. Each switch
+costs move off the theoretical max. We can be more efficient with an
+asymmetric approach. 
 
-\begin{center}
-\chessboard[setfen=r1bqkb2/8/5r2/p1pn4/5p1p/1p1p1p1p/PPPPPPPP/n3K3 w q - 0 47]
-\end{center}
-
-\ldots at which point we need to switch to making critical moves by white ({\bf Switch 1}).
-White can promote their unblocked pawns,\footnote{White could promote all their pawns, but this would require.. actually maybe this is possible? Try...
-  % In this game you get stuck at:
-  % 1N1NN1RQ/4k3/7N/p1p2b1Q/5p1p/1p1p1p1p/1P6/3K4 b - - 0 95
-
-  )
-}
-making progress to a position
-like
-
-\begin{center}
-  \chessboard[setfen=2krQ3/8/7N/p1p2b2/PRPQ1p1p/PpPp1p1p/8/5K2 b - - 2 86]
-\end{center}
-
-\ldots and then we switch back to black again ({\bf Switch 2}). Black
-promotes the remaining pawns, giving something like
-
-\begin{center}
-  \chessboard[setfen=2krbK2/8/7r/8/P1P5/PnP5/1n1n1n2/1n1n1n2 w - - 0 118]
-\end{center}
-
-\ldots with nothing left to do. We need to promote the white pawns
-before capturing them. So we switch back to white ({\bf Switch 3}) and
-promote them all. White can capture all of black's remaining pieces
-during this phase of critical moves, resulting in a board like
-
-\begin{center}
-  \chessboard[setfen=N2Q1K2/N7/N7/8/8/7k/8/8 b - - 0 149]
-\end{center}
+Black's first phase of critical moves instead results in this:
 
 \comment{
-  position after above: N2Q1K2/N7/N7/8/8/7k/8/8 b - - 0 149
-
-   proof game:
-  1. Nf3 h6 2. Ng1 h5 3. Nf3 f5 4. Nc3 d5
-5. Ne4 b5 6. Ne5 Rh6 7. Ng4 Rc6 8. Nh6 gxh6
-9. Nf6+ exf6 10. Rb1 Na6 11. Ra1 Nb4 12. Rb1 Ne7
-13. Ra1 Ng6 14. Rb1 Nf4 15. Ra1 Nh3 16. Rg1 Nxg1
-17. Rb1 Nh3 18. Ra1 Nf4 19. Rb1 d4 20. Ra1 Nbd5
-21. Rb1 Ne3 22. Ra1 Nxf1 23. Rb1 Ne3 24. Ra1 Nxd1
-25. Rb1 Ne3 26. Ra1 Ned5 27. Rb1 Nd3+ 28. Kf1 Nxc1
-29. Ra1 h4 30. Rb1 h3 31. Ra1 h5 32. Rb1 h4
-33. Ra1 f4 34. Rb1 f5 35. Ra1 f3 36. Rb1 f4
-37. Ra1 d3 38. Rb1 b4 39. Ra1 Nb3 40. Rb1 a6
-41. Ra1 a5 42. Rb1 Rf6 43. Ra1 c6 44. Rb1 c5
-45. Ra1 Nxa1 46. Ke1 b3 47. g3 Re6 48. g4 Rf6
-49. g5 Re6 50. g6 Rf6 51. g7 Re6 52. g8=Q Rf6
-53. Qg5 Re6 54. Qe5 Bg7 55. Qd4 Qg5 56. Kd1 Qg3
-57. hxg3 Bh6 58. g4 Bg7 59. g5 Bh6 60. g6 Bg5
-61. g7 Bh6 62. g8=N Bd7 63. e3 O-O-O 64. e4 Rd6
-65. e5 Rc6 66. e6 Rb6 67. e7 Rc6 68. e8=Q Rg6
-69. c3 Rg3 70. fxg3 Bc6 71. Nxh6 Bd7 72. g4 Bc6
-73. g5 Bd7 74. g6 Bc6 75. g7 Bd7 76. g8=R Nf6
-77. a3 Nd5 78. a4 Nf6 79. c4 Nd5 80. Rg6 Nc3+
-81. Ke1 Nc2+ 82. Kf1 Na3 83. dxc3 Bf5 84. Rb6 Bd7
-85. bxa3 Bf5 86. Rb4 axb4 87. Qf8 cxd4 88. Qe8 b2
-89. Qf8 b1=N 90. Qe8 d2 91. Qf8 d1=N 92. Qe8 b3
-93. Qf8 b2 94. Qe8 Nd2+ 95. Kg1 b1=N 96. Qf8 Nb2
-97. Qe8 Nb3 98. Qf8 d3 99. Qe8 d2 100. Qf8 d1=N
-101. Kf1 f2 102. Ke2 f1=N 103. Kf3 h2 104. Qe8 Bd7
-105. Ke4 f3 106. Qf7 Nfd2+ 107. Kf4 f2 108. Kg5 f1=N
-109. Kg6 h1=N 110. Kf6 h3 111. Kg6 h2 112. Kf6 Nhf2
-113. Kg6 h1=R 114. Kg7 Be6 115. Kh7 Bxf7 116. Kg7 Be8
-117. Kf8 Rxh6 118. a5 Rh5 119. a6 Rh4 120. a7 Rh3
-121. a8=N Rh2 122. a4 Rh3 123. a5 Rh4 124. a6 Rh5
-125. a7 Rh4 126. Nc7 Rh3 127. a8=N Kd7 128. Na6 Ke6
-129. c5 Kf6 130. c6 Kg6 131. c7 Kh5 132. c8=N Rh2
-133. c4 Rh3 134. c5 Rh2 135. c6 Rh1 136. c7 Rh2
-137. Na7 Rh1 138. c8=Q Nc5 139. Qxc5+ Kh4 140. Qxf2+ Kh5
-141. Qxf1 Kh6 142. Qxd1 Kh7 143. Qxd2 Kg6 144. Qxb2 Kg5
-145. Qxb1 Kh4 146. Qxh1+ Kg5 147. Qc6 Kh4 148. Qxe8 Kh3
-149. Qxd8
-  }
-
-But !
-
-// The way we'll find this game is to manually generate a slow game,
-// that is, one where we make make 16*6 pawn moves (but 8 are
-captures) // and capture all the pieces except for a single queen, and
-then // capture it, too. Then all that remains is to artificially slow
-// down this game even more, by inserting 75+74 half-moves that get us
-back // to the position we're already in (without repeating 5 times).
-The // hypothesis is that such sequences are numerous, so we can find
-// them easily (perhaps by just randomly moving a piece around, or //
-perhaps by lazily generating some kind of graph structure).
-
-
-\subsection{Better approach}
-
-OK, need to rewrite the above for this superior game:
-
 1. Nf3 b6 2. Nc3 g6 3. Ne5 g5 4. Nd5 b5
 5. Nc4 bxc4 6. Nf4 gxf4 7. Rg1 c6 8. Rh1 c5
-9. Rg1 f6 10. Rh1 f5 11. b3 Nc6 12. b4 Nd4
+9. Rg1 f6 10. Rh1 f5 
+}
+\begin{center}
+\chessboard[setfen=rnbqkbnr/p2pp2p/8/2p2p2/2p2p2/8/PPPPPPPP/R1BQKB1R w Qkq - 0 11]
+\end{center}
+
+
+The white b and g pawns have a clear route to promotion. White can
+free each of the remaining 6 pawns with a single capture. Between this
+and black's two pawn captures, this is the minimum of 8 pawn moves
+that are also captures. Since black has plenty of freed pieces, white
+can promote all of their pawns during their own phase of critical
+moves, resulting in:
+
+\comment{
+11. b3 Nc6 12. b4 Nd4
 13. b5 Nb3 14. cxb3 Bb7 15. a3 Rc8 16. a4 Rc6
 17. a5 Rd6 18. a6 Re6 19. axb7 Rd6 20. b8=N Re6
 21. b6 Nh6 22. b7 Ng4 23. Nc6 Bh6 24. b8=Q Kf8
@@ -533,7 +466,17 @@ OK, need to rewrite the above for this superior game:
 69. Qdg4 Qa5 70. Nc6 Qa6 71. Ne5 Qa5 72. Nf3 Qa6
 73. Nd3 Qa5+ 74. Ke2 Qa6 75. Nf2 Qa5 76. Qh8 Qa3
 77. Nd1 Qa2+ 78. Nd2 Qa3 79. Kf2 Qa2 80. Kg1 Qa3
-81. Rxa3 f3 82. Kh2 f2 83. Bd3 f1=R 84. Qf4 Rxf4
+81. Rxa3
+}
+\begin{center}
+  \chessboard[setfen=4RRNQ/p2pp2p/1k6/2p2p1N/2p2pQ1/R6Q/3N4/2BN1BKR b - - 0 81]
+\end{center}
+
+Now black can promote all of its pawns and capture white's pieces.
+We actually leave the white queen; this turns out to be essential:
+
+\comment{
+\ldots f3 82. Kh2 f2 83. Bd3 f1=R 84. Qf4 Rxf4
 85. Ng7 h6 86. Be4 Rxe4 87. Ne6 f4 88. Nf6 f3
 89. Ng8 f2 90. Nf6 f1=B 91. Rd3 Bxd3 92. Bb2 a6
 93. Bc3 a5 94. Bb2 a4 95. Bc3 a3 96. Bb2 a2
@@ -546,59 +489,66 @@ OK, need to rewrite the above for this superior game:
 121. Kf2 Rg8 122. Kf3 e6 123. Kf4 e5+ 124. Kf5 e4+
 125. Kf6 e3 126. Rg3 e2 127. Rg2 e1=Q 128. Nd3 Rxd3
 129. Rg1 Rgxg1 130. Q8h3 Rxh3 131. Ra8 Rxa8 132. Rb8+ Rxb8
+}
+
+\begin{center}
+  \chessboard[setfen=1r6/8/1k3K2/8/2b5/2n4r/7Q/2r1q1rr w - - 0 133]
+\end{center}
+
+Finally, white captures all of black's pieces, and mates the black king.
+
+\comment{
 133. Qxb8+ Ka5 134. Qg3 Bf7 135. Qxe1 Rg5 136. Qxc1 Ka6
 137. Qxc3 Kb6 138. Qxh3 Kc5 139. Kxf7 Kc6 140. Qxh1+ Kd7
 141. Kf6 Ke8 142. Qg2 Rg8 143. Ke6 Rg7 144. Qxg7 Kd8
 145. Qd7\#
+}
 
+\begin{center}
+  \chessboard[setfen=3k4/3Q4/4K3/8/8/8/8/8 b - - 2 145]
+\end{center}
 
+(this is three switches)
 
-Black's first phase results in this:
-\chessboard[setfen=rnbqkbnr/p2pp2p/8/2p2p2/2p2p2/8/PPPPPPPP/R1BQKB1R w Qkq - 0 11]
+\paragraph{Ending condition.} The way this game ends is subtle for
+several reasons. First, note that we left the white queen on the board
+and used it for mate. It is required that white be the one mating for
+parity reasons, similar to the reason black must make the first critical
+move. Since white makes critical moves in the last phase, black leads
+on non-critical moves; at the moment white makes the checkmating move,
+black has made 75 non-critical moves, and white 74. White's 75th move
+mates.
 
-We made two captures, and each of white's pawns can be freed with
-at most one capture, and two are already clear. So this totals 8 pawn
-captures, the (conjectured) minimum. (Switch 1) Now white's phase:
+But doesn't this trigger the 75-move rule? No, this rule (9.6.2;
+Section~\ref{sec:75}) has a special exception for checkmate: ``If the
+last move resulted in checkmate, that shall take precedence.''
+Essentially, we can treat checkmate as a type of critical move.
 
+Why not capture the white queen too? This would be a critical move,
+but once two kings remain, the game ends immediately in a draw. So
+there is no length advantage here over checkmate. In fact we could do
+worse: Consider the position in Figure~\ref{fig:insufficient} where
+black is {\em forced} to capture the queen. This game is over prior to
+the capture, so this is shorter than the checkmating sequence! Even if
+the king had an escape square, it is arguable
+(Section~\ref{sec:ambiguity}) that the game is over in any case: There
+is no legal sequence of moves that leads to mate. Either the king
+captures the queen (and then clearly no mate is possible with just the
+two kings) or the king escapes, but in doing so plays the
+75\th\ non-critical move, and triggers a draw by the 75-move rule.
 
-White's first phase then ends here:
-
-\chessboard[setfen=4RRNQ/p2pp2p/1k6/2p2p1N/2p2pQ1/R6Q/3N4/2BN1BKR b - - 0 81]
-
-We promoted all of white's pieces, and captured all of black's. (Switch 2).
-Black again. Black promotes all his pawns:
-
-\chessboard[setfen=4RRrQ/8/1k3K2/r7/2b5/2n5/1N4RQ/2rrq2r w - - 0 128]
-
-... and then proceeds to capture all of white's remaining pieces:
-
-\chessboard[setfen=1r6/8/1k3K2/8/2b5/7r/4n3/2r1q1rr w - - 0 134]
-
-Now we switch back to white making critical moves (Switch 3). White mops up
-all black's pieces with the king, which is the only piece left.
-
-... this ends up not working; when black mates the white queen is
-black's 75th move, but white has only made 74. So it should really be
-white that mates black! (this is kinda like the asymmetry in the starting
-condition.)
-
-So instead at this moment...
-
-\chessboard[setfen=1r6/8/1k3K2/8/2b5/2n4r/7Q/2r1q1rr w - - 0 133]
-
-.. we leave the white queen alive, and capture all black's pieces for real!
-then mate with the white queen
-
-\chessboard[setfen=3k4/3Q4/4K3/8/8/8/8/8 b - - 2 145]
-
-
-%8/8/2k5/4K3/7q/8/8/8 w - - 1 1
-% 8846. Ke6 [72 72] Kc7 [72 73] 8847. Kf7 [73 73] Kd6 [73 74] 8848. Ke8 [74 74] Q
-% e7 [74 75]Slack 0: 114 time(s)
-
+The most foolproof way to ensure that mate is always possible is for the
+game itself to end in mate. This sidesteps any ambiguity about the way
+the 75-move condition should be interpreted, as well.
 
 
 \subsection{Inserting excursions} \label{sec:excursions}
+
+TODO
+
+\section{Future work}
+
+Some puzzles?
 
 
 
