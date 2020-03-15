@@ -1386,6 +1386,14 @@ string Position::ShortMoveString(Move m) {
   }
 }
 
+string Position::PGNMoveSuffix(Move m) const {
+  Position p = *this;
+  p.ApplyMove(m);
+  if (p.IsMated()) return "++";
+  else if (p.IsInCheck()) return "+";
+  else return "";
+}
+
 string Position::DebugMoveString(Move m) {
   string s = "xx->xx";
   s[0] = m.src_col + 'a';

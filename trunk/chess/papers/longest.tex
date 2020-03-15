@@ -12,6 +12,8 @@
 \usepackage{url}
 \usepackage{textcomp}
 
+\usepackage{adjustbox}
+
 % XXX search for common typo "movies" 
 
 % lets me explicitly set a. or 1. etc. as enum label
@@ -67,7 +69,6 @@ Copyright \copyright\ 2020 the Regents of the Wikiplia
 Foundation. Appears in SIGBOVIK 2015 with the {\tt ShortMoveString} of the
 Association for Computational Heresy; {\em IEEEEEE!} press,
 Verlag-Verlag volume no.~0x40-2A.
-% XXX should match the length of the game
 \textcurrency 17,697
 }
 }
@@ -94,7 +95,7 @@ a minor chess scandal that erupted in 2019 over an obscure corner case
 in the rules.) Several of these ``deep cuts'' have to do with game-ending
 conditions that were introduced to keep the game from going on forever.
 
-Many chess moves are reversible (e.g. moving the knight forward and
+Many chess moves are reversible (e.g.~moving the knight forward and
 back to its starting position~\cite{survival}), so informal games of
 chess could last forever with the players repeating a short cycle. In
 AD~1561, Ruy L\'opez added the ``fifty-move rule'' to prevent infinite
@@ -113,16 +114,14 @@ So, chess is formally a finite game. This good for computer
 scientists, since it means that chess has a trivial O(1) optimal
 solution. This allows us to move onto other important questions, like:
 What is the longest chess game? In this paper I show how to compute
-such a game, and then gratuitously present all of its
-% XXX check that this is the final one
-17,697 
-%
-half-moves. Even if you are a chess expert (``chexpert''), I bet you
+such a game, and then gratuitously present all of its 17,697 
+moves. Even if you are a chess expert (``chexpert''), I bet you
 will be surprised at some of the corner cases in the rules that are
 involved.
 
-Speaking of rules, let's first detail the two main rules that limit the
-length of the game.
+Speaking of rules, let's first detail the three main rules that limit
+the length of the game. These rules cause the game to end in a draw
+(tie) when certain conditions are met.
 
 \begin{figure}
   \begin{center}
@@ -212,8 +211,7 @@ paper is provision 9.6, which defines a draw:
     75-move rule. } \label{fig:matein545}
 \end{figure}
 
-Draws after 75 moves (per player, so really 150 half-moves) are
-compulsory.
+Draws after 75 moves (per player, so really 150 moves) are compulsory.
 
 Interestingly (at least as interesting as anything in this dubious
 affair) it is known that some otherwise winning endgame positions
@@ -252,7 +250,7 @@ three repetitions) and a mandatory one in 9.6:
 
 % (I seem to remember that this rule used to be about moves, not positions,
 % but someone discovered infinite sequences of moves that don't repeat, right?
-% I can't find this citation. Maybe can recreat those sequences.)
+% I can't find this citation. Maybe can recreate those sequences.)
 %
 % Fascinatingly (at least as fascinating as anything in this
 % questionable undertaking), this rule 
@@ -275,13 +273,13 @@ include any information about states previously reached.
 The informal version of this rule (``insufficient material'') states
 that if neither side has enough pieces to mate the opponent (for
 example, a king and bishop can never mate a bare king) then the game
-is draw. Again, the formal rule is more subtle:
+is drawn. Again, the formal rule is more subtle:
 
 \begin{quote}
 5.2.2. The game is drawn when a position has arisen in which neither
 player can checkmate the opponent's king with any series of legal
 moves. The game is said to end in a `dead position'. This immediately
-ends the game \ldots
+ends the game\ldots
 \end{quote}
 
 This clearly includes the well-known material-based cases like king
@@ -310,10 +308,12 @@ whether or not a series of moves that results in checkmate exists.
 Note that this is not nearly as bad as normal game tree search because
 the two sides can collaborate to produce the mate (it is not a
 $\exists \forall \exists \forall \ldots$ but rather $\exists \exists
-\exists \exists \ldots$). Still, such ``helpmates'' can still be
-quite deep (dozens of moves) and are interesting enough to be a
-common source of chess puzzles. Proving the non-existence of a
-helpmate can be very difficult indeed (Figure~\ref{fig:nohelp}).
+\exists \exists \ldots$). Still, such ``helpmates'' can still be quite
+deep (dozens of moves) and are interesting enough to be a common
+source of chess puzzles. Proving the non-existence of a helpmate can
+be very difficult indeed (Figure~\ref{fig:nohelp}).\footnote{Perhaps
+  an enterprising reader can prove that for generalized chess, it is
+  NP-hard to decide whether the game has ended due to this rule?}
 
 \begin{figure}[htp]
   \begin{center}
@@ -328,9 +328,69 @@ helpmate can be very difficult indeed (Figure~\ref{fig:nohelp}).
 \end{figure}
 
 
-% XXX might be a good place to talk about the self-referential "maximal"
-% and "minimal" interpretations of this rule?
-% Need to have a  \label{sec:ambiguity} somewhere.
+\subsubsection{Ambiguity} \label{sec:ambiguity}
+
+Moreover, this rule contains some ambiguity. The phrase ``any series
+of legal moves'' is usually taken to mean something like, ``the
+players alternate legal moves and follow most of the normal rules of
+chess.'' In my opinion it is hard to justify an interpretation like
+this.
+
+First, the rules specifically define ``legal move'' in Article~3, and
+3.10.1 says ``A move is {\em legal} when all the relevant requirements
+of Articles 3.1 -- 3.9 have been fulfilled.'' These requirements
+describe the movement of each piece as you are familiar (e.g. 3.3
+``The rook may move to any square along the file or the rank on which
+it stands.''). They also disallow capturing one's own pieces, or
+moving when in check. However, they allow as legal some moves that
+would otherwise be prohibited, like capturing the opponent's king
+(this is excluded by 1.4.1, outside the definition of ``legal'').
+Capturing the opponent's king is generally not useful for
+demonstrating that checkmate is possible
+(Figure~\ref{fig:kingcapture}), so this is mostly a curiosity.
+
+\begin{figure}
+  \begin{center}
+    \begin{tabular}{cc}
+      \chessboard[smallboard,marginleft=false,marginright=false,setfen=BBKBRRnk/PPPPPPnn/3P1BNR/3PBPPR/3P1P1P/8/8/8 w - - 0 1] &
+      \chessboard[smallboard,marginright=false,setfen=BBKBRR1B/PPPPnP1n/3P2NR/3PBPPR/3P1P1P/8/8/8 w - - 0 1] \\
+      (a) & (b) \\
+  \end{tabular}
+  \end{center}
+
+  \caption{In this contrived and impossible position (a), white has many
+    easy paths to mate.  All of black's pieces are pinned.
+    There is also a ``series of legal moves''
+    where black mates white: \bishop xg7++  \bishop xh8?? \Knight xe7++.
+    Capturing the king (by moving twice in a row) is a ``legal move''
+    (despite not being allowed by other rules), and doing so unpins
+    black's knight to deliver a smothered mate (b). Of course, abuse of
+    this dubious technical possibility doesn't change the status of
+    the position, since we already have a mating sequence by white.
+  } \label{fig:kingcapture}
+\end{figure}
+
+Second, what is a ``series'' of legal moves? It seems completely
+consistent to allow the white player to make several legal moves in
+a row, for example. The rules about alternating moves are
+again outside the definition of ``legal move'' and ``series'' is
+never defined.
+
+We could instead interpret ``any series of legal moves'' as ``taking
+the entirety of the rules of chess, any continuation of the game that
+ends in checkmate for either player.'' I like this better, although it
+creates its own subtle issues. For example, should the position be
+considered dead if there is a checkmating sequence, but it requires
+entering a fivefold repetition or exhaustion of the 75-move rule? If
+so, this would end the game prematurely, and so it has implications
+for the longest possible game (Section~\ref{sec:ending}). Even more
+esoterically, this interpretation causes the rule to be
+self-referential: A sequence must also be allowed by the rule being
+defined. A normal person would take the ``least fixed point'' (in the
+Kripke sense~\cite{kripke1975outline}) of this self-referential
+definition (fewest positions are drawn). But it is also consistent to
+interpret it {\em maximally}---in which case the longest chess game is
+zero moves!
 
 
 \medskip
@@ -348,28 +408,31 @@ a pawn move or capturing move (or both). The structure of the game
 will be a series of critical moves (I will call these ``critical''
 moves) with a maximal sequence of pointless reversible moves in
 between them. If we execute the maximum number of critical moves and
-make 149 half-moves (just shy of triggering the compulsory version of
+make 149 moves (just shy of triggering the compulsory version of
 the 75-move rule) between them, then this will be fairly easily
 seen as a maximal game.
 
 In fact, for most positions, it is easy to waste 149 moves and return
 to the exact same position. So, the strategy for generating the
-longest game can mostly be broken into two phases: Make a game with a
+longest game can mostly be broken into two tasks: Make a game with a
 maximum number of critical moves (it can also contain other moves) and
 then pad that game out to maximum-length excursions in between its
-critical moves.
+critical moves.\footnote{The first phase was constructed by hand.
+  Software for inserting excursions and checking the result is
+  available at:
+  \url{sf.net/p/tom7misc/svn/HEAD/tree/trunk/chess/longest.cc} }
 
-\subsection{Maximal critical moves}
+\subsection{Maximal critical moves} \label{sec:maxcritical}
 
 Critical moves are pawn moves and captures. There are 16 pawns, each
 of which has 6 squares to move into before promoting, so this is
 $16\times 6$ critical moves. There are 14 capturable pieces, plus the
-16 pawns (they can be captured after promoting) so this nets an
+16 pawns (they can be captured after promoting); capturing them nets an
 additional $16+14$ critical moves for a total of $126$. Each critical
 move can be made after a maximum of $75+74$ reversible moves, giving
 $(75+74+1) \times 126 = 18900$ moves. The final move would capture the
 last piece, yielding a draw due to the remaining kings being insufficient
-material (``dead position''). This is the upper bound.
+material (``dead position''). This is our starting upper bound.
 
 We will not quite be able to use the entire critical move budget. If
 pawns only move forward in single steps, they will eventually get
@@ -387,8 +450,8 @@ like in Figure~\ref{fig:doubled}.
 \end{center}
 \end{figure}
 
-Each of these captures is {\em both} a pawn move {\em and} a capturing
-move, however. This means that we lose $4+4$ critical moves off our
+However, each of these captures is {\em both} a pawn move {\em and} a capturing
+move. This means that we lose $4+4$ critical moves off our
 total budget. $150 \times (126 - 8) = 17700$ is the new upper bound.
 
 \paragraph{Parity.} If a critical move (such as a pawn move) is made by
@@ -413,7 +476,7 @@ Note that white is quite constrained during this beginning phase, as
 pawn moves are critical moves and must be avoided. Only the white
 knights can escape the back rank. When we try to insert $149$
 pointless moves, we'll only be able to move the knights and rooks, and
-doing this $75$ times must leave e.g. one of the knights on an
+doing this $75$ times must leave e.g.~one of the knights on an
 opposite-colored square.\footnote{Knight moves always change the color
   of the knight's square, and same for rook moves constrained to the
   a1/b1 or g1/h1 squares.} So we have to be a little careful about the
@@ -423,9 +486,9 @@ Since white can only free their two knights, these are the only pieces
 that can be captured by black pawns. So it will not be possible for
 black to double four sets of their pawns as in
 Figure~\ref{fig:doubled}. This would require white to have a phase of
-critical moves to free moves to capture, then black again to finish
+critical moves to free pieces to capture, then black again to finish
 doubling pawns, then white again to promote its freed pawns. Each switch
-costs move off the theoretical max. We can be more efficient with an
+costs one move off the na\"ive max. We can be more efficient with an
 asymmetric approach. 
 
 Black's first phase of critical moves instead results in this:
@@ -436,13 +499,15 @@ Black's first phase of critical moves instead results in this:
 9. Rg1 f6 10. Rh1 f5 
 }
 \begin{center}
-\chessboard[setfen=rnbqkbnr/p2pp2p/8/2p2p2/2p2p2/8/PPPPPPPP/R1BQKB1R w Qkq - 0 11]
+  \chessboard[setfen=rnbqkbnr/p2pp2p/8/2p2p2/2p2p2/8/PPPPPPPP/R1BQKB1R w Qkq - 0 11,
+    pgfstyle=straightmove,markmoves={a6-b7,c3-b4,d6-c7,e6-f7,f3-g4,h6-g7},
+  ]
 \end{center}
 
 
 The white b and g pawns have a clear route to promotion. White can
 free each of the remaining 6 pawns with a single capture. Between this
-and black's two pawn captures, this is the minimum of 8 pawn moves
+and black's two pawn captures, this is the optimal 8 pawn moves
 that are also captures. Since black has plenty of freed pieces, white
 can promote all of their pawns during their own phase of critical
 moves, resulting in:
@@ -508,16 +573,19 @@ Finally, white captures all of black's pieces, and mates the black king.
   \chessboard[setfen=3k4/3Q4/4K3/8/8/8/8/8 b - - 2 145]
 \end{center}
 
-(this is three switches)
+As we switch which color is making critical moves a total of three
+times, we must come shy of the na\"ive maximum of 17,700 moves by
+three. This gives us an upper bound of 17,697 for this approach,
+which we will be able to achieve.
 
-\paragraph{Ending condition.} The way this game ends is subtle for
-several reasons. First, note that we left the white queen on the board
-and used it for mate. It is required that white be the one mating for
-parity reasons, similar to the reason black must make the first critical
-move. Since white makes critical moves in the last phase, black leads
-on non-critical moves; at the moment white makes the checkmating move,
-black has made 75 non-critical moves, and white 74. White's 75th move
-mates.
+\paragraph{Ending condition.} \label{sec:ending} The way this game ends
+is subtle for several reasons. First, note that we left the white
+queen on the board and used it for mate. It is required that white be
+the one mating for parity reasons, similar to the reason black must
+make the first critical move. Since white makes critical moves in the
+last phase, black leads on non-critical moves; at the moment white
+makes the checkmating move, black has made 75 non-critical moves, and
+white 74. White's 75th move mates.
 
 But doesn't this trigger the 75-move rule? No, this rule (9.6.2;
 Section~\ref{sec:75}) has a special exception for checkmate: ``If the
@@ -532,7 +600,7 @@ black is {\em forced} to capture the queen. This game is over prior to
 the capture, so this is shorter than the checkmating sequence! Even if
 the king had an escape square, it is arguable
 (Section~\ref{sec:ambiguity}) that the game is over in any case: There
-is no legal sequence of moves that leads to mate. Either the king
+is no series of legal moves that leads to mate. Either the king
 captures the queen (and then clearly no mate is possible with just the
 two kings) or the king escapes, but in doing so plays the
 75\th\ non-critical move, and triggers a draw by the 75-move rule.
@@ -544,15 +612,131 @@ the 75-move condition should be interpreted, as well.
 
 \subsection{Inserting excursions} \label{sec:excursions}
 
-TODO
+The game described in Section~\ref{sec:maxcritical} has 118 critical
+moves in 289 total moves. There is some inefficiency between the
+critical moves, but this doesn't matter since we are trying to generate
+a long game anyway. In fact, the next step will be to add {\em as much
+  inefficiency as possible} in between the critical moves.
 
-\section{Future work}
+% Diagram here or earlier would probably help!
 
-Some puzzles?
+Each ``critical section,'' which is the series of moves ending in a
+critical move, can be treated independently. If black ends the section
+with a critical move, then we want $75+74$ non-critical moves to be
+played, and then black's critical move. For white, of course, $74+75$.
+There are many ways we could try to make these $149$ moves; we don't
+even have to use the moves that are already there as long as we end
+up in the right position to make the critical move. But a simple
+approach suffices.
 
+For each critical section, we loop over all of the positions
+encountered, and attempt inserting excursions that return us to the
+same position but waste moves. There are two types of excursions we
+try: Even excursions (each player makes two moves) and odd (each
+player makes three moves).
 
+\paragraph{Even excursions.} This four move sequence moves two pieces
+of $X_1$ and $X_2$ of opposite colors. $X_1$ moves from $s_1$ to $d_1$
+then $X_2$ from $s_2$ to $d_2$, then $X_1$ moves from $d_1$ back to
+$s_1$, and $X_2$ from $d_2$ back to $s_2$. Easy. Any piece can perform
+this maneuver other than pawns (which would be critical moves anyway)
+as long as there are legal squares (considering check, etc.). All of
+$s_1$, $d_1$, $s_2$, $d_2$ must be distinct. No shorter excursions are
+possible.
 
-\section{A longest game}
+\paragraph{Odd excursions.} This is the straightforward extension to
+three squares ($s_i \rightarrow m_i \rightarrow d_i \rightarrow s_i$),
+for a six-move sequence. The squares for each piece must be distinct
+but it is possible for e.g.~$m_2$ to equal $s_1$. Knights cannot
+perform this trick; each move changes the color of the square the
+knight sits on, which causes a contradiction with a cycle of length
+three. All other pieces can do it with sufficient room. The king, for
+example, can move horizontally, then diagonally, then vertically back
+to its starting square.
+
+Note that odd excursions are not possible early in the game (prior to
+white moving any pawns), because even when the knights are free, the
+rooks only have two squares (and thus the same color parity argument
+applies as knights). Some opportunity can be created by having a black
+knight capture one of white's bishops. Fortunately, we do not need any
+odd excursions at this point in the game.
+
+We find excursions by just looping over possible moves that satisfy
+the criteria, prioritizing odd excursions if the target (divided by
+two) is odd. In order to avoid triggering the fivefold repetition
+rule, we also keep track of all of the positions encountered, and
+never enter a position more than two times. (Here we avoid even
+threefold repetition.) It is not necessary to look beyond the critical
+section, because critical moves make it impossible to return to a
+prior position.
+
+This process is not at all guaranteed to work; it may fail to fill the
+critical section. Indeed, as discussed in
+Section~\ref{sec:maxcritical}, we must have at least one move of slack
+whenever we switch from a critical move by one player to the other.
+In practice this approach succeeds readily, and manages to waste 149
+moves in each critical section of the input game, save for the three
+times that parity requires one move of slack. The full game is uselessly
+included in a very tiny font in Section~\ref{sec:longest}.
+
+\section{Reader's guide}
+
+The paper demonstrates a game with three ``switches'' of which side is
+making critical moves; each costs a move against the na\"ive maximum
+due to parity. We clearly need at least one switch (both sides must
+make critical moves), but is it possible to do it with only two? If
+not, can this lower bound be proved?
+
+\smallskip
+The game given is believed to be maximal, as measured in the number of
+moves. But, other metrics exist. For example, the letter g is slightly
+wider than f, so moving \Queen g3 is {\em typographically} longer than
+\Bishop f1. PGN format itself can be stretched by making moves that
+need to be disambiguated (\bishop ff7 means ``move the \bishop\ on the
+f file to f7'' (not ``the giant sword from Final Fantasy 7'', as many
+believe)) or checking the opponent's king for a bonus +. Some moves
+are longer in terms of distance traveled; moving the queen or bishop
+between opposite corners is $\sqrt{2} \times 7$ squares! What is the
+longest game according to these or other metrics?
+
+% XXX
+% Are there any practical implications of the 
+
+\smallskip
+In {\it Chess}, it is impossible to capture your own pieces. How does
+this limitation apply to your own life?
+
+\smallskip
+In many games of {\it Chess}, the black and white pieces are found to
+disagree. What does this say about society?
+
+\smallskip
+How do you feel about the ending of the game? Is it disappointing that
+the result is not symmetric (i.e.~a draw), or elegant that it
+demonstrates its own avoidance of the ``dead position'' rule? Was it
+what you expected?
+
+\smallskip
+{\it Is this the longest Chess game?} is the author's sixth paper
+about chess for SIGBOVIK, but it is widely believed that nobody wants
+to read this kind of thing. What is wrong with him?
+
+\section{A longest game} \label{sec:longest}
+
+There are jillions of possible games that satisfy the description
+above and reach 17,697 moves; here is one of them.\footnote{
+  It can also be downloaded at \url{tom7.org/chess/longest.pgn}.
+  Many chess programs fail to load the whole game, but this is
+  because they decided not to implement the full glory of chess.}
+%
+Critical moves are marked with {\large \bf [bold]}. Note that in the
+standard PGN format for listing games, move numbers are ``full moves''
+consisting of a move by white and then black, whereas we use ``move''
+in this paper to mean ``half-move''; an individual move by one of the
+players. Thus the game ends during full move 8,849, one half of
+17,697.
+
+\medskip
 
 \begin{sloppypar}
 \tiny
@@ -561,18 +745,7 @@ Some puzzles?
 \pretolerance=2
 \tolerance=2
 
-
-(a long game goes here)
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad
-minim veniam, quis nostrud exercitation ullamco laboris nisi ut
-aliquip ex ea commodo consequat. Duis aute irure dolor in
-reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
-pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-culpa qui officia deserunt mollit anim id est laborum.
-
- \noindent \input{slow}
+\noindent \input{slow}
 \quad 1-0
 
 \end{sloppypar}

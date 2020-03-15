@@ -1,39 +1,17 @@
 
-// SIGBOVIK: "Is this the longest chess game?"
-
-// FIXME did I actually implement 75 moves by EITHER player, rather than
-// by BOTH players?
-
-// XXX TODO: Note that formally, "the game is drawn when
-// a position has arisen in which neither player can checkmate
-// the opponent's king with any series of legal moves."
-// "This immediately ends the game," so this adds some subtlety
-// to the final position.
-//  - If we place the queen right next to the opponent king,
-//    who captures it and leaves us with insufficient material,
-//    then the game actually ended right before this capture if
-//    the capture was forced. (The only legal move leads to
-//    a situation which is drawn, and so there is no sequence
-//    of legal moves leading to a checkmate as above.)
-//  - More confusingly, even if the king can avoid capture (leaving us
-//    with the queen on the board; sufficient material), if this move
-//    is actually the 75th one, then all legal moves draw the game:
-//    Either by capturing (now insufficient material) or by reaching 75
-//    moves without a capture or pawn move.
-//    (Not clear that this applies, though. "Legal move" is defined in
-//    3.10.1, which is just about how each piece moves, the rules of
-//    check, and so on. But it does not say anything to preclude
-//    moving a white piece twice in a row, or even capturing the opponent
-//    king (although this is prohibited by 1.4.1.). So it seems that the
-//    intention of the rule is to at least involve other information on
-//    the game state, such as whose move it is, and perhaps the 75-move
-//    counter.)
-// So, the specific slow game below is probably technically wrong, since
-// it ends with the king taking an adjacent queen. (But what do we do?
-// Instead the game should end in mate, I guess?)
+// See tom7.org/chess/longest.pdf for a lengthy description of this,
+// in SIGBOVIK 2020's "Is this the longest chess game?"
 //
-// Expert mode here would be the longest draw? Can it be as long as the
-// longest win?
+// (By the way, the title of this paper has a subtle joke, which since
+// nobody will get it I will explain here: In SIGBOVIK 2019 there were
+// FIVE papers about chess but the editors did not put them together
+// in a "Chess" track (too obvious!!). Nonetheless there WAS a "Chess"
+// track, which contained five papers devoted to the equally
+// competitive game of writing the shortest SIGBOVIK paper, with
+// titles like "Is this the tiniest SIGBOVIK paper ever?"; "On the
+// shortness of SIGBOVIK papers", etc. The title here is thus a nod to
+// this. Also I am not totally sure that this is the longest chess
+// game.)
 
 #include <functional>
 #include <memory>
@@ -43,6 +21,7 @@
 #include <string>
 #include <map>
 #include <utility>
+#include <set>
 
 #include "../cc-lib/base/logging.h"
 #include "../cc-lib/base/stringprintf.h"
@@ -62,6 +41,14 @@ using int64 = int64_t;
 template<class T>
 using PositionMap = std::unordered_map<Position, T, PositionHash, PositionEq>;
 
+static constexpr bool VERBOSE = false;
+
+// Don't even allow threefold repetition!
+static constexpr int POS_MAX = 2;
+
+// (Note: The paper linked above has a more careful description of the
+// strategy I took; the following is my original notes for posterity.)
+//
 // Generate a "proof game" of a longest possible chess game.
 // Chess can't go forever even if neither player is interested
 // in a draw; the following conditions automatically cause
@@ -71,7 +58,7 @@ using PositionMap = std::unordered_map<Position, T, PositionHash, PositionEq>;
 //     move or capture.
 //  3. There is insufficient material for even a "helpmate" (for
 //     example, two kings). [Actually this is not quite right;
-//     see the TODO at the top of the file.]
+//     see the section on "dead positions" in the paper.]
 //
 // ([1] Actually really? The rules say "the same position has
 // appeared, as in 9.2b, for at least five consecutive alternate moves
@@ -257,6 +244,7 @@ static vector<Critical> MakeCritical() {
   )";
 #endif
 
+  // Good! Mate with 3 slack! I think this is the longest possible!
   string slowgame_pgn = R"(
     1. Nf3 b6 2. Nc3 g6 3. Ne5 g5 4. Nd5 b5
     5. Nc4 bxc4 6. Nf4 gxf4 7. Rg1 c6 8. Rh1 c5
@@ -300,7 +288,8 @@ static vector<Critical> MakeCritical() {
 
   #if 0
   // Draw game, just 3 slack! But this game ends with the
-  // last move being forced...
+  // last move being forced, which means that it is actually
+  // over prior to the forced move.
   string slowgame_pgn = R"(
     1. Nf3 b6 2. Nc3 g6 3. Ne5 g5 4. Nd5 b5
     5. Nc4 bxc4 6. Nf4 gxf4 7. Rg1 c6 8. Rh1 c5
@@ -400,9 +389,10 @@ static vector<Critical> MakeCritical() {
   const char *maybe_checkmate = "";
   if (has_checkmate) maybe_checkmate = "(ends in checkmate)\n";
   
-  printf("Slow game: %d pawn moves, %d captures\n"
+  printf("Slow game: %d moves. %d pawn moves, %d captures\n"
 	 "%s"
 	 "Critical sections: %d\n",
+	 (int)moves.size(),
 	 pawn_moves, captures,
 	 maybe_checkmate,
 	 (int)crits.size());
@@ -422,7 +412,7 @@ static bool MakeEvenExcursion(const Position &orig_pos,
 			      vector<Move> *excursion) {
   // If we've already visited this position 4 times, then this is
   // not possible.
-  if ((*seen)[orig_pos] >= 4)
+  if ((*seen)[orig_pos] >= POS_MAX)
     return false;
 
   Position pos = orig_pos;
@@ -440,7 +430,7 @@ static bool MakeEvenExcursion(const Position &orig_pos,
     Position pos2 = pos;
     pos2.ApplyMove(cur_move);
     // Too many repeats?
-    if ((*seen)[pos2] >= 4)
+    if ((*seen)[pos2] >= POS_MAX)
       continue;
 
     // Same, for the opponent.
@@ -453,7 +443,7 @@ static bool MakeEvenExcursion(const Position &orig_pos,
 	continue;
       Position pos3 = pos2;
       pos3.ApplyMove(opp_move);
-      if ((*seen)[pos3] >= 4)
+      if ((*seen)[pos3] >= POS_MAX)
 	continue;
 
       auto Rev = [](Move m) -> Move {
@@ -471,7 +461,7 @@ static bool MakeEvenExcursion(const Position &orig_pos,
       if (!pos4.IsLegal(rcur_move))
 	continue;
       pos4.ApplyMove(rcur_move);
-      if ((*seen)[pos4] >= 4)
+      if ((*seen)[pos4] >= POS_MAX)
 	continue;
 
       Move ropp_move = Rev(opp_move);
@@ -479,7 +469,7 @@ static bool MakeEvenExcursion(const Position &orig_pos,
       if (!pos5.IsLegal(ropp_move))
 	continue;
       pos5.ApplyMove(ropp_move);
-      if ((*seen)[pos5] >= 4)
+      if ((*seen)[pos5] >= POS_MAX)
 	continue;
       // And this should now equal the original pos. Note that we are
       // a bit too conservative here because we don't even allow the
@@ -489,6 +479,7 @@ static bool MakeEvenExcursion(const Position &orig_pos,
       // more flexibility.
       if (PositionEq{}(orig_pos, pos5)) {
 	// Got one! Commit.
+	if (VERBOSE)
 	printf("Excursion: %s %s  %s %s\n",
 	       pos.ShortMoveString(cur_move).c_str(),
 	       pos2.ShortMoveString(opp_move).c_str(),
@@ -530,7 +521,7 @@ static bool MakeOddExcursion(const Position &orig_pos,
   
   // If we've already visited this position 4 times, then this is
   // not possible.
-  if ((*seen)[orig_pos] >= 4)
+  if ((*seen)[orig_pos] >= POS_MAX)
     return false;
 
   Position pos = orig_pos;
@@ -544,7 +535,7 @@ static bool MakeOddExcursion(const Position &orig_pos,
     Position pos2 = pos;
     pos2.ApplyMove(cur_move);
     // Too many repeats?
-    if ((*seen)[pos2] >= 4)
+    if ((*seen)[pos2] >= POS_MAX)
       continue;
 
     vector<Move> opp_moves = pos2.GetLegalMoves();
@@ -557,7 +548,7 @@ static bool MakeOddExcursion(const Position &orig_pos,
       Position pos3 = pos2;
       pos3.ApplyMove(opp_move);
       // Too many repeats?
-      if ((*seen)[pos3] >= 4)
+      if ((*seen)[pos3] >= POS_MAX)
 	continue;
 
       // Both players have moved once. Now again, but only consider
@@ -573,7 +564,7 @@ static bool MakeOddExcursion(const Position &orig_pos,
 
 	  Position pos4 = pos3;
 	  pos4.ApplyMove(cur2_move);
-	  if ((*seen)[pos4] >= 4)
+	  if ((*seen)[pos4] >= POS_MAX)
 	    continue;
 
 	  vector<Move> opp2_moves = pos4.GetLegalMoves();
@@ -584,7 +575,7 @@ static bool MakeOddExcursion(const Position &orig_pos,
 
 	      Position pos5 = pos4;
 	      pos5.ApplyMove(opp2_move);
-	      if ((*seen)[pos5] >= 4)
+	      if ((*seen)[pos5] >= POS_MAX)
 		continue;
 
 	      // Now, both players have moved twice. Try moving back
@@ -607,7 +598,7 @@ static bool MakeOddExcursion(const Position &orig_pos,
 	      if (!pos6.IsLegal(rcur_move))
 		continue;
 	      pos6.ApplyMove(rcur_move);
-	      if ((*seen)[pos6] >= 4)
+	      if ((*seen)[pos6] >= POS_MAX)
 		continue;
 
 	      Move ropp_move = Triangle(opp_move, opp2_move);
@@ -615,12 +606,13 @@ static bool MakeOddExcursion(const Position &orig_pos,
 	      if (!pos7.IsLegal(ropp_move))
 		continue;
 	      pos7.ApplyMove(ropp_move);
-	      if ((*seen)[pos7] >= 4)
+	      if ((*seen)[pos7] >= POS_MAX)
 		continue;
 	      
 	      // Like in the Even case.
 	      if (PositionEq{}(orig_pos, pos7)) {
 		// Got one! Commit.
+		if (VERBOSE)
 		printf("Odd Excursion: %s %s  %s %s  %s %s\n",
 		       pos.ShortMoveString(cur_move).c_str(),
 		       pos2.ShortMoveString(opp_move).c_str(),
@@ -662,7 +654,9 @@ static void Expand(Critical *crit) {
   ArcFour rc((string)"expand" + crit->start_pos.ToFEN(1, 2));
 
   // Target length of the move list.
-  // XXX need to check that this is correct.
+  // The ideal amount here is 75+74 moves (if black will make the critical
+  // move), or 74+75 moves (if white will); this is the maximum number
+  // without forcing a draw.
   static constexpr int TARGET_SIZE = 149;
 
   // Count of times we've seen each position. No need to consider
@@ -737,8 +731,7 @@ static void Expand(Critical *crit) {
       return NOT_FOUND;
     };
 
-    // TODO: we need to do at least one 3-move excursion if slack/2 is
-    // odd.
+    // We need to do at least one 3-move excursion if slack/2 is odd.
     if ((slack / 2) & 1) {
       auto odd = TryExcursions(MakeOddExcursion);
       if (odd == NEXT_LOOP)
@@ -776,7 +769,9 @@ static void MakeLongest() {
   Position pos;
   
   vector<Move> final_moves;
-
+  // Indices in final_moves that are critical moves.
+  std::set<int> critical_indices;
+  
   for (const Critical &crit : crits) {
     CHECK(PositionEq{}(pos, crit.start_pos));
     for (const Move &m : crit.moves) {
@@ -821,28 +816,89 @@ static void MakeLongest() {
     white_noncritical = black_noncritical = 0;
     pos.ApplyMove(crit.critical_move);
     seen[pos]++;
-    CHECK(seen[pos] < 5);
+    // (Maybe could hard-code 5 here? That's the rule!)
+    CHECK(seen[pos] < (POS_MAX + 1));
+    critical_indices.insert((int)final_moves.size());
     final_moves.push_back(crit.critical_move);
   }
 
-  string pgn = "[Event \"Slow game\"]\n\n";
   {
+    string pgn =
+      "[Event \"Is this the longest Chess game?\"]\n"
+      "[Site \"SIGBOVIK 2020\"]\n"
+      "[White \"Dr. Tom Murphy VII Ph.D.\"]\n"
+      "[Black \"Dr. Tom Murphy VII Ph.D.\"]\n"
+      "[Result \"1-0\"]\n"
+      "\n";
     int move_num = 1;
     Position p;
     for (const Move &m : final_moves) {
+      string ms = p.ShortMoveString(m) +
+	p.PGNMoveSuffix(m);
       if (!p.BlackMove()) {
 	StringAppendF(&pgn, " %d. %s", move_num,
-		      p.ShortMoveString(m).c_str());
+		      ms.c_str());
       } else {
 	StringAppendF(&pgn, " %s",
-		      p.ShortMoveString(m).c_str());
+		      ms.c_str());
 	move_num++;
       }
       p.ApplyMove(m);
     }
+    Util::WriteFile("longest.pgn", pgn);
   }
-  Util::WriteFile("slow.pgn", pgn);
 
+  {
+    // was 12 pages, 427176 bytes
+    
+    string tex;
+    int move_num = 1;
+    Position p;
+    for (int i = 0; i < final_moves.size(); i++) {
+      const Move &m = final_moves[i];
+      const bool is_critical =
+	critical_indices.find(i) != critical_indices.end();
+      string ms = p.ShortMoveString(m) + p.PGNMoveSuffix(m);
+      if (true) {
+	bool black = p.BlackMove();
+	string rest = ms.substr(1);
+	switch (ms[0]) {
+	case 'Q':
+	  ms = (string)(black ? "\\Queen " : "\\queen ") + rest;
+	  break;
+	case 'K':
+	  ms = (string)(black ? "\\King " : "\\king ") + rest;
+	  break;
+	case 'N':
+	  ms = (string)(black ? "\\Knight " : "\\knight ") + rest;
+	  break;
+	case 'R':
+	  ms = (string)(black ? "\\Rook " : "\\rook ") + rest;
+	  break;
+	case 'B':
+	  ms = (string)(black ? "\\Bishop " : "\\bishop ") + rest;
+	  break;
+	}
+
+      }
+      if (!p.BlackMove()) {
+	StringAppendF(&tex, " %d. ", move_num);
+      } else {
+	StringAppendF(&tex, " ");
+	move_num++;
+      }
+
+      if (is_critical) StringAppendF(&tex, "{\\scriptsize\\bf[");
+      StringAppendF(&tex, "%s", ms.c_str());
+      if (is_critical) StringAppendF(&tex, "]}");
+
+      if (i % 10 == 0) StringAppendF(&tex, "\n");
+      
+      p.ApplyMove(m);
+    }
+    Util::WriteFile("papers/slow.tex", tex);
+  }
+  
   if (false) {
     int move_num = 1;
     Position p;
@@ -890,22 +946,3 @@ int main(int argc, char **argv) {
 
   return 0;
 }
-
-/*
-    "1. a3 Nc6 2. a4 h6 3. Nf3 h5 4. Ng5 h4 5. a5 e6 6. d3 Ne5 7. Bf4 Nc4 "
-    "8. g3 b6 9. g4 b5 10. Bg3 Nb6 11. axb6 hxg3 12. b7 g2 13. b8=Q g1=Q "
-    "14. Ra6 b4 15. c3 Rh3 16. c4 Re3 17. c5 Re5 18. Rb6 a6 19. Rb7 a5 "
-    "20. Rb6 a4 21. Rb7 a3 22. Rb6 a2 23. Ra6 a1=Q 24. Ra3 bxa3 25. Nd2 a2 "
-    "26. b3 Ra6 27. b4 Rb6 28. cxb6 Qb1 29. b7 a1=N 30. Qa7 c6 31. b8=N c5 "
-    "32. b5 c4 33. b6 c3 34. d4 Rc5 35. dxc5 c2 36. h3 Ba6 37. b7 c1=Q "
-    "38. Nc6 Qc4 39. Nxc4 Qb2 40. Nxb2 d6 41. b8=N d5 42. Qc2 d4 43. f3 d3 "
-    "44. h4 d2+ 45. Kd1 Qh2 46. Qd3 Nb3 47. Nxd8 Bxd3 48. exd3 Na5 "
-    "49. Kc2 d1=N+ 50. Kc1 e5 51. c6 e4 52. c7 e3 53. c8=N e2 54. Ndc6 Nxc6 "
-    "55. h5 e1=N 56. h6 g6 57. h7 Qe2 58. Rh5 gxh5 59. h8=N h4 60. Ne4 h3 "
-    "61. g5 h2 62. g6 h1=Q 63. g7 Nf6 64. g8=N Ng4 65. fxg4 Qexf1 "
-    "66. Nxc6 Qxe4 67. Nxd1 f6 68. g5 f5 69. g6 f4 70. g7 Bb4 71. Nxb4 Qxb4 "
-    "72. d4 Qa6 73. Qxa6 f3 74. d5 f2 75. d6 Qh4 76. Nh6 Qxh6+ 77. Kb1 Qxh8 "
-    "78. g8=B Kd8 79. d7 Kc7 80. d8=N Qxg8 81. Qa1 Ng2 82. Nc6 Kxc6 "
-    "83. Ne3 Qxc8 84. Nxg2 f1=B 85. Qh8 Kd5 86. Ka2 Bxg2 87. Qxc8 Bh3 "
-    "88. Qxh3 Ke4 89. Qe3+ Kxe3";
-*/
