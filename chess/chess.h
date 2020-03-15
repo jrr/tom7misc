@@ -110,9 +110,13 @@ struct Position {
   std::string LongMoveString(Move m) const;
 
   // PGN-style move, disambiguated. Doesn't annotate with
-  // check/checkmate marks.
+  // check/checkmate marks. Move must be legal.
   std::string ShortMoveString(Move m);
 
+  // Returns "++" if the move is checkmate, else "+" if checking,
+  // else "". Move must be legal.
+  std::string PGNMoveSuffix(Move m) const;
+  
   // Like e2->e4 or a7->a8=Q, independent of board state. Does not
   // need the move to be legal as long it is in bounds.
   static std::string DebugMoveString(Move m);

@@ -23,7 +23,19 @@ weak.pdf : weak.tex chess.bib
 	pdflatex weak
 	pdflatex weak
 
-longest.pdf : longest.tex chess.bib
+# With generated PGN including graphical chesspieces, this needs more
+# memory for tex. With miktex, try
+#   initexmf --edit-config-file=pdflatex
+# then add these lines
+#   main_memory=5000000 
+#   extra_mem_bot=5000000 
+#   font_mem_size=5000000 
+#   pool_size=5000000 
+#   buf_size=5000000
+# then run
+#   initexmf --dump=pdflatex
+
+longest.pdf : longest.tex chess.bib slow.tex
 	pdflatex longest
 	bibtex longest
 	pdflatex longest
