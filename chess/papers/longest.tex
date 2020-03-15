@@ -82,18 +82,20 @@ Verlag-Verlag volume no.~0x40-2A.
 
 \section{Introduction}
 
-In my experience, most chess games end in a few moves. Players who
-seek longevity typically do so by playing many games of chess, rather
-than a protracted XXX
-
-(shortest game is well known)
+In my experience, most chess games end in a few moves. If you want to
+play a lot of chess moves, you just play a lot of chess games. Still,
+there are games that seem to go on foreverrrrrrrrrr. Perhaps the
+players are trying to {\em lull each other into a false sense of
+security} while {\em waiting for the moment to strike}, or perhaps they
+are stalling in a game of {\em Chess to the Death}.
 
 Although many people ``know how to play'' chess, almost nobody fully
 understands the rules of chess, most authoritatively given by
 FIDE~\cite{fiderules}. (See for example Figure~\ref{fig:castle960} for
 a minor chess scandal that erupted in 2019 over an obscure corner case
-in the rules.) Several of these ``deep cuts'' have to do with game-ending
-conditions that were introduced to keep the game from going on forever.
+in the rules.) Several of these ``deep cuts'' have to do with
+game-ending conditions that were introduced to avoid interminable
+games.
 
 Many chess moves are reversible (e.g.~moving the knight forward and
 back to its starting position~\cite{survival}), so informal games of
@@ -110,7 +112,7 @@ repetition'' also guarantees termination as a sort of backup plan
 % This is good for the insurers and reinsurers of chess tournaments
 % (games are guaranteed to end, rather than simply ending with
 % probability 1).
-So, chess is formally a finite game. This good for computer
+So, chess is formally a finite game. This is good for computer
 scientists, since it means that chess has a trivial O(1) optimal
 solution. This allows us to move onto other important questions, like:
 What is the longest chess game? In this paper I show how to compute
@@ -123,10 +125,11 @@ Speaking of rules, let's first detail the three main rules that limit
 the length of the game. These rules cause the game to end in a draw
 (tie) when certain conditions are met.
 
-\begin{figure}
+\begin{figure}[b!]
   \begin{center}
     \chessboard[
       % fillarea=a3-h1,printarea=a3-h1,
+      marginbottom=false,margintop=false,
       setfen=2nr1r1k/pb1n1pqp/1p2p1p1/1N1pN3/5P2/1P4P1/P2PPQ1P/2R1K1RB,
       pgfstyle=curvemove,markmoves={e1-g1},
       pgfstyle=straightmove,markmoves={g1-f1},
@@ -200,17 +203,6 @@ paper is provision 9.6, which defines a draw:
   the last move resulted in checkmate, that shall take precedence.
 \end{quote}
 
-\begin{figure}[htp]
-  \begin{center}
-    \chessboard[setfen=8/r6n/8/8/5k2/3K4/7N/3b3Q b - - 0 1]
-  \end{center}
-  \caption{Black to move and mate in 545 moves (!). The position was
-    found (by Zakharov and Makhnichev~\cite{tablebase7}) while
-    building an endgame tablebase of all possible 7-piece positions.
-    Of course, the game ends prematurely in a draw because of the
-    75-move rule. } \label{fig:matein545}
-\end{figure}
-
 Draws after 75 moves (per player, so really 150 moves) are compulsory.
 
 Interestingly (at least as interesting as anything in this dubious
@@ -232,11 +224,14 @@ position appears three times, the players can claim a draw:
   \item[9.2.2.] Positions are considered the same if and only if the
 same player has the move, pieces of the same kind and colour occupy
 the same squares and the possible moves of all the pieces of both
-players are the same. Thus positions are not the same if:
+players are the same. [...]
+\comment{
+  Thus positions are not the same if:
 \begin{itemize}
 \item[9.2.2.1.]	at the start of the sequence a pawn could have been captured en passant
 \item[9.2.2.2.]	a king had castling rights with a rook that has not been moved, but forfeited these after moving. The castling rights are lost only after the king or rook is moved.
 \end{itemize}
+}
 \end{itemize}
 \end{quote}
 
@@ -248,12 +243,25 @@ three repetitions) and a mandatory one in 9.6:
   9.6.1. the same position has appeared, as in 9.2.2, at least five times.
 \end{quote}
 
-% (I seem to remember that this rule used to be about moves, not positions,
-% but someone discovered infinite sequences of moves that don't repeat, right?
-% I can't find this citation. Maybe can recreate those sequences.)
+Fascinatingly (at least as fascinating as anything in this
+questionable undertaking), this rule used to require {\em consecutive}
+repetition of moves. However, there exist infinite sequences of moves
+with no consecutive $n$-fold repetition. For example, in the starting
+position, white and black can move either of their knights out and
+back. Let {\bf 0} be \knight c3 \Knight c6 \knight b1 \Knight b8
+(queenside knights move, returning to the starting position) and {\bf
+  1} be \knight f3 \Knight f6 \knight g1 \Knight g8 (kingside). Now
+the Prouhet--Thue--Morse sequence~\cite{thue1906uber}
+0110100110010110\ldots\footnote{
+  Let $s_0$ be the string {\tt "0"}, then
+  $s_i$ is $s_{i-1} \overline{s_{i-1}}$
+  where $\overline{\tt 0} = {\tt 1}$ and $\overline{\tt 1} = {\tt 0}$.
+}
 %
-% Fascinatingly (at least as fascinating as anything in this
-% questionable undertaking), this rule 
+can be executed. This infinite
+sequence is cube-free (does not contain $SSS$ for any non-empty string
+$S$)~\cite{oeisa010060}, and therefore never violates the consecutive
+threefold repetition rule~\cite{euwe1929mengentheoretische}.
 
 \medskip
 Many implementations of chess ignore these rules or treat them
@@ -267,6 +275,16 @@ position has ``appeared'' before the first move~\cite{survival}. The
 ubiquitous FEN notation for describing chess positions does not even
 include any information about states previously reached.
 
+\begin{figure}[htp]
+  \begin{center}
+    \chessboard[setfen=8/r6n/8/8/5k2/3K4/7N/3b3Q b - - 0 1]
+  \end{center}
+  \caption{Black to move and mate in 545 moves (!). The position was
+    found (by Zakharov and Makhnichev~\cite{tablebase7}) while
+    building an endgame tablebase of all possible 7-piece positions.
+    Of course, the game ends prematurely in a draw because of the
+    75-move rule. } \label{fig:matein545}
+\end{figure}
 
 \subsection{Dead position} \label{sec:insufficient}
 
@@ -289,7 +307,7 @@ specific positions, especially those with forced captures
 
 \begin{figure}[htp]
   \begin{center}
-    \chessboard[setfen=8/8/5K2/8/8/8/Q7/k7 b - - 0 1]
+    \chessboard[margintop=false,marginbottom=false,setfen=8/8/5K2/8/8/8/Q7/k7 b - - 0 1]
   \end{center}
   \caption{Black to move and draw in 0 (!). Most players and even
     chexperts believe that the only legal move is Kxa2, and
@@ -317,7 +335,7 @@ be very difficult indeed (Figure~\ref{fig:nohelp}).\footnote{Perhaps
 
 \begin{figure}[htp]
   \begin{center}
-    \chessboard[setfen=k1bB4/8/2p1p1p1/1pPpPpP1/1P1P1P2/8/8/K1Bb4 w - - 0 1]
+    \chessboard[margintop=false,marginbottom=false,setfen=k1bB4/8/2p1p1p1/1pPpPpP1/1P1P1P2/8/8/K1Bb4 w - - 0 1]
   \end{center}
   \caption{Thinking of implementing the rules of chess? To be correct,
     you'll need your program to be able to deduce that no helpmates are
@@ -336,24 +354,24 @@ players alternate legal moves and follow most of the normal rules of
 chess.'' In my opinion it is hard to justify an interpretation like
 this.
 
-First, the rules specifically define ``legal move'' in Article~3, and
-3.10.1 says ``A move is {\em legal} when all the relevant requirements
-of Articles 3.1 -- 3.9 have been fulfilled.'' These requirements
-describe the movement of each piece as you are familiar (e.g. 3.3
-``The rook may move to any square along the file or the rank on which
-it stands.''). They also disallow capturing one's own pieces, or
-moving when in check. However, they allow as legal some moves that
-would otherwise be prohibited, like capturing the opponent's king
-(this is excluded by 1.4.1, outside the definition of ``legal'').
-Capturing the opponent's king is generally not useful for
-demonstrating that checkmate is possible
-(Figure~\ref{fig:kingcapture}), so this is mostly a curiosity.
+First, the rules specifically define ``legal move'', with 3.10.1
+saying ``A move is {\em legal} when all the relevant requirements of
+Articles 3.1 -- 3.9 have been fulfilled.'' These requirements describe
+the movement of each piece as you are familiar (e.g. 3.3 ``The rook
+may move to any square along the file or the rank on which it
+stands.''). They also disallow capturing one's own pieces, or moving
+when in check. However, they allow as legal some moves that would
+otherwise be prohibited, like capturing the opponent's king (this is
+excluded by 1.4.1, outside the definition of ``legal''). Capturing the
+opponent's king is generally not useful for demonstrating that
+checkmate is possible (Figure~\ref{fig:kingcapture}), so this is
+mostly a curiosity.
 
 \begin{figure}
   \begin{center}
     \begin{tabular}{cc}
-      \chessboard[smallboard,marginleft=false,marginright=false,setfen=BBKBRRnk/PPPPPPnn/3P1BNR/3PBPPR/3P1P1P/8/8/8 w - - 0 1] &
-      \chessboard[smallboard,marginright=false,setfen=BBKBRR1B/PPPPnP1n/3P2NR/3PBPPR/3P1P1P/8/8/8 w - - 0 1] \\
+      \chessboard[smallboard,marginleft=false,marginright=false,setfen=BBKBRRnk/PPPPPPnn/3P1BRR/3PBPPR/3P1P1P/8/8/8 w - - 0 1] &
+      \chessboard[smallboard,marginright=false,setfen=BBKBRR1B/PPPPnP1n/3P2RR/3PBPPR/3P1P1P/8/8/8 w - - 0 1] \\
       (a) & (b) \\
   \end{tabular}
   \end{center}
@@ -499,13 +517,15 @@ Black's first phase of critical moves instead results in this:
 9. Rg1 f6 10. Rh1 f5 
 }
 \begin{center}
-  \chessboard[setfen=rnbqkbnr/p2pp2p/8/2p2p2/2p2p2/8/PPPPPPPP/R1BQKB1R w Qkq - 0 11,
+  \chessboard[
+    margintop=false,marginbottom=false,
+    setfen=rnbqkbnr/p2pp2p/8/2p2p2/2p2p2/8/PPPPPPPP/R1BQKB1R w Qkq - 0 11,
     pgfstyle=straightmove,markmoves={a6-b7,c3-b4,d6-c7,e6-f7,f3-g4,h6-g7},
   ]
 \end{center}
 
-
-The white b and g pawns have a clear route to promotion. White can
+\smallskip
+\noindent The white b and g pawns have a clear route to promotion. White can
 free each of the remaining 6 pawns with a single capture. Between this
 and black's two pawn captures, this is the optimal 8 pawn moves
 that are also captures. Since black has plenty of freed pieces, white
@@ -534,10 +554,13 @@ moves, resulting in:
 81. Rxa3
 }
 \begin{center}
-  \chessboard[setfen=4RRNQ/p2pp2p/1k6/2p2p1N/2p2pQ1/R6Q/3N4/2BN1BKR b - - 0 81]
+  \chessboard[
+    margintop=false,marginbottom=false,
+    setfen=4RRNQ/p2pp2p/1k6/2p2p1N/2p2pQ1/R6Q/3N4/2BN1BKR b - - 0 81]
 \end{center}
 
-Now black can promote all of its pawns and capture white's pieces.
+\smallskip
+\noindent Now black can promote all of its pawns and capture white's pieces.
 We actually leave the white queen; this turns out to be essential:
 
 \comment{
@@ -557,10 +580,13 @@ We actually leave the white queen; this turns out to be essential:
 }
 
 \begin{center}
-  \chessboard[setfen=1r6/8/1k3K2/8/2b5/2n4r/7Q/2r1q1rr w - - 0 133]
+  \chessboard[
+    margintop=false,marginbottom=false,
+    setfen=1r6/8/1k3K2/8/2b5/2n4r/7Q/2r1q1rr w - - 0 133]
 \end{center}
 
-Finally, white captures all of black's pieces, and mates the black king.
+\smallskip
+\noindent Finally, white captures all of black's pieces, and mates the black king:
 
 \comment{
 133. Qxb8+ Ka5 134. Qg3 Bf7 135. Qxe1 Rg5 136. Qxc1 Ka6
@@ -570,10 +596,13 @@ Finally, white captures all of black's pieces, and mates the black king.
 }
 
 \begin{center}
-  \chessboard[setfen=3k4/3Q4/4K3/8/8/8/8/8 b - - 2 145]
+  \chessboard[
+    margintop=false,marginbottom=false,
+    setfen=3k4/3Q4/4K3/8/8/8/8/8 b - - 2 145]
 \end{center}
 
-As we switch which color is making critical moves a total of three
+\smallskip
+\noindent Since we switch which color is making critical moves a total of three
 times, we must come shy of the na\"ive maximum of 17,700 moves by
 three. This gives us an upper bound of 17,697 for this approach,
 which we will be able to achieve.
@@ -585,7 +614,7 @@ the one mating for parity reasons, similar to the reason black must
 make the first critical move. Since white makes critical moves in the
 last phase, black leads on non-critical moves; at the moment white
 makes the checkmating move, black has made 75 non-critical moves, and
-white 74. White's 75th move mates.
+white 74. White's 75\th\ move mates.
 
 But doesn't this trigger the 75-move rule? No, this rule (9.6.2;
 Section~\ref{sec:75}) has a special exception for checkmate: ``If the
@@ -594,16 +623,17 @@ Essentially, we can treat checkmate as a type of critical move.
 
 Why not capture the white queen too? This would be a critical move,
 but once two kings remain, the game ends immediately in a draw. So
-there is no length advantage here over checkmate. In fact we could do
-worse: Consider the position in Figure~\ref{fig:insufficient} where
-black is {\em forced} to capture the queen. This game is over prior to
-the capture, so this is shorter than the checkmating sequence! Even if
-the king had an escape square, it is arguable
-(Section~\ref{sec:ambiguity}) that the game is over in any case: There
-is no series of legal moves that leads to mate. Either the king
-captures the queen (and then clearly no mate is possible with just the
-two kings) or the king escapes, but in doing so plays the
-75\th\ non-critical move, and triggers a draw by the 75-move rule.
+there is no length advantage here over checkmate. In fact, attempting
+to capture may {\em shorten} the game: Consider the position in
+Figure~\ref{fig:insufficient} where black is {\em forced} to capture
+the queen. This game is over prior to the capture, so this is shorter
+than the checkmating sequence! Even if the king had an escape square,
+it is arguable (Section~\ref{sec:ambiguity}) that the game is over in
+any case: There is no ``series of legal moves'' that leads to mate.
+Either the king captures the queen (and then clearly no mate is
+possible with just the two kings) or the king escapes, but in doing so
+plays the 75\th\ non-critical move, and triggers a draw by the 75-move
+rule.
 
 The most foolproof way to ensure that mate is always possible is for the
 game itself to end in mate. This sidesteps any ambiguity about the way
@@ -699,9 +729,6 @@ are longer in terms of distance traveled; moving the queen or bishop
 between opposite corners is $\sqrt{2} \times 7$ squares! What is the
 longest game according to these or other metrics?
 
-% XXX
-% Are there any practical implications of the 
-
 \smallskip
 In {\it Chess}, it is impossible to capture your own pieces. How does
 this limitation apply to your own life?
@@ -715,6 +742,11 @@ How do you feel about the ending of the game? Is it disappointing that
 the result is not symmetric (i.e.~a draw), or elegant that it
 demonstrates its own avoidance of the ``dead position'' rule? Was it
 what you expected?
+
+\smallskip
+The character called \queen\ often plays an important role in the story.
+How would you describe her personality? How does she develop over the
+course of the game?
 
 \smallskip
 {\it Is this the longest Chess game?} is the author's sixth paper
