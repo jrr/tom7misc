@@ -24,15 +24,12 @@ struct Entry {
 
 struct Guitarchive {
   static void AddAllFilesRec(const string &dir, vector<string> *all_files);
-
-  // TODO: Load everything, with headers.
   
   static string Frontslash(const string &s);
   static string Backslash(const string &s);
 
   static bool TryStripSuffix(string_view suffix, string_view *s);
 
-  
+  // Load everything, with headers.
   static std::vector<Entry> Load(int threads = 16);
-  
 };

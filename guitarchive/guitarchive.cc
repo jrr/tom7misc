@@ -37,8 +37,8 @@ void Guitarchive::AddAllFilesRec(const string &dir, vector<string> *all_files) {
       AddAllFilesRec(filename, all_files);
     } else {
       if (!filename.empty() &&
-	  // Should perhaps just delete emacs backups..?
-	  filename[0] != '#' &&
+	  // Should probably delete emacs backups..?
+	  filename[filename.size() - 1] != '#' &&
 	  filename[filename.size() - 1] != '~') {
 	all_files->push_back(filename);
       }
