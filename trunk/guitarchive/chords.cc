@@ -89,6 +89,10 @@ struct ChordParser {
   static bool AcceptLineChords(const vector<string> &chords) {
     if (chords.size() <= 6) return true;
 
+    // Some tablature formats use E for 1/8 notes, so we get lines of
+    // just E E E E E E. e.g.
+    // c:\code\electron-guitar\tabscrape\tabs\424266.txt
+    
     // Don't allow it if it consists only of "E".
     for (const string &s : chords) {
       if (s != "E") return true;
@@ -103,10 +107,6 @@ struct ChordParser {
 
     // All chords in the song.
     vector<string> chords;
-
-    // TODO: Some tablature formats use E for 1/8 notes, so
-    // we get lines of just E E E E E E. Should reject these.
-    // e.g. c:\code\electron-guitar\tabscrape\tabs\424266.txt
 
     // Does the line just have chords, separated by whitespace?
     int cl = 0;
@@ -131,18 +131,49 @@ struct ChordParser {
       }
     }
 
+
+    // Here we declare that every song is produced from a cycle of
+    // chords, A B C. This trivially includes cycles repeated only
+    // once (and so any song can be expressed this way), and we also
+    // allow the cycle to end early (so A B C A B is ok). Find the
+    // shortest prefix of the chords that explains the song.
+    //
+    // (Consider if we actually want to do this hierarchically?
+    // Usually the verse itself repeats, too.)
+
+    auto PrefixExplainsSong = [&chords](int length) {
+	CHECK(length <= (int)chords.size());
+	for (int i = 0; i < (int)chords.size(); i++) {
+	  if (chords[i] != chords[i % length])
+	    return false;
+	}
+	return true;
+      };
+
+    int truncated = 0;
+    for (int len = 1; len <= (int)chords.size(); len++) {
+      if (PrefixExplainsSong(len)) {
+	truncated += chords.size() - len;
+	chords.resize(len);
+      }
+    }
+
+
     {
       MutexLock ml(&stats_m);
       chord_lines += cl;
       num_chords += chords.size();
       all_lines += lines.size();
+      chords_saved += truncated;
     }
 
+    
     return chords;
   }
   
   std::mutex stats_m;
   int64 all_lines = 0, chord_lines = 0, num_chords = 0;
+  int64 chords_saved = 0;
 };
 }
 
@@ -163,11 +194,13 @@ int main(int argc, char **argv) {
   printf("Number of entries: %lld\n", (int64)entries.size());
   printf("All lines: %lld\n"
 	 "Chord lines: %lld (%.2f%%)\n"
-	 "Total chords: %lld\n",
+	 "Total chords: %lld\n"
+	 "Cycle chords removed: %lld\n",
 	 parser.all_lines,
 	 parser.chord_lines,
 	 (parser.chord_lines * 100.0) / parser.all_lines,
-	 parser.num_chords);
+	 parser.num_chords,
+	 parser.chords_saved);
 
   printf("Writing to file...\n");
   FILE *f = fopen("chords.lines", "wb");
