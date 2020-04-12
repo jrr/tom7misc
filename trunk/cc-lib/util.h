@@ -62,6 +62,10 @@ struct Util {
   static string Join(const std::vector<std::string> &pieces,
 		     const std::string &sep);
 
+  // Split the string on the given character. The output
+  // always contains at least one element; split("", "x")
+  // returns {""}.
+  static std::vector<string> Split(const std::string &s, char sep);
   
   // XXX terrible names
   static int shout(int, string, unsigned int &);
@@ -81,6 +85,8 @@ struct Util {
   static string fileof(const string &s);
 
   static string ensureext(string f, string ext);
+
+  // Convert ASCII string to lowercase or uppercase.
   static string lcase(const string &in);
   static string ucase(const string &in);
 
