@@ -433,6 +433,25 @@ static void RegressionBxa8n() {
   // CHECK(!pos.ParseMove("bxa8=N", &m)) << pos.BoardString();
 }
 
+static void RegressionRg8() {
+  Position pos;
+  CHECK(Position::ParseFEN(
+	    "3qk2r/p2pp2p/2N3rb/2p2p2/1Qp2pn1/1P6/3PPPPP/R1BQKB1R b Qk - 1 1",
+	    &pos));
+  Move m;
+  m.src_row = 2;
+  m.src_col = 6;
+  m.dst_row = 0;
+  m.dst_col = 6;
+  m.promote_to = 0;
+  CHECK(pos.IsLegal(m)) << pos.BoardString();
+  // This move is ambiguous because both rooks can access the spot. The
+  // rook at A1 has not castled, though, so there once was a bug where
+  // it (C_ROOK) was not treated as a rook for disambiguation!
+  const string ms = pos.ShortMoveString(m);
+  CHECK_EQ(ms, "Rgg8") << ms;
+}
+
 static void TestEp() {
   const char *kGame = R"_([Event "Test"]
 1. e4 e5 2. Ke2 Ke7 3. f4 exf4 4. g4 
@@ -486,6 +505,7 @@ int main(int argc, char **argv) {
   TestShortMove();
 
   RegressionBxa8n();
+  RegressionRg8();
   return 0;
 }
 

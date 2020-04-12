@@ -1323,6 +1323,14 @@ string Position::ShortMoveString(Move m) {
   
   // type of piece being moved
   const uint8 type = PieceAt(m.src_row, m.src_col) & TYPE_MASK;
+  // Handle C_ROOK as well...
+  auto SamePieceType = [type](uint8 p) {
+      uint8 t = p & TYPE_MASK;
+      if (type == ROOK || type == C_ROOK)
+	return t == ROOK || t == C_ROOK;
+      return type == t;
+    };
+  
   if (type == PAWN) {
     // If a pawn, the result is never ambiguous!
 
@@ -1346,7 +1354,7 @@ string Position::ShortMoveString(Move m) {
     for (int r = 0; r < 8; r++) {
       for (int c = 0; c < 8; c++) {
 	if ((r != m.src_row || c != m.src_col) &&
-	    (PieceAt(r, c) & TYPE_MASK) == type) {
+	    SamePieceType(PieceAt(r, c))) {
 	  Move alt = m;
 	  alt.src_row = r;
 	  alt.src_col = c;

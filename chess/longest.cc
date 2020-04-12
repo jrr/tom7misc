@@ -835,6 +835,13 @@ static void MakeLongest() {
     for (const Move &m : final_moves) {
       string ms = p.ShortMoveString(m) +
 	p.PGNMoveSuffix(m);
+      if (move_num == 1786) {
+	printf("Board:\n%s\n%s\nMove: %s\n",
+	       p.BoardString().c_str(),
+	       p.ToFEN(1, 1).c_str(),
+	       ms.c_str());
+      }
+      
       if (!p.BlackMove()) {
 	StringAppendF(&pgn, " %d. %s", move_num,
 		      ms.c_str());
