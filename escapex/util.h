@@ -1,5 +1,8 @@
 
-// XXX: Merge this with cc-lib's Util class.
+// XXX: Merge this with cc-lib's Util class,
+// probably by renaming this to like escape_util, and then
+// calling the Util methods where possible, until this is
+// only stuff of local interest.
 
 #ifndef __UTIL_H
 #define __UTIL_H
