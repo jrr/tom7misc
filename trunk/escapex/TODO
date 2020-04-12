@@ -5,13 +5,22 @@
 Make this work again on OSX 10.10+ and windows!
  - Add mixer framework in for next release
  - byte order when manually making graphics, like mainshow?
+     - note that it is not just byte order, but color order
+       differs per platform (RGBA, ARGB, etc.)
      - any more of these?
  - Probably release a source-only tarball for linux?
+
+Merge some changes from Matt McCutchen:
+ https://gitlab.com/mattmccutchen/escape
 
 Use specific-width integer types instead of 'unsigned'.
 
 Use font from cc-lib.
 Maybe move HTTP to cc-lib.
+Maybe move primes to cc-lib.
+
+Avoid sdl-image? Server-side code would certainly benefit, at least
+(this caused the screenshot outage late 2019).
 
 Bugs in 2016:
     Bug: If I download new solutions from the servers, then

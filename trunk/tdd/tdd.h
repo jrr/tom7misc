@@ -121,6 +121,17 @@ struct Recorder {
 // template<class F>
 // Recorder(F f) -> Recorder(F
 
+constexpr bool Pointers() {
+  int x = 1;
+  int *y = nullptr;
+  int *n = &x;
+  *n = 3;
+  // delete n;
+  return *y == *y;
+}
+
+static_assert(Pointers());
+
 #if 0
 template<class F>
 constexpr bool IsFactLike(F f) {
@@ -135,13 +146,14 @@ struct IsFactLike {
 };
 
 // static_assert(IsFactLike([](int x) { return 6; }));
-
+#if 0
 template<class A>
 constexpr int Zzz() {
   // Recorder r(IsFactLike);
   Recorder<IsFactLike, A>::Savey(IsFactLike());
   return 0;
 }
+#endif
 
 #if 0
 constexpr int Hmm() {
@@ -150,3 +162,10 @@ constexpr int Hmm() {
 static_assert(Hmm() == 3);
 #endif
   
+
+
+constexpr bool Cool() {
+  int *p = nullptr;
+  return *p == *p;
+}
+static_assert(Cool());

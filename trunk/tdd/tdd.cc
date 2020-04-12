@@ -2,6 +2,8 @@
 
 #include <tuple>
 
+constexpr bool Even(int i) { return (i & 1) == 0; }
+
 int main(int argc, char **argv) {
   constexpr Stream<int> is(0);
   constexpr auto a = is.Next();
@@ -11,8 +13,8 @@ int main(int argc, char **argv) {
   static_assert(b);
   static_assert(b->first == 1);
 
-  constexpr auto even = [](int i) { return (i & 1) == 0; };
-  constexpr Filter<int, even> filter(is);
+  // constexpr auto even = [](int i) { return (i & 1) == 0; };
+  constexpr Filter<int, Even> filter(is);
 
   constexpr auto aa = filter.Next();
   static_assert(aa);

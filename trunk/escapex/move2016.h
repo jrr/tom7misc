@@ -195,23 +195,23 @@ using AList = PtrList<AEvent>;
     }                                                   \
   } while (0)
 
-# define PUSHED2016(d, w, x, y, u, z, h) do {         \
-    if (ANIMATING) {                                 \
+# define PUSHED2016(d, w, x, y, u, z, h) do {		\
+    if (ANIMATING) {					\
       const dir pushed_d = (d);                         \
       const int pushed_w = (w);                         \
       const int pushed_x = (x), pushed_y = (y);         \
       const int pushed_u = (u);                         \
-      const bool pushed_z = (z), pushed_h = (h); \
-      PUSHMOVE2016(push, ([&](push_t *e) {         \
-        e->srcx = pushed_x;                         \
-        e->srcy = pushed_y;                         \
-        e->d = pushed_d;                         \
-        e->under = pushed_u;                         \
-        e->what = pushed_w;                         \
-        e->zap = pushed_z;                         \
-        e->hole = pushed_h;                         \
-      }));                                         \
-    }                                                 \
+      const bool pushed_z = (z), pushed_h = (h);	\
+      PUSHMOVE2016(push, ([&](push_t *e) {		\
+        e->srcx = pushed_x;                             \
+        e->srcy = pushed_y;                             \
+        e->d = pushed_d;                                \
+        e->under = pushed_u;                            \
+        e->what = pushed_w;                             \
+        e->zap = pushed_z;                              \
+        e->hole = pushed_h;                             \
+      }));                                              \
+    }                                                   \
   } while (0)
 
 
