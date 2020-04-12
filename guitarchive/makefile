@@ -1,5 +1,6 @@
 
 default : clean.exe chords.exe
+all: clean.exe chords.exe guitarchive_test.exe chord-parser_test.exe
 
 OPT=-O2
 CXXFLAGS=--std=c++17 -Wall $(OPT)
@@ -36,7 +37,13 @@ $(CCLIB)/%.o : $(CCLIB)/%.cc
 clean.exe : clean.o guitarchive.o headers.o $(CCLIB_OBJECTS) $(RE2_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-chords.exe : chords.o guitarchive.o $(CCLIB_OBJECTS) $(RE2_OBJECTS)
+chords.exe : chords.o chord-parser.o guitarchive.o $(CCLIB_OBJECTS) $(RE2_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+guitarchive_test.exe : guitarchive.o guitarchive_test.o $(CCLIB_OBJECTS) $(RE2_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+chord-parser_test.exe : chord-parser.o chord-parser_test.o $(CCLIB_OBJECTS) $(RE2_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 clean :

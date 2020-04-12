@@ -31,5 +31,5 @@ struct Guitarchive {
   static bool TryStripSuffix(string_view suffix, string_view *s);
 
   // Load everything, with headers.
-  static std::vector<Entry> Load(int threads = 16);
+  static vector<Entry> Load(int threads = 16);
 };
