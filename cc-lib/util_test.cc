@@ -79,6 +79,13 @@ static void TestJoin() {
   CHECK_EQ("abcde", Util::Join({"a", "b", "cde"}, ""));
 }
 
+static void TestSplit() {
+  CHECK_EQ((vector<string>{"hello", "world"}),
+	   Util::Split("hello world", ' '));
+  CHECK_EQ((vector<string>{"", ""}), Util::Split(" ", ' '));  
+  CHECK_EQ(vector<string>{""}, Util::Split("", 'x'));
+}
+
 static void TestCdup() {
   CHECK_EQ("abc" DIRSEP "de", Util::cdup("abc" DIRSEP "de" DIRSEP "f"));
   CHECK_EQ(".", Util::cdup("abc"));
@@ -89,6 +96,7 @@ int main(int argc, char **argv) {
   TestWhitespace();
   TestPad();
   TestJoin();
+  TestSplit();
   TestCdup();
   return 0;
 }

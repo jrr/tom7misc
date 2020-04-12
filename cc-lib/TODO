@@ -7,3 +7,4 @@
 - clean up style (use uppercase function and class names, like in sdlutil?)
 - Good standalone flate/zlib compressor: https://github.com/google/zopfli
 - Fast standalone compressor/decompressor: https://github.com/google/snappy
+- CHACHA2020 as a replacement for arcfour

@@ -1126,6 +1126,21 @@ string Util::Join(const vector<string> &parts,
   return out;
 }
 
+vector<string> Util::Split(const string &s, char sep) {
+  vector<string> out;
+  int64 start = 0;
+  for (int64 i = 0; i < (int64)s.size(); i++) {
+    if (s[i] == sep) {
+      // Substring constructor.
+      out.emplace_back(s, start, i - start);
+      start = i + 1;
+      i++;
+    }
+  }
+  out.emplace_back(s, start, string::npos);
+  return out;
+}
+
 string Util::Replace(string src,
 		     const string &findme,
 		     const string &rep) {
