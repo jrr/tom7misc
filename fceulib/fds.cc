@@ -497,7 +497,7 @@ void FDS::FDS_ESI() {
 }
 
 void FDS::FDSSoundReset() {
-  memset(&fdso,0,sizeof(fdso));
+  fdso = FdsSound();
   FDS_ESI();
   fc->sound->GameExpSound.HiSync =
     [](FC *fc, int32 ts){ return fc->fds->HQSync(ts); };
@@ -613,7 +613,7 @@ int FDS::SubLoad(FceuFile *fp) {
     FCEU_fread(diskdata[x],1,65500,fp);
     md5_update(&md5,diskdata[x],65500);
   }
-  md5_finish(&md5,fc->fceu->GameInfo->MD5.data);
+  md5_finish(&md5,fc->fceu->GameInfo->MD5.data());
   return(1);
 }
 
@@ -653,7 +653,7 @@ int FDS::FDSLoad(const char *name, FceuFile *fp) {
   }
 
   fseek( zp, 0L, SEEK_END );
-  if (ftell( zp ) != 8192 ) {
+  if (ftell( zp ) != 8192) {
     fclose(zp);
     FreeFDSMemory();
     FCEU_PrintError("FDS BIOS ROM image incompatible: %s",

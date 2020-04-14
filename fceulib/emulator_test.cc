@@ -3,7 +3,9 @@
 
 #ifdef __MINGW32__
 // For setting priority.
+#define byte win_byte_override
 #include <windows.h>
+#undef byte
 #endif
 
 #include <string>
@@ -241,8 +243,9 @@ struct SerialResult {
 };
 
 // TODO: Add running checksums of ram, cpu.
-static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
-                                    const Game &game) {
+static SerialResult RunGameSerially(
+    std::function<void(const string &)> Update_,
+    const Game &game) {
   // XXX
   auto Update = [](const string &s) {};
 
@@ -838,6 +841,7 @@ int main(int argc, char **argv) {
   TRACE_DISABLE();
 
   Collage collage("");
+  [[maybe_unused]]
   auto RunGameToCollage = [&collage, write_collage](const Game &game) {
     printf("Running %s to collage...\n", game.cart.c_str());
     SerialResult sr = RunGameSerially([](const string &s) {}, game);

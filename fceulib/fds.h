@@ -89,13 +89,13 @@ struct FDS {
     uint32 b17latch76 = 0;
     int32 clockcount = 0;  // Counter to divide frequency by 8.
     uint8 b8shiftreg88 = 0;  // Modulation register.
-    uint8 amplitude[2] = {0} ;  // Current amplitudes.
-    uint8 speedo[2] = {0};
+    uint8 amplitude[2] = {};  // Current amplitudes.
+    uint8 speedo[2] = {};
     uint8 mwcount = 0;
     uint8 mwstart = 0;
-    uint8 mwave[0x20] = {0};      // Modulation waveform
-    uint8 cwave[0x40] = {0};      // Game-defined waveform(carrier)
-    uint8 SPSG[0xB] = {0};
+    uint8 mwave[0x20] = {};      // Modulation waveform
+    uint8 cwave[0x40] = {};      // Game-defined waveform(carrier)
+    uint8 SPSG[0xB] = {};
   };
 
   FdsSound fdso;

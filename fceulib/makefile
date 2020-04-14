@@ -7,7 +7,7 @@ all: emulator_test.exe bench.exe fm2tofm7.exe difftrace.exe dumptrace.exe make-c
 # -Wstrict-overflow=3
 # -std=c++11
 # -DDISABLE_SOUND=1 -DDISABLE_VIDEO=1
-CXXFLAGS=-Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include 
+CXXFLAGS=-std=c++17 -Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include 
 # XXX -O2
 OPT=-g -O2  # -O3 -fno-strict-aliasing
 # try -flto!
