@@ -1,5 +1,5 @@
 
-default: chess_test.exe tournament.exe
+default: chess_test.exe tournament.exe longest.exe
 all: chess_test.exe rungames.exe tournament.exe elo.exe longest.exe pairs.exe chessmaster.exe makeperm.exe maketable.exe chessreduce.exe testplayer.exe elo.exe makecommonbook.exe packhisto.exe repack.exe validatepack.exe makealmanac.exe bigrat_test.exe
 
 # Over all games.

@@ -64,19 +64,19 @@ struct FCEUGI {
   FCEUGI();
   ~FCEUGI();
 
-  int mappernum;
+  int mappernum = 0;
 
-  EGIT type;
+  EGIT type = GIT_CART;
   // Current emulated video system;
-  EGIV vidsys;
+  EGIV vidsys = GIV_NTSC;
   // Desired input for emulated input ports 1 and 2; -1 for unknown
   // desired input.
-  ESI input[2];
+  ESI input[2] = {SI_NONE, SI_NONE};
   // Desired Famicom expansion port device. -1 for unknown desired
   // input.
-  ESIFC inputfc;
+  ESIFC inputfc = SIFC_NONE;
   // Special cart expansion: DIP switches, barcode reader, etc.
-  ESIS cspecial;
+  ESIS cspecial = SIS_NONE;
 
   MD5DATA MD5;
 };
