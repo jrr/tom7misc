@@ -10,10 +10,10 @@ struct md5_context {
   uint8 buffer[64];
 };
 
-typedef FixedArray<uint8,16> MD5DATA;
+using MD5DATA = FixedArray<uint8, 16>;
 
-void md5_starts( struct md5_context *ctx );
-void md5_update( struct md5_context *ctx, const uint8 *input, uint32 length );
-void md5_finish( struct md5_context *ctx, uint8 digest[16] );
+void md5_starts(struct md5_context *ctx);
+void md5_update(struct md5_context *ctx, const uint8 *input, uint32 length);
+void md5_finish(struct md5_context *ctx, uint8 digest[16]);
 
 #endif /* md5.h */

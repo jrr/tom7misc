@@ -522,7 +522,8 @@ int Unif::UNIFLoad(const char *name, FceuFile *fp) {
     FCEU_printf(" ROM MD5:  0x");
     for (int x = 0; x < 16; x++) FCEU_printf("%02x", UNIFCart.MD5[x]);
     FCEU_printf("\n");
-    memcpy(&fc->fceu->GameInfo->MD5, &UNIFCart.MD5, sizeof(UNIFCart.MD5));
+    memcpy(fc->fceu->GameInfo->MD5.data(), &UNIFCart.MD5,
+	   sizeof UNIFCart.MD5);
   }
 
   if (!InitializeBoard()) goto aborto;

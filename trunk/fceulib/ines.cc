@@ -915,7 +915,7 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
     md5_update(&md5, VROM, VROM_size << 13);
   }
   md5_finish(&md5, iNESCart.MD5);
-  memcpy(&fc->fceu->GameInfo->MD5, &iNESCart.MD5, sizeof iNESCart.MD5);
+  memcpy(fc->fceu->GameInfo->MD5.data(), &iNESCart.MD5, sizeof iNESCart.MD5);
 
   iNESCart.CRC32 = iNESGameCRC32;
 

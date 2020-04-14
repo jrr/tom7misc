@@ -144,9 +144,7 @@ void FCEU::ResetGameLoaded() {
   // Probably this should happen within sound itself.
   if (fc->sound->GameExpSound.Kill)
     fc->sound->GameExpSound.Kill(fc);
-  memset(&fc->sound->GameExpSound, 0,
-         sizeof fc->sound->GameExpSound);
-
+  fc->sound->GameExpSound = EXPSOUND();
   fc->X->MapIRQHook = nullptr;
   fc->ppu->MMC5Hack = 0;
   PAL &= 1;
@@ -175,7 +173,6 @@ FCEUGI *FCEU::FCEUI_LoadGame(const char *name, int OverwriteVidMode) {
 
   FCEU_CloseGame();
   GameInfo = new FCEUGI();
-  memset(GameInfo, 0, sizeof(FCEUGI));
 
   GameInfo->type = GIT_CART;
   GameInfo->vidsys = GIV_USER;

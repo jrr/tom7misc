@@ -222,6 +222,7 @@ static_assert(sizeof regs / sizeof (Reg) == NUM_REGS, "");
 // when making an external function call.
 static constexpr uint32 PRIVATE_TO_X6502 = ID_JAMMED | ID_PC;
 
+[[maybe_unused]]
 static bool CanGenInstruction(uint8 b1) {
   // Note that this is now equivalent to just "return true;", since
   // all 6502 instructions are implemented. But it is very useful to
@@ -578,6 +579,7 @@ string Exp<uint16>::StringInternal() const {
   return StringPrintf("0x%04x", value);
 }
 
+[[maybe_unused]]
 static Exp<uint16> Extend8to16(Exp<uint8> v) {
   if (v.Known()) {
     return Exp<uint16>((uint16)v.Value());
@@ -586,7 +588,7 @@ static Exp<uint16> Extend8to16(Exp<uint8> v) {
   }
 }
 
-struct AOT {
+struct AheadOfTime {
   // At the header of a function, declare all the locals for the
   // "registers". PERF Actually reading these from X is often
   // not necessary (especially for ones that are rarely read, or
@@ -2982,7 +2984,7 @@ static vector<string> GenerateCode(const CodeConfig &config,
   
   auto F = [&config, &code, addr_start, addr_past_end, &symbol, &cart_name,
 	    &ret_m, &ret](int i) {
-    AOT aot;
+    AheadOfTime aot;
     string filebase = StringPrintf("%s_%d", symbol.c_str(), i);
     string filename = filebase + ".cc";
     FILE *f = fopen(filename.c_str(), "w");
