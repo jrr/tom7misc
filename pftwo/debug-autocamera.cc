@@ -8,7 +8,9 @@
 #include <list>
 
 #ifdef __MINGW32__
+#define byte win_byte_override
 #include <windows.h>
+#undef byte
 #undef ARRAYSIZE
 #endif
 
@@ -111,14 +113,14 @@ static vector<uint8> GetSpriteSheet(Emulator *emu, int rotate = 0) {
   // Are sprites 16 pixels tall?
   const bool tall_sprites = !!(ppu_ctrl & (1 << 5));
   // const int sprite_height = tall_sprites ? 16 : 8;
-  const bool sprites_enabled = !!(ppu_mask && (1 << 4));  
-    
+  const bool sprites_enabled = !!(ppu_mask & (1 << 4));
+
   if (!sprites_enabled) return rgba;
 
   // Note: This is ignored if sprites are tall (and determined instead
   // from the tile's low bit).
   const bool spr_pat_high = !!(ppu_ctrl & (1 << 3));
-    
+
   // Total 256 bytes.
   const uint8 *spram = ppu->SPRAM;
 
@@ -134,7 +136,7 @@ static vector<uint8> GetSpriteSheet(Emulator *emu, int rotate = 0) {
     // const uint8 xpos = spram[n * 4 + 3];
     int ypos = 0;
     int xpos = ((n + rotate) % 64) * 8;
-    
+
     const uint8 *palette_table = emu->GetFC()->ppu->PALRAM;
 
     // Draw one 8x8 sprite tile into rgba, using pattern table $0000
@@ -150,7 +152,7 @@ static vector<uint8> GetSpriteSheet(Emulator *emu, int rotate = 0) {
 	  bool patterntable_high, uint8 tile_idx, int x0, int y0) {
       const uint32 spr_pat_addr = patterntable_high ? 0x1000 : 0x0000;
       const uint8 *vram = emu->GetFC()->cart->VPagePointer(spr_pat_addr);
-	
+
       const int addr = tile_idx * 16;
       for (int row = 0; row < 8; row++) {
 	const uint8 row_low = vram[addr + row];
@@ -180,7 +182,7 @@ static vector<uint8> GetSpriteSheet(Emulator *emu, int rotate = 0) {
 	    const uint8 palette_idx = 0x10 + ((colorbits << 2) | value);
 	    // ID of global NES color gamut.
 	    const uint8 color_id = palette_table[palette_idx];
-	      
+
 	    // Put pixel in sprite texture:
 	    rgba[pixel + 0] = ntsc_palette[color_id * 3 + 0];
 	    rgba[pixel + 1] = ntsc_palette[color_id * 3 + 1];
@@ -190,7 +192,7 @@ static vector<uint8> GetSpriteSheet(Emulator *emu, int rotate = 0) {
 	}
       }
     };
-      
+
     if (tall_sprites) {
       // Odd and even tile numbers are treated differently.
       if ((tile_idx & 1) == 0) {
@@ -245,7 +247,7 @@ struct UIThread {
 
   // The last values of reg_PC at the end of the frame.
   LastNBuffer<uint64> last_pcs{100, 0ULL};
-  
+
   UIThread(const string &game,
 	   const string &moviefile) : game(game) {
     vector<pair<int, string>> subs;
@@ -256,7 +258,7 @@ struct UIThread {
     vector<uint8> p1;
     for (const auto &p : movie) p1.push_back(p.first);
     NMarkovController nmarkov(p1, 3);
-    
+
     CHECK(!movie.empty()) << "Couldn't read movie: " << moviefile;
     loop_right = movie.size() + 1;
     for (const auto &p : subs)
@@ -266,16 +268,16 @@ struct UIThread {
     CHECK(emu.get() != nullptr) << game;
     autolives.reset(new AutoLives(game, nmarkov));
     autotimer.reset(new AutoTimer(game, nmarkov));
-    
+
     loop_left_save = emu->SaveUncompressed();
-    
+
     for (int i = 0; i < WARMUP_FRAMES; i++) {
       emu->StepFull(movie[i].first, movie[i].second);
       frameidx++;
     }
     printf("Warmed up.\n");
   }
-  
+
   enum class Mode {
     PLAY,
     PAUSE,
@@ -331,7 +333,7 @@ struct UIThread {
       DrawPixel(xs, sl, 0xFF, 0, 0);
     }
   }
-  
+
   void Loop() {
     SDL_Surface *surf = sdlutil::makesurface(256, 256, true);
     (void)surf;
@@ -339,8 +341,8 @@ struct UIThread {
     // XXX contra
     const int rotate = 45;
 
-    
-    
+
+
     for (;;) {
       SDL_Event event;
 
@@ -373,7 +375,7 @@ struct UIThread {
 	    (void)timers;
 	    break;
 	  }
-	    
+
 	  case SDLK_l: {
 	    vector<LivesLoc> lives =
 	      autolives->FindLives(emu->SaveUncompressed(),
@@ -382,15 +384,15 @@ struct UIThread {
 	    (void)lives;
 	    break;
 	  }
-	    
+
 	  case SDLK_i:
 	    show_control = !show_control;
 	    break;
-	    
+
 	  case SDLK_PERIOD:
 	    mode = Mode::ADVANCE;
 	    break;
-	    
+
 	  case SDLK_MINUS:
 	    // XLOC--;
 	    YLOC--;
@@ -408,12 +410,12 @@ struct UIThread {
 	    loop_left_save = emu->SaveUncompressed();
 	    if (loop_left >= loop_right) loop_left = 0;
 	    break;
-	    
+
 	  case SDLK_RIGHTBRACKET:
 	    loop_right = frameidx;
 	    if (loop_right <= loop_left) loop_left = 0;
 	    break;
-	    
+
 
 	  case SDLK_KP_MINUS:
 	  case SDLK_KP_PLUS: {
@@ -467,7 +469,7 @@ struct UIThread {
 	    }
 
 	    // XXX merge scores
-	    
+
 	    if (links.empty()) {
 	      AutoCamera2::Linkage best = links[0];
 	      printf("Set loc to %d,%d = 0x%2x,0x%2x (score %.2f)\n",
@@ -479,7 +481,7 @@ struct UIThread {
 	    }
 	    break;
 	  }
-	    
+
 	  case SDLK_c: {
 	    AutoCamera autocamera{game};
 	    bool exited = false;
@@ -495,7 +497,7 @@ struct UIThread {
 	      DrawEmulatorAt(remu, total_displacement, 1024 + 8, 0);
 
 	      SDL_Flip(screen);
-	      
+
 	      if (exited) return;
 	      for (;;) {
 		SDL_Event event;
@@ -528,7 +530,7 @@ struct UIThread {
 	    printf("-----\n");
 	    mode = Mode::PAUSE;
 	  }
-	    
+
 	  case SDLK_LEFT: {
 	    mode = Mode::PAUSE;
 
@@ -566,7 +568,7 @@ struct UIThread {
 	  break;
 	}
       }
-      
+
       if (mode == Mode::PLAY || mode == Mode::ADVANCE ||
 	  mode == Mode::FFWD) {
 
@@ -574,7 +576,7 @@ struct UIThread {
 	  frameidx = loop_left;
 	  emu->LoadUncompressed(loop_left_save);
 	}
-	
+
 	// Can we execute at least one frame?
 	if (frameidx >= movie.size()) {
 	  mode = Mode::PAUSE;
@@ -586,7 +588,7 @@ struct UIThread {
 	  emu->StepFull(p1, p2);
 	  // GetFC()->X->reg_PC
 	  last_pcs.push_back(emu->Registers());
-  
+
 	  if (0 == frameidx % SNAPSHOT_EVERY) {
 	    // XX only do this the first time..?
 	    snapshots[frameidx] = emu->SaveUncompressed();
@@ -603,13 +605,13 @@ struct UIThread {
 
       if (mode == Mode::FFWD)
 	continue;
-      
+
       // PERF: Don't need to clear the game part.
       sdlutil::clearsurface(screen, 0x00000000);
-      
+
       const int rot = (frameidx * rotate) % 64;
       DrawEmulatorAt(emu.get(), rot, 0, 0);
-      
+
       if (show_control) {
 	vector<uint8> save = emu->SaveUncompressed();
 	float controlf = autolives->IsInControl(save, XLOC, YLOC, false);
@@ -617,7 +619,7 @@ struct UIThread {
 		   StringPrintf("%sCONTROL: %.2f",
 				controlf > 0.3f ? "^5" : "^2", controlf));
       }
-      
+
       if (false) {
 	std::unordered_map<uint64, int> reg_counts;
 	last_pcs.App([&reg_counts](uint64 reg) {
@@ -651,8 +653,8 @@ struct UIThread {
 	  }
 	}
       }
-      
-      // Draw 
+
+      // Draw
       if (mode == Mode::PLAY) {
 	font->draw(0, HEIGHT - FONTHEIGHT, "^2PLAY");
       } else {
@@ -664,11 +666,11 @@ struct UIThread {
 	uint8 lives = ram[LIVES];
 	font->draw(16, 516, StringPrintf("Lives: ^4%d", lives));
       }
-      
+
       {
 	uint8 *ram = emu->GetFC()->fceu->RAM;
 	const PPU *ppu = emu->GetFC()->ppu;
-	
+
 	// end-of-frame scroll values.
 	const uint32 xscroll = emu->GetXScroll();
 	const uint32 yscroll = emu->GetYScroll();
@@ -692,20 +694,20 @@ struct UIThread {
 	    }
 	    return maxi;
 	  };
-	
+
 	// TODO: get the appropriate offset based on the scanline.
 	// We could use ram[YLOC] to determine the scanline, but
 	// if yscroll isn't zero, then this isn't the scanline that
 	// the sprite is actually drawn on. Would we need to find
 	// a memory location that tells us the "game area" y scroll?
-	
+
 	//  ... so as a heuristic, use the most common scroll position
 	// on-screen. This assumes that more than half of the screen
 	// is the game area, which seems like a good assumption,
 	// except perhaps for in split-screen two-player.
 	const uint8 xmaj = GetMajorityScroll(ppu->interframe_x);
 	const uint8 ymaj = GetMajorityScroll(ppu->interframe_y);
-	
+
 	const uint8 xx = ram[XLOC], yy = ram[YLOC];
 	auto DrawBox =
 	  [this](int x, int y, uint8 r, uint8 g, uint8 b) {
@@ -725,7 +727,7 @@ struct UIThread {
 		   StringPrintf("^4maj: ^1%d^2,^<%d",
 				(int)xmaj, (int)ymaj));
       }
-	
+
       SDL_Flip(screen);
     }
 
@@ -734,7 +736,7 @@ struct UIThread {
   void Run() {
     screen = sdlutil::makescreen(WIDTH, HEIGHT);
     CHECK(screen);
-    
+
     font = Font::create(screen,
 			"font.png",
 			FONTCHARS,
@@ -753,7 +755,7 @@ struct UIThread {
 			   FONTCHARS,
 			   MAXFONTWIDTH, MAXFONTHEIGHT, FONTSTYLES, 4, 3);
     CHECK(fontmax != nullptr) << "Couldn't load fontmax.";
-    
+
     Loop();
     printf("UI shutdown.\n");
   }
@@ -801,17 +803,17 @@ int main(int argc, char *argv[]) {
   if (argc >= 6) {
     LIVES = atoi(argv[5]);
   }
-  
-  
+
+
   #ifdef ENABLE_AOT
   if (game != "contra.nes") {
     fprintf(stderr, "Sorry, contra.nes is hardcoded because of AOT.\n");
     return -1;
   }
   #endif
-  
-  fprintf(stderr, "Init SDL\n");  
-  
+
+  fprintf(stderr, "Init SDL\n");
+
   /* Initialize SDL, video, and audio. */
   CHECK(SDL_Init(SDL_INIT_VIDEO) >= 0);
   fprintf(stderr, "SDL initialized OK.\n");
@@ -820,7 +822,7 @@ int main(int argc, char *argv[]) {
                       SDL_DEFAULT_REPEAT_INTERVAL);
 
   SDL_EnableUNICODE(1);
-  
+
   SDL_Surface *icon = SDL_LoadBMP("debug-autocamera-icon.bmp");
   if (icon != nullptr) {
     SDL_WM_SetIcon(icon, nullptr);
