@@ -21,8 +21,10 @@
 #include "bigchess.h"
 #include "fate-data.h"
 
+#define byte win_byte_override
 #include <windows.h> // XXX
 #include <psapi.h> // XXX
+#undef byte
 
 constexpr int MAX_PARALLELISM = 8;
 

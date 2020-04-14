@@ -34,9 +34,6 @@
 #include "fate-data.h"
 #include "packedgame.h"
 
-#include <windows.h> // XXX
-#include <psapi.h> // XXX
-
 constexpr int MAX_PARALLELISM = 12;
 
 using namespace std;

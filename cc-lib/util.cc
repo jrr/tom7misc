@@ -20,11 +20,13 @@
    /* rename */
 #  include <io.h>
    /* setclipboard */
+
+// For C++17, avoid conflicts with std::byte
+#define byte win_byte_override
 #  include <windows.h>
+#undef byte
 
 #if defined(__MINGW32__) || defined(__MINGW64__)
-// This used to be included unconditionally in the header;
-// not sure why? -tom7
 #  include <dirent.h>
 #endif
 

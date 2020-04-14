@@ -343,6 +343,7 @@ struct ImageArgs {
   const vector<double> &stationary;
 };
 
+[[maybe_unused]]
 static void MakeImage(
     std::unordered_map<string, int> *mask,
     const std::unordered_map<string, string> &aliases,
