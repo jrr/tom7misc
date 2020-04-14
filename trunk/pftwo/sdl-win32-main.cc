@@ -11,7 +11,10 @@
 #define NO_STDIO_REDIRECT 1
 
 #define WIN32_LEAN_AND_MEAN
+
+#define byte win_byte_override
 #include <windows.h>
+#undef byte
 
 #ifdef _WIN32_WCE
 # define DIR_SEPERATOR TEXT("\\")

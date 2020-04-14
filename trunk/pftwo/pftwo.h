@@ -36,20 +36,6 @@ enum WorkerStatus : int {
   STATUS_MARATHON,
 };
 
-// TODO: To threadutil, but note that this is C++17.
-struct ReadMutexLock {
-  explicit ReadMutexLock(std::shared_mutex *m) : m(m) { m->lock_shared(); }
-  ~ReadMutexLock() { m->unlock_shared(); }
-  std::shared_mutex *m;
-};
-// Possible to template this over shared_mutex and mutex without
-// requiring an argument?
-struct WriteMutexLock {
-  explicit WriteMutexLock(std::shared_mutex *m) : m(m) { m->lock(); }
-  ~WriteMutexLock() { m->unlock(); }
-  std::shared_mutex *m;
-};
-
 // Read with the mutex that protects it. T must be copyable,
 // obviously!
 template<class T>

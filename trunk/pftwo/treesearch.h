@@ -10,11 +10,6 @@
 #include <shared_mutex>
 #include <mutex>
 
-#ifdef __MINGW32__
-#include <windows.h>
-#undef ARRAYSIZE
-#endif
-
 #include <cstdio>
 #include <cstdlib>
 

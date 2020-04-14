@@ -7,7 +7,9 @@
 #include <unordered_set>
 
 #ifdef __MINGW32__
+#define byte win_byte_override
 #include <windows.h>
+#undef byte
 #undef ARRAYSIZE
 #endif
 
