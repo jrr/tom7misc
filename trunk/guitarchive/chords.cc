@@ -75,20 +75,34 @@ int main(int argc, char **argv) {
 	 unextracted_files,
 	 (unextracted_files * 100.0) / entries.size());
 
-  printf("Writing to file...\n");
-  FILE *f = fopen("chords.lines", "wb");
-  CHECK(f);
-  for (const auto &[filename, parsed] : chords_debug) {
-    const auto &chords = parsed.chords;
-    if (!chords.empty()) {
-      fprintf(f, "\n# %s\n", filename.c_str());
-      for (const string &s : chords) {
-	fprintf(f, "%s ", s.c_str());
+  printf("Writing to files...\n");
+  {
+    FILE *f = fopen("chords.lines", "wb");
+    CHECK(f);
+    for (const auto &[filename, parsed] : chords_debug) {
+      const auto &chords = parsed.chords;
+      if (!chords.empty()) {
+	fprintf(f, "\n# %s\n", filename.c_str());
+	for (const string &s : chords) {
+	  fprintf(f, "%s ", s.c_str());
+	}
+	fprintf(f, "\n");
       }
-      fprintf(f, "\n");
     }
+    fclose(f);
   }
-  fclose(f);
+
+  {
+    // Multiformat files
+    FILE *f = fopen("multiformat.txt", "wb");
+    for (const auto &[filename, parsed] : chords_debug) {
+      if (parsed.chord_lines > 0 && parsed.crd_lines > 0) {
+	fprintf(f, "%s %d %d\n",
+		filename.c_str(), parsed.chord_lines, parsed.crd_lines);
+      }
+    }
+    fclose(f);
+  }
   
   /*
 Number of entries: 445764
