@@ -1,10 +1,10 @@
 
 default: spans.exe
 
-all: particles.exe join.exe grid.exe portmantout.exe validate.exe scroll.exe spans.exe threadutil_test.exe makeparticles_test.exe
+all: particles.exe join.exe grid.exe portmantout.exe validate.exe scroll.exe spans.exe makeparticles_test.exe
 
 # -fno-strict-aliasing
-CXXFLAGS=-Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -std=c++11 
+CXXFLAGS=-Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -std=c++17
 OPT=-O2
 
 # for 64 bits on windows
@@ -68,9 +68,6 @@ grid.exe : $(OBJECTS) grid.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 scroll.exe : $(OBJECTS) scroll.o
-	$(CXX) $^ -o $@ $(LFLAGS)
-
-threadutil_test.exe : $(OBJECTS) threadutil_test.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 clean :

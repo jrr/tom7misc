@@ -23,7 +23,7 @@ using smap = unordered_map<string, vector<Word *>>;
 using sset = unordered_set<string>;
 
 std::mutex print_mutex;
-#define Printf(fmt, ...) do {		\
+#define Printf(fmt, ...) do {			\
   MutexLock Printf_ml(&print_mutex);		\
   printf(fmt, ##__VA_ARGS__);			\
   } while (0);

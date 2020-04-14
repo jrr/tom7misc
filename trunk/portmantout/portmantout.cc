@@ -66,6 +66,7 @@ static string F(double d) {
   else return s;
 };
 
+[[maybe_unused]]
 static void WriteSVGFrames1(const unordered_map<string, GridDot> &grid,
 			    const string &filebase, int num_frames, const Trace &trace) {
   int nontrivial = 0;
@@ -131,6 +132,7 @@ static void WriteSVGFrames1(const unordered_map<string, GridDot> &grid,
 }
 
 // New version just dots.
+[[maybe_unused]]
 static void WriteSVGFrames2(const unordered_map<string, GridDot> &grid,
 			    const string &filebase, int num_frames, const Trace &trace) {
   int nontrivial = 0;
