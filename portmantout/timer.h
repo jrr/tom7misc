@@ -8,7 +8,9 @@ struct Timer {
 
 #else
 
-#include <windows.h>
+#define byte win_byte_override
+#  include <windows.h>
+#undef byte
 
 // Computes time elapsed in ms. Windows only.
 struct Timer {
