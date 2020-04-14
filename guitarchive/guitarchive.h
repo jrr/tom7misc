@@ -7,7 +7,7 @@
 using namespace std;
 
 // Parsed entry from disk. This is not sufficient to exactly recreate
-// the file; see clean.cc for round-trip stuff.
+// the file; see cleandb.cc for round-trip stuff.
 struct Entry {
   // These are removed from the headers if present.
   string artist;

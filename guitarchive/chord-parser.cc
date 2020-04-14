@@ -34,6 +34,10 @@ static bool AcceptLineChords(const vector<string> &chords) {
   return false;
 }
 
+static bool AcceptCrdChords(const vector<string> &chords) {
+  // TODO: Any issues here?
+  return true;
+}
 
 
 ChordParser::ChordParser() {
@@ -85,14 +89,24 @@ ChordParser::ChordParser() {
       "(?:" ALLOW_WS_RE + standard_chord + WS_RE ")*"
       // And then one chord that need not have whitespace
       ALLOW_WS_RE + standard_chord + ALLOW_WS_RE);
-
+  // Just any [bracketed] chord. It's normal for this to appear
+  // without surrounding whitespace (e.g. before the second
+  // syllable in a lyric).
+  line_with_crd_re = new RE2(".*\\[" + standard_chord + "\\].*");
+      
   // Needs to find longest match or else we just parse "D7 G" as
   // "D" and fail to continue consuming the line.
   RE2::Options longest;
   longest.set_longest_match(true);
-  extract_chord_re = new RE2(ALLOW_WS_RE "(" + standard_chord + ")",
-			     longest);
+  extract_chord_line_re = new RE2(ALLOW_WS_RE "(" + standard_chord + ")",
+				  longest);
 
+  RE2::Options first;
+  first.set_longest_match(false);
+  // Get the first bracketed component on the line (which may not
+  // be a chord).
+  extract_bracketed_re = new RE2("[^[]*\\[([^]]*)\\]", first);
+  
   // TODO: To tests
   CHECK(RE2::FullMatch("Db", *standard_chord_re));
   CHECK(RE2::FullMatch("D7", *standard_chord_re));
@@ -105,9 +119,22 @@ ChordParser::ChordParser() {
   CHECK(RE2::FullMatch("G ", *line_of_chords_re));
   CHECK(RE2::FullMatch("Em/F#\tGb7sus4 ", *line_of_chords_re));
   CHECK(RE2::FullMatch("\tEm/F#\tGb7sus4", *line_of_chords_re));        
+  CHECK(RE2::FullMatch("Sea to shining [C]sea", *line_with_crd_re));
+  CHECK(RE2::FullMatch("[Csus4]Sea to shining sea", *line_with_crd_re));
+  CHECK(RE2::FullMatch("[fast] Sea to shi[G#]ning sea", *line_with_crd_re));
+  CHECK(RE2::FullMatch("C] Sea to shi[G#]ning sea", *line_with_crd_re));
+  CHECK(RE2::FullMatch("[C Sea to shi[G#]ning sea", *line_with_crd_re));    
 }
-  
-vector<string> ChordParser::ExtractChords(const string &body) {
+
+ChordParser::~ChordParser() {
+  delete standard_chord_re;
+  delete line_of_chords_re;
+  delete extract_chord_line_re;
+  delete line_with_crd_re;
+  delete extract_bracketed_re;
+}
+
+ChordParser::Parsed ChordParser::ExtractChords(const string &body) {
   // Really simple chord parsing to start.
   vector<string> lines = Util::SplitToLines(body);
 
@@ -116,6 +143,8 @@ vector<string> ChordParser::ExtractChords(const string &body) {
 
   // Does the line just have chords, separated by whitespace?
   int cl = 0;
+  // How about CRD notation like [G]this?
+  int crdl = 0;
   for (const string &line : lines) {
     // First, filter to see if the line is suitable.
     if (RE2::FullMatch(line, *line_of_chords_re)) {
@@ -125,11 +154,28 @@ vector<string> ChordParser::ExtractChords(const string &body) {
 
       vector<string> line_chords;
       string chord;
-      while (RE2::Consume(&l, *extract_chord_re, &chord)) {
+      while (RE2::Consume(&l, *extract_chord_line_re, &chord)) {
 	line_chords.push_back(std::move(chord));
       }
 
       if (AcceptLineChords(line_chords)) {
+	chords.reserve(chords.size() + line_chords.size());
+	for (string &s : line_chords)
+	  chords.push_back(std::move(s));
+      }
+    } else if (RE2::FullMatch(line, *line_with_crd_re)) {
+      crdl++;
+
+      re2::StringPiece l(line);
+
+      vector<string> line_chords;
+      string bracketed;
+      while (RE2::Consume(&l, *extract_bracketed_re, &bracketed) &&
+	     RE2::FullMatch(bracketed, *standard_chord_re)) {
+	line_chords.push_back(std::move(bracketed));
+      }
+
+      if (AcceptCrdChords(line_chords)) {
 	chords.reserve(chords.size() + line_chords.size());
 	for (string &s : line_chords)
 	  chords.push_back(std::move(s));
@@ -161,18 +207,16 @@ vector<string> ChordParser::ExtractChords(const string &body) {
     if (PrefixExplainsSong(len)) {
       truncated += chords.size() - len;
       chords.resize(len);
+      break;
     }
   }
 
+  Parsed ret;
+  ret.chords = std::move(chords);
+  ret.lines = (int)lines.size();
+  ret.chord_lines = cl;
+  ret.crd_lines = crdl;
+  ret.chords_truncated = truncated;
 
-  {
-    MutexLock ml(&stats_m);
-    chord_lines += cl;
-    num_chords += chords.size();
-    all_lines += lines.size();
-    chords_saved += truncated;
-  }
-
-
-  return chords;
+  return ret;
 }
