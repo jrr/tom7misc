@@ -1,6 +1,6 @@
 
-default : clean.exe chords.exe
-all: clean.exe chords.exe guitarchive_test.exe chord-parser_test.exe
+default : cleandb.exe chords.exe
+all: cleandb.exe chords.exe guitarchive_test.exe chord-parser_test.exe
 
 OPT=-O2
 CXXFLAGS=--std=c++17 -Wall $(OPT)
@@ -34,7 +34,7 @@ $(CCLIB)/%.o : $(CCLIB)/%.cc
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(OPT) -c -o $@ $<
 	@bash -c "echo -n '_'"
 
-clean.exe : clean.o guitarchive.o headers.o $(CCLIB_OBJECTS) $(RE2_OBJECTS)
+cleandb.exe : cleandb.o guitarchive.o headers.o $(CCLIB_OBJECTS) $(RE2_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 chords.exe : chords.o chord-parser.o guitarchive.o $(CCLIB_OBJECTS) $(RE2_OBJECTS)
@@ -50,4 +50,4 @@ clean :
 	rm -f *.o *.exe
 
 veryclean : clean
-	rm -f $(CCLIB_OBJECTS) $(DXF_OBJECTS)
+	rm -f $(CCLIB_OBJECTS) $(RE2_OBJECTS)

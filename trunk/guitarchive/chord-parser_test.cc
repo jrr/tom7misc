@@ -67,7 +67,7 @@ LOST, and in this week's podcast  scoff
  they think you're all dead
  and what's more
  land's  a   bore....
-)");
+)").chords;
   
   vector<string> expected =
     Util::Split("C,F,C,F,C,F,"
@@ -78,8 +78,55 @@ LOST, and in this week's podcast  scoff
   CHECK_VEQ(expected, ch);
 }
 
+static void TestChordCrd() {
+  ChordParser cp;
+
+  vector<string> ch = cp.ExtractChords(R"(
+When [C]you're caught on an [F] island
+'cos [C]someone crashed a [F]plane
+sur[C]rounded by some [F]strangers
+who com[Bb]plain, complain, complain
+
+you could sit there forever
+waiting on the ground
+or you could try to find yourself...
+ in the lost and found
+
+and a[F]round here we [G]know
+that Others will [F]watch where we [G]go
+inject us with [F]drugs and
+burn some[D7]body's [G]boat   [G7]
+
+[C]LOST, when you [F]need somebody
+[C]LOST, when it's [F]Damon Lindel[Am]of
+when you [Bb]killed your dad
+ but [F]you don't know [G]why
+ and what's with this [F]guy with the weird [G]eyes?
+ and why are they [F]wearing [D7]this dis[G]guise?  [G7]
+
+LOST, have another flashback
+LOST, and in this week's podcast  scoff
+ at the mild spoilers
+ you can't be sure that anyone's headed to the shore
+ they think you're all dead
+ and what's more
+ land's  a   bore....
+)").chords;
+  
+  vector<string> expected =
+    Util::Split("C,F,C,F,C,F,"
+		"Bb,"
+		"F,G,F,G,F,D7,G,G7,"
+		"C,F,C,F,Am,Bb,"
+		"F,G,F,G,F,D7,G,G7", ',');
+  CHECK_VEQ(expected, ch);
+}
+
+
 int main (int argc, char **argv) {
   TestChordLines();
+  TestChordCrd();
 
+  printf("OK.\n");
   return 0;
 }
