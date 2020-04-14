@@ -9,3 +9,9 @@ tdd.o : tdd.cc tdd.h
 
 tdd.exe : tdd.o
 	$(CXX) --std=c++17 $^ -o $@
+
+clean :
+	rm -f *.o
+
+veryclean : clean
+	rm -f *.exe core *~

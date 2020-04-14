@@ -56,8 +56,10 @@
 #include "fate-data.h"
 #include "packedgame.h"
 
+#define byte win_byte_override
 #include <windows.h>
 #include <psapi.h>
+#undef byte
 
 constexpr int MAX_PARALLELISM = 60;
 constexpr int MIN_COMMON = 2;
