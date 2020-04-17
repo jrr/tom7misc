@@ -1,4 +1,4 @@
-all : decode-monika.exe pass.exe swipe-ambiguous.exe memtest.exe
+all : decode-monika.exe pass.exe swipe-ambiguous.exe memtest.exe optional.exe bus.exe
 
 
 CXX=x86_64-w64-mingw32-g++
@@ -30,6 +30,12 @@ memtest.exe : memtest.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o $
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 path.exe : path.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o $(CC_LIB)/arcfour.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+optional.exe : optional.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+bus.exe : bus.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o $(CC_LIB)/util.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 clean :
