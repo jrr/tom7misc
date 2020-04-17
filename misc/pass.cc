@@ -22,7 +22,9 @@ using uint8 = uint8_t;
 using uint64 = uint64_t;
 
 #if defined(__MINGW32__) || defined(__MINGW64__)
+#define byte win_byte_override
 # include <windows.h>
+#undef byte
 #else
 # include <termios.h>
 # include <unistd.h>
