@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <string_view>
 
 using namespace std;
 
@@ -142,11 +143,24 @@ struct Util {
      (Currently only handles relative paths.) */
   static string cdup(const string &dir);
 
+  // DEPRECATED: Use string_view versions.
   /* true iff big ends with small */
   static bool endswith(const string &big, const string &small);
   /* starts */
   static bool startswith(const string &big, const string &small);
 
+  static bool EndsWith(string_view big, string_view small);
+  static bool StartsWith(string_view big, string_view small);
+
+  // If the s ends with the suffix, then strip it (in the string_view
+  // version, it continues to refer to the same underlying data) and
+  // return true.
+  static bool TryStripSuffix(string_view suffix, string_view *s);
+  static bool TryStripSuffix(string_view suffix, string *s);
+  // Same, for prefix.
+  static bool TryStripPrefix(string_view prefix, string_view *s);
+  static bool TryStripPrefix(string_view suffix, string *s);
+  
   /* split the string up to the first
      occurrence of character c. The character
      is deleted from both the returned string and

@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <type_traits>
+#include <string_view>
 
 #include "util.h"
 
@@ -616,7 +617,7 @@ string Util::pathof(const string &s) {
   return ".";
 }
 
-/* XX can use endswith below */
+/* XX can use EndsWith below */
 string Util::ensureext(string f, string ext) {
   if (f.length() < ext.length())
     return f + ext;
@@ -628,8 +629,8 @@ string Util::ensureext(string f, string ext) {
   }
 }
 
-// PERF: These two can compare characters without copying
-// out the substring!
+// PERF: Just remove these and use the string_view versions
+// everywhere.
 bool Util::endswith(const string &big, const string &small) {
   if (small.length() > big.length()) return false;
   return big.substr(big.length() - small.length(),
@@ -639,6 +640,50 @@ bool Util::endswith(const string &big, const string &small) {
 bool Util::startswith(const string &big, const string &small) {
   if (small.length() > big.length()) return false;
   return big.substr(0, small.length()) == small;
+}
+
+bool Util::EndsWith(string_view big, string_view little) {
+  // In c++20, can use s->ends_with(suffix).
+  if (big.size() < little.size()) return false;
+  return big.substr(big.size() - little.size()) == little;
+}
+
+bool Util::StartsWith(string_view big, string_view little) {
+  // In c++20, can use s->starts_with(suffix).
+  if (big.size() < little.size()) return false;
+  return big.substr(0, little.size()) == little;
+}
+
+bool Util::TryStripSuffix(string_view suffix, string_view *s) {
+  if (EndsWith(*s, suffix)) {
+    s->remove_suffix(suffix.length());
+    return true;
+  }
+  return false;
+}
+
+bool Util::TryStripSuffix(string_view suffix, string *s) {
+  if (EndsWith(*s, suffix)) {
+    s->resize(s->size() - suffix.length());
+    return true;
+  }
+  return false;
+}
+
+bool Util::TryStripPrefix(string_view prefix, string_view *s) {
+  if (StartsWith(*s, prefix)) {
+    s->remove_prefix(prefix.length());
+    return true;
+  }
+  return false;
+}
+
+bool Util::TryStripPrefix(string_view prefix, string *s) {
+  if (StartsWith(*s, prefix)) {
+    *s = s->substr(prefix.length(), string::npos);
+    return true;
+  }
+  return false;
 }
 
 int Util::changedir(string s) {

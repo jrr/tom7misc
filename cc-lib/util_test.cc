@@ -91,6 +91,40 @@ static void TestCdup() {
   CHECK_EQ(".", Util::cdup("abc"));
 }
 
+static void TestPrefixSuffix() {
+  CHECK(Util::StartsWith("anything", ""));
+  CHECK(!Util::StartsWith("", "nonempty"));
+  CHECK(Util::EndsWith("anything", ""));
+  CHECK(!Util::EndsWith("", "nonempty"));
+
+  CHECK(Util::StartsWith("food processor", "foo"));
+  CHECK(!Util::StartsWith("food processor", "doo"));
+  CHECK(Util::EndsWith("food processor", "sor"));
+  CHECK(!Util::EndsWith("food processor", "sdr"));
+
+  {
+    // String versions.
+    string s = "food processor";
+    CHECK(!Util::TryStripPrefix("foods", &s));
+    CHECK(Util::TryStripPrefix("foo", &s) &&
+	  s == "d processor");
+    CHECK(!Util::TryStripSuffix("sord", &s));
+    CHECK(Util::TryStripSuffix("sor", &s) &&
+	  s == "d proces");
+  }
+
+  {
+    // string_piece versions
+    string_view s = "food processor"sv;
+    CHECK(!Util::TryStripPrefix("foods", &s));
+    CHECK(Util::TryStripPrefix("foo", &s) &&
+	  s == "d processor");
+    CHECK(!Util::TryStripSuffix("sord", &s));
+    CHECK(Util::TryStripSuffix("sor", &s) &&
+	  s == "d proces");
+  }
+}
+
 int main(int argc, char **argv) {
   TestReadFiles();
   TestWhitespace();
@@ -98,6 +132,7 @@ int main(int argc, char **argv) {
   TestJoin();
   TestSplit();
   TestCdup();
+  TestPrefixSuffix();
   return 0;
 }
 
