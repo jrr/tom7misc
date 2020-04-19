@@ -43,22 +43,24 @@ static bool AcceptCrdChords(const vector<string> &chords) {
 ChordParser::ChordParser() {
   vector<string> base = {
     "C",
-    "C#", "Db",
+    "C#", "Db", // synonyms
     "D",
-    "D#", "Eb",
+    "D#", "Eb", // synonyms
     "E",
     "F",
-    "F#", "Gb",
+    "F#", "Gb", // synonyms
     "G",
-    "G#", "Ab",
+    "G#", "Ab", // synonyms
     "A",
-    "A#", "Bb",
+    "A#", "Bb", // synonyms
     "B",
   };
 
   vector<string> suffix = {
-    "", "maj7", "maj9", "maj11", "maj13", "maj9#11", "maj13#11",
-    "6", "add9", "6add9", "maj7b5", "maj7#5", "m", "m7", "m9", "m11",
+    "", "maj", "major", // synonyms
+    "m", "min", "minor", // synonyms
+    "maj7", "maj9", "maj11", "maj13", "maj9#11", "maj13#11",
+    "6", "add9", "6add9", "maj7b5", "maj7#5", "m7", "m9", "m11",
     "m13", "m6", "madd9", "m6add9", "mmaj7", "mmaj9", "m7b5", "m7#5",
     "7", "9", "11", "13", "7sus4", "7b5", "7#5", "7b9", "7#9", "9b5",
     "9#5", "13#11", "13b9", "11b9", "aug", "dim", "dim7", "5", "sus4",
@@ -106,6 +108,9 @@ ChordParser::ChordParser() {
   // Get the first bracketed component on the line (which may not
   // be a chord).
   extract_bracketed_re = new RE2("[^[]*\\[([^]]*)\\]", first);
+
+  // Allow a line of chords to be like "intro: C G Am G"
+  intro_line_re = new RE2(" *[Ii][Nn][Tt][Rr][Oo][ :]+(.*)");
   
   // TODO: To tests
   CHECK(RE2::FullMatch("Db", *standard_chord_re));
@@ -124,6 +129,9 @@ ChordParser::ChordParser() {
   CHECK(RE2::FullMatch("[fast] Sea to shi[G#]ning sea", *line_with_crd_re));
   CHECK(RE2::FullMatch("C] Sea to shi[G#]ning sea", *line_with_crd_re));
   CHECK(RE2::FullMatch("[C Sea to shi[G#]ning sea", *line_with_crd_re));    
+  string rest;
+  CHECK(RE2::FullMatch("INTRO: C G Am G", *intro_line_re, &rest) &&
+	rest == "C G Am G");
 }
 
 ChordParser::~ChordParser() {
@@ -132,6 +140,7 @@ ChordParser::~ChordParser() {
   delete extract_chord_line_re;
   delete line_with_crd_re;
   delete extract_bracketed_re;
+  delete intro_line_re;
 }
 
 ChordParser::Parsed ChordParser::ExtractChords(const string &body) {
@@ -141,11 +150,19 @@ ChordParser::Parsed ChordParser::ExtractChords(const string &body) {
   // All chords in the song.
   vector<string> chords;
 
+  int intro = 0;
   // Does the line just have chords, separated by whitespace?
   int cl = 0;
   // How about CRD notation like [G]this?
   int crdl = 0;
   for (const string &line : lines) {
+    string stripped;
+    if (RE2::FullMatch(line, *intro_line_re, &stripped)) {
+      intro++;
+    } else {
+      stripped = line;
+    }
+
     // First, filter to see if the line is suitable.
     if (RE2::FullMatch(line, *line_of_chords_re)) {
       cl++;
@@ -168,6 +185,13 @@ ChordParser::Parsed ChordParser::ExtractChords(const string &body) {
 
       re2::StringPiece l(line);
 
+      // TODO: Reject labeled tablature like this:
+      // [E]--------------------------------------------|
+      // [B]--------------------------------------------|
+      // [G]--------------------------------------------|
+      // ...
+
+      
       vector<string> line_chords;
       string bracketed;
       while (RE2::Consume(&l, *extract_bracketed_re, &bracketed) &&
@@ -216,6 +240,7 @@ ChordParser::Parsed ChordParser::ExtractChords(const string &body) {
   ret.lines = (int)lines.size();
   ret.chord_lines = cl;
   ret.crd_lines = crdl;
+  ret.intro_lines = intro;
   ret.chords_truncated = truncated;
 
   return ret;
