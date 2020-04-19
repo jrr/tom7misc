@@ -35,37 +35,45 @@ int main(int argc, char **argv) {
 
   // Tally stats:
   int64 all_lines = 0, chord_lines = 0, crd_lines = 0;
+  int64 intro_lines = 0;
   int64 num_chords = 0;
   int64 chords_truncated = 0;
   int64 multiformat_files = 0, unextracted_files = 0;
-
+  int64 multiple_intro_files = 0;
+  
   for (const auto &[filename, parsed] : chords_debug) {
     all_lines += parsed.lines;
     chord_lines += parsed.chord_lines;
     crd_lines += parsed.crd_lines;
+    intro_lines += parsed.intro_lines;
     num_chords += parsed.chords.size();
     chords_truncated += parsed.chords_truncated;
     if (parsed.chord_lines > 0 && parsed.crd_lines > 0)
       multiformat_files++;
     if (parsed.chord_lines == 0 && parsed.crd_lines == 0)
       unextracted_files++;
-    
+    if (parsed.intro_lines > 1)
+      multiple_intro_files++;
   }
   
   printf("Number of entries: %lld\n", (int64)entries.size());
   printf("All lines: %lld\n"
 	 "Chord lines: %lld (%.2f%%)\n"
-	 "CRD lines: %lld (%.2f%%)\n"	 
+	 "CRD lines: %lld (%.2f%%)\n"
+	 "Intro lines: %lld (%.2f%%)\n"
 	 "Total chords: %lld\n"
 	 "Cycle chords removed: %lld\n"
 	 "All files: %lld\n"
 	 "Multiformat: %lld (%.2f%%)\n"
-	 "No chords: %lld (%.2f%%)\n",
+	 "No chords: %lld (%.2f%%)\n"
+	 "Multiple intro: %lld (%.2f%%)\n",
 	 all_lines,
 	 chord_lines,
 	 (chord_lines * 100.0) / all_lines,
 	 crd_lines,
 	 (crd_lines * 100.0) / all_lines,
+	 intro_lines,
+	 (intro_lines * 100.0) / all_lines,
 	 num_chords,
 	 chords_truncated,
 	 // Files
@@ -73,7 +81,9 @@ int main(int argc, char **argv) {
 	 multiformat_files,
 	 (multiformat_files * 100.0) / entries.size(),
 	 unextracted_files,
-	 (unextracted_files * 100.0) / entries.size());
+	 (unextracted_files * 100.0) / entries.size(),
+	 multiple_intro_files,
+	 (multiple_intro_files * 100.0) / entries.size());
 
   printf("Writing to files...\n");
   {
