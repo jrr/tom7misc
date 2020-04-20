@@ -1,0 +1,24 @@
+default : gencc.exe
+
+CCLIB=../base/logging.o ../base/stringprintf.o ../util.o
+
+CXX=x86_64-w64-mingw32-g++
+CC=x86_64-w64-mingw32-g++
+CXXFLAGS=-Wall -I.. -DWIN32 --std=c++17 -O2
+LFLAGS=-static
+
+%.o : %.cc *.h
+	@$(CXX) $(CXXFLAGS) -c -o $@ $<
+	@bash -c "echo -n '.'"
+
+gencc.exe : gencc.o $(CCLIB)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+guitar.cc : gencc.exe guitar.json guitar-head.cc guitar-tail.cc
+	./gencc.exe guitar.json
+
+guitar_test.exe : guitar.o guitar_test.o $(CCLIB)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+clean :
+	rm -f *.o *.exe

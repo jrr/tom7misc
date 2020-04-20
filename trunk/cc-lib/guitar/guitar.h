@@ -1,0 +1,67 @@
+// Guitar chord fingering database.
+// Data is compiled in; just link in guitar.cc to use.
+
+#ifndef __CCLIB_GUITAR_H
+#define __CCLIB_GUITAR_H
+
+#include <string>
+#include <cstdint>
+#include <string_view>
+#include <optional>
+#include <array>
+#include <vector>
+
+struct Guitar {
+  // An abstract chord (not fingering), which consists
+  // of some base key (e.g. C#) and a suffix (e.g. sus4).
+  // The chord is packed into a 16-bit integer, but the
+  // representation is intended to be opaque; use the 
+  // routines below.
+  using Chord = uint16_t;
+
+  // E a d g b e.
+  // -1 means mute, 0 means open, n means finger then nth fret.
+  using Fingering = std::tuple<int, int, int, int, int, int>;
+  
+  // Returns -1 if not any known base, suffix.
+  static int BaseNum(std::string_view s);
+  static int SuffixNum(std::string_view s);
+  
+  // Parse a full chord name, like "C#sus4".
+  // Some variations are available in parsing; "C#"
+  // can be written as "Db" (with any suffix),
+  // "Cmajor" and "Cmaj" are synonyms for "C",
+  // "Cminor" and "Cmin" are synonyms for "Cm".
+  static std::optional<Chord> Parse(std::string_view s);
+
+  // Can return an empty vector for a chord that doesn't
+  // make sense ("D/D") or for which no fingerings are known.
+  // Aborts if the base/suffix in the chord are invalid, though.
+  static std::vector<Fingering> GetFingerings(Chord c);
+
+  // TODO: Look up by fingering.
+  
+  static constexpr int NUM_BASES = 12;
+  static constexpr std::array<const char *, NUM_BASES> BASES = {
+    "C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B",
+  };
+
+  static constexpr int NUM_SUFFIXES = 63;
+  // TODO: This is missing e.g. C5, which is very common in the corpus!
+  static constexpr std::array<const char *, NUM_SUFFIXES> SUFFIXES = {
+    // aka. "major"
+    "",
+    // aka. "minor"
+    "m",
+    "dim", "dim7",
+    "sus2", "sus4", "7sus4", "7sg", "alt", "aug", "6", "69", "7", "7b5",
+    "aug7", "9", "9b5", "aug9", "7b9", "7#9", "11", "9#11", "13", "maj7",
+    "maj7b5", "maj7#5", "maj9", "maj11", "maj13", "m6", "m69", "m7", "m7b5",
+    "m9", "m11", "mmaj7", "mmaj7b5", "mmaj9", "mmaj11", "add9", "madd9", "/E",
+    "/F", "/F#", "/G", "/G#", "/A", "/Bb", "/B", "/C", "/C#", "m/B", "m/C",
+    "m/C#", "/D", "m/D", "/D#", "m/D#", "m/E", "m/F", "m/F#", "m/G", "m/G#",
+  };
+  
+};
+
+#endif

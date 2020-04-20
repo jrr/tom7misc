@@ -564,7 +564,7 @@ int Util::shout(int b, string s, unsigned int &idx) {
   return r;
 }
 
-unsigned int Util::hash(string s) {
+unsigned int Util::hash(const string &s) {
   unsigned int h = 0x714FA5DD;
   for (unsigned int i = 0; i < s.length(); i ++) {
     h = (h << 11) | (h >> (32 - 11));
@@ -627,19 +627,6 @@ string Util::ensureext(string f, string ext) {
       return f + ext;
     else return f;
   }
-}
-
-// PERF: Just remove these and use the string_view versions
-// everywhere.
-bool Util::endswith(const string &big, const string &small) {
-  if (small.length() > big.length()) return false;
-  return big.substr(big.length() - small.length(),
-		    small.length()) == small;
-}
-
-bool Util::startswith(const string &big, const string &small) {
-  if (small.length() > big.length()) return false;
-  return big.substr(0, small.length()) == small;
 }
 
 bool Util::EndsWith(string_view big, string_view little) {
