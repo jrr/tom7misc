@@ -1,0 +1,8 @@
+The data in here is based on guitar.json (cloned on 14 Apr 2020),
+from here:
+
+https://github.com/tombatossals/chords-db
+
+The data itself is available under the MIT license (see LICENSE).
+In the same spirit, my C++ (this directory only) may also be
+distributed under the MIT license (see LICENSE).

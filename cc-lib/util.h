@@ -75,12 +75,12 @@ struct Util {
   static string sizes(int i);
 
   /* only read if the file begins with the magic string */
-  static bool HasMagic(string, const string &magic);
-  static string ReadFileMagic(string, const string &magic);
+  static bool HasMagic(string filename, const string &magic);
+  static string ReadFileMagic(string filename, const string &magic);
 
 
   static string ptos(void *);
-  static unsigned int hash(string s);
+  static unsigned int hash(const string &s);
   /* give /home/tom/ of /home/tom/.bashrc */
   static string pathof(const string &s);
   static string fileof(const string &s);
@@ -143,13 +143,9 @@ struct Util {
      (Currently only handles relative paths.) */
   static string cdup(const string &dir);
 
-  // DEPRECATED: Use string_view versions.
-  /* true iff big ends with small */
-  static bool endswith(const string &big, const string &small);
-  /* starts */
-  static bool startswith(const string &big, const string &small);
-
+  // True iff big ends with small.
   static bool EndsWith(string_view big, string_view small);
+  // True iff big starts with small.
   static bool StartsWith(string_view big, string_view small);
 
   // If the s ends with the suffix, then strip it (in the string_view
@@ -250,7 +246,9 @@ struct line {
   virtual ~line() {};
 };
 
-/* treats strings as buffers of bits */
+/* treats strings as buffers of bits
+   TODO: Move to its own utility.
+ */
 struct bitbuffer {
   /* read n bits from the string s from bit offset idx.
      (high bits first)

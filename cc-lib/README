@@ -1,4 +1,4 @@
-cc-lib                             Tom 7       3 Mar 2018
+cc-lib                             Tom 7       14 Apr 2020
 
 Like my more-involved "sml-lib", this is my attempt to get all of my
 frequently used C++ libraries into a single place so that different
@@ -9,11 +9,11 @@ this easy. I hate complicated makefiles, actually basically all build
 systems, library dependencies, autoconf, and that stuff. But ultimately
 it's kind of complicated, you know?
 
-I'm pretty much on C++11 everywhere now, so these libraries may assume
-C++11 features and semantics. It's worth it. GCC 4.8 and later have
-pretty complete support. As of 2016 I've started using C++14 too. On
-Windows, I'm using x86_64-w64-mingw32-g++ again. On linux, just get
-the newest GCC.
+As of 2020 I'm pretty much on C++17 everywhere now, so these libraries
+may assume C++17 features and semantics. It's worth it. GCC 8 seems ok
+for C++17, but I am now on at least 9.2 on every platform. On Windows,
+I'm using x86_64-w64-mingw32-g++ again. On linux, just get the newest
+GCC.
 
 Some of what's here is google "base" libraries, since those are quite
 useful and I know them well. They have been released multiple times
@@ -36,6 +36,12 @@ as well.
 
 The re2 subdirectory comes from Google and community contributors; see
 re2/LICENSE for its permissive license.
+
+The guitar subdirectory is based on some MIT-licensed data so my
+contributions are as well; see guitar/LICENSE.txt.
+
+The bignum subdirectory is based on BSD-licensed code; it and my
+C++ wrapper are available under that license; see bignum/LICENSE.
 
 My own fresh code is licensed under the GPL, which can be found in
 COPYING.
@@ -86,3 +92,4 @@ pi/           - Some code for working on the raspberry pi, particularly
                 for doing GPIO.
 bignum/       - Simple arbitrary-precision integers and rationals (BSD-like
                 license). Not as fast as GMP, but easier to compile!
+guitar/       - Guitar chord fingering database.
