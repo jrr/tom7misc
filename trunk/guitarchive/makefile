@@ -24,7 +24,7 @@ CPPFLAGS=$(INCLUDES) $(PLATFORMCFLAGS) $(SYMBOLS)
 LFLAGS=$(PLATFORMLINK)
 
 CCLIB_OBJECTS=$(CCLIB)/base/logging.o $(CCLIB)/base/stringprintf.o $(CCLIB)/util.o $(CCLIB)/textsvg.o $(CCLIB)/arcfour.o $(CCLIB)/edit-distance.o
-RE2_OBJECTS=$(CCLIB)/re2/bitstate.o $(CCLIB)/re2/compile.o $(CCLIB)/re2/dfa.o $(CCLIB)/re2/filtered_re2.o $(CCLIB)/re2/mimics_pcre.o $(CCLIB)/re2/nfa.o $(CCLIB)/re2/onepass.o $(CCLIB)/re2/parse.o $(CCLIB)/re2/perl_groups.o $(CCLIB)/re2/prefilter.o $(CCLIB)/re2/prefilter_tree.o $(CCLIB)/re2/prog.o $(CCLIB)/re2/re2.o $(CCLIB)/re2/regexp.o $(CCLIB)/re2/set.o $(CCLIB)/re2/simplify.o $(CCLIB)/re2/stringpiece.o $(CCLIB)/re2/tostring.o $(CCLIB)/re2/unicode_casefold.o $(CCLIB)/re2/unicode_groups.o $(CCLIB)/re2/util/rune.o $(CCLIB)/re2/util/strutil.o
+RE2_OBJECTS=$(CCLIB)/re2/bitstate.o $(CCLIB)/re2/compile.o $(CCLIB)/re2/dfa.o $(CCLIB)/re2/filtered_re2.o $(CCLIB)/re2/mimics_pcre.o $(CCLIB)/re2/nfa.o $(CCLIB)/re2/onepass.o $(CCLIB)/re2/parse.o $(CCLIB)/re2/perl_groups.o $(CCLIB)/re2/prefilter.o $(CCLIB)/re2/prefilter_tree.o $(CCLIB)/re2/prog.o $(CCLIB)/re2/re2.o $(CCLIB)/re2/regexp.o $(CCLIB)/re2/set.o $(CCLIB)/re2/simplify.o $(CCLIB)/re2/stringpiece.o $(CCLIB)/re2/tostring.o $(CCLIB)/re2/unicode_casefold.o $(CCLIB)/re2/unicode_groups.o $(CCLIB)/re2/util/rune.o $(CCLIB)/re2/util/strutil.o $(CCLIB)/guitar/guitar.o
 
 %.o : %.cc *.h
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(OPT) -c -o $@ $<

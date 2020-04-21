@@ -1369,16 +1369,16 @@ static string NormalizeHeaderOuterWhitespace(const Parser &p, string body) {
 
 string StripFooter(const string &contents) {
   string_view cont(contents);
-  if (Guitarchive::TryStripSuffix("\nset8\n"sv, &cont)) {
+  if (Util::TryStripSuffix("\nset8\n"sv, &cont)) {
     return (string)cont;
   }
-  if (Guitarchive::TryStripSuffix("\nSet8\n"sv, &cont)) {
+  if (Util::TryStripSuffix("\nSet8\n"sv, &cont)) {
     return (string)cont;
   }
-  if (Guitarchive::TryStripSuffix("\nEnjoy!\n"sv, &cont)) {
+  if (Util::TryStripSuffix("\nEnjoy!\n"sv, &cont)) {
     return (string)cont;
   }
-  if (Guitarchive::TryStripSuffix("\nenjoy!\n"sv, &cont)) {
+  if (Util::TryStripSuffix("\nenjoy!\n"sv, &cont)) {
     return (string)cont;
   }
 

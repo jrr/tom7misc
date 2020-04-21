@@ -46,24 +46,6 @@ void Guitarchive::AddAllFilesRec(const string &dir, vector<string> *all_files) {
   }
 }
 
-
-
-
-bool Guitarchive::TryStripSuffix(string_view suffix,
-				 string_view *s) {
-  // In c++20, can use s->ends_with(suffix).
-  auto EndsWith = [](string_view big, string_view little) {
-      if (big.size() < little.size()) return false;
-      return big.substr(big.size() - little.size()) == little;
-    };
-  if (EndsWith(*s, suffix)) {
-    s->remove_suffix(suffix.length());
-    return true;
-  }
-  return false;
-}
-
-
 string Guitarchive::Frontslash(const string &s) {
   string ret;
   for (const char c : s)
