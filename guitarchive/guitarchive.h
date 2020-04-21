@@ -28,8 +28,6 @@ struct Guitarchive {
   static string Frontslash(const string &s);
   static string Backslash(const string &s);
 
-  static bool TryStripSuffix(string_view suffix, string_view *s);
-
   // Load everything, with headers.
   static vector<Entry> Load(int threads = 16);
 };

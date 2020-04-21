@@ -64,7 +64,12 @@ ChordParser::ChordParser() {
     "m13", "m6", "madd9", "m6add9", "mmaj7", "mmaj9", "m7b5", "m7#5",
     "7", "9", "11", "13", "7sus4", "7b5", "7#5", "7b9", "7#9", "9b5",
     "9#5", "13#11", "13b9", "11b9", "aug", "dim", "dim7", "5", "sus4",
-    "sus2", "sus2sus4", "-5",
+    "sus2", "sus2sus4",
+    "-5", // XXX synonym for 5?
+    // XXX "o" = "dim"?
+    // XXX "o7" = "dim7"?
+    // XXX "+" = "aug"
+    // more to consider here... 6/9, 13sus4, 5add9, ...
     /* exotic. note the parens would have to be escaped, too
     "7(b5,b9)", "7(b5,#9)", "7(#5,b9)", "7(#5,#9)",
     */

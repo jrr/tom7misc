@@ -3,11 +3,14 @@
 #include <vector>
 #include <cstdint>
 #include <utility>
+#include <unordered_set>
+#include <optional>
 
 #include "util.h"
 #include "re2/re2.h"
 #include "threadutil.h"
 #include "base/logging.h"
+#include "guitar/guitar.h"
 
 #include "guitarchive.h"
 #include "chord-parser.h"
@@ -33,6 +36,30 @@ int main(int argc, char **argv) {
 	      },
 	      16);
 
+  printf("Get unknown..\n");
+  std::unordered_map<string, int> unknown_chords;
+  std::unordered_map<string, int> unfingered_chords;  
+  int64 known = 0, unfingered = 0, unknown = 0;
+  for (const auto &[filename, parsed] : chords_debug) {
+    for (const string &c : parsed.chords) {
+      std::optional<Guitar::Chord> cho = Guitar::Parse(c);
+      if (cho.has_value()) {
+	vector<Guitar::Fingering> vf = Guitar::GetFingerings(*cho);
+	if (!vf.empty()) {
+	  known++;
+	} else {
+	  unfingered++;
+	  unfingered_chords[c]++;
+	}
+      } else {
+	unknown++;
+	unknown_chords[c]++;
+      }
+    }
+  }
+
+  fflush(stdout);
+  printf("Stats..\n");
   // Tally stats:
   int64 all_lines = 0, chord_lines = 0, crd_lines = 0;
   int64 intro_lines = 0;
@@ -66,7 +93,10 @@ int main(int argc, char **argv) {
 	 "All files: %lld\n"
 	 "Multiformat: %lld (%.2f%%)\n"
 	 "No chords: %lld (%.2f%%)\n"
-	 "Multiple intro: %lld (%.2f%%)\n",
+	 "Multiple intro: %lld (%.2f%%)\n"
+	 "Chords known: %lld\n"
+	 "Chords unfingered: %lld\n"
+	 "Chords unknown: %lld\n",
 	 all_lines,
 	 chord_lines,
 	 (chord_lines * 100.0) / all_lines,
@@ -83,7 +113,10 @@ int main(int argc, char **argv) {
 	 unextracted_files,
 	 (unextracted_files * 100.0) / entries.size(),
 	 multiple_intro_files,
-	 (multiple_intro_files * 100.0) / entries.size());
+	 (multiple_intro_files * 100.0) / entries.size(),
+	 known,
+	 unfingered,
+	 unknown);
 
   printf("Writing to files...\n");
   {
@@ -113,6 +146,18 @@ int main(int argc, char **argv) {
     }
     fclose(f);
   }
+
+  printf("Unfingered chords:");
+  for (const auto &[s, count] : unfingered_chords) {
+    printf(" % 6d: %s\n", count, s.c_str());
+  }
+  printf("\n");
+
+  printf("Uknown chords:");
+  for (const auto &[s, count] : unknown_chords) {
+    printf(" % 6d: %s\n", count, s.c_str());
+  }
+  printf("\n");
   
   /*
 Number of entries: 445764
