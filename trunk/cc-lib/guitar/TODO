@@ -1,0 +1,8 @@
+Bugs in data: C7sg has duplicates with C7, and 7sg only appears for C.
+7sg does not seem to be a standard chord. Maybe should be C7/G?
+
+Missing all "5" chords.
+
+
+npmjs.com/package/tonal-fretboard chordShapes might be an algorithmic
+way to name/generate these.

@@ -26,6 +26,23 @@ static string NormalizeBase(string s) {
   return s;
 }
 
+static inline Guitar::Chord ChordOfUnchecked(int base_num,
+					     int suffix_num) {
+  return (base_num << 8) | suffix_num;
+}
+
+static inline pair<int, int> UnChord(Guitar::Chord c) {
+  const int base = (c >> 8) & 255;
+  const int suf = c & 255;
+  return make_pair(base, suf);
+}
+
+Guitar::Chord Guitar::ChordOf(int b, int s) {
+  CHECK(b >= 0 && b < NUM_BASES) << b;
+  CHECK(s >= 0 && s < NUM_SUFFIXES) << s;
+  return ChordOfUnchecked(b, s);
+}
+
 static string NormalizeSuffix(const string &s) {
   if (s == "major" || s == "maj") return "";
   if (s == "minor" || s == "min") return "m";
@@ -33,17 +50,42 @@ static string NormalizeSuffix(const string &s) {
 }
 
 int Guitar::BaseNum(string_view base) {
-  for (int i = 0; i < Guitar::NUM_BASES; i++) {
-    if (Guitar::BASES[i] == base) return i;
+  for (int i = 0; i < NUM_BASES; i++) {
+    if (BASES[i] == base) return i;
   }
   return -1;
 }
 
 int Guitar::SuffixNum(string_view suffix) {
-  for (int i = 0; i < Guitar::NUM_SUFFIXES; i++) {
-    if (Guitar::SUFFIXES[i] == suffix) return i;
+  for (int i = 0; i < NUM_SUFFIXES; i++) {
+    if (SUFFIXES[i] == suffix) return i;
   }
   return -1;
+}
+
+std::string Guitar::ChordString(Chord c) {
+  const auto [base, suf] = UnChord(c);
+  CHECK(base >= 0 && base < Guitar::NUM_BASES) << "Invalid chord " << c;
+  CHECK(suf >= 0 && suf < Guitar::NUM_SUFFIXES) << "Invalid chord " << suf;
+  return (string)BASES[base] + (string)SUFFIXES[suf];
+}
+
+std::string Guitar::FingeringString(Fingering fing) {
+  const auto [a, b, c, d, e, f] = fing;
+  auto Char = [](int x) -> char {
+      if (x < 0) return 'x';
+      if (x <= 9) return '0' + x;
+      return 'a' + (x - 10);
+    };
+  char ret[7];
+  ret[0] = Char(a);
+  ret[1] = Char(b);
+  ret[2] = Char(c);
+  ret[3] = Char(d);
+  ret[4] = Char(e);
+  ret[5] = Char(f);
+  ret[6] = 0;
+  return &ret[0];
 }
 
 std::optional<Guitar::Chord> Guitar::Parse(std::string_view sv) {
@@ -60,7 +102,7 @@ std::optional<Guitar::Chord> Guitar::Parse(std::string_view sv) {
       const int suffix_num = SuffixNum(s);
       // Invalid. (Note: Shouldn't continue looping since we've modified s.)
       if (base_num < 0 || suffix_num < 0) return {};
-      const Chord c = (base_num << 8) | suffix_num;
+      const Chord c = ChordOfUnchecked(base_num, suffix_num);
       return {c};
     }
   }
@@ -116,6 +158,8 @@ struct DB {
 	const int suffix = GetNum();
 	vector<PackedFingering> &fingerings = base_row[suffix];
 
+	const Guitar::Chord chord = ChordOfUnchecked(base, suffix);
+	
 	// Number of fingerings.
 	const int nfing = GetNum();
 	for (int f = 0; f < nfing; f++) {
@@ -126,7 +170,15 @@ struct DB {
 	  const int f3 = GetNum() - 1;
 	  const int f4 = GetNum() - 1;
 	  const int f5 = GetNum() - 1;
-	  fingerings.push_back(Pack(make_tuple(f0, f1, f2, f3, f4, f5)));
+	  const Guitar::Fingering fingering =
+	    make_tuple(f0, f1, f2, f3, f4, f5);
+	  const PackedFingering pf = Pack(fingering);
+	  fingerings.push_back(pf);
+	  CHECK(rev.emplace(pf, chord).second) <<
+	    "duplicate fingering: " <<
+	    Guitar::FingeringString(fingering) <<
+	    "\nfor: " << Guitar::ChordString(chord) <<
+	    "\nand existing: " << Guitar::ChordString(rev[pf]);
 	}
       }
     }
@@ -138,6 +190,10 @@ struct DB {
   // Outer vector is base chords, dense.
   // Then suffix, then each known fingering.
   vector<std::unordered_map<int, vector<PackedFingering>>> data;
+  // PERF: These data structures don't depend on each other, so
+  // we could perhaps only load the one we need (for embedded
+  // applications that only call GetFingerings xor NameFingering).
+  std::unordered_map<PackedFingering, Guitar::Chord> rev;
 };
 }
 
@@ -148,12 +204,11 @@ static const DB *GetDB() {
 
 std::vector<Guitar::Fingering> Guitar::GetFingerings(Chord c) {
   const DB &db = *GetDB();
-  
-  const int base = (c >> 8) & 255;
+
+  const auto [base, suf] = UnChord(c);
   CHECK(base >= 0 && base < Guitar::NUM_BASES) << "Invalid chord " << c;
-  const auto &m = db.data[base];
-  const int suf = c & 255;
   CHECK(suf >= 0 && suf < Guitar::NUM_SUFFIXES) << "Invalid chord " << suf;
+  const auto &m = db.data[base];
   auto sit = m.find(suf);
   // No fingerings known.
   if (sit == m.end()) return {};
@@ -163,4 +218,9 @@ std::vector<Guitar::Fingering> Guitar::GetFingerings(Chord c) {
   for (const PackedFingering pf : sit->second)
     ret.push_back(Unpack(pf));
   return ret;
+}
+
+std::optional<Guitar::Chord> Guitar::NameFingering(Fingering f) {
+  // XXX
+  return {};
 }

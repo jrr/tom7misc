@@ -26,6 +26,9 @@ struct Guitar {
   // Returns -1 if not any known base, suffix.
   static int BaseNum(std::string_view s);
   static int SuffixNum(std::string_view s);
+
+  // Requires 0 <= base < NUM_BASES and 0 <= suffix < NUM_SUFFIXES.
+  static Chord ChordOf(int base, int suffix);
   
   // Parse a full chord name, like "C#sus4".
   // Some variations are available in parsing; "C#"
@@ -34,12 +37,20 @@ struct Guitar {
   // "Cminor" and "Cmin" are synonyms for "Cm".
   static std::optional<Chord> Parse(std::string_view s);
 
+  // Render a chord as a string like "C#madd9". Chord must be valid,
+  // but can produce nonsensical output like "D/D" for nonsensical
+  // input.
+  static std::string ChordString(Chord c);
+  // Like "x32010" for C major. After 9, abcdef... are used.
+  static std::string FingeringString(Fingering f);
+  
   // Can return an empty vector for a chord that doesn't
   // make sense ("D/D") or for which no fingerings are known.
   // Aborts if the base/suffix in the chord are invalid, though.
   static std::vector<Fingering> GetFingerings(Chord c);
 
   // TODO: Look up by fingering.
+  static std::optional<Chord> NameFingering(Fingering f);
   
   static constexpr int NUM_BASES = 12;
   static constexpr std::array<const char *, NUM_BASES> BASES = {
