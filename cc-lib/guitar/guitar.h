@@ -1,5 +1,8 @@
 // Guitar chord fingering database.
 // Data is compiled in; just link in guitar.cc to use.
+//
+// Warning: There are definitely some bugs in the database
+// that this is derived from; please suggest any fixes!
 
 #ifndef __CCLIB_GUITAR_H
 #define __CCLIB_GUITAR_H
@@ -39,7 +42,7 @@ struct Guitar {
 
   // Render a chord as a string like "C#madd9". Chord must be valid,
   // but can produce nonsensical output like "D/D" for nonsensical
-  // input.
+  // input. Parse can parse any output of this function.
   static std::string ChordString(Chord c);
   // Like "x32010" for C major. After 9, abcdef... are used.
   static std::string FingeringString(Fingering f);
@@ -49,7 +52,11 @@ struct Guitar {
   // Aborts if the base/suffix in the chord are invalid, though.
   static std::vector<Fingering> GetFingerings(Chord c);
 
-  // TODO: Look up by fingering.
+  // Look up a chord by its fingering.
+  // There are a few fingerings that have ambiguous names (either
+  // due to bugs in the database or because the chords get so fancy
+  // that we get into opinion territory); this just chooses one
+  // arbitrarily. Guaranteed to be consistent with GetFingerings.
   static std::optional<Chord> NameFingering(Fingering f);
   
   static constexpr int NUM_BASES = 12;
@@ -57,20 +64,19 @@ struct Guitar {
     "C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B",
   };
 
-  static constexpr int NUM_SUFFIXES = 63;
-  // TODO: This is missing e.g. C5, which is very common in the corpus!
+  static constexpr int NUM_SUFFIXES = 64;
   static constexpr std::array<const char *, NUM_SUFFIXES> SUFFIXES = {
     // aka. "major"
     "",
     // aka. "minor"
     "m",
-    "dim", "dim7",
-    "sus2", "sus4", "7sus4", "7sg", "alt", "aug", "6", "69", "7", "7b5",
-    "aug7", "9", "9b5", "aug9", "7b9", "7#9", "11", "9#11", "13", "maj7",
-    "maj7b5", "maj7#5", "maj9", "maj11", "maj13", "m6", "m69", "m7", "m7b5",
-    "m9", "m11", "mmaj7", "mmaj7b5", "mmaj9", "mmaj11", "add9", "madd9", "/E",
-    "/F", "/F#", "/G", "/G#", "/A", "/Bb", "/B", "/C", "/C#", "m/B", "m/C",
-    "m/C#", "/D", "m/D", "/D#", "m/D#", "m/E", "m/F", "m/F#", "m/G", "m/G#",
+    "dim", "dim7", "sus2", "sus4", "7sus4", "alt", "aug", "5", "6", "69", "7",
+    "7b5", "aug7", "9", "9b5", "aug9", "7b9", "7#9", "11", "9#11", "13",
+    "maj7", "maj7b5", "maj7#5", "maj9", "maj11", "maj13", "m6", "m69", "m7",
+    "m7b5", "m9", "m11", "mmaj7", "mmaj7b5", "mmaj9", "mmaj11", "add9",
+    "madd9", "7/G", "/E", "/F", "/F#", "/G", "/G#", "/A", "/Bb", "/B", "/C",
+    "/C#", "m/B", "m/C", "m/C#", "/D", "m/D", "/D#", "m/D#", "m/E", "m/F",
+    "m/F#", "m/G", "m/G#",
   };
   
 };

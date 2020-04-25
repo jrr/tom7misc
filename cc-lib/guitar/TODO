@@ -1,8 +1,111 @@
-Bugs in data: C7sg has duplicates with C7, and 7sg only appears for C.
-7sg does not seem to be a standard chord. Maybe should be C7/G?
-
-Missing all "5" chords.
-
-
 npmjs.com/package/tonal-fretboard chordShapes might be an algorithmic
 way to name/generate these.
+
+Ambiguous fingerings that may be data problems (#define DEBUG_GUITAR)...
+
+Probably just ambiguous or too hard for me:
+x32332 for C9#11 and C9b5
+878778 for C9#11 and C9b5
+xxabbc for C9#11 and C7b5
+x44422 for C#aug and C#7sus4
+446474 for C#aug and C#7sus4
+989889 for C#11 and C#9b5
+989889 for C#9#11 and C#9b5
+xx0112 for D9#11 and D7b5
+x54554 for D9#11 and D9b5
+a9a99a for D9#11 and D9b5
+xx1223 for Eb9#11 and Eb7b5
+x65665 for Eb9#11 and Eb9b5
+babaab for Eb9#11 and Eb9b5
+4x453x for Ab9#11 and Ab7b5
+xx6778 for Ab9#11 and Ab7b5
+xbabba for Ab9#11 and Ab9b5
+545445 for A9#11 and A9b5
+xx7889 for A9#11 and A7b5
+xcbccb for A9#11 and A9b5
+212112 for F#9#11 and F#9b5
+xx4556 for F#9#11 and F#7b5
+x98998 for F#9#11 and F#9b5
+101001 for F9#11 and F9b5
+xx3445 for F9#11 and F7b5
+x87887 for F9#11 and F9b5
+323223 for G9#11 and G9b5
+xx5667 for G9#11 and G7b5
+xa9aa9 for G9#11 and G9b5
+x21221 for B9#11 and B9b5
+7x786x for B9#11 and B7b5
+xx9aab for B9#11 and B7b5
+x10110 for Bb9#11 and Bb9b5
+xx899a for Bb9#11 and Bb7b5
+x76776 for E9#11 and E9b5
+122100 for Fmmaj7b5 and E/F
+xx3454 for Fmmaj7b5 and E/F
+xx4555 for Am/F# and F#m7b5
+
+Suspicious:
+x45464 for C#9#11 and C#11
+9a9a99 for C#9#11 and C#11
+x41111 for C#mmaj9 and C#maj9
+xx1212 for Ebdim7 and Cdim7
+x33343 for Eb69 and Cm11
+xx1222 for Ebm7b5 and Dmaj7
+xx2323 for Edim7 and C#dim7
+698766 for F#maj7#5 and Ebmmaj9
+xx1122 for Ab7sus4 and Ebm11
+212112 for Abaug9 and F#9b5
+xx4556 for Abaug9 and F#7b5
+xx4545 for Ab7b9 and F#dim7
+
+x8776x for F6 and Dm
+  .. 6 usually means "add6" so you'd still expect the
+     root note to be an F. (But in piano it is sometimes
+     an inversion, which would make sense here??)
+  .. but I don't think this could be Dm if the root
+     isn't a D, right?
+
+Very suspicious:
+xx3113 for Fmadd9 and Emadd9
+x8658x for Fmadd9 and Emadd9
+x86068 for Fmadd9 and Emadd9
+x8a098 for Fmadd9 and Emadd9
+xx0101 for Abdim7 and Ddim7
+abcaca for Abdim7 and Ddim7
+xx4435 for Bm7 and Gmaj9
+xx99aa for Bm11 and E7sus4
+xx3434 for Bdim7 and Fdim7
+789797 for Bdim7 and Fdim7
+xx0211 for F/D and Dm7
+x46454 for E/C# and C#m7
+xx2323 for Bbdim7 and C#dim7
+
+
+Triage me:
+555557 for Am11 and Cmaj9
+102220 for A/F and Fmaj7#5
+x32210 for Am/C and C6
+xx3210 for Am/F and Fmaj7
+202210 for Am/F# and F#m7b5
+688866 for Bbsus4 and F7sus4
+xx3344 for Bb7sus4 and Fm11
+656556 for Bb9b5 and Caug9
+434334 for Bbaug9 and Ab9b5
+666788 for Bb13 and Abmaj7b5
+x10232 for Bbmaj7#5 and D/Bb
+xx4455 for B7sus4 and F#m11
+xx5443 for Baug and Ebaug
+xx9b9b for B6 and Emaj9
+545445 for Baug9 and A9b5
+
+
+F/D has several problems in it (is it actually Dm7/A??)
+
+C#9 has a barre with a note played BELOW the barre. Wha?
+I think we'd mute the low E string too..
+Lots of the 69 chords (and 9 chords) have this problem.
+(I think this is actually just a bug with the rendering...
+ we have a valid barre (e.g. of just the highest two strings)
+ but that same fret is also fingered on another string with
+ a different finger. No contradiction here. But the SVG
+ outputs a barre from the first fret to the last, even if
+ there should be gaps and even if the data says play with
+ different fingers.)

@@ -73,10 +73,47 @@ static void TestRender() {
   }
 }
 
+static bool HasFingering(Chord c, Fingering f) {
+  for (const Fingering ff : Guitar::GetFingerings(c))
+    if (f == ff)
+      return true;
+  return false;
+}
+
+static void TestNameFingering() {
+  const optional<Chord> c_maj_co = Guitar::NameFingering(c_maj);
+  CHECK(c_maj_co.has_value());
+  const optional<Chord> c_add9_co = Guitar::NameFingering(c_add9);
+  CHECK(c_add9_co.has_value());
+  CHECK_EQ(Guitar::ChordString(c_maj_co.value()), "C");
+  CHECK_EQ(Guitar::ChordString(c_add9_co.value()), "Cadd9");  
+
+  // In principle every fingering could have a name, but this one is
+  // unplayable and ridiculous.
+  CHECK(!Guitar::NameFingering(make_tuple(1, 5, 6, 9, 10, 2)).has_value());
+
+  // Now check round trips.
+  for (int b = 0; b < Guitar::NUM_BASES; b++) {
+    for (int s = 0; s < Guitar::NUM_SUFFIXES; s++) {
+      const Chord c = Guitar::ChordOf(b, s);
+      for (const Fingering f : Guitar::GetFingerings(c)) {
+	const optional<Chord> co = Guitar::NameFingering(f);
+	CHECK(co.has_value()) << Guitar::FingeringString(f);
+
+	// We might not get the same chord back because of some
+	// ambiguities. But the chord should have the fingering!
+	CHECK(HasFingering(co.value(), f)) << Guitar::ChordString(co.value())
+					   << ": " << Guitar::FingeringString(f);
+      }
+    }
+  }
+}
+
 int main(int argc, char **argv) {
   TestParse();
   TestFingering();
   TestRender();
+  TestNameFingering();
   printf("OK\n");
   return 0;
 }
