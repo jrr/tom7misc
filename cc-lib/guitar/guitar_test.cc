@@ -25,6 +25,11 @@ static void TestParse() {
 	Guitar::Parse("Cmaj5"));
   CHECK_EQ(Guitar::Parse("Gb9#11"),
 	   Guitar::Parse("F#9#11"));
+  CHECK_EQ(Guitar::Parse("C6/9"), Guitar::Parse("C69"));
+  CHECK_EQ(Guitar::Parse("Eb6add9"), Guitar::Parse("Eb69"));
+  CHECK(Guitar::Parse("C6add9") != Guitar::Parse("Cm69"));
+  CHECK_EQ(Guitar::Parse("Abm6add9"), Guitar::Parse("Abm69"));
+  CHECK_EQ(Guitar::Parse("Gbm6/9"), Guitar::Parse("Gbm6add9"));  
 }
 
 static bool HasFingering(vector<Fingering> fs, Fingering fing) {
