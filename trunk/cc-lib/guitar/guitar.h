@@ -70,9 +70,13 @@ struct Guitar {
     "",
     // aka. "minor"
     "m",
-    "dim", "dim7", "sus2", "sus4", "7sus4", "alt", "aug", "5", "6", "69", "7",
+    "dim", "dim7", "sus2", "sus4", "7sus4", "alt", "aug", "5", "6",
+    "69", // aka. "6/9", "6add9"
+    "7",
     "7b5", "aug7", "9", "9b5", "aug9", "7b9", "7#9", "11", "9#11", "13",
-    "maj7", "maj7b5", "maj7#5", "maj9", "maj11", "maj13", "m6", "m69", "m7",
+    "maj7", "maj7b5", "maj7#5", "maj9", "maj11", "maj13", "m6",
+    "m69", // aka. "m6/9", "m6add9"
+    "m7",
     "m7b5", "m9", "m11", "mmaj7", "mmaj7b5", "mmaj9", "mmaj11", "add9",
     "madd9", "7/G", "/E", "/F", "/F#", "/G", "/G#", "/A", "/Bb", "/B", "/C",
     "/C#", "m/B", "m/C", "m/C#", "/D", "m/D", "/D#", "m/D#", "m/E", "m/F",

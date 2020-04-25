@@ -48,6 +48,8 @@ Guitar::Chord Guitar::ChordOf(int b, int s) {
 static string NormalizeSuffix(const string &s) {
   if (s == "major" || s == "maj") return "";
   if (s == "minor" || s == "min") return "m";
+  if (s == "6/9" || s == "6add9") return "69";
+  if (s == "m6/9" || s == "m6add9") return "m69";  
   return s;
 }
 
@@ -178,8 +180,8 @@ struct DB {
 	    make_tuple(f0, f1, f2, f3, f4, f5);
 	  const PackedFingering pf = Pack(fingering);
 	  fingerings.push_back(pf);
-	  // There are some ambiguous fingerings in the upstream data, so we just
-	  // keep the first one we saw.
+	  // There are some ambiguous fingerings in the upstream data,
+	  // so we just keep the first one we saw.
 	  [[maybe_unused]] bool inserted = rev.emplace(pf, chord).second;
 	  #ifdef DEBUG_GUITAR
 	  if (!inserted) {
