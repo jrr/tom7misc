@@ -41,6 +41,7 @@
   (interactive "P")
   (save-excursion
     (untabify (point-min) (point-max))
+    nil
   ))
 
 ;;; VARIABLES CONTROLLING INDENTATION
