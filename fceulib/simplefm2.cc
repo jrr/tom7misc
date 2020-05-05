@@ -22,7 +22,7 @@ vector<pair<uint8, uint8>> SimpleFM2::ReadInputsEx(
   for (int i = 0; i < contents.size(); i++) {
     string line = contents[i];
     if (subtitles != nullptr &&
-	Util::startswith(line, "subtitle ")) {
+	Util::StartsWith(line, "subtitle ")) {
       string rest = line.substr(9, string::npos);
       string framenum = Util::chop(rest);
       subtitles->emplace_back(atoi(framenum.c_str()),

@@ -251,7 +251,7 @@ struct UIThread {
   UIThread(const string &game,
 	   const string &moviefile) : game(game) {
     vector<pair<int, string>> subs;
-    movie = Util::endswith(moviefile, ".fm2") ?
+    movie = Util::EndsWith(moviefile, ".fm2") ?
       SimpleFM2::ReadInputsEx(moviefile, &subs) :
       SimpleFM7::ReadInputs2P(moviefile);
 
