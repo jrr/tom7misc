@@ -61,7 +61,7 @@ static Plots OneMovie(const string &game,
   ret.caption =
     moviename.substr(shared_prefix.size(), string::npos);
   // XXX more principled?
-  if (Util::endswith(ret.caption, ".fm2"))
+  if (Util::EndsWith(ret.caption, ".fm2"))
     ret.caption = ret.caption.substr(0, ret.caption.size() - 4);
   
   RE2 subtitle_re{"f +([0-9]+) +s +([0-9]+)"};

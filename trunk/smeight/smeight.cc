@@ -394,7 +394,7 @@ struct SM {
 
     map<string, string> config;
 
-    if (Util::endswith(configfile, ".nes")) {
+    if (Util::EndsWith(configfile, ".nes")) {
       config["game"] = configfile;
       // And everything else auto...
     } else {

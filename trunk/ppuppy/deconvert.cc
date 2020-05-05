@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
   CHECK(argi < argc) << USAGE;
   string base = argv[argi++];
   
-  CHECK(Util::endswith(base, ".png")) << base;
+  CHECK(Util::EndsWith(base, ".png")) << base;
   base.resize(base.size() - 4);
 
   if (multi) {

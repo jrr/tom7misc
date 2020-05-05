@@ -147,13 +147,13 @@ int main(int argc, char **argv) {
     fclose(f);
   }
 
-  printf("Unfingered chords:");
+  printf("Unfingered chords:\n");
   for (const auto &[s, count] : unfingered_chords) {
     printf(" % 6d: %s\n", count, s.c_str());
   }
   printf("\n");
 
-  printf("Uknown chords:");
+  printf("Unknown chords:\n");
   for (const auto &[s, count] : unknown_chords) {
     printf(" % 6d: %s\n", count, s.c_str());
   }

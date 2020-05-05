@@ -559,7 +559,7 @@ TPP::TwoPlayerProblem(const map<string, string> &config,
   printf("Create TPP for %s...\n", game.c_str());
   const string movie = GetDefault(config, "movie", "");
   printf("Read inputs for %s\n", movie.c_str());
-  original_inputs = Util::endswith(movie, ".fm2") ?
+  original_inputs = Util::EndsWith(movie, ".fm2") ?
     SimpleFM2::ReadInputs2P(movie) :
     SimpleFM7::ReadInputs2P(movie);
 

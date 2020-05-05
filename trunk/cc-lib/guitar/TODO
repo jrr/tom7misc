@@ -3,6 +3,10 @@ way to name/generate these.
 
 Also chordictionary.com/#documentation ...
 
+This site seems very regular and reliable:
+https://jguitar.com/chordsearch?chordsearch=Gsus2sus4&labels=none
+
+
 Ambiguous fingerings that may be data problems (#define DEBUG_GUITAR)...
 
 Probably just ambiguous or too hard for me:
@@ -97,6 +101,10 @@ xx4455 for B7sus4 and F#m11
 xx5443 for Baug and Ebaug
 xx9b9b for B6 and Emaj9
 545445 for Baug9 and A9b5
+
+
+Missing 7#5 and m7#5 chords; this seems to be the bulk of
+the chords missing from guitarchive.
 
 
 F/D has several problems in it (is it actually Dm7/A??)

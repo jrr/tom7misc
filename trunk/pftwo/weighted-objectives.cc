@@ -51,7 +51,7 @@ WeightedObjectives::LoadFromFile(const string &filename) {
   for (int i = 0; i < lines.size(); i++) {
     string line = lines[i];
     Util::losewhitel(line);
-    if (!line.empty() && !Util::startswith(line, "#")) {
+    if (!line.empty() && !Util::StartsWith(line, "#")) {
       stringstream ss(line, stringstream::in);
       double d;
       ss >> d;
