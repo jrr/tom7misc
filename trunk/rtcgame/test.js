@@ -3,6 +3,10 @@ const SERVER_URL = 'http://spacebar.org/f/a/rtcgame';
 const XSSI_HEADER = ")]}'\n";
 // From url, etc?
 const ROOM_NAME = 'test';
+const POLL_MS = 5000;
+
+// XXX debugging
+let stop_running = false;
 
 /*
   XMLHttpRequest but as a promise.
@@ -78,37 +82,104 @@ const PeerState = Object.freeze({
 // Unfortunately there are two ways we may become connected: We
 // initiated the connection, or someone initiated a connection to us.
 const PeerType = Object.freeze({
-  CALLER: 1,
-  RECEIVER: 2,
+  I_CALL: 1,
+  THEY_CALL: 2,
 });
 
-class Peer {
-  constructor(peerType) {
-    this.peerType = peerType;
-    
-    switch (peerType) {
-    case PeerType.RECEIVER:
-      this.connection = new RTCPeerConnection();
-      this.sendChannel = connection.createDataChannel("sendChannel");
-      this.sendChannel.onopen = e => this.todoInfo(e);
-      this.sendChannel.onclose = e => this.todoInfo(e);
-      break;
-    case PeerType.CALLER:
-      this.connection = new RTCPeerConnection();
-      // I guess we will receive a data channel from the other side
-      this.ondatachannel = e => this.todoInfo(e);
-      break;
-    default:
-      throw 'bad PeerType?';
-    }
+// One thing we have to do is decide who is going to call whom.
+// We can get into a mess if both sides try to initiate a connection
+// at the same time, and then e.g. both abort when it seems the other
+// is making the connection! We establish a global ordering using
+// uids: The player with the lexicographically earlier uid makes
+// the call (reads the other's offer and sends an answer to it).
+//
+// PERF: Rather than have 0xFFFFF receive all calls, we could use
+// some function like "is the peer closer going up (modulo radix)
+// or down?" which would keep the call/receive load balanced for
+// any given participant.
+function getPeerType(puid) {
+  if (!myUid) throw 'precondition: must join first!';
+  return myUid < puid ? PeerType.I_CALL : PeerType.THEY_CALL;
+}
 
-    // The UID for this player, a websafe string.
-    // Note that we may not have one yet, in the case that this is
-    // our outstanding offer. (Maybe it would be better to keep that/those
-    // separate from the peer list, which could be a map of uid -> peer)?
-    this.uid = '';
-    
-    this.connection.onicecandidate = e => {
+class Peer {
+  // Always have the player's uid when creating a peer, either
+  // with the answer or the poll response (which contains all
+  // outstanding players).
+  constructor(puid) {
+    this.puid = puid;
+    this.peerType = getPeerType(puid);
+    // Initialized by factory function.
+    this.connection = null;
+    this.channel = null;
+  }
+
+  deliverAnswer(answer) {
+    if (this.peerType == PeerType.THEY_CALL) {
+      if (this.connection == null)
+	throw 'in wrong state?';
+      this.connection.setRemoteDescription({'type': 'answer',
+					    'sdp': answer});
+    } else {
+      console.log('unimplemented: deliverAnswer when I_CALL');
+    }
+  }
+  
+};
+let peers = {};
+
+// A they-call peer is created from my outstanding listen-connection.
+// (Maybe the listen-connection should be wrapped in an object so that
+// we can just pass it all here and it can retain any handlers?)
+function createTheyCallPeer(puid, conn, channel) {
+  if (puid in peers) throw 'precondition';
+  if (getPeerType(puid) != PeerType.THEY_CALL) throw 'precondition';
+  let peer = new Peer(puid);
+  if (conn == null) throw 'precondition';
+  if (channel == null) throw 'precondition';  
+  peer.connection = conn;
+  peer.channel = channel;
+  peers[puid] = peer;
+  console.log('Created they-call peer ' + puid);
+  return peer;
+}
+
+// An I-call peer is created from an offer sdp and its uid. We create
+// the connection and send an answer to the server.
+function createICallPeer(puid, offer, ouid) {
+  if (puid in peers) throw 'precondition';
+  if (getPeerType(puid) != PeerType.I_CALL) throw 'precondition';
+  if (offer === '') throw 'precondition';
+  if (ouid === '') throw 'precondition';
+  let peer = new Peer(puid);
+  peer.connection = new RTCPeerConnection();
+  let conn = peer.connection;
+  // Should be member function...
+  conn.ondatachannel = todoInfo;
+  conn.onicecandidate = todoInfo;
+  console.log('Try setting remote description to ' + offer);
+  conn.setRemoteDescription({'type': 'offer', 'sdp': offer}).
+      then(() => conn.createAnswer()).
+      then(answer => conn.setLocalDescription(answer)).
+      then(() => {
+	   let desc = conn.localDescription;
+	   if (desc.type != 'answer')
+	     throw 'Expected an answer-type description?';
+
+	   let enc = encodeSdp(desc.sdp);
+	   let params = {'to': puid, 'o': ouid, 'a': enc};
+	   /* result is ignored... */
+	   requestJSON(SERVER_URL + '/answer/' + myUid + '/' + mySeq,
+		       params);
+      });
+
+  console.log('Created I-call peer ' + puid);
+  peers[puid] = peer;
+  return peer;
+}
+
+  /*
+  this.connection.onicecandidate = e => {
       let cand = e.candidate;
       if (cand) {
 	console.log('local ice candidate: ' + cand);
@@ -127,44 +198,58 @@ class Peer {
 	  then(() => this.offerReady(this.connection.localDescription)).
 	  catch(e => this.todoError(e));
     }
-  }
+*/
 
-  offerReady(desc) {
-    if (this.state != PeerState.WAIT_CREATE_OFFER)
-      throw 'Got offer when not in WAIT_CREATE_OFFER state';
-      
-    if (desc.type != 'offer')
-      throw 'Expected an offer-type description?';
-    let enc = encodeSdp(desc.sdp);
-    console.log('Got description: ' + enc);
+function getPeerByUid(puid) {
+  if (puid in peers) {
+    return peers[puid];
+  }
+  return null;
+}
 
-    // Now here we want to 
-    
-    this.state = PeerState.POST_OFFER;
-  }
-
-  todoInfo(e) {
-    console.log('TODO Info: ' + e);
-  }
-  
-  todoError(e) {
-    console.log('TODO Error: ' + e);
-    this.state = PeerState.BROKEN;
-  }
-
-  // Called periodically.../?
-  tick() {
-    
-  }
-};
-let peers = [];
+// Initialized upon joining, and then stays the same for the length
+// of the session.
+let roomUid = '';
+let myUid = '';
+let mySeq = '';
 
 // If non-null, an offer to deliver to the server during the poll
 // call.
 let offerToSend = null;
-let roomUid = '';
-let myUid = '';
-let mySeq = '';
+// Connection corresponding to the outstanding offer.
+let listenConnection = null;
+let sendChannel = null;
+
+// Asynchronously create an offer; initializes offerToSend and
+// listenConnection upon success.
+function makeOffer() {
+  listenConnection = null;
+  let lc = new RTCPeerConnection();
+  sendChannel = lc.createDataChannel("sendChannel");
+  lc.onicecandidate = todoInfo;
+  // XXX figure this out -- can we set it up after promoting this
+  // connection to a Peer?
+  sendChannel.onopen = todoInfo;
+  sendChannel.onclose = todoInfo;
+
+  return lc.createOffer().
+      then(offer => lc.setLocalDescription(offer)).
+      then(() => {
+	let desc = lc.localDescription;
+	if (desc.type != 'offer')
+	  throw 'Expected an offer-type description?';
+	let enc = encodeSdp(desc.sdp);
+	console.log('Got description: ' + enc);
+	offerToSend = enc;
+	listenConnection = lc;
+      }).
+      catch(e => this.todoError(e));
+}
+
+function todoInfo(e) {
+  console.log('TODO Info');
+  console.log(e);
+}
 
 function doPoll() {
   // Must have already joined.
@@ -184,33 +269,113 @@ function doPoll() {
   requestJSON(SERVER_URL + '/poll/' + myUid + '/' + mySeq, params).
       then(json => {
 	// Process response...
-	console.log('XXX poll response');
+	console.log('parsed poll response');
 	console.log(json);
-
+	processPollResponse(json);
+	
 	// PERF: Reduce timeout in some situations?
-	setTimeout(doPoll, 1000);
+	if (!stop_running) setTimeout(doPoll, POLL_MS);
       }).
-      catch(() => {
+      catch(e => {
 	console.log('XXX poll error.');
-
+	console.log(e);
 	// XXX restart polling? regen offer?
       });
+}
+
+function processPollResponse(json) {
+  // If the server knows of no offer, kick off creation of
+  // a new one.
+  if (!json['haveoffer']) makeOffer();
+
+  // Answers addressed to me.
+  let answers = json['answers'];
+  for (let answer of answers) {
+    let puid = answer['uid'];
+    let sdp = decodeSdp(answer['s']);
+    
+    let peer = getPeerByUid(puid);
+    if (peer == null) {
+      // Answer from unknown peer. This is normal when a peer
+      // connects to us using our offer before we find out
+      // about it.
+
+      // (can be forced by a misbehaving peer, but should
+      // not normally happen...)
+      if (getPeerType(puid) != PeerType.THEY_CALL)
+	throw 'peer should not call me';
+
+      if (listenConnection == null ||
+	  sendChannel == null) {
+	// Already used up our listening connection, like if
+	// two peers try to connect to the same offer.
+	console.log('peer ' + puid + ' tried to connect but ' +
+		    'listening channel is null');
+	continue;
+      }
+      
+      peer = createTheyCallPeer(puid, listenConnection, sendChannel);
+      listenConnection = null;
+      sendChannel = null;
+      offerToSend = null;
+    }
+    peer.deliverAnswer(sdp);
+  }
+
+  let others = json['others'];
+  for (let other of others) {
+    let puid = other['puid'];
+    let peer = getPeerByUid(puid);
+    console.log('other ' + puid + ' peer: ' + peer);
+    if (peer == null) {
+      // Learned about a new player. This is normal when someone new
+      // joins, or when joining a room that already has players.
+      let peerType = getPeerType(puid);
+      switch (peerType) {
+      case PeerType.THEY_CALL:
+	// If they call, we can actually leave the peer out of our
+	// peer set, and it is covered by the "answer from unknown peer"
+	// case above.
+	// TODO: Is this actually better? Somehow it seems like it
+	// would be useful to know about all the peers.
+	continue;
+	break;
+	
+      case PeerType.I_CALL:
+	// If I call, and there is an offer available, act on it.
+	let encodedOffer = other['s'];
+	let ouid = other['ouid'];
+	if (encodedOffer !== '' && ouid !== '') {
+	  let offer = decodeSdp(encodedOffer);
+	  peer = createICallPeer(puid, offer, ouid);
+	}
+	break;
+      }
+      
+    }
+  }
 }
 
 function startPolling() {
   doPoll();
 }
 
+function stop() {
+  // XXX debugging thing
+  stop_running = true;
+}
+  
 function doJoin() {
   requestJSON(SERVER_URL + '/join/' + ROOM_NAME, {}).
       then(json => {
-	roomUid = json.room;
-	myUid = json.uid;
-	mySeq = json.seq;
+	roomUid = json['room'];
+	myUid = json['uid'];
+	mySeq = json['seq'];
 	console.log('joined!')
 	console.log(json);
-
-	startPolling();
+	
+	makeOffer().then(
+	  () => startPolling());
       });
 }
 
@@ -218,10 +383,6 @@ function doJoin() {
 var cfg = {'iceServers': [{'url': 'stun:23.21.150.121'}]},
   con = { 'optional': [{'DtlsSrtpKeyAgreement': true}] }
 
-
-function connect() {
-  let p = new Peer(PeerType.CALLER);
-}
 
 // TODO: Can reduce space/bandwidth on server by having a custom
 // encoder for SDPs built into the JS code. If we do this we
