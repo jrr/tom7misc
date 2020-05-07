@@ -155,8 +155,8 @@ function createICallPeer(puid, offer, ouid) {
   peer.connection = new RTCPeerConnection();
   let conn = peer.connection;
   // Should be member function...
-  conn.ondatachannel = todoInfo;
-  conn.onicecandidate = todoInfo;
+  conn.ondatachannel = e => { console.log('icall.datachannel'); console.log(e); };
+  conn.onicecandidate = e => { console.log('icall.icecandidate'); console.log(e); };
   console.log('Try setting remote description to ' + offer);
   conn.setRemoteDescription({'type': 'offer', 'sdp': offer}).
       then(() => conn.createAnswer()).
@@ -226,11 +226,11 @@ function makeOffer() {
   listenConnection = null;
   let lc = new RTCPeerConnection();
   sendChannel = lc.createDataChannel("sendChannel");
-  lc.onicecandidate = todoInfo;
+  lc.onicecandidate = e => { console.log('icecandidate'); console.log(e); };
   // XXX figure this out -- can we set it up after promoting this
   // connection to a Peer?
-  sendChannel.onopen = todoInfo;
-  sendChannel.onclose = todoInfo;
+  sendChannel.onopen = e => { console.log('channel.onopen'); console.log(e); };
+  sendChannel.onclose = e => { console.log('channel.onclose'); console.log(e); };
 
   return lc.createOffer().
       then(offer => lc.setLocalDescription(offer)).
@@ -284,11 +284,9 @@ function doPoll() {
 }
 
 function processPollResponse(json) {
-  // If the server knows of no offer, kick off creation of
-  // a new one.
-  if (!json['haveoffer']) makeOffer();
-
-  // Answers addressed to me.
+  // Process answers first (before creating a new offer).
+  // The first one to answer gets to take on the listeningConnection
+  // as its connection.
   let answers = json['answers'];
   for (let answer of answers) {
     let puid = answer['uid'];
@@ -351,9 +349,12 @@ function processPollResponse(json) {
 	}
 	break;
       }
-      
     }
   }
+
+  // If the server knows of no offer, kick off creation of
+  // a new one.
+  if (!json['haveoffer']) makeOffer();
 }
 
 function startPolling() {
