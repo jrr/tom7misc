@@ -8,6 +8,11 @@ const POLL_MS = 5000;
 // XXX debugging
 let stop_running = false;
 
+// ?
+let RTCPEER_ARGS = {
+  iceServers: [{urls: ['stun:stun.l.google.com:19302']}]
+};
+
 /*
   XMLHttpRequest but as a promise.
   Resolve is called with the string containing the response.
@@ -178,7 +183,7 @@ function createICallPeer(puid, offer, ouid) {
   if (offer === '') throw 'precondition';
   if (ouid === '') throw 'precondition';
   let peer = new Peer(puid);
-  peer.connection = new RTCPeerConnection();
+  peer.connection = new RTCPeerConnection(RTCPEER_ARGS);
   let conn = peer.connection;
   // Should be member function...
   conn.ondatachannel = e => {
@@ -249,7 +254,7 @@ function makeOffer() {
 
   makingOffer = true;
   listenConnection = null;
-  let lc = new RTCPeerConnection();
+  let lc = new RTCPeerConnection(RTCPEER_ARGS);
   sendChannel = lc.createDataChannel("sendChannel");
   lc.onicecandidate = e => { console.log('icecandidate'); console.log(e); };
   // XXX figure this out -- can we set it up after promoting this
@@ -282,8 +287,9 @@ function markOfferReady(conn) {
     let desc = conn.localDescription;
     if (desc.type != 'offer')
       throw 'Expected an offer-type description?';
+    console.log('Got offer description: ' + desc.sdp);
     let enc = encodeSdp(desc.sdp);
-    console.log('Got description: ' + enc);
+    console.log('Encoded: ' + enc);
     offerToSend = enc;
     listenConnection = conn;
     makingOffer = false;
