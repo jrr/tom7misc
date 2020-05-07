@@ -215,28 +215,6 @@ function createICallPeer(puid, offer, ouid) {
   return peer;
 }
 
-  /*
-  this.connection.onicecandidate = e => {
-      let cand = e.candidate;
-      if (cand) {
-	console.log('local ice candidate: ' + cand);
-	// I think this is a notification that *I* have a new ice
-	// candidate, and my job is to deliver it to the remote
-	// peer, who then calls addIceCandidate with it.
-      }
-      // throw 'implement this';
-    };
-
-    if (peerType == PeerType.CALLER) {
-      this.state = PeerState.WAIT_CREATE_OFFER;
-      this.offerPromise =
-	  this.connection.createOffer().
-	  then(offer => this.connection.setLocalDescription(offer)).
-	  then(() => this.offerReady(this.connection.localDescription)).
-	  catch(e => this.todoError(e));
-    }
-*/
-
 function getPeerByUid(puid) {
   if (puid in peers) {
     return peers[puid];
@@ -250,12 +228,15 @@ let roomUid = '';
 let myUid = '';
 let mySeq = '';
 
+// TODO: Make this stuff into a class.
+// TODO: Add visualization of offer-creation state to UI.
 // If non-null, an offer to deliver to the server during the poll
 // call.
 let offerToSend = null;
 // Connection corresponding to the outstanding offer.
 let listenConnection = null;
 let sendChannel = null;
+let makingOffer = false;
 
 // Asynchronously create an offer; initializes offerToSend and
 // listenConnection upon success.
@@ -264,6 +245,9 @@ let sendChannel = null;
 // also wait for all the ice candidates to arrive before posting
 // the offer.
 function makeOffer() {
+  if (makingOffer) return;
+
+  makingOffer = true;
   listenConnection = null;
   let lc = new RTCPeerConnection();
   sendChannel = lc.createDataChannel("sendChannel");
@@ -276,19 +260,44 @@ function makeOffer() {
   return lc.createOffer().
       then(offer => lc.setLocalDescription(offer)).
       then(() => {
-	let desc = lc.localDescription;
-	if (desc.type != 'offer')
-	  throw 'Expected an offer-type description?';
-	let enc = encodeSdp(desc.sdp);
-	console.log('Got description: ' + enc);
-	offerToSend = enc;
-	listenConnection = lc;
+	// Is it possible for this to be complete already? If so,
+	// act on it now.
+	if (lc.iceGatheringState == 'complete') {
+	  markOfferReady(lc);
+	} else {
+	  // Otherwise, wait for the ICE candidates.
+	  lc.onicegatheringstatechange = e => markOfferReady(lc);
+	}
       }).
-      catch(e => this.todoError(e));
+      catch(e => {
+	listenConnection = null;
+	sendChannel = null;
+	makingOffer = false;
+	todoError(e);
+      });
+}
+
+function markOfferReady(conn) {
+  if (conn.iceGatheringState == 'complete') {
+    let desc = conn.localDescription;
+    if (desc.type != 'offer')
+      throw 'Expected an offer-type description?';
+    let enc = encodeSdp(desc.sdp);
+    console.log('Got description: ' + enc);
+    offerToSend = enc;
+    listenConnection = conn;
+    makingOffer = false;
+    // Consider polling immediately?
+  }
 }
 
 function todoInfo(e) {
   console.log('TODO Info');
+  console.log(e);
+}
+
+function todoError(e) {
+  console.log('TODO error');
   console.log(e);
 }
 
@@ -414,8 +423,9 @@ function doJoin() {
 	console.log('joined!')
 	console.log(json);
 
-	makeOffer().then(
-	  () => startPolling());
+	makeOffer();
+
+	startPolling();
       });
 }
 
