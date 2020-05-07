@@ -169,7 +169,12 @@ function createTheyCallPeer(puid, conn, channel) {
   if (channel == null) throw 'precondition';
   peer.connection = conn;
   peer.channel = channel;
-  peer.channel.onmessage = e => { console.log('message on channel'); console.log(e); };
+  peer.channel.onmessage = e => {
+    console.log('message on channel');
+    console.log(e);
+    pushChat(puid, e.data);
+    drawChats();
+  };
   peers[puid] = peer;
   console.log('Created they-call peer ' + puid);
   return peer;
@@ -191,7 +196,12 @@ function createICallPeer(puid, offer, ouid) {
     if (e.type === 'datachannel') {
       console.log('got data channel!');
       peer.channel = e.channel;
-      peer.channel.onmessage = e => { console.log('message on channel'); console.log(e); };
+      peer.channel.onmessage = e => {
+	console.log('message on channel');
+	console.log(e);
+	pushChat(puid, e.data);
+	drawChats();
+      };
     }
   };
 
@@ -421,6 +431,9 @@ function startPolling() {
 }
 
 function doJoin() {
+  let elt = document.getElementById('intro');
+  elt.style.display = 'none';
+  
   requestJSON(SERVER_URL + '/join/' + ROOM_NAME, {}).
       then(json => {
 	roomUid = json['room'];
@@ -508,6 +521,56 @@ function updateUI() {
   }
 }
 
+let MAX_CHATS = 32;
+let chats = [];
+function pushChat(uid, msg) {
+  if (chats.length == MAX_CHATS) {
+    chats.shift();
+  }
+  chats.push({uid: uid, msg: msg});
+}
+
+function drawChats() {
+  let elt = document.getElementById('chats');
+  elt.innerHTML = '';
+  for (chat of chats) {
+    let cr = DIV('', elt);
+    TEXT('<' + chat.uid + '>', SPAN('chat-uid', elt));
+    TEXT(chat.msg, SPAN('chat-msg', elt));
+  }
+}
+
+function broadcastChat(msg) {
+  // Send to self.
+  pushChat(myUid, msg);
+
+  for (k in peers) {
+    let peer = peers[k];
+    if (peer.channel) {
+      peer.channel.send(msg);
+    }
+  }
+}
+
+// Chat crap
+function chatKey(e) {
+  if (e.keyCode == 13) {
+    let elt = document.getElementById('chatbox');
+    let msg = elt.value;
+    elt.value = '';
+
+    broadcastChat(msg);
+    
+    // XXX send it!
+    drawChats();
+  }
+}
+
+function init() {
+  let elt = document.getElementById('chatbox');
+  elt.onkeyup = chatKey;
+}
+
 // Debugging crap.
 
 function stop() {
@@ -519,3 +582,5 @@ function anyPeer() {
   for (k in peers) return peers[k];
   return null;
 }
+
+
