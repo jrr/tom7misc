@@ -1,4 +1,17 @@
 <!doctype html>
+<style>
+ body { font: 12px verdana,helvetica,arial,sans-serif }
+ .peers {
+   border: 1px solid #777;
+   border-collapse: collapse;
+ }
+
+ .peers td {
+   border: 1px solid #777;
+   border-collapse: collapse;
+   padding: 2px;
+ }
+</style>
 
 <script src="test.js"></script>
 
@@ -6,3 +19,7 @@ hello, welcome to my internet home - site
 
 <input type=button onclick="doJoin()" value="CLIK">
 
+<p>My UID: <b><span id="uid"></span></b></p>
+
+<div id="peers">
+</div>

@@ -54,7 +54,7 @@ const requestJSON = (url, params) => {
 	     body: kvs.join('&'),
 	     method: 'POST',
 	     headers: {'Content-Type': 'application/x-www-form-urlencoded'}};
-  
+
   return request(obj).
       then(res => {
 	if (res.indexOf(XSSI_HEADER) == 0) {
@@ -72,8 +72,8 @@ const requestJSON = (url, params) => {
 const PeerState = Object.freeze({
   // Unrecoverable error state
   BROKEN: 0,
-  
-  // Called CreateOffer. Waiting to 
+
+  // Called CreateOffer. Waiting to
   WAIT_CREATE_OFFER: 1,
 
 
@@ -124,7 +124,32 @@ class Peer {
       console.log('unimplemented: deliverAnswer when I_CALL');
     }
   }
-  
+
+  // After we've set the local description, this gets called
+  // whenever the ice gathering state changes. We're waiting
+  // for it to be complete so that we can send a single answer
+  // with all ICE candidates.
+  //
+  // Arguments are the peer and offer uids.
+  sendAnswerRemotely(puid, ouid) {
+    // Only send a complete answer with all ice candidates.
+    if (this.connection.iceGatheringState == 'complete') {
+      let desc = this.connection.localDescription;
+      if (desc.type != 'answer')
+	throw 'Expected an answer-type description?';
+
+      let enc = encodeSdp(desc.sdp);
+      let params = {'to': puid, 'o': ouid, 'a': enc};
+      /* result is ignored... */
+      requestJSON(SERVER_URL + '/answer/' + myUid + '/' + mySeq,
+		  params);
+      console.log('Sending answer to ' + puid + ' ' + desc.sdp);
+    } else {
+      console.log('Not sending answer yet because ICE state is ' +
+		  this.connection.iceGatheringState);
+    }
+  }
+
 };
 let peers = {};
 
@@ -136,9 +161,10 @@ function createTheyCallPeer(puid, conn, channel) {
   if (getPeerType(puid) != PeerType.THEY_CALL) throw 'precondition';
   let peer = new Peer(puid);
   if (conn == null) throw 'precondition';
-  if (channel == null) throw 'precondition';  
+  if (channel == null) throw 'precondition';
   peer.connection = conn;
   peer.channel = channel;
+  peer.channel.onmessage = e => { console.log('message on channel'); console.log(e); };
   peers[puid] = peer;
   console.log('Created they-call peer ' + puid);
   return peer;
@@ -155,22 +181,33 @@ function createICallPeer(puid, offer, ouid) {
   peer.connection = new RTCPeerConnection();
   let conn = peer.connection;
   // Should be member function...
-  conn.ondatachannel = e => { console.log('icall.datachannel'); console.log(e); };
-  conn.onicecandidate = e => { console.log('icall.icecandidate'); console.log(e); };
+  conn.ondatachannel = e => {
+    console.log('icall.datachannel'); console.log(e);
+    if (e.type === 'datachannel') {
+      console.log('got data channel!');
+      peer.channel = e.channel;
+      peer.channel.onmessage = e => { console.log('message on channel'); console.log(e); };
+    }
+  };
+
+  // XXX probably don't need this
+  conn.onicecandidate = e => {
+    console.log('icall.icecandidate'); console.log(e);
+  };
+
   console.log('Try setting remote description to ' + offer);
   conn.setRemoteDescription({'type': 'offer', 'sdp': offer}).
       then(() => conn.createAnswer()).
       then(answer => conn.setLocalDescription(answer)).
       then(() => {
-	   let desc = conn.localDescription;
-	   if (desc.type != 'answer')
-	     throw 'Expected an answer-type description?';
-
-	   let enc = encodeSdp(desc.sdp);
-	   let params = {'to': puid, 'o': ouid, 'a': enc};
-	   /* result is ignored... */
-	   requestJSON(SERVER_URL + '/answer/' + myUid + '/' + mySeq,
-		       params);
+	// Is it possible for this to be complete already? If so,
+	// act on it now.
+	if (conn.iceGatheringState == 'complete') {
+	  peer.sendAnswerRemotely(puid, ouid);
+	} else {
+	  conn.onicegatheringstatechange =
+	      e => peer.sendAnswerRemotely(puid, ouid);
+	}
       });
 
   console.log('Created I-call peer ' + puid);
@@ -222,6 +259,10 @@ let sendChannel = null;
 
 // Asynchronously create an offer; initializes offerToSend and
 // listenConnection upon success.
+//
+// TODO: Although it does seem to manage connectivity, this should
+// also wait for all the ice candidates to arrive before posting
+// the offer.
 function makeOffer() {
   listenConnection = null;
   let lc = new RTCPeerConnection();
@@ -252,12 +293,15 @@ function todoInfo(e) {
 }
 
 function doPoll() {
+  // XXX elsewhere..?
+  updateUI();
+
   // Must have already joined.
   if (myUid === '' ||
       mySeq === '' ||
       roomUid === '')
     throw 'precondition';
-  
+
   let params = {};
   if (offerToSend != null) {
     params['offer'] = offerToSend;
@@ -272,7 +316,7 @@ function doPoll() {
 	console.log('parsed poll response');
 	console.log(json);
 	processPollResponse(json);
-	
+
 	// PERF: Reduce timeout in some situations?
 	if (!stop_running) setTimeout(doPoll, POLL_MS);
       }).
@@ -291,7 +335,7 @@ function processPollResponse(json) {
   for (let answer of answers) {
     let puid = answer['uid'];
     let sdp = decodeSdp(answer['s']);
-    
+
     let peer = getPeerByUid(puid);
     if (peer == null) {
       // Answer from unknown peer. This is normal when a peer
@@ -311,7 +355,7 @@ function processPollResponse(json) {
 		    'listening channel is null');
 	continue;
       }
-      
+
       peer = createTheyCallPeer(puid, listenConnection, sendChannel);
       listenConnection = null;
       sendChannel = null;
@@ -338,7 +382,7 @@ function processPollResponse(json) {
 	// would be useful to know about all the peers.
 	continue;
 	break;
-	
+
       case PeerType.I_CALL:
 	// If I call, and there is an offer available, act on it.
 	let encodedOffer = other['s'];
@@ -361,11 +405,6 @@ function startPolling() {
   doPoll();
 }
 
-function stop() {
-  // XXX debugging thing
-  stop_running = true;
-}
-  
 function doJoin() {
   requestJSON(SERVER_URL + '/join/' + ROOM_NAME, {}).
       then(json => {
@@ -374,7 +413,7 @@ function doJoin() {
 	mySeq = json['seq'];
 	console.log('joined!')
 	console.log(json);
-	
+
 	makeOffer().then(
 	  () => startPolling());
       });
@@ -396,4 +435,71 @@ function encodeSdp(sdp) {
 function decodeSdp(enc) {
   let b64 = enc.replace(/[.]/g, '/').replace(/_/g, '+');
   return atob(b64);
+}
+
+
+// UI stuff...
+
+function makeElement(what, cssclass, elt) {
+  var e = document.createElement(what);
+  if (cssclass) e.setAttribute('class', cssclass);
+  if (elt) elt.appendChild(e);
+  return e;
+}
+function IMG(cssclass, elt) { return makeElement('IMG', cssclass, elt); }
+function DIV(cssclass, elt) { return makeElement('DIV', cssclass, elt); }
+function SPAN(cssclass, elt) { return makeElement('SPAN', cssclass, elt); }
+function BR(cssclass, elt) { return makeElement('BR', cssclass, elt); }
+function TABLE(cssclass, elt) { return makeElement('TABLE', cssclass, elt); }
+function TR(cssclass, elt) { return makeElement('TR', cssclass, elt); }
+function TD(cssclass, elt) { return makeElement('TD', cssclass, elt); }
+function TEXT(contents, elt) {
+  var e = document.createTextNode(contents);
+  if (elt) elt.appendChild(e);
+  return e;
+}
+
+function updateUI() {
+  let uelt = document.getElementById('uid');
+  uelt.innerHTML = (myUid == '' ? '(not yet assigned)' : myUid);
+
+  let elt = document.getElementById('peers');
+  elt.innerHTML = '';
+
+  let table = TABLE('peers', elt);
+  let hdr = TR('', table);
+  TEXT('uid', TD('', hdr));
+  TEXT('type', TD('', hdr));
+  TEXT('conn state', TD('', hdr));
+  TEXT('ice state', TD('', hdr));
+  TEXT('ice gathering state', TD('', hdr));
+  TEXT('channel', TD('', hdr));
+  for (k in peers) {
+    let peer = peers[k];
+    let tr = TR('', table);
+    TEXT(peer.puid, TD('', tr));
+    let s = peer.peerType + ' = ' +
+	((peer.peerType === PeerType.I_CALL) ? 'I call' : 'They call');
+    TEXT(s, TD('', tr));
+    TEXT((peer.connection ? peer.connection.connectionState : 'null'),
+	 TD('', tr));
+    TEXT((peer.connection ? peer.connection.iceConnectionState : 'null'),
+	 TD('', tr));
+    TEXT((peer.connection ? peer.connection.iceGatheringState : 'null'),
+	 TD('', tr));
+    TEXT((peer.channel ? peer.channel.readyState : 'null'),
+	 TD('', tr));
+  }
+}
+
+// Debugging crap.
+
+function stop() {
+  // XXX debugging thing
+  stop_running = true;
+}
+
+function anyPeer() {
+  for (k in peers) return peers[k];
+  return null;
 }
