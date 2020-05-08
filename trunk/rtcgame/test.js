@@ -155,6 +155,13 @@ class Peer {
     }
   }
 
+  processMessage(data) {
+    let json = JSON.parse(data);
+    if (json.type == 'chat') {
+      pushChat(this.puid, json['msg']);
+    }
+    // TODO: Other message types...
+  }
 };
 let peers = {};
 
@@ -172,7 +179,7 @@ function createTheyCallPeer(puid, conn, channel) {
   peer.channel.onmessage = e => {
     console.log('message on channel');
     console.log(e);
-    pushChat(puid, e.data);
+    peer.processMessage(e.data);
     drawChats();
   };
   peers[puid] = peer;
@@ -199,7 +206,7 @@ function createICallPeer(puid, offer, ouid) {
       peer.channel.onmessage = e => {
 	console.log('message on channel');
 	console.log(e);
-	pushChat(puid, e.data);
+	peer.processMessage(e.data);
 	drawChats();
       };
     }
@@ -543,11 +550,11 @@ function drawChats() {
 function broadcastChat(msg) {
   // Send to self.
   pushChat(myUid, msg);
-
+  let json = JSON.stringify({'type': 'chat', 'msg': msg});
   for (k in peers) {
     let peer = peers[k];
     if (peer.channel) {
-      peer.channel.send(msg);
+      peer.channel.send(json);
     }
   }
 }
