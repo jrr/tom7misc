@@ -72,17 +72,14 @@ const requestJSON = (url, params) => {
 };
 
 
-// A peer represents my (possibly pending) connection with
-// another player. We try to get one for each player in the game.
-const PeerState = Object.freeze({
-  // Unrecoverable error state
-  BROKEN: 0,
-
-  // Called CreateOffer. Waiting to
-  WAIT_CREATE_OFFER: 1,
-
-
+// Unfortunately there are two ways we may become connected: We
+// initiated the connection, or someone initiated a connection to us.
+const MsgType = Object.freeze({
+  CHAT: 1,
+  PING: 2,
+  PING_RESPONSE: 3,
 });
+
 
 // Unfortunately there are two ways we may become connected: We
 // initiated the connection, or someone initiated a connection to us.
@@ -90,6 +87,40 @@ const PeerType = Object.freeze({
   I_CALL: 1,
   THEY_CALL: 2,
 });
+
+// Wrapper around a timestamp and period for implementing
+// functionality like window.setTimeout.
+class Periodically {
+  constructor(periodMs) {
+    if (periodMs <= 0) throw 'precondition';
+    this.periodMs = periodMs;
+    this.nextRun = window.performance.now();
+    this.paused = false;
+  }
+
+  // Return true if periodMs has elapsed since the last run.
+  // If this function returns true, we assume the caller does
+  // the associated action now (and so move the next run time
+  // forward).
+  shouldRun() {
+    if (this.paused) return;
+    let n = window.performance.now();
+    if (n >= this.nextRun) {
+      this.nextRun = n + this.periodMs;
+      return true;
+    }
+    return false;
+  }
+
+  pause() {
+    this.paused = true;
+  }
+
+  reset() {
+    this.paused = false;
+    this.nextRun = window.performance.now() + this.periodMs;
+  }
+};
 
 // One thing we have to do is decide who is going to call whom.
 // We can get into a mess if both sides try to initiate a connection
@@ -117,6 +148,12 @@ class Peer {
     // Initialized by factory function.
     this.connection = null;
     this.channel = null;
+
+    // Set when receiving a ping response.
+    // TODO: This can be a time series...
+    this.lastPing = Infinity;
+
+    this.periodicallyPing = new Periodically(1000);
   }
 
   deliverAnswer(answer) {
@@ -155,13 +192,62 @@ class Peer {
     }
   }
 
+  // Send a message already in json form, if we have a data
+  // channel.
+  sendJson(json) {
+    if (this.channel &&
+	this.channel.readyState === 'open') {
+      this.channel.send(json);
+    }
+  }
+
+  sendMessage(msg) {
+    this.sendJson(JSON.stringify(msg));
+  }
+  
+  // Process a message sent BY this peer.
   processMessage(data) {
     let json = JSON.parse(data);
-    if (json.type == 'chat') {
+    switch (json['t']) {
+      // Handle network timing stuff first.
+    case MsgType.PING:
+      // All we do for a PING is echo it back to the same peer
+      // as a PING_RESPONSE.
+      //
+      // Treat the payload as number, though. There's no specific
+      // risk to echoing back a huge arbitrary payload, but it's not
+      // supposed to happen and could be a venue for abuse.
+      let p = 0 + json['p'];
+      this.sendMessage({'t': MsgType.PING_RESPONSE, 'p': p});
+      break;
+
+    case MsgType.PING_RESPONSE:
+      // When we get a ping response, we assume it's the last ping
+      // we sent, and so the difference between now and the timestamp
+      // therein is the round trip latency.
+      let ms = window.performance.now() - (0 + json['p']);
+      this.lastPing = ms;
+      console.log('ping rtt: ' + ms);
+      break;
+
+    case MsgType.CHAT:
       pushChat(this.puid, json['msg']);
+      drawChats();
+      break;
     }
-    // TODO: Other message types...
   }
+
+  // Called periodically.
+  periodic() {
+    if (this.channel) {
+      if (this.periodicallyPing.shouldRun()) {
+	this.sendMessage({'t': MsgType.PING, 'p': window.performance.now()});
+      }
+
+      // TODO: Send connectivity info.
+    }
+  }
+
 };
 let peers = {};
 
@@ -180,7 +266,6 @@ function createTheyCallPeer(puid, conn, channel) {
     console.log('message on channel');
     console.log(e);
     peer.processMessage(e.data);
-    drawChats();
   };
   peers[puid] = peer;
   console.log('Created they-call peer ' + puid);
@@ -207,7 +292,6 @@ function createICallPeer(puid, offer, ouid) {
 	console.log('message on channel');
 	console.log(e);
 	peer.processMessage(e.data);
-	drawChats();
       };
     }
   };
@@ -324,15 +408,31 @@ function todoError(e) {
   console.log(e);
 }
 
-function doPoll() {
-  // XXX elsewhere..?
-  updateUI();
+let periodicallyPoll = new Periodically(POLL_MS);
+let periodicallyUpdateUi = new Periodically(100);
+function uPeriodic() {
+  if (periodicallyPoll.shouldRun()) {
+    doPoll();
+  }
 
+  if (periodicallyUpdateUi.shouldRun()) {
+    updateUI();
+  }
+
+  // On some delay? Or rename this to uPeriodic?
+  for (k in peers)
+    peers[k].periodic();
+  
+  if (!stop_running)
+    window.setTimeout(uPeriodic, 15);
+}
+
+function doPoll() {
   // Must have already joined.
   if (myUid === '' ||
       mySeq === '' ||
       roomUid === '')
-    throw 'precondition';
+    return;
 
   let params = {};
   if (offerToSend != null) {
@@ -342,20 +442,23 @@ function doPoll() {
   }
 
   // Don't spam the server: Only retry polling once the promise completes.
+  periodicallyPoll.pause();
+  
   requestJSON(SERVER_URL + '/poll/' + myUid + '/' + mySeq, params).
       then(json => {
 	// Process response...
 	console.log('parsed poll response');
 	console.log(json);
 	processPollResponse(json);
-
-	// PERF: Reduce timeout in some situations?
-	if (!stop_running) setTimeout(doPoll, POLL_MS);
+	// Allow polling again.
+	periodicallyPoll.reset();
       }).
       catch(e => {
 	console.log('XXX poll error.');
 	console.log(e);
 	// XXX restart polling? regen offer?
+	// Perhaps increase timeout..?
+	periodicallyPoll.reset();
       });
 }
 
@@ -433,14 +536,10 @@ function processPollResponse(json) {
   if (!json['haveoffer']) makeOffer();
 }
 
-function startPolling() {
-  doPoll();
-}
-
 function doJoin() {
   let elt = document.getElementById('intro');
   elt.style.display = 'none';
-  
+ 
   requestJSON(SERVER_URL + '/join/' + ROOM_NAME, {}).
       then(json => {
 	roomUid = json['room'];
@@ -450,9 +549,10 @@ function doJoin() {
 	console.log(json);
 
 	makeOffer();
-
-	startPolling();
       });
+
+  // Start loop.
+  uPeriodic();
 }
 
 
@@ -510,6 +610,7 @@ function updateUI() {
   TEXT('ice state', TD('', hdr));
   TEXT('ice gathering state', TD('', hdr));
   TEXT('channel', TD('', hdr));
+  TEXT('rtt', TD('', hdr));
   for (k in peers) {
     let peer = peers[k];
     let tr = TR('', table);
@@ -525,6 +626,7 @@ function updateUI() {
 	 TD('', tr));
     TEXT((peer.channel ? peer.channel.readyState : 'null'),
 	 TD('', tr));
+    TEXT('' + peer.lastPing + ' ms', TD('', tr));
   }
 }
 
@@ -550,12 +652,10 @@ function drawChats() {
 function broadcastChat(msg) {
   // Send to self.
   pushChat(myUid, msg);
-  let json = JSON.stringify({'type': 'chat', 'msg': msg});
+  let json = JSON.stringify({'t': MsgType.CHAT, 'msg': msg});
   for (k in peers) {
     let peer = peers[k];
-    if (peer.channel) {
-      peer.channel.send(json);
-    }
+    peer.sendJson(json);
   }
 }
 
