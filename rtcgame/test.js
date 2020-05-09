@@ -138,6 +138,8 @@ function getPeerType(puid) {
   return myUid < puid ? PeerType.I_CALL : PeerType.THEY_CALL;
 }
 
+// A Peer is a connection (possibly in progress, or failed) with
+// a player.
 class Peer {
   // Always have the player's uid when creating a peer, either
   // with the answer or the poll response (which contains all
@@ -250,6 +252,125 @@ class Peer {
 
 };
 let peers = {};
+
+
+// ?
+const PlayerType = Object.freeze({
+  ME: 1,
+  OTHER: 2, 
+});
+
+const Connectivity = Object.freeze({
+  // Haven't heard anything yet.
+  UNKNOWN: 1,
+  SELF: 2,
+  NEVER_CONNECTED: 3,
+  CONNECTED: 4,
+  DISCONNETED: 5,
+});
+
+// A player is any UID we know about on the network, including ourselves.
+// We can learn about these by polling the server, or from other peers.
+//
+// No explicit connection to the peer, but they use the same uid key.
+let players = {};
+class Player {
+  constructor(puid) {
+    this.playerType = (puid === myUid) ? PlayerType.ME : PlayerType.OTHER;
+    this.puid = puid;
+    // TODO: Probably should be merged since we treat them together?
+    // Map from other uid to Connectivity enum.
+    this.connectivityTo = {};
+    // Map from other uid to RTT in milliseconds.
+    this.pingTo = {};
+    // TODO: msec since we've been connected to this player. This is
+    // probably the right way to prune old players?
+  }
+  
+  getConnectivity(ouid) {
+    if (this.puid == ouid) return {c: Connectivity.SELF, p: 0};
+    const ct = this.connectivityTo(ouid);
+    if (ct) {
+      const p = this.pingTo(ouid);
+
+      return {c: ct, p: isFinite(p) ? p : Infinity};
+    } else {
+      return {c: Connectivity.UNKNOWN, p: Infinity};
+    }
+  }
+};
+
+// Updates my own connectivity/ping maps (for the player that corresponds
+// to me.)
+function updateMyConnectivity() {
+  if (myUid == '') throw 'precondition';
+  let me = players[myUid];
+  if (!me) throw 'precondition'
+
+  // We assume that peers is a subset of players..
+  for (puid in peers) {
+    if (!players[puid]) throw 'peers should be a subset of players';
+  }
+  
+  for (puid in players) {
+    let peer = peers[puid];
+    let player = players[puid];
+    if (puid == myUid) {
+      // Self treated specially (no peer).
+      me.connectivityTo[puid] = Connectivity.SELF;
+      me.PingTo[puid] = 0;
+    } else {
+      let peer = peers[puid];
+
+      let good = peer &&
+	  peer.connection &&
+	  (peer.connectionState == 'connected') &&
+	  peer.channel &&
+	  (peer.channel.readyState == 'open');
+
+      if (good) {
+	me.connectivityTo[puid] = Connectivity.CONNECTED;
+	me.pingTo[puid] = peer.lastPing;
+	    
+      } else {
+	// No peer, or the connection is pending/broken.
+	// We probably should add more fine-grained states later
+	// but here the only distinction left is whether we were
+	// ever connected (which we can get from the existing
+	// connectivity map, assuming we update it often enough)...
+	switch (me.connectivityTo[puid]) {
+	case Connectivity.CONNECTED:
+	case Connectivity.DISCONNECTED:
+	  me.connectivityTo[puid] = Connectivity.DISCONNECTED;
+	  break;
+	default:
+	  me.connectivityTo[puid] = Connectivity.NEVER_CONNECTED;
+	  break;
+	}
+	me.pingTo[puid] = Infinity;	
+      }
+    }
+  }
+}
+
+// Share connectivity with all connected peers. Note this is an n^2
+// operation, since we send information about all peers to all peers
+// (this is even worse if we have old players that we haven't cleaned
+// up). But we use this to keep the set of active players from growing
+// without bound, and the per-cell payload is small.
+function broadcastConnectivity() {
+  if (myUid == '') throw 'precondition';
+  let me = players[myUid];
+  if (!me) throw 'precondition'
+
+
+  
+  let json = JSON.stringify({'t': MsgType.CHAT, 'msg': msg});
+  for (k in peers) {
+    let peer = peers[k];
+    peer.sendJson(json);
+  }
+}
 
 // A they-call peer is created from my outstanding listen-connection.
 // (Maybe the listen-connection should be wrapped in an object so that
@@ -410,19 +531,30 @@ function todoError(e) {
 
 let periodicallyPoll = new Periodically(POLL_MS);
 let periodicallyUpdateUi = new Periodically(100);
+let periodicallyShareConnectivity = new Periodically(1000);
 function uPeriodic() {
+  // PERF: We can perhaps avoid long frames by only doing one
+  // of these periodic actions per frame (but have to be a little
+  // fancy to avoid starvation).
   if (periodicallyPoll.shouldRun()) {
     doPoll();
-  }
-
-  if (periodicallyUpdateUi.shouldRun()) {
-    updateUI();
   }
 
   // On some delay? Or rename this to uPeriodic?
   for (k in peers)
     peers[k].periodic();
+
+  if (periodicallyShareConnetivity.shouldRun()) {
+    if (myUid !=== '') {
+      updateMyConnectivity();
+      broadcastConnectivity();
+    }
+  }
   
+  if (periodicallyUpdateUi.shouldRun()) {
+    updateUI();
+  }
+
   if (!stop_running)
     window.setTimeout(uPeriodic, 15);
 }
