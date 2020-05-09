@@ -26,6 +26,32 @@
    border: 1px solid #000;
    padding: 6px;
  }
+
+ .peeruid {
+   font-weight: bold;
+ }
+ 
+ .nopeeruid {
+   color: #777;
+   font-style: italic;
+   font-weight: bold;
+ }
+
+ .matrix {
+   margin-top: 2em;
+   border-collapse: collapse;
+ }
+ 
+ .matrix td {
+   border: 1px solid #777;
+   border-collapse: collapse;
+   padding: 1px;
+ }
+ 
+ .cell {
+   width: 24px;
+   height: 24px;
+ }
  
 </style>
 
@@ -46,6 +72,10 @@
 <p>My UID: <b><span id="uid"></span></b></p>
 
 <div id="peers">
+</div>
+
+<div id="matrix">
+
 </div>
 
 </body>

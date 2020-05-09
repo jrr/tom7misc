@@ -51,7 +51,7 @@ const request = obj => {
 const requestJSON = (url, params) => {
   // Encode a post body suitable for application/x-www-form-urlencoded.
   let kvs = [];
-  for (o in params) {
+  for (let o in params) {
     kvs.push(encodeURIComponent(o) + '=' + encodeURIComponent(params[o]));
   }
 
@@ -78,6 +78,7 @@ const MsgType = Object.freeze({
   CHAT: 1,
   PING: 2,
   PING_RESPONSE: 3,
+  CONNECTIVITY: 4,
 });
 
 
@@ -236,6 +237,19 @@ class Peer {
       pushChat(this.puid, json['msg']);
       drawChats();
       break;
+
+    case MsgType.CONNECTIVITY:
+      let row = json['row']
+      let player = players[this.puid];
+      if (!player) throw 'players should be superset of peers';
+      player.connectivityTo = {};
+      for (let ouid in row) {
+	let ct = row[ouid];
+	// Player learned about this peer before me; add it...
+	maybeAddPlayer(ouid);
+	player.connectivityTo[ouid] = {c: ct.c, p: ct.p};
+      }
+      break;
     }
   }
 
@@ -278,27 +292,37 @@ class Player {
   constructor(puid) {
     this.playerType = (puid === myUid) ? PlayerType.ME : PlayerType.OTHER;
     this.puid = puid;
-    // TODO: Probably should be merged since we treat them together?
-    // Map from other uid to Connectivity enum.
+    // Map from other uid to object:
+    //  {c : Connectivity,
+    //   p : number, RTT in msec}
     this.connectivityTo = {};
-    // Map from other uid to RTT in milliseconds.
-    this.pingTo = {};
     // TODO: msec since we've been connected to this player. This is
     // probably the right way to prune old players?
   }
   
   getConnectivity(ouid) {
+    // Unclear whether we represent this explicitly in the map or
+    // rely on this special behavior?
     if (this.puid == ouid) return {c: Connectivity.SELF, p: 0};
-    const ct = this.connectivityTo(ouid);
+    const ct = this.connectivityTo[ouid];
     if (ct) {
-      const p = this.pingTo(ouid);
-
-      return {c: ct, p: isFinite(p) ? p : Infinity};
+      return ct;
     } else {
       return {c: Connectivity.UNKNOWN, p: Infinity};
     }
   }
 };
+
+function addSelfPlayer() {
+  if (myUid == '') throw 'precondition';
+  players[myUid] = new Player(myUid);
+  updateMyConnectivity();
+}
+
+function maybeAddPlayer(puid) {
+  if (players[puid]) return;
+  players[puid] = new Player(puid);
+}
 
 // Updates my own connectivity/ping maps (for the player that corresponds
 // to me.)
@@ -317,20 +341,24 @@ function updateMyConnectivity() {
     let player = players[puid];
     if (puid == myUid) {
       // Self treated specially (no peer).
-      me.connectivityTo[puid] = Connectivity.SELF;
-      me.PingTo[puid] = 0;
+      me.connectivityTo[puid] = {c: Connectivity.SELF, p: 0};
     } else {
       let peer = peers[puid];
 
       let good = peer &&
 	  peer.connection &&
-	  (peer.connectionState == 'connected') &&
+	  (peer.connection.connectionState == 'connected') &&
 	  peer.channel &&
 	  (peer.channel.readyState == 'open');
 
+      /*
+      console.log('peer: ' + peer +
+		  ' good: ' + good);
+		  */
+      
       if (good) {
-	me.connectivityTo[puid] = Connectivity.CONNECTED;
-	me.pingTo[puid] = peer.lastPing;
+	me.connectivityTo[puid] = {c: Connectivity.CONNECTED,
+				   p: peer.lastPing || Infinity};
 	    
       } else {
 	// No peer, or the connection is pending/broken.
@@ -338,16 +366,17 @@ function updateMyConnectivity() {
 	// but here the only distinction left is whether we were
 	// ever connected (which we can get from the existing
 	// connectivity map, assuming we update it often enough)...
+	let c = Connectivity.UNKNOWN;
 	switch (me.connectivityTo[puid]) {
 	case Connectivity.CONNECTED:
 	case Connectivity.DISCONNECTED:
-	  me.connectivityTo[puid] = Connectivity.DISCONNECTED;
+	  c = Connectivity.DISCONNECTED;
 	  break;
 	default:
-	  me.connectivityTo[puid] = Connectivity.NEVER_CONNECTED;
+	  c = Connectivity.NEVER_CONNECTED;
 	  break;
 	}
-	me.pingTo[puid] = Infinity;	
+	me.connectivityTo[puid] = {c: c, p: Infinity};
       }
     }
   }
@@ -363,10 +392,16 @@ function broadcastConnectivity() {
   let me = players[myUid];
   if (!me) throw 'precondition'
 
-
+  let msg = {};
+  for (puid in me.connectivityTo) {
+    let ct = me.connectivityTo[puid];
+    // Round ping to integer to make these message smaller... peers
+    // don't care about sub-millisecond timing.
+    msg[puid] = {'c': ct.c, 'p': isFinite(ct.p) ? Math.round(ct.p) : ct.p};
+  }
   
-  let json = JSON.stringify({'t': MsgType.CHAT, 'msg': msg});
-  for (k in peers) {
+  let json = JSON.stringify({'t': MsgType.CONNECTIVITY, 'row': msg});
+  for (let k in peers) {
     let peer = peers[k];
     peer.sendJson(json);
   }
@@ -541,17 +576,18 @@ function uPeriodic() {
   }
 
   // On some delay? Or rename this to uPeriodic?
-  for (k in peers)
+  for (let k in peers)
     peers[k].periodic();
 
-  if (periodicallyShareConnetivity.shouldRun()) {
-    if (myUid !=== '') {
+  if (periodicallyShareConnectivity.shouldRun()) {
+    if (myUid !== '') {
       updateMyConnectivity();
       broadcastConnectivity();
     }
   }
   
   if (periodicallyUpdateUi.shouldRun()) {
+    // Perhaps only if dirty? 10x a second is ridiculous
     updateUI();
   }
 
@@ -634,6 +670,7 @@ function processPollResponse(json) {
   let others = json['others'];
   for (let other of others) {
     let puid = other['puid'];
+    maybeAddPlayer(puid);
     let peer = getPeerByUid(puid);
     console.log('other ' + puid + ' peer: ' + peer);
     if (peer == null) {
@@ -680,16 +717,14 @@ function doJoin() {
 	console.log('joined!')
 	console.log(json);
 
+	addSelfPlayer();
+	
 	makeOffer();
       });
 
   // Start loop.
   uPeriodic();
 }
-
-
-var cfg = {'iceServers': [{'url': 'stun:23.21.150.121'}]},
-  con = { 'optional': [{'DtlsSrtpKeyAgreement': true}] }
 
 
 // TODO: Can reduce space/bandwidth on server by having a custom
@@ -729,8 +764,13 @@ function TEXT(contents, elt) {
 
 function updateUI() {
   let uelt = document.getElementById('uid');
-  uelt.innerHTML = (myUid == '' ? '(not yet assigned)' : myUid);
+  uelt.innerHTML = myUid == '' ? '(not yet assigned)' : myUid;
 
+  updatePeersUI();
+  updateMatrixUI();
+}
+  
+function updatePeersUI() {
   let elt = document.getElementById('peers');
   elt.innerHTML = '';
 
@@ -743,23 +783,77 @@ function updateUI() {
   TEXT('ice gathering state', TD('', hdr));
   TEXT('channel', TD('', hdr));
   TEXT('rtt', TD('', hdr));
-  for (k in peers) {
-    let peer = peers[k];
+  for (let k in players) {
+    let player = players[k];
     let tr = TR('', table);
-    TEXT(peer.puid, TD('', tr));
-    let s = peer.peerType + ' = ' +
-	((peer.peerType === PeerType.I_CALL) ? 'I call' : 'They call');
-    TEXT(s, TD('', tr));
-    TEXT((peer.connection ? peer.connection.connectionState : 'null'),
-	 TD('', tr));
-    TEXT((peer.connection ? peer.connection.iceConnectionState : 'null'),
-	 TD('', tr));
-    TEXT((peer.connection ? peer.connection.iceGatheringState : 'null'),
-	 TD('', tr));
-    TEXT((peer.channel ? peer.channel.readyState : 'null'),
-	 TD('', tr));
-    TEXT('' + peer.lastPing + ' ms', TD('', tr));
+
+    let peer = peers[k];
+    TEXT(player.puid, TD(peer ? 'peeruid' : 'nopeeruid', tr));    
+    
+    if (peer) {
+      let s = peer.peerType + ' = ' +
+	  ((peer.peerType === PeerType.I_CALL) ? 'I call' : 'They call');
+      TEXT(s, TD('', tr));
+      TEXT((peer.connection ? peer.connection.connectionState : 'null'),
+	   TD('', tr));
+      TEXT((peer.connection ? peer.connection.iceConnectionState : 'null'),
+	   TD('', tr));
+      TEXT((peer.connection ? peer.connection.iceGatheringState : 'null'),
+	   TD('', tr));
+      TEXT((peer.channel ? peer.channel.readyState : 'null'),
+	   TD('', tr));
+      TEXT('' + peer.lastPing + ' ms', TD('', tr));
+    } else {
+      TD('', tr).colSpan = 6;
+    }
   }
+}
+
+function updateMatrixUI() {
+  let elt = document.getElementById('matrix');
+  elt.innerHTML = '';
+  let mtx = TABLE('matrix', elt);
+
+  let hdr = TR('', mtx);
+  // corner
+  TD('', hdr);
+  for (let k in players) {
+    TEXT(k.charAt(0), TD('', hdr));
+  }
+
+  for (let src in players) {
+    let tr = TR('', mtx);
+    TEXT(src, TD('', tr));
+    let p = players[src];
+    for (let dst in players) {
+      let ct = p.getConnectivity(dst);
+      let cell = TD('cell', tr);
+      // NARROW NO-BREAK SPACE
+      let txt = '\u202f';
+      switch (ct.c) {
+      case Connectivity.UNKNOWN:
+	cell.style.backgroundColor = '#CCC';
+	break;
+      case Connectivity.SELF:
+	cell.style.backgroundColor = '#FFF';
+	break;
+      case Connectivity.NEVER_CONNECTED:
+	cell.style.backgroundColor = '#AA5';
+	break;
+      case Connectivity.CONNECTED:
+	cell.style.backgroundColor = '#5A5';
+	// U+221E INFINITY
+	txt = isFinite(ct.p) ? (ct.p | 0) : '\u221e';
+	break;
+      case Connectivity.DISCONNETED:
+	cell.style.backgroundColor = '#A55';
+	break;
+      }
+      TEXT(txt, cell);
+      // cell.classList.add();
+    }
+  }
+  
 }
 
 let MAX_CHATS = 32;
@@ -785,7 +879,7 @@ function broadcastChat(msg) {
   // Send to self.
   pushChat(myUid, msg);
   let json = JSON.stringify({'t': MsgType.CHAT, 'msg': msg});
-  for (k in peers) {
+  for (let k in peers) {
     let peer = peers[k];
     peer.sendJson(json);
   }
@@ -818,7 +912,7 @@ function stop() {
 }
 
 function anyPeer() {
-  for (k in peers) return peers[k];
+  for (let k in peers) return peers[k];
   return null;
 }
 
