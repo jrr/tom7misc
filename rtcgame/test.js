@@ -8,6 +8,9 @@ const POLL_MS = 5000;
 // XXX debugging
 let stop_running = false;
 
+// Approximately 0.
+let timeOrigin = window.performance.now();
+
 // ?
 let RTCPEER_ARGS = {
   iceServers: [{urls: ['stun:stun.l.google.com:19302']}]
@@ -211,6 +214,7 @@ class Peer {
   // Process a message sent BY this peer.
   processMessage(data) {
     let json = JSON.parse(data);
+    let now = window.performance.now();
     switch (json['t']) {
       // Handle network timing stuff first.
     case MsgType.PING:
@@ -228,7 +232,7 @@ class Peer {
       // When we get a ping response, we assume it's the last ping
       // we sent, and so the difference between now and the timestamp
       // therein is the round trip latency.
-      let ms = window.performance.now() - (0 + json['p']);
+      let ms = now - (0 + json['p']);
       this.lastPing = ms;
       console.log('ping rtt: ' + ms);
       break;
@@ -247,7 +251,10 @@ class Peer {
 	let ct = row[ouid];
 	// Player learned about this peer before me; add it...
 	maybeAddPlayer(ouid);
-	player.connectivityTo[ouid] = {c: ct.c, p: ct.p};
+	// Rebase to my own timeOrigin.
+	let a = now - ct.a;
+	console.log('atime: ' + a);
+	player.connectivityTo[ouid] = {c: ct.c, p: ct.p, a: a};
       }
       break;
     }
@@ -280,7 +287,7 @@ const Connectivity = Object.freeze({
   SELF: 2,
   NEVER_CONNECTED: 3,
   CONNECTED: 4,
-  DISCONNETED: 5,
+  DISCONNECTED: 5,
 });
 
 // A player is any UID we know about on the network, including ourselves.
@@ -293,22 +300,31 @@ class Player {
     this.playerType = (puid === myUid) ? PlayerType.ME : PlayerType.OTHER;
     this.puid = puid;
     // Map from other uid to object:
-    //  {c : Connectivity,
-    //   p : number, RTT in msec}
+    //  { c : Connectivity,
+    //    p : number, RTT in msec,
+    //    a : number, time that awol began (in msec since time origin) }
+    //
+    // AWOL begins when we are waiting to hear from a peer (i.e., not
+    // actively connecting or connected).
+    // It is effectively now() for connected peers.
     this.connectivityTo = {};
-    // TODO: msec since we've been connected to this player. This is
-    // probably the right way to prune old players?
   }
-  
+
+  // TODO: I think we should avoid this function, since it doesn't
+  // have any good way to compute AWOL time for a player it doesn't
+  // know about. Instead, places where we can learn about a new player
+  // could just add it to the map.
   getConnectivity(ouid) {
     // Unclear whether we represent this explicitly in the map or
     // rely on this special behavior?
-    if (this.puid == ouid) return {c: Connectivity.SELF, p: 0};
+    if (this.puid == ouid) return { c: Connectivity.SELF, p: 0,
+				    a: window.performance.now() };
     const ct = this.connectivityTo[ouid];
     if (ct) {
       return ct;
     } else {
-      return {c: Connectivity.UNKNOWN, p: Infinity};
+      return { c: Connectivity.UNKNOWN, p: Infinity,
+	       a: window.performance.now() };
     }
   }
 };
@@ -335,13 +351,14 @@ function updateMyConnectivity() {
   for (puid in peers) {
     if (!players[puid]) throw 'peers should be a subset of players';
   }
-  
+
+  let now = window.performance.now();
   for (puid in players) {
     let peer = peers[puid];
     let player = players[puid];
     if (puid == myUid) {
       // Self treated specially (no peer).
-      me.connectivityTo[puid] = {c: Connectivity.SELF, p: 0};
+      me.connectivityTo[puid] = { c: Connectivity.SELF, p: 0, a: now };
     } else {
       let peer = peers[puid];
 
@@ -350,33 +367,40 @@ function updateMyConnectivity() {
 	  (peer.connection.connectionState == 'connected') &&
 	  peer.channel &&
 	  (peer.channel.readyState == 'open');
-
-      /*
-      console.log('peer: ' + peer +
-		  ' good: ' + good);
-		  */
       
       if (good) {
-	me.connectivityTo[puid] = {c: Connectivity.CONNECTED,
-				   p: peer.lastPing || Infinity};
-	    
+	me.connectivityTo[puid] = { c: Connectivity.CONNECTED,
+				    p: peer.lastPing || Infinity,
+				    a: now };
+
       } else {
 	// No peer, or the connection is pending/broken.
-	// We probably should add more fine-grained states later
-	// but here the only distinction left is whether we were
-	// ever connected (which we can get from the existing
-	// connectivity map, assuming we update it often enough)...
-	let c = Connectivity.UNKNOWN;
-	switch (me.connectivityTo[puid]) {
-	case Connectivity.CONNECTED:
-	case Connectivity.DISCONNECTED:
-	  c = Connectivity.DISCONNECTED;
-	  break;
-	default:
-	  c = Connectivity.NEVER_CONNECTED;
-	  break;
+	// Might be useful to add more fine-grained states here
+	// (like trying to connect, waiting for offer, sent answer,
+	// etc.)?
+	
+	let ct = me.connectivityTo[puid];
+	if (ct && ct.c == Connectivity.CONNETED) {
+	  // If the peer was in connected state, then we update to
+	  // DISCONNECTED and set the awol time.
+	  //
+	  // (Note this requires updateconnectivity to run at least once
+	  // while connected. We could set this explicitly when a connection
+	  // is made. Or consider very short-lived connections to not be
+	  // connections at all, which is probably fine too)
+	  me.connectivityTo[puid] = { c: Connectivity.DISCONNECTED,
+				      p: Infinity,
+				      a: now };
+	} else if (ct && (ct.c == Connectivity.DISCONNECTED ||
+			  ct.c == Connectivity.NEVER_CONNECTED)) {
+
+	  // Leave in DISCONNECTED or NEVER_CONNECTED states, and
+	  // don't update awol time--player is still awol.
+	} else {
+	  me.connectivityTo[puid] = { c: Connectivity.NEVER_CONNECTED,
+				      p: Infinity,
+				      a: now };
 	}
-	me.connectivityTo[puid] = {c: c, p: Infinity};
       }
     }
   }
@@ -392,12 +416,22 @@ function broadcastConnectivity() {
   let me = players[myUid];
   if (!me) throw 'precondition'
 
+  let now = window.performance.now();
   let msg = {};
   for (puid in me.connectivityTo) {
     let ct = me.connectivityTo[puid];
     // Round ping to integer to make these message smaller... peers
     // don't care about sub-millisecond timing.
-    msg[puid] = {'c': ct.c, 'p': isFinite(ct.p) ? Math.round(ct.p) : ct.p};
+    let roundp = isFinite(ct.p) ? Math.round(ct.p) : ct.p;
+    // Note that awol time here is stored as absoluve (time since
+    // timeOrigin) but sent as relative (how long ago). Different
+    // peers of course disagree on timeOrigin, and we avoid using unix
+    // epoch so that we don't have to worry about clock skew / NTP /
+    // etc.
+    let awolSec = Math.round(now - ct.a);
+    msg[puid] = { 'c': ct.c,
+		  'p': roundp,
+		  'a': awolSec };
   }
   
   let json = JSON.stringify({'t': MsgType.CONNECTIVITY, 'row': msg});
@@ -816,11 +850,12 @@ function updateMatrixUI() {
 
   let hdr = TR('', mtx);
   // corner
-  TD('', hdr);
+  TEXT('src \\ dest', TD('', hdr));
   for (let k in players) {
-    TEXT(k.charAt(0), TD('', hdr));
+    TEXT(k.substr(0, 3), TD('', hdr));
   }
 
+  let now = window.performance.now();
   for (let src in players) {
     let tr = TR('', mtx);
     TEXT(src, TD('', tr));
@@ -829,7 +864,11 @@ function updateMatrixUI() {
       let ct = p.getConnectivity(dst);
       let cell = TD('cell', tr);
       // NARROW NO-BREAK SPACE
-      let txt = '\u202f';
+      // let txt = '\u202f';
+      let txt =
+	  (isFinite(ct.a) && (now - ct.a) > 0.1) ?
+	  ((now - ct.a) / 1000.0).toFixed(1) :
+	  '\u202f';
       switch (ct.c) {
       case Connectivity.UNKNOWN:
 	cell.style.backgroundColor = '#CCC';
@@ -845,7 +884,7 @@ function updateMatrixUI() {
 	// U+221E INFINITY
 	txt = isFinite(ct.p) ? (ct.p | 0) : '\u221e';
 	break;
-      case Connectivity.DISCONNETED:
+      case Connectivity.DISCONNECTED:
 	cell.style.backgroundColor = '#A55';
 	break;
       }
