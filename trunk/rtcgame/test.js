@@ -162,6 +162,28 @@ class Peer {
     this.periodicallyPing = new Periodically(1000);
   }
 
+  // Returns true if the connection is failed; this means we couldn't
+  // connect or we got disconnected. Pre-connection states are not failed.
+  isFailed() {
+    // I-call peers have their connection/channel initialized asynchronously
+    // by promises. Might want to make this more explicit though?
+    // TODO: Failure during an i-call connection probably does not
+    // ever get cleaned up?
+    if (!this.connection) return false;
+
+    // "disconnected" should eventually become "failed" or "connected"
+    // again (if another ice candidate works).
+    if (this.connection.connectionState == 'failed')
+      return true;
+
+    // TODO: We should consider the peer failed if we are unable to
+    // create a channel. But null is also used in pre-connection states.
+    if (!this.channel) return false;
+    if (this.channel.readyState == 'closed') return true;
+
+    return false;
+  }
+  
   deliverAnswer(answer) {
     if (this.peerType == PeerType.THEY_CALL) {
       if (this.connection == null)
@@ -310,23 +332,9 @@ class Player {
     this.connectivityTo = {};
   }
 
-  // TODO: I think we should avoid this function, since it doesn't
-  // have any good way to compute AWOL time for a player it doesn't
-  // know about. Instead, places where we can learn about a new player
-  // could just add it to the map.
-  getConnectivity(ouid) {
-    // Unclear whether we represent this explicitly in the map or
-    // rely on this special behavior?
-    if (this.puid == ouid) return { c: Connectivity.SELF, p: 0,
-				    a: window.performance.now() };
-    const ct = this.connectivityTo[ouid];
-    if (ct) {
-      return ct;
-    } else {
-      return { c: Connectivity.UNKNOWN, p: Infinity,
-	       a: window.performance.now() };
-    }
-  }
+  // TODO: Compute network awol time for p, which is min over all other
+  // players' connectivity to p. Idea is that if this gets high, we have
+  // consensus to retire the player.
 };
 
 function addSelfPlayer() {
@@ -380,7 +388,7 @@ function updateMyConnectivity() {
 	// etc.)?
 	
 	let ct = me.connectivityTo[puid];
-	if (ct && ct.c == Connectivity.CONNETED) {
+	if (ct && ct.c == Connectivity.CONNECTED) {
 	  // If the peer was in connected state, then we update to
 	  // DISCONNECTED and set the awol time.
 	  //
@@ -486,11 +494,6 @@ function createICallPeer(puid, offer, ouid) {
     }
   };
 
-  // XXX probably don't need this
-  conn.onicecandidate = e => {
-    console.log('icall.icecandidate'); console.log(e);
-  };
-
   console.log('Try setting remote description to ' + offer);
   conn.setRemoteDescription({'type': 'offer', 'sdp': offer}).
       then(() => conn.createAnswer()).
@@ -505,7 +508,8 @@ function createICallPeer(puid, offer, ouid) {
 	      e => peer.sendAnswerRemotely(puid, ouid);
 	}
       });
-
+  // TODO: catch errors, explicitly fail!
+  
   console.log('Created I-call peer ' + puid);
   peers[puid] = peer;
   return peer;
@@ -599,6 +603,7 @@ function todoError(e) {
 }
 
 let periodicallyPoll = new Periodically(POLL_MS);
+let periodicallyCleanupPeers = new Periodically(125);
 let periodicallyUpdateUi = new Periodically(100);
 let periodicallyShareConnectivity = new Periodically(1000);
 function uPeriodic() {
@@ -609,6 +614,22 @@ function uPeriodic() {
     doPoll();
   }
 
+  if (periodicallyCleanupPeers.shouldRun()) {
+    // Clean up disconnected peers.
+    for (let k in peers) {
+      if (peers[k].isFailed()) {
+	// TODO: Explicitly note this in connectivity map?
+	// Otherwise updateMyConnectivity should do it?
+
+	// TODO: Any way to actively discard these (to prevent them
+	// from hanging around in callbacks, etc.?)
+	peers[k].connection = null;
+	peers[k].channel = null;
+	delete peers[k];
+      }
+    }
+  }
+  
   // On some delay? Or rename this to uPeriodic?
   for (let k in peers)
     peers[k].periodic();
@@ -861,35 +882,43 @@ function updateMatrixUI() {
     TEXT(src, TD('', tr));
     let p = players[src];
     for (let dst in players) {
-      let ct = p.getConnectivity(dst);
+      let ct = p.connectivityTo[dst];
       let cell = TD('cell', tr);
-      // NARROW NO-BREAK SPACE
-      // let txt = '\u202f';
-      let txt =
-	  (isFinite(ct.a) && (now - ct.a) > 0.1) ?
-	  ((now - ct.a) / 1000.0).toFixed(1) :
-	  '\u202f';
-      switch (ct.c) {
-      case Connectivity.UNKNOWN:
-	cell.style.backgroundColor = '#CCC';
-	break;
-      case Connectivity.SELF:
-	cell.style.backgroundColor = '#FFF';
-	break;
-      case Connectivity.NEVER_CONNECTED:
-	cell.style.backgroundColor = '#AA5';
-	break;
-      case Connectivity.CONNECTED:
-	cell.style.backgroundColor = '#5A5';
-	// U+221E INFINITY
-	txt = isFinite(ct.p) ? (ct.p | 0) : '\u221e';
-	break;
-      case Connectivity.DISCONNECTED:
-	cell.style.backgroundColor = '#A55';
-	break;
+      if (ct) {
+	// NARROW NO-BREAK SPACE
+	// let txt = '\u202f';
+	let txt =
+	    (isFinite(ct.a) && (now - ct.a) > 0.1) ?
+	    ((now - ct.a) / 1000.0).toFixed(1) :
+	    '\u202f';
+	switch (ct.c) {
+	case Connectivity.UNKNOWN:
+	  cell.style.backgroundColor = '#CCC';
+	  break;
+	case Connectivity.SELF:
+	  cell.style.backgroundColor = '#FFF';
+	  break;
+	case Connectivity.NEVER_CONNECTED:
+	  cell.style.backgroundColor = '#AA5';
+	  break;
+	case Connectivity.CONNECTED:
+	  cell.style.backgroundColor = '#5A5';
+	  // U+221E INFINITY
+	  txt = isFinite(ct.p) ? (ct.p | 0) : '\u221e';
+	  break;
+	case Connectivity.DISCONNECTED:
+	  cell.style.backgroundColor = '#A55';
+	  break;
+	}
+	TEXT(txt, cell);
+	// cell.classList.add();
+      } else if (src == dst) {
+	// U+202F NARROW NO-BREAK SPACE
+	TEXT('\u202F', cell);
+      } else {
+	// U+2014 EM DASH
+	TEXT('\u2014', cell);
       }
-      TEXT(txt, cell);
-      // cell.classList.add();
     }
   }
   
