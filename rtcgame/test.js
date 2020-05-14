@@ -78,10 +78,11 @@ const requestJSON = (url, params) => {
 // Unfortunately there are two ways we may become connected: We
 // initiated the connection, or someone initiated a connection to us.
 const MsgType = Object.freeze({
-  CHAT: 1,
-  PING: 2,
-  PING_RESPONSE: 3,
-  CONNECTIVITY: 4,
+  PING: 1,
+  PING_RESPONSE: 2,
+  CHAT: 3,
+  SET_NICK: 4,
+  CONNECTIVITY: 5,
 });
 
 
@@ -264,6 +265,12 @@ class Peer {
       drawChats();
       break;
 
+    case MsgType.SET_NICK:
+      console.log('SET_NICK ' + json['nick']);
+      players[puid].nick = json['nick'];
+      drawChats();
+      break;
+      
     case MsgType.CONNECTIVITY:
       let row = json['row']
       let player = players[this.puid];
@@ -275,11 +282,12 @@ class Peer {
 	maybeAddPlayer(ouid);
 	// Rebase to my own timeOrigin.
 	let a = now - ct.a;
-	console.log('atime: ' + a);
+	// console.log('atime: ' + a);
 	player.connectivityTo[ouid] = {c: ct.c, p: ct.p, a: a};
       }
       break;
     }
+
   }
 
   // Called periodically.
@@ -296,11 +304,14 @@ class Peer {
 };
 let peers = {};
 
+// UIDs that are awol and that we ignore.
+// TODO!
+let blacklist = {};
 
 // ?
 const PlayerType = Object.freeze({
   ME: 1,
-  OTHER: 2, 
+  OTHER: 2,
 });
 
 const Connectivity = Object.freeze({
@@ -310,9 +321,13 @@ const Connectivity = Object.freeze({
   NEVER_CONNECTED: 3,
   CONNECTED: 4,
   DISCONNECTED: 5,
+  // Decided that this player is gone and we won't try to contact it
+  // again.
+  AWOL: 6,
 });
 
-// A player is any UID we know about on the network, including ourselves.
+// A player is a possibly-active UID we know about on the network,
+// including ourself. It does not include blacklisted uids.
 // We can learn about these by polling the server, or from other peers.
 //
 // No explicit connection to the peer, but they use the same uid key.
@@ -330,12 +345,18 @@ class Player {
     // actively connecting or connected).
     // It is effectively now() for connected peers.
     this.connectivityTo = {};
+    this.nick = '???';
   }
 
   // TODO: Compute network awol time for p, which is min over all other
   // players' connectivity to p. Idea is that if this gets high, we have
   // consensus to retire the player.
 };
+
+function getNick(puid) {
+  if (!players[puid]) return '???';
+  return players[puid].nick || '???';
+}
 
 function addSelfPlayer() {
   if (myUid == '') throw 'precondition';
@@ -346,6 +367,25 @@ function addSelfPlayer() {
 function maybeAddPlayer(puid) {
   if (players[puid]) return;
   players[puid] = new Player(puid);
+}
+
+// Mark (in my connectivity map) that the player was seen at 'when'
+// (given as ms since "time origin", i.e., window.performance.now() is
+// now). Since we may be learning that the server saw this player 8
+// seconds ago, but we saw them 1 second ago, this only updates the
+// awol time if it is more recent.
+function markPlayerSeen(puid, when) {
+  let me = players[myUid];
+  if (!me) throw 'recondition';
+  let ct = me.connectivityTo[puid];
+  if (!ct) {
+    me.connectivityTo[puid] =
+	{ c: Connectivity.UNKNOWN, p: Infinity, a: when };
+  } else {
+    let preva = me.connectivityTo[puid].a;
+    if (when > preva)
+      me.connectivityTo[puid].a = when;
+  }
 }
 
 // Updates my own connectivity/ping maps (for the player that corresponds
@@ -404,7 +444,15 @@ function updateMyConnectivity() {
 
 	  // Leave in DISCONNECTED or NEVER_CONNECTED states, and
 	  // don't update awol time--player is still awol.
+	} else if (ct) {
+	  // e.g. if UNKNOWN
+	  me.connectivityTo[puid].c = Connectivity.NEVER_CONNECTED;
+	  me.connectivityTo[puid].p = Infinity;
+	  // Leave awol time as-is.
 	} else {
+	  // Weird to not have ct at all; when we insert players from
+	  // the server for example we have awol times. 'now' is conservative
+	  // but may keep very stale peers alive longer than we want.
 	  me.connectivityTo[puid] = { c: Connectivity.NEVER_CONNECTED,
 				      p: Infinity,
 				      a: now };
@@ -694,6 +742,9 @@ function processPollResponse(json) {
     let puid = answer['uid'];
     let sdp = decodeSdp(answer['s']);
 
+    // First, an answer from anyone resets their awol time.
+    markPlayerSeen(puid, window.performance.now());
+    
     let peer = getPeerByUid(puid);
     if (peer == null) {
       // Answer from unknown peer. This is normal when a peer
@@ -702,8 +753,10 @@ function processPollResponse(json) {
 
       // (can be forced by a misbehaving peer, but should
       // not normally happen...)
-      if (getPeerType(puid) != PeerType.THEY_CALL)
-	throw 'peer should not call me';
+      if (getPeerType(puid) != PeerType.THEY_CALL) {
+	console.log('peer ' + puid + ' should not call me');
+	continue;
+      }
 
       if (listenConnection == null ||
 	  sendChannel == null) {
@@ -726,6 +779,11 @@ function processPollResponse(json) {
   for (let other of others) {
     let puid = other['puid'];
     maybeAddPlayer(puid);
+    // Update awol time if the server has seen this player
+    // recently.
+    let relAwol = window.performance.now() - (1000 * other['a']);
+    markPlayerSeen(puid, relAwol);
+    
     let peer = getPeerByUid(puid);
     console.log('other ' + puid + ' peer: ' + peer);
     if (peer == null) {
@@ -769,6 +827,7 @@ function doJoin() {
 	roomUid = json['room'];
 	myUid = json['uid'];
 	mySeq = json['seq'];
+	window.location.hash = roomUid + '|' + myUid + '|' + mySeq;
 	console.log('joined!')
 	console.log(json);
 
@@ -857,7 +916,7 @@ function updatePeersUI() {
 	   TD('', tr));
       TEXT((peer.channel ? peer.channel.readyState : 'null'),
 	   TD('', tr));
-      TEXT('' + peer.lastPing + ' ms', TD('', tr));
+      TEXT('' + peer.lastPing.toFixed(1) + ' ms', TD('', tr));
     } else {
       TD('', tr).colSpan = 6;
     }
@@ -903,6 +962,8 @@ function updateMatrixUI() {
 	  break;
 	case Connectivity.CONNECTED:
 	  cell.style.backgroundColor = '#5A5';
+	  // This is awol 0 by definition, so instead
+	  // show the most recent ping time.
 	  // U+221E INFINITY
 	  txt = isFinite(ct.p) ? (ct.p | 0) : '\u221e';
 	  break;
@@ -938,7 +999,9 @@ function drawChats() {
   elt.innerHTML = '';
   for (chat of chats) {
     let cr = DIV('', elt);
-    TEXT('<' + chat.uid + '>', SPAN('chat-uid', elt));
+    let nick = getNick(chat.uid);
+    TEXT(chat.uid, SPAN('chat-uid', elt));
+    TEXT('<' + nick + '>', SPAN('chat-nick', elt));
     TEXT(chat.msg, SPAN('chat-msg', elt));
   }
 }
@@ -953,6 +1016,19 @@ function broadcastChat(msg) {
   }
 }
 
+function broadcastNick(nick) {
+  // Can lose keystrokes here, but...
+  let me = players[myUid];
+  if (!me) return;
+  me.nick = nick;
+  
+  let json = JSON.stringify({'t': MsgType.SET_NICK, 'nick': nick});
+  for (let k in peers) {
+    let peer = peers[k];
+    peer.sendJson(json);
+  }
+}
+
 // Chat crap
 function chatKey(e) {
   if (e.keyCode == 13) {
@@ -960,16 +1036,52 @@ function chatKey(e) {
     let msg = elt.value;
     elt.value = '';
 
+    // Could also support /nick etc. here, which is maybe better
+    // than having separate boxes?
     broadcastChat(msg);
     
-    // XXX send it!
     drawChats();
   }
 }
 
+// Nickname
+function nicknameKey(e) {
+  let elt = document.getElementById('nickname');
+  let nick = elt.value;
+  broadcastNick(nick);
+  // Update my own chats.
+  drawChats();
+}
+
+
 function init() {
-  let elt = document.getElementById('chatbox');
-  elt.onkeyup = chatKey;
+  document.getElementById('chatbox').onkeyup = chatKey;
+  document.getElementById('nickname').onkeyup = nicknameKey;
+
+  let a = window.location.hash.split('|');
+  if (a.length == 3) {
+    // We have saved state info.
+    let elt = document.getElementById('intro');
+    elt.style.display = 'none';
+    roomUid = a[0];
+    myUid = a[1];
+    mySeq = a[2];
+    window.location.hash = roomUid + '|' + myUid + '|' + mySeq;
+    console.log('joined!')
+    addSelfPlayer();
+
+    // I probably need to replace the offer on the server? They
+    // probably don't remain valid across a page reload like this?
+    makeOffer();
+
+    // Start loop.
+    uPeriodic();
+
+  } else {
+    // wait for user to click to join.
+    
+    // XXX or maybe here we should insert the button to click
+  }
 }
 
 // Debugging crap.
