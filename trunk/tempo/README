@@ -63,6 +63,9 @@ sudo raspi-config
  - Boot options: Wait for network (?I think this is a good idea?)
 (reboot?)
 
+sudo dpkg-reconfigure tzdata
+(to US Eastern or whatever you like)
+
 sudo apt-get update
 sudo apt-get dist-upgrade
 sudo apt-get autoclean
