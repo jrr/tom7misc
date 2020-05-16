@@ -120,14 +120,55 @@ function Draw() {
   }
 }
 
-function Click(e) {
-  console.log(e);
-  var x = e.offsetX;
-  var y = e.offsetY;
-  points.push({x: Math.floor(x / CELLSIZE),
-	       y: Math.floor(y / CELLSIZE),
-	       next: null,
-	       color: e.shiftKey ? 1 : 0})
+var heldpoint = null;
+
+function MouseUp(e) {
+  if (heldpoint != null) {
+    heldpoint = null;
+  }
+}
+
+function MouseMove(e) {
+  var mx = e.offsetX;
+  var my = e.offsetY;
+
+  var x = Math.floor(mx / CELLSIZE);
+  var y = Math.floor(my / CELLSIZE);
+
+  if (heldpoint != null) {
+    if (heldpoint.x != x || heldpoint.y != y) {
+      heldpoint.x = x;
+      heldpoint.y = y;
+      Draw();
+    }
+  }
+}
+
+function MouseDown(e) {
+  heldpoint = null;
+  
+  var mx = e.offsetX;
+  var my = e.offsetY;
+
+  var x = Math.floor(mx / CELLSIZE);
+  var y = Math.floor(my / CELLSIZE);
+
+  for (var i = 0; i < points.length; i++) {
+    if (points[i].x == x && points[i].y == y) {
+      heldpoint = points[i];
+      break;
+    }
+  }
+
+  if (heldpoint == null) {
+    var point = {x: x,
+		 y: y,
+		 next: null,
+		 color: e.shiftKey ? 1 : 0};
+    heldpoint = point;
+    points.push(point)
+  }
+
   Draw();
 }
 
@@ -137,5 +178,7 @@ function Init() {
   ctx = c.getContext('2d');
   Draw();
 
-  c.onmousedown = Click;
+  c.onmousemove = MouseMove;
+  c.onmousedown = MouseDown;
+  c.onmouseup = MouseUp;
 }
