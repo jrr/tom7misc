@@ -1,0 +1,8 @@
+Add some client/device stuff to database-config:
+ - device id (or derive this from MAC etc?)
+ - install location
+and have tempo store this, IP address, and last seen time into
+the database when connecting. (Probably the probes should be
+associated with a device too..)
+
+Humidity sensing
