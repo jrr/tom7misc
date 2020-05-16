@@ -44,6 +44,13 @@
    font-weight: bold;
  }
 
+ .blacklistuid {
+   color: #999;
+   font-weight: bold;
+   text-decoration: line-through;
+   text-decoration-color: rgba(150, 0, 0, 0.3);
+ }
+ 
  .matrix {
    margin-top: 2em;
    border-collapse: collapse;
@@ -79,11 +86,13 @@
 
 <p>My UID: <b><span id="uid"></span></b></p>
 
+<div id="listen">
+</div>
+
 <div id="peers">
 </div>
 
 <div id="matrix">
-
 </div>
 
 </body>

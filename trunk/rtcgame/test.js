@@ -304,14 +304,11 @@ class Peer {
 };
 let peers = {};
 
-// UIDs that are awol and that we ignore.
-// TODO!
-let blacklist = {};
-
 // ?
 const PlayerType = Object.freeze({
   ME: 1,
   OTHER: 2,
+  BLACKLISTED: 3,
 });
 
 const Connectivity = Object.freeze({
@@ -322,12 +319,14 @@ const Connectivity = Object.freeze({
   CONNECTED: 4,
   DISCONNECTED: 5,
   // Decided that this player is gone and we won't try to contact it
-  // again.
+  // again (unless perhaps there's some positive evidence of
+  // reinstatement?)
   AWOL: 6,
 });
 
 // A player is a possibly-active UID we know about on the network,
-// including ourself. It does not include blacklisted uids.
+// including ourself. This includes blacklisted (awol) UIDs, but we
+// don't store full information about them.
 // We can learn about these by polling the server, or from other peers.
 //
 // No explicit connection to the peer, but they use the same uid key.
@@ -336,11 +335,12 @@ class Player {
   constructor(puid) {
     this.playerType = (puid === myUid) ? PlayerType.ME : PlayerType.OTHER;
     this.puid = puid;
-    // Map from other uid to object:
+    // Not stored for blacklisted uids.
+    // Map from other uid to object.
     //  { c : Connectivity,
     //    p : number, RTT in msec,
     //    a : number, time that awol began (in msec since time origin) }
-    //
+    
     // AWOL begins when we are waiting to hear from a peer (i.e., not
     // actively connecting or connected).
     // It is effectively now() for connected peers.
@@ -402,8 +402,13 @@ function updateMyConnectivity() {
 
   let now = window.performance.now();
   for (puid in players) {
-    let peer = peers[puid];
     let player = players[puid];
+    // Don't do work for blacklisted players.
+    if (player.playerType == PlayerType.BLACKLISTED)
+      continue;
+    
+    let peer = peers[puid];
+
     if (puid == myUid) {
       // Self treated specially (no peer).
       me.connectivityTo[puid] = { c: Connectivity.SELF, p: 0, a: now };
@@ -461,6 +466,8 @@ function updateMyConnectivity() {
     }
   }
 }
+
+// TODO: set awol / blacklist
 
 // Share connectivity with all connected peers. Note this is an n^2
 // operation, since we send information about all peers to all peers
@@ -581,20 +588,27 @@ let mySeq = '';
 // If non-null, an offer to deliver to the server during the poll
 // call.
 let offerToSend = null;
+// If non-null, this is the uid for the offer that the server
+// currently knows about (and which we generated in this session).
+// 
+let offerUid = null;
 // Connection corresponding to the outstanding offer.
 let listenConnection = null;
 let sendChannel = null;
+// XXX we progress from makingOffer to waitingForOfferUid, so this
+// is better as a state enum. Should encapsulate this. It would also
+// allow us to have more than one outstanding offer, like connections
+// made via peers.
 let makingOffer = false;
+let waitingForOfferUid = false;
 
-// Asynchronously create an offer; initializes offerToSend and
-// listenConnection upon success.
-//
-// TODO: Although it does seem to manage connectivity, this should
-// also wait for all the ice candidates to arrive before posting
-// the offer.
+// Asynchronously create an offer. Waits for all the ice candidates to
+// be gathered, then initializes offerToSend and listenConnection upon
+// success.
 function makeOffer() {
   if (makingOffer) return;
-
+  if (waitingForOfferUid) return;
+  
   makingOffer = true;
   listenConnection = null;
   let lc = new RTCPeerConnection(RTCPEER_ARGS);
@@ -710,6 +724,7 @@ function doPoll() {
     params['offer'] = offerToSend;
     // Consume it.
     offerToSend = null;
+    waitingForOfferUid = true;
   }
 
   // Don't spam the server: Only retry polling once the promise completes.
@@ -727,6 +742,7 @@ function doPoll() {
       catch(e => {
 	console.log('XXX poll error.');
 	console.log(e);
+	waitingForOfferUid = false;
 	// XXX restart polling? regen offer?
 	// Perhaps increase timeout..?
 	periodicallyPoll.reset();
@@ -735,8 +751,8 @@ function doPoll() {
 
 function processPollResponse(json) {
   // Process answers first (before creating a new offer).
-  // The first one to answer gets to take on the listeningConnection
-  // as its connection.
+  // The first one to answer (with the right offer uid) gets to take
+  // on the listeningConnection as its connection.
   let answers = json['answers'];
   for (let answer of answers) {
     let puid = answer['uid'];
@@ -744,6 +760,16 @@ function processPollResponse(json) {
 
     // First, an answer from anyone resets their awol time.
     markPlayerSeen(puid, window.performance.now());
+
+    // If the offer uid is wrong (stale or race condition), don't
+    // accept the answer.
+    if (!offerUid || answer['ouid'] != offerUid) {
+      // Reset the peer.
+      console.log(puid + ' sent wrong offeruid: got ' + answer['ouid'] +
+		  ' have ' + offerUid);
+      delete peers[puid];
+      continue;
+    }
     
     let peer = getPeerByUid(puid);
     if (peer == null) {
@@ -815,7 +841,18 @@ function processPollResponse(json) {
 
   // If the server knows of no offer, kick off creation of
   // a new one.
-  if (!json['haveoffer']) makeOffer();
+  if (json['ouid']) {
+    // Server sends back the offer uid that it has. It could
+    // be a stale one (if rejoining), but if we just sent one on
+    // this request, then we want that.
+    if (waitingForOfferUid) {
+      offerUid = json['ouid'];
+      waitingForOfferUid = false;
+    }
+  } else {
+    // If the server has no active offer, create a new one.
+    makeOffer();
+  }
 }
 
 function doJoin() {
@@ -880,33 +917,57 @@ function updateUI() {
   let uelt = document.getElementById('uid');
   uelt.innerHTML = myUid == '' ? '(not yet assigned)' : myUid;
 
+  updateListenUI();
   updatePeersUI();
   updateMatrixUI();
 }
-  
+
+function updateListenUI() {
+  let elt = document.getElementById('listen');
+  elt.innerHTML = '';
+  if (makingOffer) {
+    TEXT('(making offer)', DIV('', elt));
+  }
+  TEXT('Offer uid: ' +
+       (waitingForOfferUid ? '(waiting)' : '') + ' ' + 
+       (offerUid || ''), DIV('', elt));
+  TEXT((offerToSend ? '(offer to send)' : '(no offer to send)'),
+       DIV('', elt));
+  if (listenConnection) {
+    for (k of ['signalingState', 'connectionState', 'iceConnectionState',
+	       'iceGatheringState']) {
+      TEXT(k + ' = ' + listenConnection[k], DIV('', elt));
+    }
+  }
+}
+
 function updatePeersUI() {
   let elt = document.getElementById('peers');
   elt.innerHTML = '';
 
   let table = TABLE('peers', elt);
   let hdr = TR('', table);
-  TEXT('uid', TD('', hdr));
-  TEXT('type', TD('', hdr));
-  TEXT('conn state', TD('', hdr));
-  TEXT('ice state', TD('', hdr));
-  TEXT('ice gathering state', TD('', hdr));
-  TEXT('channel', TD('', hdr));
-  TEXT('rtt', TD('', hdr));
+  let cols = ['uid', 'type',
+	      'conn state', 'ice state', 'ice g state',
+	      'channel', 'rtt',
+	      'nick'];
+  for (c of cols)
+    TEXT(c, TD('', hdr));
+
   for (let k in players) {
     let player = players[k];
     let tr = TR('', table);
 
     let peer = peers[k];
-    TEXT(player.puid, TD(peer ? 'peeruid' : 'nopeeruid', tr));    
+    let peerclass =
+	peer ? 'peeruid' :
+	(player.playerType === PlayerType.BLACKLISTED) ?
+	'blacklistuid' :
+	'nopeeruid';
+    TEXT(player.puid, TD(peerclass, tr));    
     
     if (peer) {
-      let s = peer.peerType + ' = ' +
-	  ((peer.peerType === PeerType.I_CALL) ? 'I call' : 'They call');
+      let s =((peer.peerType === PeerType.I_CALL) ? 'I call' : 'They call');
       TEXT(s, TD('', tr));
       TEXT((peer.connection ? peer.connection.connectionState : 'null'),
 	   TD('', tr));
@@ -917,8 +978,9 @@ function updatePeersUI() {
       TEXT((peer.channel ? peer.channel.readyState : 'null'),
 	   TD('', tr));
       TEXT('' + peer.lastPing.toFixed(1) + ' ms', TD('', tr));
+      TEXT('"' + player.nick + '"', TD('', tr));
     } else {
-      TD('', tr).colSpan = 6;
+      TD('', tr).colSpan = cols.length - 1;
     }
   }
 }
@@ -937,9 +999,13 @@ function updateMatrixUI() {
 
   let now = window.performance.now();
   for (let src in players) {
+    let p = players[src];
+    // No rows for blacklisted players -- we don't store their data.
+    if (p.playerType === PlayerType.BLACKLISTED)
+      continue;
     let tr = TR('', mtx);
     TEXT(src, TD('', tr));
-    let p = players[src];
+
     for (let dst in players) {
       let ct = p.connectivityTo[dst];
       let cell = TD('cell', tr);
