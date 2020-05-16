@@ -7,7 +7,9 @@
 #include "interval-cover.h"
 #include "base/stringprintf.h"
 
-static constexpr int RENDER_THREADS = 6;
+// XXX compute this or get from config
+static constexpr int RENDER_THREADS = 15;
+
 // PERF: Tune this number!
 static constexpr int MAX_RENDER_CHUNK = 32768;
 static constexpr int AUDIOBUFFER = 1024;

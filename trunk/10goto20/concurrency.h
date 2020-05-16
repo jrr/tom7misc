@@ -1,9 +1,7 @@
 // Local libraries and wrappers for programming with mutexes (etc.)
 // in 10goto20.
 //
-// TODO: Consider std::thread and std::mutex instead. Ideally, we
-// should use SDL threads only in this file, so that we can port
-// to c++11 later if it's working.
+// TODO: Use std::thread, std::mutex, cc-lib's threadutil instead.
 //
 // TODO: Wrapper for thread spawning.
 

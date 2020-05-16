@@ -37,11 +37,12 @@ static constexpr Uint32 BLUE = RGBA(0x0, 0x0, 0xFF, 0xFF);
 static constexpr Uint32 BACKGROUND = RGBA(0x00, 0x20, 0x00, 0xFF);
 
 static SampleLayer *layer;
-// XXX wither?
+// XXX whither?
 static SDL_Surface *screen;
 
 int main(int argc, char **argv) {
 
+  // DrMinGW is some crash detector?
   if (Util::ExistsFile("exchndl.dll")) {
     fprintf(stderr, "Found exchndl.dll; loading it...\n");
     // extern void LoadLibrary(const char *);
@@ -106,9 +107,7 @@ int main(int argc, char **argv) {
     const int64 screen_width = STARTW;
     const int64 song_end = AudioEngine::GetEnd();
     const double px_per_sample = (double)screen_width / (double)song_end;
-    auto p = AudioEngine::GetSpans();
-    const auto &sample_lock = p.first;
-    const auto &sample_rev = p.second;
+    const auto &[sample_lock, sample_rev] = AudioEngine::GetSpans();
 
     // Draw locks.
     for (int64 pos = 0LL; pos < song_end; pos = sample_lock.Next(pos)) {
