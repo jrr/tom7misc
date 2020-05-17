@@ -10,6 +10,9 @@
 ;; sitelisp needs to be in the load path because this file loads
 ;; other scripts.
 
+;; pro-tip!
+;; Put some examples you want to match in the buffer, then use
+;; M-x re-builder to work on your regex string. NICE
 
 ;; I prevent Fundamental mode from having font-lock turned on, so that I
 ;; can set text properties in the message window.
@@ -733,6 +736,33 @@
              (set-face-foreground (quote font-lock-warning-face)
                                   "red")
              ))
+
+
+;; Try to highlight
+;;   for (k in obj)
+;; as needing let/var/const.
+;; A simpler regex-based approach (absent negative lookahed, which is not
+;; supported in emacs):
+;;   "\\(for *([^lvc][^;)]*\\<\\(?:of\\|in\\)\\>[^;)]*)\\)"
+;; but this has false positives on stuff like
+;;   for (l in obj)
+(defun match-js-bad-for (limit)
+  (and
+   (re-search-forward "for *(\\([a-zA-Z_]+\\)[^;)]*\\<\\(?:of\\|in\\)\\>[^;)]*)" limit t)
+   ;; v is the "variable" or keyword like let/const/var.
+   ;; (buffer-substring-no-properties (match-beginning 1) (match-end 1))
+   (let ((v (match-string-no-properties 1)))
+     (progn
+       (and (not (equal v "let"))
+	    (not (equal v "const"))
+	    (not (equal v "var")))))))
+
+(add-hook 'js-mode-hook
+	  '(lambda ()
+	     (font-lock-add-keywords
+	      nil
+	      '((match-js-bad-for 1 font-lock-warning-face t)))
+	     (set-face-foreground (quote font-lock-warning-face) "red")))
 
 ;;;;;;;;; fix outline mode levels
 
