@@ -62,12 +62,16 @@ struct Database final {
 private:
   // Write the batch to the database now (if possible). Must hold lock.
   void Write();
-  // Implements write thread.
-  void WriteThread();
+  // Mark this device as recently alive in the database.
+  void UpdateLastSeen();
+  
+  // Runs in the background and does periodic tasks, like Write.
+  void PeriodicThread();
 
   bool should_die = false;
   vector<tuple<int64_t, int, uint32_t>> batch;
-  std::thread write_thread;
+  std::thread periodic_thread;
+  string mac_key, ipaddress;
   bool Connect();
 };
   

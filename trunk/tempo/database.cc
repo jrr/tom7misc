@@ -10,6 +10,10 @@
 #include "base/stringprintf.h"
 #include "util.h"
 #include "threadutil.h"
+#include "pi/netutil.h"
+
+#include <mysql++.h>
+#include <dbdriver.h>
 
 using namespace std;
 using uint8 = uint8_t;
@@ -19,6 +23,12 @@ using uint64 = uint64_t;
 using int64 = int64_t;
 
 static constexpr int SECONDS_BETWEEN_WRITES = 20;
+static constexpr int SECONDS_BETWEEN_UPDATE_SEENS = 61;
+
+static string Escape(string s) {
+  mysqlpp::DBDriver::escape_string_no_conn(&s, nullptr, 0);
+  return s;
+}
 
 // TODO: It's possible that this program is using mysql++ incorrectly
 // despite the coarse locking. See advice from the documentation:
@@ -33,7 +43,43 @@ Database::Database() {
   failed = WebServer::GetCounter("failed queries");
 
   config = Util::ReadFileToMap(configfile);
-  CHECK(Connect());
+
+  {
+    const auto iface = NetUtil::BestGuessIPWithMAC();
+    CHECK(iface.has_value()) << "Unable to determine IP / MAC address!";
+    // Used as the primary key in the device table.
+    const auto [ip, mac] = *iface;
+
+    {
+      const auto [a, b, c, d] = ip;
+      ipaddress = StringPrintf("%d.%d.%d.%d", a, b, c, d);
+    }
+
+    {
+      const auto [a, b, c, d, e, f] = mac;
+      // The key is human readable as a compromise for usability, but
+      // since it's used as the primary key we drop the colons.
+      mac_key = StringPrintf("%02x%02x%02x" "%02x%02x%02x",
+			     a, b, c,  d, e, f);
+    }
+  }
+
+  CHECK(Connect());  
+
+  // Might make sense to do this when we reconnect too, but then we'd
+  // at least want to recalculate our IP address.
+  {
+    const int64 now = time(nullptr);
+    string qs = StringPrintf(
+	"replace into device (mac, lastseen, ipaddress, location) "
+	"values (\"%s\", %llu, \"%s\", \"%s\")",
+	mac_key.c_str(),
+	now,
+	ipaddress.c_str(),
+	Escape(config["location"]).c_str());
+    Query q = conn.query(qs);
+    CHECK(q.exec()) << "Couldn't register device in database?\n" << qs;
+  }
   
   // Just read all the probes into a local map.
   Query q = conn.query(
@@ -52,8 +98,8 @@ Database::Database() {
   }
   WebServer::GetCounter("probes in db")->IncrementBy((int64)probes.size());
 
-  write_thread = std::thread([this](){
-      this->WriteThread();
+  periodic_thread = std::thread([this](){
+      this->PeriodicThread();
     });
 }
 
@@ -63,10 +109,11 @@ Database::~Database() {
     should_die = true;
   }
 
-  write_thread.join();
+  periodic_thread.join();
   // XXX close database connection cleanly
 }
 
+// XXX We can probably manage this ourselves in PeriodicThread?
 void Database::Ping() {
   MutexLock ml(&database_m);
   bool ok = conn.ping();
@@ -91,6 +138,7 @@ bool Database::Connect() {
   CHECK(!server.empty()) << "Specify in " << configfile;
   CHECK(!user.empty()) << "Specify in " << configfile;
   CHECK(!user.empty()) << "Specify in " << configfile;
+
   return conn.connect(database_name.c_str(),
 		      server.c_str(),
 		      user.c_str(),
@@ -119,17 +167,77 @@ string Database::WriteTemp(const string &code, int microdegs_c) {
   return it->second.name;
 }
 
-void Database::WriteThread() {
+namespace {
+struct Periodically {
+  Periodically(int seconds) : seconds(seconds) {
+    next_run = time(nullptr);
+  }
+
+  // Return true if 'seconds' has elapsed since the last run.
+  // If this function returns true, we assume the caller does
+  // the associated action now (and so move the next run time
+  // forward).
+  bool ShouldRun() {
+    if (paused) return false;
+    const int64 now = time(nullptr);
+    if (now >= next_run) {
+      next_run = now + seconds;
+      return true;
+    }
+    return false;
+  }
+
+  void Pause() {
+    paused = true;
+  }
+
+  void Reset() {
+    paused = false;
+    next_run = time(nullptr) + seconds;
+  }
+
+private:
+  int seconds = 0;
+  int64_t next_run = 0LL;
+  bool paused = false;
+};
+}  // namespace
+
+void Database::PeriodicThread() {
+  // This doesn't need to run very often, so we just wake up
+  // approximately every second and see if there's anything to do.
+  // Wouldn't be too hard to support ms-level events here, though.
+  Periodically write_p(SECONDS_BETWEEN_WRITES);
+  Periodically update_seen_p(SECONDS_BETWEEN_UPDATE_SEENS);
   for (;;) {
     // n.b. can wake early on signal, which is fine...
-    sleep(SECONDS_BETWEEN_WRITES);
+    sleep(1);
 
     {
       MutexLock ml(&database_m);
-      Write();
+      if (write_p.ShouldRun()) {
+	Write();
+      }
+
+      if (update_seen_p.ShouldRun()) {
+	UpdateLastSeen();
+      }
+
       if (should_die) return;
     }
   }
+}
+
+void Database::UpdateLastSeen() {
+  int64 now = time(nullptr);
+  string qs =
+    StringPrintf("update tempo.device "
+		 "set lastseen = %llu "
+		 "where mac = \"%s\"",
+		 now, mac_key.c_str());
+  Query q = conn.query(qs);
+  if (!q.exec())
+    failed->Increment();
 }
 
 void Database::Write() {
@@ -150,7 +258,7 @@ void Database::Write() {
     first = false;
   }
 
-  Query q = conn.query(qs.c_str());
+  Query q = conn.query(qs);
   if (q.exec()) {
     written->IncrementBy(batch.size());
     batches->Increment();
@@ -179,7 +287,7 @@ Database::AllTempsIn(int64 time_start, int64 time_end) {
 			     probe.id,
 			     time_start,
 			     time_end);
-    Query q = conn.query(qs.c_str());
+    Query q = conn.query(qs);
     StoreQueryResult res = q.store();
     if (!res) {
       failed->Increment();
@@ -212,7 +320,7 @@ vector<pair<Database::Probe, pair<int64_t, uint32_t>>> Database::LastTemp() {
 			     "limit 1",
 			     probe.id);
     // printf("%s\n", qs.c_str());
-    Query q = conn.query(qs.c_str());
+    Query q = conn.query(qs);
     StoreQueryResult res = q.store();
     if (!res || res.num_rows() != 1) {
       failed->Increment();
