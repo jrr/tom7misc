@@ -4,6 +4,7 @@
 #include <string>
 #include <map>
 #include <cstdint>
+#include <unistd.h>
 
 #include "base/logging.h"
 #include "base/stringprintf.h"
@@ -17,6 +18,8 @@ using uint32 = uint32_t;
 using uint64 = uint64_t;
 using int64 = int64_t;
 
+static constexpr int SECONDS_BETWEEN_WRITES = 20;
+
 // TODO: It's possible that this program is using mysql++ incorrectly
 // despite the coarse locking. See advice from the documentation:
 //   https://tangentsoft.com/mysqlpp/doc/html/userman/threads.html
@@ -26,6 +29,7 @@ using int64 = int64_t;
 
 Database::Database() {
   written = WebServer::GetCounter("temps written");
+  batches = WebServer::GetCounter("temp batches written");
   failed = WebServer::GetCounter("failed queries");
 
   config = Util::ReadFileToMap(configfile);
@@ -47,6 +51,20 @@ Database::Database() {
     printf("%d. %s: %s (%s)\n", id, code, name, desc);
   }
   WebServer::GetCounter("probes in db")->IncrementBy((int64)probes.size());
+
+  write_thread = std::thread([this](){
+      this->WriteThread();
+    });
+}
+
+Database::~Database() {
+  {
+    MutexLock ml(&database_m);
+    should_die = true;
+  }
+
+  write_thread.join();
+  // XXX close database connection cleanly
 }
 
 void Database::Ping() {
@@ -94,18 +112,52 @@ string Database::WriteTemp(const string &code, int microdegs_c) {
   }
 
   const int id = it->second.id;
-  uint64 now = time(nullptr);
-  string qs = StringPrintf("insert into tempo.reading "
-			   "(timestamp, probeid, microdegsc) "
-			   "values (%llu, %d, %d)",
-			   now, id, microdegs_c);
+  const uint64 now = time(nullptr);
+
+  batch.emplace_back(now, id, microdegs_c);
+  
+  return it->second.name;
+}
+
+void Database::WriteThread() {
+  for (;;) {
+    // n.b. can wake early on signal, which is fine...
+    sleep(SECONDS_BETWEEN_WRITES);
+
+    {
+      MutexLock ml(&database_m);
+      Write();
+      if (should_die) return;
+    }
+  }
+}
+
+void Database::Write() {
+  if (batch.empty()) return;
+
+  // TODO: If we are disconnected for a very long time, we should
+  // probably clear the batch in smaller chunks? Or just enforce
+  // a maximum size for it with some ring buffer etc.?
+  
+  string qs = "insert into tempo.reading "
+    "(timestamp, probeid, microdegsc) "
+    "values ";
+
+  bool first = true;
+  for (const auto [t, id, microdegs_c] : batch) {
+    if (!first) qs.push_back(',');
+    StringAppendF(&qs, " row(%llu, %d, %d)", t, id, microdegs_c);
+    first = false;
+  }
+
   Query q = conn.query(qs.c_str());
   if (q.exec()) {
-    written->Increment();
+    written->IncrementBy(batch.size());
+    batches->Increment();
+    batch.clear();
   } else {
     failed->Increment();
   }
-  return it->second.name;
 }
 
 std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>>
