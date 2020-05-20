@@ -1,6 +1,13 @@
 
 use tempo;
 
+create table device (
+       id int primary key auto_increment not null,
+       lastseen int not null,
+       ipaddress varchar(255) not null,
+       description text not null
+);
+
 create table probe (
        id int primary key auto_increment not null,
        code varchar(255) not null,
