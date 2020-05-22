@@ -38,8 +38,8 @@ static string Escape(string s) {
 // thread-per-request approach that WebServer takes, ugh).
 
 Database::Database() {
-  written = WebServer::GetCounter("temps written");
-  batches = WebServer::GetCounter("temp batches written");
+  written = WebServer::GetCounter("readings written");
+  batches = WebServer::GetCounter("batches written");
   failed = WebServer::GetCounter("failed queries");
 
   config = Util::ReadFileToMap(configfile);
@@ -83,15 +83,19 @@ Database::Database() {
   
   // Just read all the probes into a local map.
   Query q = conn.query(
-      "select id, code, name, description from probe order by id");
+      "select id, type, code, name, description from probe order by id");
   StoreQueryResult res = q.store();
   CHECK(res) << "Probe setup query failed";
   for (size_t i = 0; i < res.num_rows(); i++) {
     const int id = res[i]["id"];
+    const int type = res[i]["type"];
+    CHECK(type == TEMPERATURE ||
+	  type == HUMIDITY) << "Unsupported probe type " << type;
     const char *code = res[i]["code"];
     const char *name = res[i]["name"];
     const char *desc = res[i]["description"];
     probes[code].id = id;
+    probes[code].type = (ProbeType)type;
     probes[code].name = name;
     probes[code].desc = desc;
     printf("%d. %s: %s (%s)\n", id, code, name, desc);
@@ -151,7 +155,7 @@ const Database::Probe *Database::GetProbe(const string &code) {
   return &it->second;
 }
 
-string Database::WriteTemp(const string &code, int microdegs_c) {
+string Database::WriteValue(const string &code, int microdegs_c) {
   MutexLock ml(&database_m);
   auto it = probes.find(code);
   if (it == probes.end()) {
@@ -248,7 +252,7 @@ void Database::Write() {
   // a maximum size for it with some ring buffer etc.?
   
   string qs = "insert into tempo.reading "
-    "(timestamp, probeid, microdegsc) "
+    "(timestamp, probeid, value) "
     "values ";
 
   bool first = true;
@@ -269,7 +273,7 @@ void Database::Write() {
 }
 
 std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>>
-Database::AllTempsIn(int64 time_start, int64 time_end) {
+Database::AllReadingsIn(int64 time_start, int64 time_end) {
   // This can be done as one query of course, but we can make
   // smaller queries by performing a separate one for each probe.
   // (Not obvious which way is better?)
@@ -278,7 +282,7 @@ Database::AllTempsIn(int64 time_start, int64 time_end) {
     const Probe &probe = p.second;
     MutexLock ml(&database_m);
 
-    string qs = StringPrintf("select timestamp, microdegsc "
+    string qs = StringPrintf("select timestamp, value "
 			     "from tempo.reading "
 			     "where probeid = %d "
 			     "and timestamp >= %lld "
@@ -298,7 +302,7 @@ Database::AllTempsIn(int64 time_start, int64 time_end) {
     vec.reserve(res.num_rows());
     for (size_t i = 0; i < res.num_rows(); i++) {
       const int64 id = res[i]["timestamp"];
-      const uint32 microdegsc = res[i]["microdegsc"];
+      const uint32 microdegsc = res[i]["value"];
       vec.emplace_back(id, microdegsc);
     }
     out.emplace_back(probe, std::move(vec));
@@ -307,13 +311,14 @@ Database::AllTempsIn(int64 time_start, int64 time_end) {
   return out;
 }
 
-vector<pair<Database::Probe, pair<int64_t, uint32_t>>> Database::LastTemp() {
+vector<pair<Database::Probe, pair<int64_t, uint32_t>>>
+Database::LastReading() {
   vector<pair<Database::Probe, pair<int64_t, uint32_t>>> out;
   for (const auto &p : probes) {
     const Probe &probe = p.second;
     MutexLock ml(&database_m);
 
-    string qs = StringPrintf("select timestamp, microdegsc "
+    string qs = StringPrintf("select timestamp, value "
 			     "from tempo.reading "
 			     "where probeid = %d "
 			     "order by timestamp desc "
@@ -328,7 +333,7 @@ vector<pair<Database::Probe, pair<int64_t, uint32_t>>> Database::LastTemp() {
     }
 
     const int64 id = res[0]["timestamp"];
-    const uint32 microdegsc = res[0]["microdegsc"];
+    const uint32 microdegsc = res[0]["value"];
     out.emplace_back(probe, make_pair(id, microdegsc));
   }
 

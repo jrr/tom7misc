@@ -15,11 +15,22 @@ struct AM2315 {
   // address and we only support i2c bus 1.
   static void Initialize();
 
+  // Device info.
+  struct Info {
+    uint16_t model = 0;
+    uint8_t version = 0;
+    // Endianness is not clear from docs. This is register
+    // bytes 0x0B,0x0C,0x0D,0x0E treated as a big-endian 32-bit word.
+    uint32_t id = 0;
+  };
+  
   // XXX?
   // In degrees C.
   static bool ReadTemp(float *temp, const char **err = nullptr);
   // In % RH.
   static bool ReadRH(float *rh, const char **err = nullptr);  
+
+  static bool ReadInfo(Info *info, const char **err);
 };
 
 #endif

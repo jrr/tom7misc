@@ -12,12 +12,13 @@ create table probe (
        id int primary key auto_increment not null,
        code varchar(255) not null,
        name varchar(255) not null,
-       description text not null
+       description text not null,
+       type int not null,
 );
 
 create table reading (
        id int primary key auto_increment not null,
        timestamp bigint unsigned not null,
        probeid int not null,
-       microdegsc mediumint not null
+       value mediumint not null
 );

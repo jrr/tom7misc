@@ -17,8 +17,17 @@ struct Database final {
   using Query = mysqlpp::Query;
   using StoreQueryResult = mysqlpp::StoreQueryResult;
 
+  // All probes store integer data but we interpret/display
+  // it differently depending on the type.
+  enum ProbeType {
+    INVALID = 0,
+    TEMPERATURE = 1,
+    HUMIDITY = 2,
+  };
+  
   struct Probe {
     int id = 0;
+    ProbeType type = INVALID;
     string name;
     string desc;
     Probe() {}
@@ -41,23 +50,26 @@ struct Database final {
   
   // Ping the server, and try to reconnect if it fails.
   // Should just call this periodically (every few minutes).
+  // TODO: Do this from the periodicthread instead.
   void Ping();
   
   // Returns a pointer to the probe or nullptr if not found.
   // (Note that the pointer can be invalidated by map operations.)
   const Probe *GetProbe(const string &code);
   
-  // code should be like "28-000009ffbb20"
+  // code should be like "28-000009ffbb20" for onewire.
   // Returns the probe's name.
-  // Batches temperatures to reduce database writes.
-  string WriteTemp(const string &code, int microdegs_c);
+  // For temperature readings, integer value is in microdegrees Celsius.
+  // For humidity readings, ....TODO
+  // Values are batched up to reduce database writes.
+  string WriteValue(const string &code, int microdegs_c);
 
-  // Get all the temperatures (collated by probe) in the given interval.
+  // Get all the readings (collated by probe) in the given interval.
   vector<pair<Probe, vector<pair<int64_t, uint32_t>>>>
-  AllTempsIn(int64_t time_start, int64_t time_end);
+  AllReadingsIn(int64_t time_start, int64_t time_end);
 
-  // Get all the temperatures (collated by probe) in the given interval.
-  vector<pair<Probe, pair<int64_t, uint32_t>>> LastTemp();
+  // Get all the readings (collated by probe) in the given interval.
+  vector<pair<Probe, pair<int64_t, uint32_t>>> LastReading();
 
 private:
   // Write the batch to the database now (if possible). Must hold lock.

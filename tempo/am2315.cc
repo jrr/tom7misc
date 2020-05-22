@@ -15,6 +15,7 @@ using uint16 = uint16_t;
 static constexpr uint8 CMD_READREG = 0x03;
 static constexpr uint8 REG_TEMP = 0x02;
 static constexpr uint8 REG_HUM = 0x00;
+static constexpr uint8 REG_INFO_START = 0x08;
 
 // This thing seems to be fairly flakey.
 // Some experiments reading every 500ms (alternating temp/hum):
@@ -62,19 +63,20 @@ static bool WriteVec(const std::vector<uint8> &msg) {
     bcm2835_i2c_write((const char *)&msg[0], msg.size());
 }
 
-static bool ReadReg(uint8 reg, uint16 *result, const char **err = nullptr) {
+static bool ReadReg(uint8 reg, uint8 *ret_buf,
+		    uint8 length, const char **err = nullptr) {
   const char *err_unused;
   if (err == nullptr) err = &err_unused;
   
-  // This is loosely based on the CircuitPython code.
-  static constexpr uint8 LENGTH = 0x02;
-
   // "wake up sensor".
   // CircuitPython code does one write and a wait of 10ms here,
   // but I found that the first wakeup often fails. Doing it twice
   // but ignoring the first failure yields a pretty reliable result,
   // even when polling at 10-20hz. (Note that readings are only updated
   // every ~2 seconds, so there's not much point to polling fast!)
+  //
+  // Note that the docs say "wait at least 800us, the largest 3ms",
+  // so we may be waiting too long?
   (void)WriteVec({0x00});
   usleep(10000);
   if (!WriteVec({0x00})) {
@@ -83,61 +85,85 @@ static bool ReadReg(uint8 reg, uint16 *result, const char **err = nullptr) {
   }
   usleep(10000); // 10ms
 
+  vector<uint8> buf(2 + length + 2);
+  
   // read register
-  if (!WriteVec({CMD_READREG, reg, LENGTH})) {
+  if (!WriteVec({CMD_READREG, reg, length})) {
     *err = "readreg command write";
     return false;
   }
+  // Docs say wait at least 1.5ms.
   usleep(2000); // 2ms
 
-  uint8 response[2 + 4];
   if (BCM2835_I2C_REASON_OK !=
-      bcm2835_i2c_read((char *)&response, 6)) {
+      bcm2835_i2c_read((char *)buf.data(), buf.size())) {
     *err = "read failed";
     return false;
   }
 
-  if (response[0] != 0x03 || response[1] != LENGTH) {
+  if (buf[0] != 0x03 || buf[1] != length) {
     *err = "read header was wrong";
     return false;
   }
 
   // In python code, unpack of "<H" means little-endian 16 bit (Half-word),
-  // and ">H" means big-endian. Note the CRC and payload use different
-  // byte orders.
-  const uint16 crc = (response[5] << 8) | response[4];
-  const uint16 payload = (response[2] << 8) | response[3];
+  // and ">H" means big-endian. Note the CRC and temp/hum payloads use
+  // different byte orders.
+  const uint16 crc = (buf[buf.size() -1] << 8) | buf[buf.size() - 2];
 
   // Not including CRC itself, of course...
-  const uint16 computed_crc = CRC16(&response[0], 4);
+  const uint16 computed_crc = CRC16(buf.data(), length + 2);
 
   if (crc != computed_crc) {
     *err = "wrong crc";
     return false;
   }
 
-  *result = payload;
+  for (int i = 0; i < length; i++)
+    ret_buf[i] = buf[i + 2];
+  
   return true;
 }
   
 bool AM2315::ReadTemp(float *temp, const char **err) {
-  uint16 result = 0;
-  if (!ReadReg(REG_TEMP, &result, err))
+  uint8 result_buf[2];
+  if (!ReadReg(REG_TEMP, &result_buf[0], 2, err))
     return false;
-
-  // XXX literal port from python. just replace this with int16??
-  float t = result;
-  if (t >= 32768.0f) t = 32768.0f - t;
-  *temp = t * 0.1f;
+  uint16 result = (result_buf[0] << 8) | result_buf[1];
+  
+  // XXX literal port from python.
+  // it is probably wrong because 0 has two representations?
+  // just replace this with int16??
+  if (result >= 32768) {
+    int t = (32768 - (int)result);
+    *temp = t * 0.1f;
+  } else {
+    *temp = result * 0.1f;
+  }
   return true;
 }
 
 
 bool AM2315::ReadRH(float *rh, const char **err) {
-  uint16 result = 0;
-  if (!ReadReg(REG_HUM, &result, err))
+  uint8 result_buf[2];
+  if (!ReadReg(REG_HUM, &result_buf[0], 2, err))
     return false;
-
+  uint16 result = (result_buf[0] << 8) | result_buf[1];
+  
   *rh = ((float)result) * 0.1f;
+  return true;
+}
+
+bool AM2315::ReadInfo(Info *info, const char **err) {
+  uint8 result_buf[7];
+  if (!ReadReg(REG_INFO_START, &result_buf[0], 7, err))
+    return false;
+  info->model = (result_buf[0] << 8) | result_buf[1];
+  info->version = result_buf[2];
+  info->id =
+    (result_buf[3] << 24) |
+    (result_buf[4] << 16) |
+    (result_buf[5] << 8) |
+    result_buf[6];
   return true;
 }
