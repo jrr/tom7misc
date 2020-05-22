@@ -8,6 +8,7 @@
 #include <mutex>
 #include <chrono>
 #include <cmath>
+#include <unistd.h>
 
 #include <mysql++.h>
 
@@ -17,10 +18,12 @@
 #include "../cc-lib/web.h"
 #include "../cc-lib/threadutil.h"
 #include "../cc-lib/image.h"
+#include "../cc-lib/pi/bcm2835.h"
 
 #include "onewire.h"
 #include "database.h"
-
+#include "am2315.h"
+#include "periodically.h"
 
 using namespace std;
 using uint8 = uint8_t;
@@ -55,7 +58,7 @@ struct Server {
     CHECK(server);
     favicon = Util::ReadFile("favicon.png");
     diagram_svg = Util::ReadFile("diagram.svg");
-    
+
     server->AddHandler("/stats", server->GetStatsHandler());
     server->AddHandler("/favicon.ico",
 		       [this](const WebServer::Request &request) {
@@ -75,7 +78,7 @@ struct Server {
 		       [this](const WebServer::Request &req) {
 			 return Graph(req);
 		       });
-    
+
     // Fallback handler.
     // TODO: Make a good default home-page here?
     server->AddHandler("/",
@@ -110,10 +113,10 @@ struct Server {
 			(uint8)(g * 255.0f),
 			(uint8)(b * 255.0f));
   }
-  
+
   WebServer::Response Diagram(const WebServer::Request &request) {
     // TODO: Need to distinguish temperature and humidity type probes.
-    
+
     vector<pair<Database::Probe, pair<int64, uint32>>> temps =
       db->LastReading();
     WebServer::Response r;
@@ -124,7 +127,7 @@ struct Server {
       "<style>\n";
 
     string substituted_svg = diagram_svg;
-    
+
     for (const auto &[probe, cur] : temps) {
       float celsius = (float)cur.second / 1000.0f;
       float fahrenheit = celsius * (9.0f / 5.0f) + 32.0f;
@@ -138,7 +141,7 @@ struct Server {
 		      StringPrintf("[[%s]]", probe.name.c_str()),
 		      StringPrintf("%.1f&deg;", fahrenheit));
     }
-		   
+
     r.body += "</style>\n";
 
     StringAppendF(&r.body, "Diagram:<p>\n");
@@ -149,7 +152,7 @@ struct Server {
 
   WebServer::Response Graph(const WebServer::Request &request) {
     // TODO: Need to distinguish temperature and humidity type probes.
-    
+
     // TODO: Make these settable by url params!
     int64 time_end = time(nullptr);
     int64 time_start = time_end - 3600;
@@ -162,7 +165,7 @@ struct Server {
     double min_temp =   0000.0;
     double max_temp = 100000.0;
     const double temp_width = max_temp - min_temp;
-    
+
 
     // XXX todo timing info
     auto db_start = std::chrono::steady_clock::now();
@@ -185,7 +188,7 @@ struct Server {
       string label = StringPrintf("%d F", degs);
       graph.BlendText32(3, y + 2, 0x777777FF, label);
     }
-    
+
 
     // Draw key. Would be nice if these were somehow labeling the
     // lines themselves, but it's a tricky layout problem!
@@ -220,7 +223,7 @@ struct Server {
 			     max_x + 12 + (label_end.size() - i) * 12);
       }
     }
-    
+
     const int64 time_width = time_end - time_start;
     CHECK(corners.size() == temps.size());
     for (int i = 0; i < (int)temps.size(); i++) {
@@ -233,7 +236,7 @@ struct Server {
       // on the temperature line.
       int cx = -1, cy = -1;
       int best_dist = width * 2;
-      
+
       int prev_x = -1, prev_y = -1;
       for (const auto &[timestamp, microdegsc] : values) {
 	double fx = (timestamp - time_start) / (double)time_width;
@@ -247,18 +250,18 @@ struct Server {
 	  cy = y;
 	  best_dist = target_dist;
 	}
-	
+
 	// If points are too close, it looks terrible. Just skip
 	// the point.
 	if (prev_x > 0.0f && x - prev_x < 1.0f)
 	  continue;
-	
+
 	if (prev_x >= 0.0f)
 	  graph.BlendLine32(prev_x, prev_y, x, y, color);
 	prev_x = x;
 	prev_y = y;
 	// graph.BlendPixel32(x, y, color);
-	
+
 	/*
 	graph.BlendPixel32(x + 1, y, color & 0xFFFFFF7F);
 	graph.BlendPixel32(x - 1, y, color & 0xFFFFFF7F);
@@ -270,7 +273,7 @@ struct Server {
       // Now draw the corner indicator.
       uint32 lite_color = (color & 0xFFFFFF00) | 0x0000007F;
       graph.BlendLine32(lx, ly, cx, ly, lite_color);
-      graph.BlendLine32(cx, ly + 1, cx, cy, lite_color);      
+      graph.BlendLine32(cx, ly + 1, cx, cy, lite_color);
     }
 
     auto blit_end = std::chrono::steady_clock::now();
@@ -289,7 +292,7 @@ struct Server {
 	       blit_end - blit_start).count(),
 	   (int64)std::chrono::duration_cast<std::chrono::milliseconds>(
 	       png_end - png_start).count());
-    
+
     WebServer::Response r;
     r.code = 200;
     r.status = "OK";
@@ -297,9 +300,8 @@ struct Server {
     r.body = std::move(out);
     return r;
   }
-  
+
   WebServer::Response Table(const WebServer::Request &request) {
-    // TODO: Need to distinguish temperature and humidity type probes.
     vector<pair<Database::Probe, pair<int64, uint32>>> temps =
       db->LastReading();
     WebServer::Response r;
@@ -318,18 +320,38 @@ struct Server {
     StringAppendF(&r.body, "<table>\n");
     const int64 now = time(nullptr);
     for (const auto &[probe, cur] : temps) {
-      float celsius = (float)cur.second / 1000.0f;
-      float fahrenheit = celsius * (9.0f / 5.0f) + 32.0f;
+      string data_cols;
+      switch (probe.type) {
+      default:
+      case Database::INVALID:
+	data_cols = "<td>invalid</td><td>&nbsp;</td>";
+	break;
+      case Database::TEMPERATURE: {
+	float celsius = (float)cur.second / 1000.0f;
+	float fahrenheit = celsius * (9.0f / 5.0f) + 32.0f;
+	data_cols = StringPrintf("<td>%.2f &deg;C</td>"
+				 "<td>%.2f &deg;F</td>",
+				 celsius, fahrenheit);
+	break;
+      }
+      case Database::HUMIDITY: {
+	float rhf = (float)cur.second / 10000.0f;
+	data_cols = StringPrintf("<td>%.2f%% RH</d><td>&nbsp;</td>",
+				 rhf * 100.0f);
+	break;
+      }
+      }
+
       StringAppendF(&r.body,
 		    "<tr><td>%s</td><td>%s</td>"
-		    "<td>%lld</td><td>%lld sec. ago</td><td>%.2f &deg;C</td>"
-		    "<td>%.2f &deg;F</tr>\n",
+		    "<td>%lld</td><td>%lld sec. ago</td>"
+		    "%s"
+		    "</tr>\n",
 		    probe.name.c_str(),
 		    probe.desc.c_str(),
 		    cur.first,
 		    now - cur.first,
-		    celsius,
-		    fahrenheit);
+		    data_cols.c_str());
     }
     StringAppendF(&r.body, "</table>\n");
 
@@ -350,7 +372,7 @@ struct Server {
       db->Ping();
     }
   }
-  
+
   ~Server() {
     {
       MutexLock ml(&should_die_m);
@@ -373,16 +395,59 @@ struct Server {
 
 
 int main(int argc, char **argv) {
+  CHECK(bcm2835_init()) << "BCM Init failed!";
+
   Database db;
   Server server(&db);
 
   OneWire onewire;
-  WebServer::GetCounter("probes found")->
+  WebServer::GetCounter("onewire probes found")->
     IncrementBy((int64)onewire.probes.size());
-  
+
+  // One or zero of these. This is a dual-probe device, so
+  // we make a separate code for the temperature (_t) and humidity (_h)
+  // sensors.
+  AM2315::Initialize();
+  bool have_am2315 = false;
+  string am2315_temp_code, am2315_humidity_code;
+  {
+    AM2315::Info info;
+    const char *err = "(not set)";
+    if (AM2315::ReadInfo(&info, &err)) {
+      have_am2315 = true;
+
+      am2315_temp_code =
+	StringPrintf("%04x.%02x.%08x_t",
+		     info.model, info.version, info.id);
+      am2315_humidity_code =
+	StringPrintf("%04x.%02x.%08x_h",
+		     info.model, info.version, info.id);
+
+      printf("Found AM2315:\n"
+	     " temperature: %s\n"
+	     "    humidity: %s\n",
+	     am2315_temp_code.c_str(),
+	     am2315_humidity_code.c_str());
+    } else {
+      printf("Couldn't init AM2315; maybe there just isn't one:\n"
+	     "%s\n", err);
+    }
+  }
+
   int64 start = time(nullptr);
   int64 readings = 0LL;
+
+  // If the max update rate is close to exactly 0.5Hz, this may be
+  // a pessimal choice. With sub-second timing we could do better...
+  Periodically read_am2315_p(2);
   for (;;) {
+
+    // PERF: All the onewire probes share a bus that can be read
+    // at about 1Hz. So round-robin on these makes sense. But if
+    // we have both an AM2315 sensor and onewire sensors on the same
+    // device at some point, we may want to read the AM2315 more often
+    // (supposedly it can refresh at 0.5Hz).
+    
     for (auto &p : onewire.probes) {
       uint32 microdegs_c = 0;
       if (p.second.Temperature(&microdegs_c)) {
@@ -400,7 +465,50 @@ int main(int argc, char **argv) {
       }
     }
 
-    // TODO: Read AM2315 sensors if connected.
+    if (have_am2315 && read_am2315_p.ShouldRun()) {
+      // TODO PERF: Possible to read both temperature and humidity
+      // in one call.
+
+      const char *err = "(not set)";
+      float temp = 0.0f;
+      if (!AM2315::ReadTemp(&temp, &err)) {
+	printf("AM2315::ReadTemp failed: %s\n", err);
+	sleep(1);
+	continue;
+      }
+
+      if (temp < 0.0f) {
+	printf("TODO: Negative temperatures not yet supported!\n");
+	WebServer::GetCounter("negative temp")->Increment();
+      } else {
+	uint32_t microdegs_c = temp * 1000.0f;
+	string s = db.WriteValue(am2315_temp_code, microdegs_c);
+	printf("%s (%s): %u\n", am2315_temp_code.c_str(), s.c_str(),
+	       microdegs_c);
+	WebServer::GetCounter(s + " last")->SetTo(microdegs_c);
+	WebServer::GetCounter(s + " #")->Increment();
+      }
+      
+      usleep(500000);
+      float rh = 0.0f;
+      if (!AM2315::ReadRH(&rh, &err)) {
+	printf("AM2315::ReadRH failed: %s\n", err);
+	sleep(1);
+	continue;
+      }
+
+      // rh nominally ranges from 0 to 100.
+      // here we convert to basis points (0 to 10,000).
+      // we have bp = (rh / 100) * 10000 = rh * 100.
+      uint32_t rh_bp = rh * 100;
+      string s = db.WriteValue(am2315_humidity_code, rh_bp);
+      printf("%s (%s): %u\n", am2315_humidity_code.c_str(), s.c_str(),
+	     rh_bp);
+      WebServer::GetCounter(s + " last")->SetTo(rh_bp);
+      WebServer::GetCounter(s + " #")->Increment();
+	
+      usleep(500000);
+    }
   }
 
   printf("SERVER OK\n");

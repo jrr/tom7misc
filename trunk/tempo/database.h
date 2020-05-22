@@ -60,9 +60,10 @@ struct Database final {
   // code should be like "28-000009ffbb20" for onewire.
   // Returns the probe's name.
   // For temperature readings, integer value is in microdegrees Celsius.
-  // For humidity readings, ....TODO
+  // For humidity readings, integer value is in basis points, ranging
+  //     from 0 (= 0% RH) to 10,000 (= 100% RH).
   // Values are batched up to reduce database writes.
-  string WriteValue(const string &code, int microdegs_c);
+  string WriteValue(const string &code, uint32_t value);
 
   // Get all the readings (collated by probe) in the given interval.
   vector<pair<Probe, vector<pair<int64_t, uint32_t>>>>

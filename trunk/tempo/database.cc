@@ -11,6 +11,7 @@
 #include "util.h"
 #include "threadutil.h"
 #include "pi/netutil.h"
+#include "periodically.h"
 
 #include <mysql++.h>
 #include <dbdriver.h>
@@ -155,7 +156,7 @@ const Database::Probe *Database::GetProbe(const string &code) {
   return &it->second;
 }
 
-string Database::WriteValue(const string &code, int microdegs_c) {
+string Database::WriteValue(const string &code, uint32_t value) {
   MutexLock ml(&database_m);
   auto it = probes.find(code);
   if (it == probes.end()) {
@@ -166,46 +167,10 @@ string Database::WriteValue(const string &code, int microdegs_c) {
   const int id = it->second.id;
   const uint64 now = time(nullptr);
 
-  batch.emplace_back(now, id, microdegs_c);
+  batch.emplace_back(now, id, value);
   
   return it->second.name;
 }
-
-namespace {
-struct Periodically {
-  Periodically(int seconds) : seconds(seconds) {
-    next_run = time(nullptr);
-  }
-
-  // Return true if 'seconds' has elapsed since the last run.
-  // If this function returns true, we assume the caller does
-  // the associated action now (and so move the next run time
-  // forward).
-  bool ShouldRun() {
-    if (paused) return false;
-    const int64 now = time(nullptr);
-    if (now >= next_run) {
-      next_run = now + seconds;
-      return true;
-    }
-    return false;
-  }
-
-  void Pause() {
-    paused = true;
-  }
-
-  void Reset() {
-    paused = false;
-    next_run = time(nullptr) + seconds;
-  }
-
-private:
-  int seconds = 0;
-  int64_t next_run = 0LL;
-  bool paused = false;
-};
-}  // namespace
 
 void Database::PeriodicThread() {
   // This doesn't need to run very often, so we just wake up
