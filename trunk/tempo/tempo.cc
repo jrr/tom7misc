@@ -112,7 +112,10 @@ struct Server {
   }
   
   WebServer::Response Diagram(const WebServer::Request &request) {
-    vector<pair<Database::Probe, pair<int64, uint32>>> temps = db->LastTemp();
+    // TODO: Need to distinguish temperature and humidity type probes.
+    
+    vector<pair<Database::Probe, pair<int64, uint32>>> temps =
+      db->LastReading();
     WebServer::Response r;
     r.code = 200;
     r.status = "OK";
@@ -145,7 +148,8 @@ struct Server {
   }
 
   WebServer::Response Graph(const WebServer::Request &request) {
-
+    // TODO: Need to distinguish temperature and humidity type probes.
+    
     // TODO: Make these settable by url params!
     int64 time_end = time(nullptr);
     int64 time_start = time_end - 3600;
@@ -163,7 +167,7 @@ struct Server {
     // XXX todo timing info
     auto db_start = std::chrono::steady_clock::now();
     std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>> temps =
-      db->AllTempsIn(time_start, time_end);
+      db->AllReadingsIn(time_start, time_end);
     auto db_end = std::chrono::steady_clock::now();
 
     auto blit_start = std::chrono::steady_clock::now();
@@ -295,7 +299,9 @@ struct Server {
   }
   
   WebServer::Response Table(const WebServer::Request &request) {
-    vector<pair<Database::Probe, pair<int64, uint32>>> temps = db->LastTemp();
+    // TODO: Need to distinguish temperature and humidity type probes.
+    vector<pair<Database::Probe, pair<int64, uint32>>> temps =
+      db->LastReading();
     WebServer::Response r;
     r.code = 200;
     r.status = "OK";
@@ -380,7 +386,7 @@ int main(int argc, char **argv) {
     for (auto &p : onewire.probes) {
       uint32 microdegs_c = 0;
       if (p.second.Temperature(&microdegs_c)) {
-	string s = db.WriteTemp(p.first, microdegs_c);
+	string s = db.WriteValue(p.first, microdegs_c);
 	readings++;
 	double elapsed = time(nullptr) - start;
 	printf("%s (%s): %u  (%.2f/sec)\n",
@@ -393,6 +399,8 @@ int main(int argc, char **argv) {
 	printf("%s: ERROR\n", p.first.c_str());
       }
     }
+
+    // TODO: Read AM2315 sensors if connected.
   }
 
   printf("SERVER OK\n");

@@ -2,10 +2,13 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <cstdint>
 
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "pi/bcm2835.h"
+
+using uint32 = uint32_t;
 
 int main(int argc, char **argv) {
 
@@ -14,6 +17,15 @@ int main(int argc, char **argv) {
   AM2315::Initialize();
   int64 success = 0, failure = 0;
 
+  AM2315::Info info;
+  const char *info_err = "not set";
+  CHECK(AM2315::ReadInfo(&info, &info_err)) << info_err;
+  printf("AM2315 Info:\n"
+	 "  Model: %04x\n"
+	 "  Version: %02x\n"
+	 "  ID: %08x\n",
+	 (uint32)info.model, (uint32)info.version, info.id);
+  
   for (;;) {
     string sf = StringPrintf("[%lld/%lld = %.1f%%] ",
 			     success,
@@ -30,7 +42,7 @@ int main(int argc, char **argv) {
       printf("%sFailed: %s\n", sf.c_str(), err);
     }
 
-    usleep(50000);
+    sleep(1);
     
     [[maybe_unused]] float rh = -666.0f;    
     if (AM2315::ReadRH(&rh, &err)) {
@@ -41,7 +53,7 @@ int main(int argc, char **argv) {
       printf("%sFailed: %s\n", sf.c_str(), err);
     }
 
-    usleep(50000);
+    sleep(1);
 
   }
 
