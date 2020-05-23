@@ -10,7 +10,7 @@ LFLAGS=`mysql_config --libs` -lmysqlpp -lpthread
 
 CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/web.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o ../cc-lib/stb_image_write.o ../cc-lib/stb_image.o ../cc-lib/image.o ../cc-lib/pi/netutil.o ../cc-lib/pi/bcm2835.o
 
-tempo.exe : tempo.o database.o onewire.o am2315.o $(CCLIB_OBJECTS)
+tempo.exe : tempo.o database.o onewire.o am2315.o logic.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 am2315_test.exe : am2315_test.o am2315.o $(CCLIB_OBJECTS)
