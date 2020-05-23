@@ -162,10 +162,14 @@ struct Server {
     int height = 1080;
 
     // in microdegs c
-    double min_temp =   0000.0;
-    double max_temp = 100000.0;
-    const double temp_width = max_temp - min_temp;
+    constexpr double min_temp =   0000.0;
+    constexpr double max_temp = 100000.0;
+    constexpr double temp_width = max_temp - min_temp;
 
+    // in basis points
+    constexpr double min_rh =     0.0;
+    constexpr double max_rh = 10000.0;
+    constexpr double rh_width = max_rh - min_rh;
 
     // XXX todo timing info
     auto db_start = std::chrono::steady_clock::now();
@@ -185,8 +189,15 @@ struct Server {
       for (int x = 0; x < width; x++) {
 	graph.SetPixel32(x, y, 0x272727FF);
       }
-      string label = StringPrintf("%d F", degs);
-      graph.BlendText32(3, y + 2, 0x777777FF, label);
+      string label_temp = StringPrintf("%d F", degs);
+      graph.BlendText32(3, y + 2, 0x777777FF, label_temp);
+
+      // Wherever we plotted the line, compute what RH this is.
+      float rhbp = min_rh + rh_width * (1.0 - fy);
+      string label_rh = StringPrintf("%d%%",
+				     // instead, round?
+				     (int)((rhbp / 10000.0f) * 100.0f));
+      graph.BlendText32(width - (9 * 5), y + 2, 0x777777FF, label_rh);
     }
 
 
@@ -224,6 +235,9 @@ struct Server {
       }
     }
 
+
+    // TODO: Somehow distinguish the humidity series from temperature?
+    // Dotted?
     const int64 time_width = time_end - time_start;
     CHECK(corners.size() == temps.size());
     for (int i = 0; i < (int)temps.size(); i++) {
@@ -238,10 +252,22 @@ struct Server {
       int best_dist = width * 2;
 
       int prev_x = -1, prev_y = -1;
-      for (const auto &[timestamp, microdegsc] : values) {
+      for (const auto &[timestamp, value] : values) {
 	double fx = (timestamp - time_start) / (double)time_width;
 	int x = std::round(fx * width);
-	double fy = 1.0f - ((microdegsc - min_temp) / temp_width);
+	double fy = 0.0;
+	switch (probe.type) {
+	default:
+	case Database::INVALID:
+	  fy = 0.0;
+	  break;
+	case Database::TEMPERATURE:
+	  fy = 1.0f - ((value - min_temp) / temp_width);
+	  break;
+	case Database::HUMIDITY:
+	  fy = 1.0f - ((value - min_rh) / rh_width);
+	  break;
+	}
 	int y = std::round(fy * height);
 
 	int target_dist = std::abs(x - target_cx);
