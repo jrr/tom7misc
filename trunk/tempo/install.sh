@@ -24,6 +24,8 @@ sudo update-locale LC_ALL="en_US.UTF-8"
 sudo update-locale LANGUAGE="en_US:en"
 sudo update-locale LANG="en_US.UTF-8"
 
+# Note: This is out of date. Needs to build and install mysqlpp from
+# source, for example :(
 sudo apt-get -y update
 sudo apt-get -y upgrade
 sudo apt-get -y install emacs24 subversion

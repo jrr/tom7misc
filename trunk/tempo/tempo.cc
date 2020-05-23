@@ -23,6 +23,7 @@
 #include "onewire.h"
 #include "database.h"
 #include "am2315.h"
+#include "logic.h"
 #include "periodically.h"
 
 using namespace std;
@@ -430,6 +431,8 @@ int main(int argc, char **argv) {
   WebServer::GetCounter("onewire probes found")->
     IncrementBy((int64)onewire.probes.size());
 
+  Logic logic;
+  
   // One or zero of these. This is a dual-probe device, so
   // we make a separate code for the temperature (_t) and humidity (_h)
   // sensors.
@@ -466,8 +469,14 @@ int main(int argc, char **argv) {
   // If the max update rate is close to exactly 0.5Hz, this may be
   // a pessimal choice. With sub-second timing we could do better...
   Periodically read_am2315_p(2);
+  Periodically run_logic_p(1);
   for (;;) {
 
+    // PERF: This will not run often enough with lots of onewire
+    // probes attached.
+    if (run_logic_p.ShouldRun())
+      logic.Periodic(&db);
+    
     // PERF: All the onewire probes share a bus that can be read
     // at about 1Hz. So round-robin on these makes sense. But if
     // we have both an AM2315 sensor and onewire sensors on the same
@@ -491,6 +500,15 @@ int main(int argc, char **argv) {
       }
     }
 
+    // Also note: It sounds like the AM2315 performs a reading asynchronously,
+    // so that when you first read the registers, you may get a stale value.
+    // The documentation (7.2.1) is very hard to understand on this point,
+    // but it sounds like if this is not being read frequently, then the
+    // recommended approach is to wake, read, wait 2 seconds (but less than
+    // 3 seconds) and then read again, and use only this second reading.
+    // If there are a lot of onewire probes, the values read with the current
+    // aproach could lag reality by many seconds. (But this is probably
+    // still ok?)
     if (have_am2315 && read_am2315_p.ShouldRun()) {
       // TODO PERF: Possible to read both temperature and humidity
       // in one call.
