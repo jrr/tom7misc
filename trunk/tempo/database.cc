@@ -25,6 +25,7 @@ using int64 = int64_t;
 
 static constexpr int SECONDS_BETWEEN_WRITES = 20;
 static constexpr int SECONDS_BETWEEN_UPDATE_SEENS = 61;
+static constexpr int SECONDS_BETWEEN_PINGS = 32;
 
 static string Escape(string s) {
   mysqlpp::DBDriver::escape_string_no_conn(&s, nullptr, 0);
@@ -118,9 +119,8 @@ Database::~Database() {
   // XXX close database connection cleanly
 }
 
-// XXX We can probably manage this ourselves in PeriodicThread?
+// Must hold lock.
 void Database::Ping() {
-  MutexLock ml(&database_m);
   bool ok = conn.ping();
   if (ok) {
     WebServer::GetCounter("successful ping")->Increment();
@@ -178,12 +178,17 @@ void Database::PeriodicThread() {
   // Wouldn't be too hard to support ms-level events here, though.
   Periodically write_p(SECONDS_BETWEEN_WRITES);
   Periodically update_seen_p(SECONDS_BETWEEN_UPDATE_SEENS);
+  Periodically ping_p(SECONDS_BETWEEN_PINGS);
   for (;;) {
     // n.b. can wake early on signal, which is fine...
     sleep(1);
 
     {
       MutexLock ml(&database_m);
+      if (ping_p.ShouldRun()) {
+	Ping();
+      }
+      
       if (write_p.ShouldRun()) {
 	Write();
       }
@@ -197,6 +202,7 @@ void Database::PeriodicThread() {
   }
 }
 
+// Must hold lock.
 void Database::UpdateLastSeen() {
   int64 now = time(nullptr);
   string qs =
@@ -209,6 +215,7 @@ void Database::UpdateLastSeen() {
     failed->Increment();
 }
 
+// Must hold lock.
 void Database::Write() {
   if (batch.empty()) return;
 
@@ -303,4 +310,37 @@ Database::LastReading() {
   }
 
   return out;
+}
+
+/*
+  struct Device {
+    string mac;
+    int64_t lastseen;
+    string ip;
+    string location;
+  };
+*/
+vector<Database::Device> Database::GetDevices() {
+  string qs = StringPrintf("select mac, lastseen, ipaddress, location "
+			   "from tempo.device "
+			   "order by mac");
+  MutexLock ml(&database_m);
+  Query q = conn.query(qs);
+  StoreQueryResult res = q.store();
+  if (!res) {
+    failed->Increment();
+    return {};
+  }
+
+  vector<Device> vec;
+  vec.reserve(res.num_rows());
+  for (size_t i = 0; i < res.num_rows(); i++) {
+    Device device;
+    device.mac = (string)res[i]["mac"];
+    device.lastseen = res[i]["lastseen"];
+    device.ipaddress = (string)res[i]["ipaddress"];
+    device.location = (string)res[i]["location"];
+    vec.emplace_back(std::move(device));
+  }
+  return vec;
 }

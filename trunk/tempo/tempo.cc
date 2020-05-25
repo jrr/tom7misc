@@ -53,6 +53,8 @@ static constexpr uint32 COLORS[] = {
 
 static constexpr int NUM_COLORS = sizeof (COLORS) / sizeof (uint32);
 
+// TODO: Refactor so that at least the handler code is in a separate
+// translation unit, but possibly the whole webserver?
 struct Server {
   Server(Database *db) : db(db) {
     server = WebServer::Create();
@@ -80,6 +82,11 @@ struct Server {
 			 return Graph(req);
 		       });
 
+    server->AddHandler("/devices",
+		       [this](const WebServer::Request &req) {
+			 return Devices(req);
+		       });
+    
     // Fallback handler.
     // TODO: Make a good default home-page here?
     server->AddHandler("/",
@@ -89,11 +96,6 @@ struct Server {
     // Detach listening thread.
     listen_thread = std::thread([this](){
 	this->server->ListenOn(8080);
-      });
-
-    // And keepalive.
-    keepalive_thread = std::thread([this](){
-	this->KeepAlive();
       });
   }
 
@@ -328,6 +330,44 @@ struct Server {
     return r;
   }
 
+  WebServer::Response Devices(const WebServer::Request &request) {
+    vector<Database::Device> devices = db->GetDevices();
+    WebServer::Response r;
+    r.code = 200;
+    r.status = "OK";
+    r.content_type = "text/html; charset=UTF-8";
+    r.body =
+      StringPrintf("<!doctype html>\n"
+		   "<style>\n"
+		   " table {\n"
+		   "   border-spacing: 3px; border-collapse: separate;\n"
+		   "}\n"
+		   " body { font: 12px verdana,helvetica,sans-serif }\n"
+		   "</style>\n");
+
+    StringAppendF(&r.body, "<table>\n");
+    const int64 now = time(nullptr);
+    for (const Database::Device device : devices) {
+      // Also target devices page; this makes it easier to click around.
+      const string url =
+	StringPrintf("http://%s:8080/devices", device.ipaddress.c_str());
+      StringAppendF(&r.body,
+		    "<tr><td>%s</td><td><a href=\"%s\">%s</a></td>"
+		    "<td>%lld sec. ago</td>"
+		    "<td>%s</td>"
+		    "</tr>\n",
+		    device.mac.c_str(),
+		    url.c_str(),
+		    device.ipaddress.c_str(),
+		    now - device.lastseen,
+		    device.location.c_str());
+    }
+    StringAppendF(&r.body, "</table>\n");
+
+    return r;
+  }
+
+  
   WebServer::Response Table(const WebServer::Request &request) {
     vector<pair<Database::Probe, pair<int64, uint32>>> temps =
       db->LastReading();
@@ -385,21 +425,6 @@ struct Server {
     return r;
   }
 
-  void KeepAlive() {
-    for (;;) {
-      // Wait 30 seconds between pings, but not before checking should_die...
-      for (int i = 0; i < 30; i++) {
-	{
-	  MutexLock ml(&should_die_m);
-	  if (should_die) return;
-	}
-	std::this_thread::sleep_for(std::chrono::seconds(1));
-      }
-      printf("(ping)\n");
-      db->Ping();
-    }
-  }
-
   ~Server() {
     {
       MutexLock ml(&should_die_m);
@@ -407,7 +432,6 @@ struct Server {
     }
     server->Stop();
     listen_thread.join();
-    keepalive_thread.join();
   }
 
   WebServer *server = nullptr;
@@ -417,7 +441,6 @@ struct Server {
   string favicon;
   string diagram_svg;
   std::thread listen_thread;
-  std::thread keepalive_thread;
 };
 
 

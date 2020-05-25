@@ -47,12 +47,7 @@ struct Database final {
 
   Database();
   ~Database();
-  
-  // Ping the server, and try to reconnect if it fails.
-  // Should just call this periodically (every few minutes).
-  // TODO: Do this from the periodicthread instead.
-  void Ping();
-  
+    
   // Returns a pointer to the probe or nullptr if not found.
   // (Note that the pointer can be invalidated by map operations.)
   const Probe *GetProbe(const string &code);
@@ -72,11 +67,23 @@ struct Database final {
   // Get all the readings (collated by probe) in the given interval.
   vector<pair<Probe, pair<int64_t, uint32_t>>> LastReading();
 
+  // Read all the devices from the database.
+  struct Device {
+    string mac;
+    int64_t lastseen;
+    string ipaddress;
+    string location;
+  };
+  vector<Device> GetDevices();
+  
 private:
   // Write the batch to the database now (if possible). Must hold lock.
   void Write();
   // Mark this device as recently alive in the database.
   void UpdateLastSeen();
+  // Ping the server, and try to reconnect if it fails.
+  // Automatically called every few minutes by the periodic thread.
+  void Ping();
   
   // Runs in the background and does periodic tasks, like Write.
   void PeriodicThread();
