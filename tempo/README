@@ -66,15 +66,16 @@ sudo raspi-config
 sudo dpkg-reconfigure tzdata
 (to US Eastern or whatever you like)
 
-sudo apt-get update
-sudo apt-get dist-upgrade
-sudo apt-get autoclean
+sudo apt update
+sudo apt dist-upgrade
+sudo apt autoremove
+sudo apt autoclean
 
 # these don't work any more?
 # sudo apt-get install default-libmysqlclient-dev libmysql++-dev
 # sudo apt-get install default-libmariaclient-dev libmaria++-dev
 
-sudo apt-get install subversion emacs-nox libmariadb-dev-compat mariadb-client dos2unix
+sudo apt install subversion emacs-nox libmariadb-dev-compat mariadb-client dos2unix i2c-tools
 
 You should be able to connect using the command line client:
 mysql -u tempo -p -h 10.0.0.202
@@ -84,11 +85,11 @@ svn co --username tom7 https://svn.code.sf.net/p/tom7misc/svn/trunk tom7misc
 (just cc-lib and tempo should be needed, but might as well back up all source
 code on every microsd card!)
 
-Create the file database-config.txt:
-server 10.0.0.202  (?? CHECK)
+Create the file database-config.txt, filling in the parentheticals:
+server 10.0.0.202
 user tempo
-password PASSWORD
-
+password (PASSWORD)
+location (fill in a unique location where this device is going)
 
 Wifi troubleshooting:
   Looks like if the pi boots before the wireless router, it may come
@@ -108,8 +109,11 @@ mysql++ is separate project from both mysql and maria, so it does not
 have a "maria version". In 2020 I couldn't find the ubuntu package to
 install, so I installed from source...
 
+# as root
 cd /usr/src
 wget https://tangentsoft.com/mysqlpp/releases/mysql++-3.2.5.tar.gz
+tar -zxvf mysql++-3.2.5.tar.gz
+cd mysql++-3.2.5
 ./configure --prefix=/usr
 make -j 2
 sudo make install
@@ -127,3 +131,18 @@ LED off:
 
 echo none | sudo tee /sys/class/leds/led0/trigger
 echo 1 | sudo tee /sys/class/leds/led0/brightness
+
+
+Wiring AM2315 humidity/temperature sensor:
+
+  - i2c needs pullups for clock and data. 2k is a common choice.
+  - note both SDA and SCL on pi apparently have built-in 1.8k pullups to
+    3v3, so maybe the resistors were not necessary. But I did it with
+    2k resistors for my first one, which worked.
+  - pins are in the top-left corner,
+      1=red=power
+      3=yellow=sda (pull-up to red)
+      5=white=scl  (pull-up to red)
+      7 skip
+      9=black=gnd
+
