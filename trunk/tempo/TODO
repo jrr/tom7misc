@@ -1,8 +1,35 @@
-Add some client/device stuff to database-config:
- - device id (or derive this from MAC etc?)
- - install location
-and have tempo store this, IP address, and last seen time into
-the database when connecting. (Probably the probes should be
-associated with a device too..)
+- Make negative temperatures work -- this will surely be possible
+  outdoors and perhaps in the attic as well. (Check what range
+  onewire supports, but AM2315 can do -40 to 125 C)
+- Perhaps try to figure out the hardware versions so that you can
+  get e.g. the graph from a faster machine?
+- See 7.2.1 in AM2315 datasheet; we may want to track the time since
+  the last read in the AM2315 module.
+- Associate probes with devices in db? Any point?
+- Install unattended-upgrades on each device.
 
-Humidity sensing
+(In a pinch, "show processlist;" in mysql admin can likely
+ show you the active connections.)
+
+Humidity sensing:
+
+Beware, many of these are some custom protocol. i2c is probably a much
+better choice.
+
+I ended up ordering these:
+
+  $30 AM2315 is the wired, mountable encased one:
+  https://www.adafruit.com/product/1293
+  https://cdn-shop.adafruit.com/datasheets/AM2315.pdf
+
+  $3.95 AM2320 is not wired or enclosed, but cheap:
+  https://cdn-shop.adafruit.com/product-files/3721/AM2320.pdf
+  Looks like the same protocol as AM2315. So this is a good
+  cheap option for places where humidity sensing is just a bonus.
+
+  $2.18 + 0.51 shipping from aliexpress...
+  https://www.aliexpress.com/item/32316036161.html
+
+  or $14.76 for 10:
+  https://www.aliexpress.com/item/1699301922.html
+
