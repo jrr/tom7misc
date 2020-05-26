@@ -272,7 +272,7 @@ class Peer {
     case MsgType.SET_NICK:
       if (VERBOSE)
 	console.log('SET_NICK ' + json['nick']);
-      players[puid].nick = json['nick'];
+      this.nick = json['nick'];
       drawChats();
       break;
       
