@@ -66,14 +66,14 @@ const requestJSON = (url, params) => {
 	     headers: {'Content-Type': 'application/x-www-form-urlencoded'}};
 
   return request(obj).
-      then(res => {
-	if (res.indexOf(XSSI_HEADER) == 0) {
-	  let r = res.substr(XSSI_HEADER.length);
-	  return JSON.parse(r);
-	} else {
-	  throw 'no XSSI header in response';
-	}
-      });
+    then((res : string) => {
+      if (res.indexOf(XSSI_HEADER) == 0) {
+	let r = res.substr(XSSI_HEADER.length);
+	return JSON.parse(r);
+      } else {
+	throw 'no XSSI header in response';
+      }
+    });
 };
 
 // Unfortunately there are two ways we may become connected: We
@@ -97,6 +97,10 @@ const PeerType = Object.freeze({
 // Wrapper around a timestamp and period for implementing
 // functionality like window.setTimeout.
 class Periodically {
+  private readonly periodMs : number;
+  private nextRun : number;
+  private paused : boolean;
+  
   constructor(periodMs) {
     if (periodMs <= 0) throw 'precondition';
     this.periodMs = periodMs;
@@ -108,7 +112,7 @@ class Periodically {
   // If this function returns true, we assume the caller does
   // the associated action now (and so move the next run time
   // forward).
-  shouldRun() {
+  shouldRun() : boolean {
     if (this.paused) return false;
     let n = window.performance.now();
     if (n >= this.nextRun) {
@@ -118,11 +122,11 @@ class Periodically {
     return false;
   }
 
-  pause() {
+  pause() : void {
     this.paused = true;
   }
 
-  reset() {
+  reset() : void {
     this.paused = false;
     this.nextRun = window.performance.now() + this.periodMs;
   }
@@ -147,6 +151,14 @@ function getPeerType(puid) {
 // A Peer is a connection (possibly in progress, or failed) with
 // a player.
 class Peer {
+  puid : string;
+  // XXX typescript enum?
+  peerType : number;
+  connection : any;
+  channel : any;
+  lastPing : number;
+  private periodicallyPing : Periodically;
+  
   // Always have the player's uid when creating a peer, either
   // with the answer or the poll response (which contains all
   // outstanding players).
@@ -166,7 +178,7 @@ class Peer {
 
   // Returns true if the connection is failed; this means we couldn't
   // connect or we got disconnected. Pre-connection states are not failed.
-  isFailed() {
+  isFailed() : boolean {
     // I-call peers have their connection/channel initialized asynchronously
     // by promises. Might want to make this more explicit though?
     // TODO: Failure during an i-call connection probably does not
@@ -186,7 +198,7 @@ class Peer {
     return false;
   }
   
-  deliverAnswer(answer) {
+  deliverAnswer(answer) : void {
     if (this.peerType == PeerType.THEY_CALL) {
       if (this.connection == null)
 	throw 'in wrong state?';
@@ -203,7 +215,7 @@ class Peer {
   // with all ICE candidates.
   //
   // Arguments are the peer and offer uids.
-  sendAnswerRemotely(puid, ouid) {
+  sendAnswerRemotely(puid, ouid) : void {
     // Only send a complete answer with all ice candidates.
     if (this.connection.iceGatheringState == 'complete') {
       let desc = this.connection.localDescription;
@@ -226,19 +238,19 @@ class Peer {
 
   // Send a message already in json form, if we have a data
   // channel.
-  sendJson(json) {
+  sendJson(json : string) : void {
     if (this.channel &&
 	this.channel.readyState === 'open') {
       this.channel.send(json);
     }
   }
 
-  sendMessage(msg) {
+  sendMessage(msg : object) : void {
     this.sendJson(JSON.stringify(msg));
   }
   
   // Process a message sent BY this peer.
-  processMessage(data) {
+  processMessage(data) : void {
     let json = JSON.parse(data);
     let now = window.performance.now();
     switch (json['t']) {
@@ -269,14 +281,17 @@ class Peer {
       drawChats();
       break;
 
-    case MsgType.SET_NICK:
+    case MsgType.SET_NICK: {
       if (VERBOSE)
 	console.log('SET_NICK ' + json['nick']);
-      this.nick = json['nick'];
+      let player = players[this.puid];
+      if (!player) throw 'players should be superset of peers';
+      player.nick = json['nick'];
       drawChats();
       break;
+    }
       
-    case MsgType.CONNECTIVITY:
+    case MsgType.CONNECTIVITY: {
       let row = json['row']
       let player = players[this.puid];
       if (!player) throw 'players should be superset of peers';
@@ -292,11 +307,12 @@ class Peer {
       }
       break;
     }
+    }
 
   }
 
   // Called periodically.
-  periodic() {
+  periodic() : void {
     if (this.channel) {
       if (this.periodicallyPing.shouldRun()) {
 	this.sendMessage({'t': MsgType.PING, 'p': window.performance.now()});
@@ -336,20 +352,28 @@ const Connectivity = Object.freeze({
 // We can learn about these by polling the server, or from other peers.
 //
 // No explicit connection to the peer, but they use the same uid key.
-let players = {};
+let players : Record<string, Player> = {};
+// Values of the connectivityTo map.
+// Not stored for blacklisted uids.
+// Map from other uid to object.
+//  { c : Connectivity,
+//    p : number, RTT in msec,
+//    a : number, time that awol began (in msec since time origin) }
+// AWOL begins when we are waiting to hear from a peer (i.e., not
+// actively connecting or connected).
+// It is effectively now() for connected peers.
+type ConnectivityData = { c : number, p : number, a : number };
 class Player {
+  // XXX typescript enums
+  playerType : number;
+  puid : string;
+  connectivityTo : Record<string, ConnectivityData>;
+  nick : string;
+  
   constructor(puid) {
     this.playerType = (puid === myUid) ? PlayerType.ME : PlayerType.OTHER;
     this.puid = puid;
-    // Not stored for blacklisted uids.
-    // Map from other uid to object.
-    //  { c : Connectivity,
-    //    p : number, RTT in msec,
-    //    a : number, time that awol began (in msec since time origin) }
     
-    // AWOL begins when we are waiting to hear from a peer (i.e., not
-    // actively connecting or connected).
-    // It is effectively now() for connected peers.
     this.connectivityTo = {};
     this.nick = '???';
   }
@@ -1137,7 +1161,7 @@ function updateMatrixUI() {
 	  // This is awol 0 by definition, so instead
 	  // show the most recent ping time.
 	  // U+221E INFINITY
-	  txt = isFinite(ct.p) ? (ct.p | 0) : '\u221e';
+	  txt = isFinite(ct.p) ? ''+(ct.p | 0) : '\u221e';
 	  break;
 	case Connectivity.DISCONNECTED:
 	  cell.style.backgroundColor = '#A55';
@@ -1204,7 +1228,7 @@ function broadcastNick(nick) {
 // Chat crap
 function chatKey(e) {
   if (e.keyCode == 13) {
-    let elt = document.getElementById('chatbox');
+    let elt = (<HTMLInputElement>document.getElementById('chatbox'));
     let msg = elt.value;
     elt.value = '';
 
@@ -1218,7 +1242,7 @@ function chatKey(e) {
 
 // Nickname
 function nicknameKey(e) {
-  let elt = document.getElementById('nickname');
+  let elt = (<HTMLInputElement>document.getElementById('nickname'));
   let nick = elt.value;
   broadcastNick(nick);
   // Update my own chats.
@@ -1259,7 +1283,7 @@ function init() {
 
 // Debugging crap.
 
-function stop() {
+function Stop() {
   // XXX debugging thing
   stop_running = true;
 }
