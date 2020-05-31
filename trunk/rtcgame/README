@@ -1,0 +1,11 @@
+
+Installed node (which comes with npm) from binaries (zip) in d:\node
+
+Put node in path:
+in .bash_profile
+export PATH="${PATH}:/d/node"
+
+Install typescript:
+npm install -g typescript
+
+tsc --version
