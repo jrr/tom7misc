@@ -738,6 +738,13 @@
              ))
 
 
+(require 'typescript-mode)
+;; for some reason, the customize variable that seems to control this
+;; doesn't do anything?
+(add-hook 'typescript-mode-hook
+	  '(lambda ()
+	     (electric-indent-mode 'no)))
+
 ;; Try to highlight
 ;;   for (k in obj)
 ;; as needing let/var/const.
@@ -758,6 +765,13 @@
 	    (not (equal v "var")))))))
 
 (add-hook 'js-mode-hook
+	  '(lambda ()
+	     (font-lock-add-keywords
+	      nil
+	      '((match-js-bad-for 1 font-lock-warning-face t)))
+	     (set-face-foreground (quote font-lock-warning-face) "red")))
+
+(add-hook 'typescript-mode-hook
 	  '(lambda ()
 	     (font-lock-add-keywords
 	      nil
