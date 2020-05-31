@@ -17,6 +17,16 @@
 // A simulation has a fixed number of players N with indices 0..N-1.
 // I also know which player index I am.
 class Sim {
+  readonly N: number;
+  readonly my_id: number;
+  cframe: number;
+  cstate: State;
+  cinputs: InputRow;
+  mframe: number;
+  window: UWindow;
+  nframe: number;
+  queued_inputs: any;
+  
   constructor(N, my_id, start_frame, start_state) {
     // Constants.
     this.N = N;
@@ -60,7 +70,7 @@ class Sim {
     // and the first frame has index cframe. It ranges until nframe,
     // which is what we're showing to the user and where this user's
     // inputs would be written.
-    this.window = new Window();
+    this.window = new UWindow();
 
 
     // If we receive inputs >= nframe, we just queue them and replay
@@ -205,8 +215,9 @@ class Sim {
   // compute step(state, input_row). This can apply various optimizations,
   // for example in the simple case that state = stale_src_state and
   // input_row = stale_row are the same!
-  static zipStep(src_state, input_row,
-		 stale_src_state, stale_row, stale_dst_state) {
+  static zipStep(src_state : State, input_row : InputRow,
+		 stale_src_state : State, stale_row : InputRow,
+		 stale_dst_state : State) : State {
     if (!input_row.complete()) throw 'zipStep input_row not complete';
     if (!stale_row.complete()) throw 'zipStep stale_row not complete';
 
@@ -226,16 +237,17 @@ class Sim {
     // with optional stale data.
     
     // Always safe (but maybe slower) to just ignore the stale data.
-    return step(state, input_row);
+    return Sim.step(src_state, input_row);
   }
   
   // The simulation's step function. Needs a complete input row.
   // Returns a new state.
-  static step(state, input_row) {
+  static step(state : State, input_row : InputRow) : State {
     throw 'unimplemented';
   }
 }
 
+type WindowRow = {state: State, stale: InputRow, actual: InputRow};
 
 // Representation of the uncertainty window's data. First frame in
 // the window has index 0, but is index cframe to the Sim.
@@ -250,7 +262,9 @@ class Sim {
 //
 // Wrapper around list so that we can replace it with a better data
 // structure if needed.
-class Window {
+class UWindow {
+  private data: Array<WindowRow>;
+  
   // PERF Use a circular buffer or deque or something like that. This
   // needs access to both ends, but also random access probably?
   constructor() {
@@ -277,36 +291,41 @@ class Window {
 // simulations.
 class State {
 
-  static eq(a, b) {
+  static eq(a : State, b : State) : boolean {
     // TODO EZ: Check the serialized representations.
     // Might be smart to maintain a checksum and check it here.
+    return false;
   }
   
 }
 
 // Set of inputs (possibly incomplete) for a frame.
 class InputRow {
-  constructor(N) {
+  readonly N: number;
+  inputs: Array<Inputs>;
+  
+  constructor(N : number) {
+    this.N = N;
     // In a row, null means unknown. It is not a valid input.
     this.inputs = new Array(N).fill(null);
   }
 
-  known(idx) {
+  known(idx : number) : boolean {
     return this.inputs[idx] !== null;
   }
 
-  get(idx) {
+  get(idx : number) {
     return this.inputs[idx];
   }
 
-  set(idx, value) {
+  set(idx : number, value) : void {
     if (value === null) throw 'null is not a valid input';
-    this.input[idx] = value;
+    this.inputs[idx] = value;
   }
 
-  complete() {
-    for (let i = 0; i < N; i++)
-      if (!known(idx))
+  complete() : boolean {
+    for (let i = 0; i < this.N; i++)
+      if (!this.known(i))
 	return false;
     return true;
   }
@@ -321,7 +340,7 @@ class InputRow {
   }
   
   // Clone, cloning inputs as well.
-  clone() {
+  clone() : InputRow {
     let ret = new InputRow(this.inputs.length);
     for (let i = 0; i < this.inputs.length; i++) {
       if (this.inputs[i] === null) {
@@ -330,12 +349,13 @@ class InputRow {
 	ret.inputs[i] = this.inputs[i].clone();
       }
     }
+    return ret;
   }
   
-  static eq(a, b) {
+  static eq(a: InputRow, b: InputRow) : boolean {
     if (a.N != b.N) throw 'different radix';
     for (let i = 0; i < a.N; i++)
-      if (a.get(i) !== b.get(i))
+      if (!Inputs.eq(a.get(i), b.get(i)))
 	return false;
     return true;
   }
@@ -348,12 +368,17 @@ class Inputs {
 
   }
   
-  clone() {
+  clone() : Inputs {
     throw 'unimplemented';
   }
 
+  static eq(a : Inputs, b : Inputs) : boolean {
+    // XXX
+    return a === b;
+  }
+  
   // Some kind of "default" inputs, like the player is pressing nothing.
-  static empty() {
+  static empty() : Inputs {
     return new Inputs();
   }
 }
