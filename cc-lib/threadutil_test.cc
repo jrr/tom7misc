@@ -15,7 +15,7 @@ int Square(int i) {
 
 template<class T>
 static void CheckSameVec(const vector<T> &a,
-			 const vector<T> &b) {
+                         const vector<T> &b) {
   CHECK(a.size() == b.size()) << "\n" << a.size() << " != " << b.size();
   for (int i = 0; i < (int)a.size(); i++) {
     CHECK(a[i] == b[i]) << "\n" << a[i] << " != " << b[i];
@@ -29,13 +29,13 @@ static void TestAccumulate() {
   // words).
   vector<int> did_run(NUM, 0);
   int64 acc =
-    ParallelAccumulate(NUM, 0LL, [](int64 a, int64 b) { return a + b; },
-		       [&did_run](int idx, int64 *acc) {
-			 CHECK(did_run[idx] == 0) << idx << " = "
-						  << did_run[idx];
-			 did_run[idx] = idx;
-			 ++*acc;
-		       }, 25);
+    ParallelAccumulate<int64>(NUM, 0LL, [](int64 a, int64 b) { return a + b; },
+                              [&did_run](int idx, int64 *acc) {
+                                CHECK(did_run[idx] == 0) << idx << " = "
+                                                         << did_run[idx];
+                                did_run[idx] = idx;
+                                ++*acc;
+                              }, 25);
   for (int i = 0; i < NUM; i++) CHECK(did_run[i] == i) << i;
   CHECK_EQ(acc, NUM) << acc;
 }
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < 10; i++) {
       CheckSameVec(UnParallelMap(v, Square, i),
-		   ParallelMap(v, Square, i));
+                   ParallelMap(v, Square, i));
     }
   }
 
