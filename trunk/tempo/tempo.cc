@@ -48,6 +48,7 @@ static constexpr uint32 COLORS[] = {
   0x9F09FFFF,
   0xFF09D9FF,
   0xFF6AA9FF,
+  0x909090FF,
   // ...
 };
 
@@ -99,27 +100,76 @@ struct Server {
       });
   }
 
-  string GetRGB(float f) {
-    float r, g, b;
-    if (f < 32.0f) {
-      r = g = b = 0.0;
-    } else if (f > 200.0f) {
-      r = 1.0f;
-      g = b = 0.0f;
-    } else {
-      // XXX better color map!
-      r = ((f - 32.0f) / (200.0f - 32.0f));
-      g = b = 0.0f;
+  const vector<std::tuple<float, float, float, float>> f_ramp = {
+    { -30.0f, 0.85f, 0.85f, 1.0f},
+    {  32.0f, 0.15f, 0.15f, 1.0f},
+    {  72.0f, 0.25f, 0.25f, 0.25f},
+    { 100.0f, 1.0f,  0.15f, 0.15f},
+    { 140.0f, 1.0f,  1.0f,  0.0f},
+    { 180.0f, 1.0f,  1.0f,  0.85f},
+  };
+
+  // RH value, then r, g, b in [0,1]
+  const vector<std::tuple<float, float, float, float>> rh_ramp = {
+    {0.0f,   1.0f,  1.0f,  0.15f},
+    {40.0f,  0.15f, 0.15f, 0.15f},
+    {100.0f, 0.15f, 0.15f, 1.0f},
+  };
+
+  static std::tuple<float, float, float>
+  LinearRamp(float t,
+	     const vector<std::tuple<float, float, float, float>> &ramp) {
+    CHECK(!ramp.empty());
+    auto prev = ramp[0];
+
+    {
+      const auto [x, r, g, b] = prev;
+      if (t < x) {
+	return make_tuple(r, g, b);
+      }
     }
+      
+    for (int i = 1; i < ramp.size(); i++) {
+      const auto now = ramp[i];
+      const auto [px, pr, pg, pb] = prev;
+      const auto [x, r, g, b] = now;
+      if (t < x) {
+       // linear interpolation
+	const float w = x - px;
+	const float f = (t - px) / w;
+	const float omf = 1.0f - f;
+	return make_tuple(f * r + omf * pr,
+			  f * g + omf * pg,
+			  f * b + omf * pb);
+      }
+      prev = now;
+    }
+
+    {
+      const auto [x, r, g, b] = prev;
+      return make_tuple(r, g, b);
+    }
+  }
+
+  // Could consider different scales for ambient vs pipe temp,
+  // or even by season?
+  string GetFahrenheitRGB(float f) {
+    const auto [r, g, b] = LinearRamp(f, f_ramp);
     return StringPrintf("#%02x%02x%02x",
 			(uint8)(r * 255.0f),
 			(uint8)(g * 255.0f),
 			(uint8)(b * 255.0f));
   }
-
+  
+  string GetHumidityRGB(float f) {
+    const auto [r, g, b] = LinearRamp(f, rh_ramp);
+    return StringPrintf("#%02x%02x%02x",
+			(uint8)(r * 255.0f),
+			(uint8)(g * 255.0f),
+			(uint8)(b * 255.0f));
+  }
+  
   WebServer::Response Diagram(const WebServer::Request &request) {
-    // TODO: Need to distinguish temperature and humidity type probes.
-
     vector<pair<Database::Probe, pair<int64, uint32>>> temps =
       db->LastReading();
     WebServer::Response r;
@@ -132,9 +182,28 @@ struct Server {
     string substituted_svg = diagram_svg;
 
     for (const auto &[probe, cur] : temps) {
-      float celsius = (float)cur.second / 1000.0f;
-      float fahrenheit = celsius * (9.0f / 5.0f) + 32.0f;
-      string rgb = GetRGB(fahrenheit);
+      string label, rgb;
+      switch (probe.type) {
+      case Database::TEMPERATURE: {
+	float celsius = (float)cur.second / 1000.0f;
+	float fahrenheit = celsius * (9.0f / 5.0f) + 32.0f;
+	rgb = GetFahrenheitRGB(fahrenheit);
+	label = StringPrintf("%.1f&deg;", fahrenheit);
+	break;
+      }
+      case Database::HUMIDITY: {
+	// in [0,100]
+	float rh = (cur.second / 10000.0f) * 100.0f;
+	rgb = GetHumidityRGB(rh);
+	label = StringPrintf("%d%%",
+			     // instead, round?
+			     (int)rh);
+	break;
+      }
+      default:
+	rgb = "#F00";
+	break;
+      }
       StringAppendF(&r.body,
 		    "  #%s path { fill: %s !important; }\n",
 		    probe.name.c_str(),
@@ -142,7 +211,8 @@ struct Server {
       substituted_svg =
 	Util::Replace(substituted_svg,
 		      StringPrintf("[[%s]]", probe.name.c_str()),
-		      StringPrintf("%.1f&deg;", fahrenheit));
+		      label);
+
     }
 
     r.body += "</style>\n";
@@ -154,8 +224,6 @@ struct Server {
   }
 
   WebServer::Response Graph(const WebServer::Request &request) {
-    // TODO: Need to distinguish temperature and humidity type probes.
-
     // TODO: Make these settable by url params!
     int64 time_end = time(nullptr);
     int64 time_start = time_end - 3600;
