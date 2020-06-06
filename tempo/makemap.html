@@ -1,0 +1,75 @@
+<!doctype html>
+
+<style>
+
+ body {
+   font: 11px verdana,helvetica,sans-serif
+ }
+ 
+ div.s {
+   height: 96px;
+   width: 8px;
+   display: inline-block;
+   position: relative;
+ }
+
+ div.l {
+   position: absolute;
+   top: 100px;
+ }
+</style>
+
+<script>
+
+ const MIN = -30.0;
+ const MAX = 180.0;
+
+ function HexByte(i) {
+   if (i < 16) return '0' + i.toString(16);
+   else return i.toString(16);
+ }
+ 
+ function GetRGB(t) {
+   let r, g, b;
+   if (t < 32.0) {
+     r = g = b = 0.0;
+   } else if (t > 200.0) {
+     r = 1.0;
+     g = b = 0.0;
+   } else {
+     // XXX better color map!
+     r = ((t - 32.0) / (200.0 - 32.0));
+     g = b = 0.0;
+   }
+   return '#' +
+	  HexByte(0 | (r * 255)) +
+	  HexByte(0 | (g * 255)) +
+	  HexByte(0 | (b * 255));
+ }
+ 
+ function redraw() {
+   let elt = document.getElementById('spectrum');
+   elt.innerHTML = '';
+   for (let i = 0; i < 100; i++) {
+     let f = (i / 100.0) * (MAX - MIN) + MIN;
+     let c = document.createElement('div');
+     elt.appendChild(c);
+     c.classList.add('s');
+     c.style.backgroundColor = GetRGB(f);
+
+     if (i % 8 == 0) {
+       let lab = document.createElement('div');
+       c.appendChild(lab);
+       lab.classList.add('l');
+       lab.innerHTML = f.toFixed(1);
+     }
+   }
+ }
+ 
+</script>
+
+<body onload="redraw()">
+
+  <div id="spectrum"></div>
+
+</body>
