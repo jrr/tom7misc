@@ -4,6 +4,8 @@
 #include <mutex>
 #include <cstdint>
 #include <thread>
+#include <set>
+#include <optional>
 
 #include <mysql++.h>
 
@@ -64,6 +66,14 @@ struct Database final {
   vector<pair<Probe, vector<pair<int64_t, uint32_t>>>>
   AllReadingsIn(int64_t time_start, int64_t time_end);
 
+  // Get some readings (collated by probe) in the given interval. Only
+  // return values for the probes whose ids appear in the set. Tries
+  // to reduce the number of values (assuming we get about 1 read per
+  // second).
+  vector<pair<Probe, vector<pair<int64_t, uint32_t>>>>
+  SmartReadingsIn(int64_t time_start, int64_t time_end,
+		  const std::set<int> &probes_included);
+  
   // Get all the readings (collated by probe) in the given interval.
   vector<pair<Probe, pair<int64_t, uint32_t>>> LastReading();
 
@@ -88,6 +98,14 @@ private:
   // Runs in the background and does periodic tasks, like Write.
   void PeriodicThread();
 
+  // (linear time...)
+  std::optional<Probe> ProbeById(int id) const;
+  
+  // Common result processing for AllReadingsIn, SmartReadingsIn.
+  // XXX just kidding
+  // vector<pair<Probe, vector<pair<int64_t, uint32_t>>>>
+  // CollateReadings(const string &qs);
+  
   bool should_die = false;
   vector<tuple<int64_t, int, uint32_t>> batch;
   std::thread periodic_thread;
