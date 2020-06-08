@@ -1,10 +1,11 @@
 #include "database.h"
 
+#include <unistd.h>
 #include <unordered_map>
 #include <string>
 #include <map>
 #include <cstdint>
-#include <unistd.h>
+#include <optional>
 
 #include "base/logging.h"
 #include "base/stringprintf.h"
@@ -281,6 +282,97 @@ Database::AllReadingsIn(int64 time_start, int64 time_end) {
   }
 
   return out;
+}
+
+std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>>
+Database::SmartReadingsIn(int64 time_start, int64 time_end,
+			  const std::set<int> &probes_included) {
+  // Goal here is to select a random subset of the data in the
+  // mysql query itself, so that the pi doesn't have to process much
+  // data.
+
+  const double seconds = time_end - time_start;
+  // Per probe..
+  const double target_samples = 1920;
+  constexpr double EST_DB_SAMPLES_PER_SECOND = 0.5;
+
+  const double est_samples_in_period = seconds * EST_DB_SAMPLES_PER_SECOND;
+  
+  double sample_rate = target_samples / est_samples_in_period;
+
+  string sample_exp;
+  if (sample_rate >= 1.0) {
+    sample_exp = "true";
+  } else {
+    // PERF: This probably has to compute the hash function for every
+    // row (in the interval) on the database side. We could insert some
+    // random bits?
+    // PERF: Hash function could be faster by avoiding mod.
+    uint32 frac = 65537 * sample_rate;
+    // Sample at least something.
+    if (frac == 0) frac = 1;
+    sample_exp = StringPrintf("((id * 257) ^ "
+			      "(timestamp * 99989) ^ "
+			      "(probeid * 31337)) mod 65537 < %u", frac);
+  }
+  
+  string probeset;
+  for (const int i : probes_included) {
+    if (!probeset.empty()) probeset += ",";
+    StringAppendF(&probeset, "%d", i);
+  }
+  
+  string qs = StringPrintf("select probeid, timestamp, value "
+			   "from tempo.reading "
+			   "where probeid in (%s) "
+			   "and timestamp >= %lld "
+			   "and timestamp <= %lld "
+			   "and %s "
+			   "order by timestamp",
+			   probeset.c_str(),
+			   time_start,
+			   time_end,
+			   sample_exp.c_str());
+
+  Query q = conn.query(qs);
+  StoreQueryResult res = q.store();
+  if (!res) {
+    failed->Increment();
+    return {};
+  }
+
+  // TODO: Could consider "filling gaps" (basically by calling this
+  // recursively) if there are intervals with no samples. This can happen
+  // when a device is offline for some time, for example.
+  std::unordered_map<int, vector<pair<int64, uint32>>> collated;
+  
+  for (size_t i = 0; i < res.num_rows(); i++) {
+    const int probeid = res[i]["probeid"];
+    
+    vector<pair<int64, uint32>> *vec = &collated[probeid];
+    const int64 id = res[i]["timestamp"];
+    const uint32 microdegsc = res[i]["value"];
+    vec->emplace_back(id, microdegsc);
+  }
+
+  // Return them in set order. Ignore probes with unknown ids.
+  std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>> out;
+  out.reserve(probes_included.size());
+  for (const int probe : probes_included) {
+    std::optional<Probe> oprobe = ProbeById(probe);
+    if (oprobe.has_value()) {
+      out.emplace_back(oprobe.value(), std::move(collated[probe]));
+    }
+  }
+
+  return out;
+}
+
+std::optional<Database::Probe> Database::ProbeById(int id) const {
+  for (const auto &[code, probe] : probes) {
+    if (probe.id == id) return {probe};
+  }
+  return {};
 }
 
 vector<pair<Database::Probe, pair<int64_t, uint32_t>>>
