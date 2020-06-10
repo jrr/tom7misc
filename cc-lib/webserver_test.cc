@@ -1,4 +1,4 @@
-#include "web.h"
+#include "webserver.h"
 
 #include <time.h>
 #include <thread>
@@ -6,6 +6,8 @@
 
 #include "util.h"
 #include "base/stringprintf.h"
+
+using namespace std;
 
 static void ServerThread() {
   // Note: Never stopped/deleted
@@ -28,12 +30,28 @@ static void ServerThread() {
 		       response.code = 200;
 		       response.status = "OK";
 		       response.content_type = "text/html; charset=UTF-8";
+
+		       string table = "<table>\n";
+		       for (const auto &[k, v] : request.Params()) {
+			 StringAppendF(&table,
+				       "<tr><td>%s</td><td>%s</td><tr>\n",
+				       WebServer::HTMLEscape(k).c_str(),
+				       WebServer::HTMLEscape(v).c_str());
+		       }
+		       table += "</table>\n";
 		       response.body =
-			 StringPrintf("<html><h1>The time is seconds is %lld</h1></html>",
-				      (int64)time(nullptr));
+			 StringPrintf(
+			     "<html><h1>The time in seconds is %lld</h1>\n"
+			     "<p>Path: %s\n"
+			     "<p>Params:\n"
+			     "%s"
+			     "</html>",
+			     (int64)time(nullptr),
+			     request.path.c_str(),
+			     table.c_str());
 		       return response;
 		     });
-  server->ListenOn(8080);
+  server->ListenOn(8008);
   return;
 }
 

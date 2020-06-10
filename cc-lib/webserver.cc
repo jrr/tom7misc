@@ -6,7 +6,7 @@
 
  */
 
-#include "web.h"
+#include "webserver.h"
 
 /*
 Tom's notes:
@@ -49,7 +49,6 @@ can still quickly be handled.
 
 Tips:
 
-* For debugging use connectionDebugStringCreate
 * Gain extra debugging by enabling ews_print_debug
 * If you want a clean server shutdown you can use serverInit() +
   acceptConnectionsUntilStopped() + serverDeInit()
@@ -118,7 +117,7 @@ using uint64 = uint64_t;
    warnings + errors while ews_print_debug prints mundane
    information */
 #define ews_printf printf
-//#define ews_printf(...)
+// #define ews_printf(...)
 #define ews_printf_debug printf
 // #define ews_printf_debug(...)
 
@@ -193,29 +192,29 @@ static string Itoa(int64 i) {
   return buf;
 }
 
-/* This contains a full HTTP connection. For every connection, a thread is spawned
-   and passed this struct */
+/* This contains a full HTTP connection. For every connection, a
+   thread is spawned and passed this struct */
 struct ServerImpl;
 struct Connection {
   explicit Connection(ServerImpl *server) : server(server) {
     // (original code calloc 0's everything which requestParse depends on)
-    memset(&remoteAddr, 0, sizeof(struct sockaddr_storage));
+    memset(&remote_addr, 0, sizeof(struct sockaddr_storage));
   }
 
   /* Just allocate the buffers in the connection. These go at the beginning of
      the connection in the hopes that they are 'more aligned' */
-  char sendRecvBuffer[SEND_RECV_BUFFER_SIZE] = {};
+  char send_recv_buffer[SEND_RECV_BUFFER_SIZE] = {};
   sockettype socketfd = 0;
   /* Who connected? */
-  struct sockaddr_storage remoteAddr;
-  socklen_t remoteAddrLength = 0;
-  char remoteHost[128] = {};
-  char remotePort[16] = {};
+  struct sockaddr_storage remote_addr;
+  socklen_t remote_addr_length = 0;
+  char remote_host[128] = {};
+  char remote_port[16] = {};
   int64 bytes_sent = 0;
   int64 bytes_received = 0;
   Request request;
-  /* points back to the server, usually used for the server's globalMutex */
-  struct ServerImpl* server = nullptr;
+  /* points back to the server, usually used for the server's global_mutex */
+  struct ServerImpl *server = nullptr;
 };
 
 
@@ -228,12 +227,12 @@ struct ServerImpl final : public WebServer {
   void Stop() override;
   int ListenOn(uint16_t port) override;
 
-  int AcceptConnectionsUntilStopped(const struct sockaddr* address,
+  int AcceptConnectionsUntilStopped(const struct sockaddr *address,
 				    socklen_t addressLength);
   
   vector<pair<string, Handler>> handlers;
   void AddHandler(const string &prefix, Handler h) override {
-    MutexLock ml(&globalMutex);
+    MutexLock ml(&global_mutex);
     handlers.emplace_back(prefix, h);
   }
   Handler GetHandler(const Request &request);
@@ -282,19 +281,20 @@ struct ServerImpl final : public WebServer {
       };
   }
   
-  std::mutex globalMutex;
-  bool shouldRun = true;
+  std::mutex global_mutex;
+  bool should_run = true;
   sockettype listenerfd = 0;
 
-  /* The rest of the vars just have to do with shutting down the server cleanly.
-     It's a lot of work, actually! Much simpler when I just let it run forever */
+  /* The rest of the vars just have to do with shutting down the
+     server cleanly. It's a lot of work, actually! Much simpler when I
+     just let it run forever. */
   bool stopped = false;
-  std::mutex stoppedMutex;
-  std::condition_variable stoppedCond;
+  std::mutex stopped_mutex;
+  std::condition_variable stopped_cond;
 
-  int activeConnectionCount = 0;
-  std::condition_variable connectionFinishedCond;
-  std::mutex connectionFinishedLock;
+  int active_connection_count = 0;
+  std::condition_variable connection_finished_cond;
+  std::mutex connection_finished_mutex;
 
   Counter *total_connections = nullptr;
   Counter *active_connections = nullptr;
@@ -303,7 +303,7 @@ struct ServerImpl final : public WebServer {
 };
 
 Handler ServerImpl::GetHandler(const Request &request) {
-  MutexLock ml(&globalMutex);
+  MutexLock ml(&global_mutex);
   // In c++20, can use s->starts_with(prefix).
   auto StartsWith = [](string_view big, string_view little) {
       if (big.size() < little.size()) return false;
@@ -322,34 +322,6 @@ Handler ServerImpl::GetHandler(const Request &request) {
   return GetDefaultHandler();
 }
 
-
-// TODO: Garbage?
-
-/* use these in createWebServer::ResponseForRequest */
-/* Allocate a response with an empty body and no headers */
-WebServer::Response* responseAlloc(int code, std::string status, std::string contentType);
-WebServer::Response* responseAllocHTML(std::string html);
-WebServer::Response* responseAllocHTMLWithStatus(int code, std::string status, std::string html);
-
-/* Error messages for when the request can't be handled properly */
-WebServer::Response* responseAlloc400BadRequestHTML(std::string error);
-WebServer::Response* responseAlloc404NotFoundHTML(const char* resourcePathOrNull);
-WebServer::Response* responseAlloc500InternalErrorHTML(const char* extraInformationOrNull);
-
-/* Wrappers around strdupDecodeGetorPOSTParam */
-char* strdupDecodeGETParam(const char* paramNameIncludingEquals, const struct WebServer::Request* request, const char* valueIfNotFound);
-char* strdupDecodePOSTParam(const char* paramNameIncludingEquals, const struct WebServer::Request* request, const char* valueIfNotFound);
-/* You can pass this the request->path for GET or request->body.contents for POST. Accepts nullptr for paramString for convenience */
-char* strdupDecodeGETorPOSTParam(const char* paramNameIncludingEquals, const char* paramString, const char* valueIfNotFound);
-/* If you want to echo back HTML into the value="" attribute or display some user output this will help you (like &gt; &lt;) */
-char* strdupEscapeForHTML(const char* stringToEscape);
-/* If you have a file you reading/writing across connections you can use this provided pthread mutex so you don't have to make your own */
-
-struct PathInformation {
-  bool exists;
-  bool isDirectory;
-};
-
 static void printIPv4Addresses(uint16_t portInHostOrder);
 static void callWSAStartupIfNecessary(void);
 
@@ -361,27 +333,23 @@ static void callWSAStartupIfNecessary(void);
 #endif
 
 
-static void connectionHandlerThread(void* connectionPointer);
+static void connectionHandlerThread(void *connection_pointer);
 
-static void URLDecode(const char* encoded, char* decoded, size_t decodedCapacity) {
+static string URLDecode(const char *encoded) {
+  string decoded;
+  
   enum URLDecodeState {
     Normal,
     PercentFirstDigit,
     PercentSecondDigit
   };
   
-  /* We found a value. Unescape the URL. This is probably filled with bugs */
-  size_t deci = 0;
   /* these three vars unescape % escaped things */
   URLDecodeState state = Normal;
-  char firstDigit = '\0';
-  char secondDigit;
+  char first_digit = '\0';
+  char second_digit = '\0';
   while (1) {
     /* break out the exit conditions */
-    /* need to store a null char in decoded[decodedCapacity - 1] */
-    if (deci >= decodedCapacity - 1) {
-      break;
-    }
     /* no encoding string left to process */
     if (*encoded == '\0') {
       break;
@@ -392,28 +360,27 @@ static void URLDecode(const char* encoded, char* decoded, size_t decodedCapacity
       if ('%' == *encoded) {
 	state = PercentFirstDigit;
       } else if ('+' == *encoded) {
-	decoded[deci] = ' ';
-	deci++;
+	decoded.push_back(' ');
       } else {
-	decoded[deci] = *encoded;
-	deci++;
+	decoded.push_back(*encoded);
       }
       break;
     case PercentFirstDigit:
       // copy the first digit, get the second digit
-      firstDigit = *encoded;
+      first_digit = *encoded;
       state = PercentSecondDigit;
       break;
     case PercentSecondDigit: {
-      secondDigit = *encoded;
-      int decodedEscape;
-      char hexString[] = {firstDigit, secondDigit, '\0'};
-      int items = sscanf(hexString, "%02x", &decodedEscape);
+      // XXX Do this without sscanf. -tom7
+      second_digit = *encoded;
+      int decoded_escape;
+      char hex_string[] = {first_digit, second_digit, '\0'};
+      int items = sscanf(hex_string, "%02x", &decoded_escape);
       if (1 == items) {
-	decoded[deci] = (char) decodedEscape;
-	deci++;
+	decoded.push_back((char)decoded_escape);
       } else {
-	ews_printf("Warning: Unable to decode hex string 0x%s from %s", hexString, encoded);
+	ews_printf("Warning: Unable to decode hex string 0x%s from %s",
+		   hex_string, encoded);
       }
       state = Normal;
     }
@@ -421,11 +388,11 @@ static void URLDecode(const char* encoded, char* decoded, size_t decodedCapacity
     }
     encoded++;
   }
-  decoded[deci] = '\0';
+  return decoded;
 }
 
 
-const string *Request::GetHeader(const string &header_name) {
+const string *Request::GetHeader(const string &header_name) const {
   for (const auto &p : headers) {
     if (0 == strcasecmp(p.first.c_str(), header_name.c_str())) {
       return &p.second;
@@ -434,33 +401,35 @@ const string *Request::GetHeader(const string &header_name) {
   return nullptr;
 }
 
-#if 0
-// TODO: These are static utilties that can be exposed to the user. They're not
-// needed in this code. Should port to std::string etc.
-/* Aggressively escape strings for URLs. This adds the %12%0f stuff */
-static char* strdupEscapeForURL(const char* stringToEscape) {
-  struct HeapString escapedString;
-  heapStringInit(&escapedString);
-  const char* p = stringToEscape;
-  while ('\0' != *p) {
-    bool isULetter = *p >= 'A' && *p <= 'Z';
-    bool isLLetter = *p >= 'a' && *p <= 'z';
-    bool isNumber = *p >= '0' && *p <= '9';
-    bool isAcceptablePunctuation = ('.' == *p || '/' == *p || '-' == *p);
-    if (isULetter || isLLetter || isNumber || isAcceptablePunctuation) {
-      heapStringAppendChar(&escapedString, *p);
+std::vector<std::pair<std::string, std::string>> Request::Params() const {
+  // Parameters are separated from path by '?'.
+  size_t qpos = path.find('?');
+  if (qpos == string::npos) return {};
+  
+  std::string params = path.substr(qpos + 1, string::npos);
+  // ez-cheezy way to make sure each k=v is terminated by an
+  // ampersand.
+  params.push_back('&');
+  
+  vector<pair<string, string>> kvs;
+  size_t start = 0;
+  for (;;) {
+    size_t apos = params.find('&', start);
+    if (apos == string::npos) break;
+    
+    string kv = params.substr(start, apos - start);
+    size_t epos = kv.find('=');
+    if (epos != string::npos) {
+      string k = kv.substr(0, epos);
+      string v = kv.substr(epos + 1, string::npos);
+      kvs.emplace_back(URLDecode(k.c_str()), URLDecode(v.c_str()));
     } else {
-      // huh I guess %02x doesn't work in Windows?? holy cow
-      uint8_t pu8 = (uint8_t)*p;
-      uint8_t firstDigit = (pu8 & 0xf0) >> 4;
-      uint8_t secondDigit = pu8 & 0xf;
-      heapStringAppendFormat(&escapedString, "%%%x%x", firstDigit, secondDigit);
+      // Skip it...
     }
-    p++;
+    start = apos + 1;
   }
-  return escapedString.contents;
+  return kvs;
 }
-#endif
 
 string WebServer::HTMLEscape(const string &input) {
   string output;
@@ -489,111 +458,10 @@ string WebServer::HTMLEscape(const string &input) {
   return output;
 }
 
-
-#if 0
-struct HeapString connectionDebugStringCreate(const Connection* connection) {
-  struct HeapString debugString;
-  heapStringInit(&debugString);
-  // heapStringAppendFormat(&debugString, "%s %s from %s:%s\n", connection->request.method, connection->request.path, connection->remoteHost, connection->remotePort);
-  heapStringAppendFormat(&debugString, "Request URL Path decoded to '%s'\n", connection->request.pathDecoded);
-  heapStringAppendFormat(&debugString, "Bytes sent:%" PRId64 "\n", connection->status.bytesSent);
-  heapStringAppendFormat(&debugString, "Bytes received:%" PRId64 "\n", connection->status.bytesReceived);
-  heapStringAppendFormat(&debugString, "Final request parse state:%d\n", connection->request.state);
-  heapStringAppendFormat(&debugString, "Header count:%" PRIu64 "\n",
-			 (uint64) connection->request.headers.size());
-  bool firstHeader = true;
-  heapStringAppendString(&debugString, "\n*** Request Headers ***\n");
-  for (const auto &header : connection->request.headers) {
-    if (firstHeader) {
-      firstHeader = false;
-    }
-    heapStringAppendFormat(&debugString, "'%s' = '%s'\n",
-			   header.first.c_str(),
-			   header.second.c_str());
-  }
-  if (!connection->request.body.empty()) {
-    heapStringAppendFormat(&debugString, "\n*** Request Body ***\n%s\n",
-			   connection->request.body.c_str());
-  }
-  heapStringAppendFormat(&debugString, "\n*** Request Warnings ***\n");
-  bool hadWarnings = false;
-  if (connection->request.bodyTruncated) {
-    heapStringAppendString(&debugString,
-			   "bodyTruncated - you can increase REQUEST_MAX_BODY_LENGTH");
-    hadWarnings = true;
-  }
-  if (!hadWarnings) {
-    heapStringAppendString(&debugString, "No warnings\n");
-  }
-  return debugString;
-}
-#endif
-
-// allocates a response with content = malloc(contentLength + 1) so you can write
-// null-terminated strings to it
-Response* responseAlloc(int code, string status, string content_type) {
-  Response* response = new Response;
-  response->code = code;
-  response->status = std::move(status);
-  response->content_type = std::move(content_type);
-  return response;
-}
-
-Response* responseAllocHTML(string html) {
-  return responseAllocHTMLWithStatus(200, "OK", std::move(html));
-}
-
-Response* responseAllocHTMLWithStatus(int code, string status, string html) {
-  Response* response = responseAlloc(code, status, "text/html; charset=UTF-8");
-  response->body = std::move(html);
-  return response;
-}
-
-Response* responseAlloc400BadRequestHTML(string error) {
-  return responseAllocHTMLWithStatus(
-      400, "Bad Request",
-      (string)
-      "<html><head><title>400 - Bad Request</title></head>"
-      "<body>The request made was invalid: " + error +
-      (string)"</body></html>");
-}
-
-Response* responseAlloc404NotFoundHTML(const char* resourcePathOrNull) {
-  if (nullptr == resourcePathOrNull) {
-    return responseAllocHTMLWithStatus(
-	404, "Not Found",
-	"<html><head><title>404 Not Found</title></head><body>"
-	"The resource you specified could not be found</body></html>");
-  } else {
-    return responseAllocHTMLWithStatus(
-	404, "Not Found",
-	(string)
-	"<html><head><title>404 Not Found</title></head><body>"
-	"The resource you specified ('" +
-	resourcePathOrNull
-	+ "') could not be found</body></html>");
-  }
-}
-
-Response* responseAlloc500InternalErrorHTML(const char* extraInformationOrNull) {
-  if (nullptr == extraInformationOrNull) {
-    return responseAllocHTMLWithStatus(
-	500, "Internal Error",
-	"<html><head><title>500 Internal Error</title></head>"
-	"<body>There was an internal error while completing your request</body></html>");
-  } else {
-    return responseAllocHTMLWithStatus(
-	500, "Internal Error",
-	(string)
-	"<html><head><title>500 Internal Error</title></head>"
-	"<body>There was an internal error while completing your request. " +
-	(string)extraInformationOrNull +
-	(string)"</body></html>");
-  }
-}
-
-/* parses a typical HTTP request looking for the first line: GET /path HTTP/1.0\r\n 
-   Data is passed incrementally to Parse, and the object keeps some internal state. */
+/* parses a typical HTTP request looking for the first line: 
+   GET /path HTTP/1.0\r\n 
+   Data is passed incrementally to Parse, and the object keeps some 
+   internal state. */
 struct RequestParser { 
   explicit RequestParser(Request *request) : request(request) {}
   Request *request = nullptr;
@@ -624,7 +492,7 @@ struct RequestParser {
     return state == RequestParseState::Done;
   }
   
-  void Parse(const char* requestFragment, size_t requestFragmentLength) {
+  void Parse(const char *requestFragment, size_t requestFragmentLength) {
     for (size_t i = 0; i < requestFragmentLength; i++) {
       char c = requestFragment[i];
       switch (state) {
@@ -637,8 +505,6 @@ struct RequestParser {
 	break;
       case RequestParseState::Path:
 	if (c == ' ') {
-	  /* we are done parsing the path, decode it */
-	  URLDecode(request->path.c_str(), request->pathDecoded, sizeof(request->pathDecoded));
 	  state = RequestParseState::Version;
 	} else {
 	  request->path += c;
@@ -694,25 +560,28 @@ struct RequestParser {
 	  state = RequestParseState::CRLFCR;
 	} else {
 	  state = RequestParseState::HeaderName;
-	  /* this is the first character of the header - replay the HeaderName case so
-	     this character gets appended */
+	  /* this is the first character of the header - replay the
+	     HeaderName case so this character gets appended */
 	  i--;
 	}
 	break;
       case RequestParseState::CRLFCR:
 	if (c == '\n') {
-	  /* assume the request state is done unless we have some Content-Length,
-	     which would come from something like a JSON blob */
+	  /* assume the request state is done unless we have some
+	     Content-Length, which would come from something like a
+	     JSON blob */
 	  state = RequestParseState::Done;
-	  const string* contentLengthHeader = request->GetHeader("Content-Length");
+	  const string *contentLengthHeader =
+	    request->GetHeader("Content-Length");
 	  if (nullptr != contentLengthHeader) {
 	    ews_printf_debug("Incoming request has a body of length %s\n",
 			     contentLengthHeader->c_str());
 	    /* Note that this limits content length to < 2GB on Windows */
 	    long content_length = 0;
-	    if (1 == sscanf(contentLengthHeader->c_str(), "%ld", &content_length)) {
+	    if (1 == sscanf(contentLengthHeader->c_str(), "%ld",
+			    &content_length)) {
 	      if (content_length > REQUEST_MAX_BODY_LENGTH) {
-		request->bodyTruncated = true;
+		request->body_truncated = true;
 		content_length = REQUEST_MAX_BODY_LENGTH;
 	      }
 	      if (content_length < 0) {
@@ -743,11 +612,13 @@ struct RequestParser {
   }
 };
 
-static void requestPrintWarnings(const Request* request,
-				 const char* remoteHost, const char* remotePort) {
-  if (request->bodyTruncated) {
-    ews_printf("Warning: Request from %s:%s body was truncated to %" PRIu64 " bytes\n",
-	       remoteHost, remotePort, (uint64)request->body.size());
+static void requestPrintWarnings(const Request *request,
+				 const char *remote_host,
+				 const char *remote_port) {
+  if (request->body_truncated) {
+    ews_printf("Warning: Request from %s:%s body was truncated "
+	       "to %" PRIu64 " bytes\n",
+	       remote_host, remote_port, (uint64)request->body.size());
   }
 }
 
@@ -766,14 +637,15 @@ int ServerImpl::ListenOn(uint16_t portInHostOrder) {
 				       sizeof(anyInterfaceIPv4));
 }
 
-int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr* address,
+int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
 					      socklen_t addressLength) {
   callWSAStartupIfNecessary();
   /* resolve the local address we are binding to so we can print it out later */
   char addressHost[256];
   char addressPort[20];
   int nameResult = getnameinfo(address, addressLength, addressHost,
-			       sizeof(addressHost), addressPort, sizeof(addressPort),
+			       sizeof(addressHost), addressPort,
+			       sizeof(addressPort),
 			       NI_NUMERICHOST | NI_NUMERICSERV);
   if (0 != nameResult) {
     ews_printf("AcceptConnectionsUntilStopped: Could not get numeric host name "
@@ -783,14 +655,16 @@ int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr* address,
   }
   listenerfd = socket(address->sa_family, SOCK_STREAM, IPPROTO_TCP);
   if (listenerfd  <= 0) {
-    ews_printf("Could not create listener socket: %s = %d\n", strerror(errno), errno);
+    ews_printf("Could not create listener socket: %s = %d\n",
+	       strerror(errno), errno);
     return 1;
   }
-  /* SO_REUSEADDR tells the kernel to re-use the bind address in certain circumstances.
-     I've always found when making debug/test servers that I want this option, 
-     especially on Mac OS X */
+  /* SO_REUSEADDR tells the kernel to re-use the bind address in
+     certain circumstances. I've always found when making debug/test
+     servers that I want this option, especially on Mac OS X */
   int reuse = 1;
-  int result = setsockopt(listenerfd, SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, sizeof(reuse));
+  int result = setsockopt(listenerfd, SOL_SOCKET, SO_REUSEADDR,
+			  (char*)&reuse, sizeof(reuse));
   if (0 != result) {
     ews_printf("Failed to setsockopt SO_REUSEADDR = true with %s = %d. "
 	       "Continuing because we might still succeed...\n",
@@ -803,7 +677,8 @@ int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr* address,
 			(char*)&ipv6only, sizeof(ipv6only));
     if (0 != result) {
       ews_printf("Failed to setsockopt IPV6_V6ONLY = true with %s = %d. "
-		 "This is not supported on BSD/macOS\n", strerror(errno), errno);
+		 "This is not supported on BSD/macOS\n",
+		 strerror(errno), errno);
     }
   }
 
@@ -824,83 +699,88 @@ int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr* address,
      Special-case IPv4 0.0.0.0 bind-to-all-interfaces */
   bool printed = false;
   if (address->sa_family == AF_INET) {
-    const struct sockaddr_in* addressIPv4 = (const struct sockaddr_in*) address;
+    const struct sockaddr_in *addressIPv4 = (const struct sockaddr_in*) address;
     if (INADDR_ANY == addressIPv4->sin_addr.s_addr) {
       printIPv4Addresses(ntohs(addressIPv4->sin_port));
       printed = true;
     }
   }
   if (!printed) {
-    ews_printf("Listening for connections on %s:%s\n", addressHost, addressPort);
+    ews_printf("Listening for connections on %s:%s\n",
+	       addressHost, addressPort);
   }
-  /* allocate a connection (which sets connection->remoteAddrLength) and accept the
-     next inbound connection */
-  Connection* nextConnection = new Connection(this);
-  while (shouldRun) {
-    nextConnection->remoteAddrLength = sizeof(nextConnection->remoteAddr);
-    nextConnection->socketfd =
-      accept(listenerfd, (struct sockaddr*) &nextConnection->remoteAddr,
-	     &nextConnection->remoteAddrLength);
+  /* allocate a connection (which sets connection->remote_addr_length)
+     and accept the next inbound connection */
+  Connection *next_connection = new Connection(this);
+  while (should_run) {
+    next_connection->remote_addr_length = sizeof(next_connection->remote_addr);
+    next_connection->socketfd =
+      accept(listenerfd, (struct sockaddr*) &next_connection->remote_addr,
+	     &next_connection->remote_addr_length);
     // XXX Apparently socketfd unsigned on win32? If so, this is not the right
     // way to be testing this?
-    if (-1 == (int)nextConnection->socketfd) {
+    if (-1 == (int)next_connection->socketfd) {
       if (errno == EINTR) {
-	ews_printf("accept was interrupted, continuing if server.shouldRun is true...\n");
+	ews_printf("accept was interrupted, continuing if server.should_run "
+		   "is true...\n");
 	continue;
       }
       if (errno == EBADF) {
-	ews_printf("accept was stopped because the file descriptor is invalid (EBADF). "
-		   "This is probably because you closed it?\n");
+	ews_printf("accept was stopped because the file descriptor is "
+		   "invalid (EBADF). This is probably because you closed "
+		   "it?\n");
 	continue;
       }
-      ews_printf("exiting because accept failed (probably interrupted) %s = %d\n",
+      ews_printf("exiting because accept failed (probably interrupted) "
+		 "%s = %d\n",
 		 strerror(errno), errno);
       break;
     }
 
     {
-      MutexLock ml(&connectionFinishedLock);
-      activeConnectionCount++;
+      MutexLock ml(&connection_finished_mutex);
+      active_connection_count++;
     }
 
     /* we just received a new connection, spawn a thread */
-    std::thread connectionThread(connectionHandlerThread, nextConnection);
+    std::thread connectionThread(connectionHandlerThread, next_connection);
     connectionThread.detach();
-    nextConnection = new Connection(this);
+    next_connection = new Connection(this);
   }
 
 
   {
-    MutexLock ml(&globalMutex);
+    MutexLock ml(&global_mutex);
     if (0 != listenerfd && errno != EBADF) {
       close(listenerfd);
     }
   }
 
-  delete nextConnection;
+  delete next_connection;
 
   {
-    std::unique_lock<std::mutex> lock_count(connectionFinishedLock);
-    while (activeConnectionCount > 0) {
-      ews_printf_debug("Active connection cound is %d, waiting for it go to 0...\n",
-		       activeConnectionCount);
+    std::unique_lock<std::mutex> lock_count(connection_finished_mutex);
+    while (active_connection_count > 0) {
+      ews_printf_debug(
+	  "Active connection cound is %d, waiting for it go to 0...\n",
+	  active_connection_count);
       // XXX can use predicate
-      connectionFinishedCond.wait(lock_count);
+      connection_finished_cond.wait(lock_count);
     }
   }
 
-  stoppedMutex.lock();
+  stopped_mutex.lock();
   stopped = true;
-  // XXX PERF: "the notifying thread does not need to hold the lock on the same mutex...
-  // in fact doing so is a pessimization"
-  stoppedCond.notify_all();
-  stoppedMutex.unlock();
+  // XXX PERF: "the notifying thread does not need to hold the lock on
+  // the same mutex... in fact doing so is a pessimization"
+  stopped_cond.notify_all();
+  stopped_mutex.unlock();
   return 0;
 }
 
 
-static int SendResponse(Connection* connection, const Response &response,
-			ssize_t* bytesSent) {
+static int SendResponse(Connection *connection, const Response &response,
+			ssize_t *bytesSent) {
 
   string response_header = "HTTP/1.1 ";
   response_header += Itoa(response.code);
@@ -924,8 +804,8 @@ static int SendResponse(Connection* connection, const Response &response,
   if (sendResult != (int64)response_header.size()) {
     ews_printf("Failed to respond to %s:%s because we could not send the HTTP "
 	       "response *header*. send returned %ld with %s = %d\n",
-               connection->remoteHost,
-               connection->remotePort,
+               connection->remote_host,
+               connection->remote_port,
                (long) sendResult,
                strerror(errno),
                errno);
@@ -937,13 +817,14 @@ static int SendResponse(Connection* connection, const Response &response,
   if (!response.body.empty()) {
     sendResult = send(connection->socketfd, response.body.c_str(), response.body.size(), 0);
     if (sendResult != (ssize_t) response.body.size()) {
-      ews_printf("Failed to respond to %s:%s because we could not send the HTTP "
-		 "response *body*. send returned %" PRId64 " with %s = %d\n",
-		 connection->remoteHost,
-		 connection->remotePort,
-		 (int64) sendResult,
-		 strerror(errno),
-		 errno);
+      ews_printf(
+	  "Failed to respond to %s:%s because we could not send the HTTP "
+	  "response *body*. send returned %" PRId64 " with %s = %d\n",
+	  connection->remote_host,
+	  connection->remote_port,
+	  (int64) sendResult,
+	  strerror(errno),
+	  errno);
       return -1;
     }
     *bytesSent = *bytesSent + sendResult;
@@ -952,14 +833,16 @@ static int SendResponse(Connection* connection, const Response &response,
 }
 
 
-static void connectionHandlerThread(void* connectionPointer) {
-  Connection* connection = (Connection*) connectionPointer;
-  getnameinfo((struct sockaddr*) &connection->remoteAddr, connection->remoteAddrLength,
-	      connection->remoteHost, sizeof(connection->remoteHost),
-	      connection->remotePort, sizeof(connection->remotePort),
-	      NI_NUMERICHOST | NI_NUMERICSERV);
+static void connectionHandlerThread(void *connection_pointer) {
+  Connection *connection = (Connection*) connection_pointer;
+  getnameinfo(
+      (struct sockaddr*) &connection->remote_addr,
+      connection->remote_addr_length,
+      connection->remote_host, sizeof(connection->remote_host),
+      connection->remote_port, sizeof(connection->remote_port),
+      NI_NUMERICHOST | NI_NUMERICSERV);
   ews_printf_debug("New connection from %s:%s...\n",
-		   connection->remoteHost, connection->remotePort);
+		   connection->remote_host, connection->remote_port);
   ServerImpl *server = connection->server;
   server->active_connections->Increment();
   server->total_connections->Increment();
@@ -969,17 +852,17 @@ static void connectionHandlerThread(void* connectionPointer) {
   bool foundRequest = false;
   ssize_t bytesRead;
   RequestParser parser(&connection->request);
-  while ((bytesRead = recv(connection->socketfd, connection->sendRecvBuffer,
+  while ((bytesRead = recv(connection->socketfd, connection->send_recv_buffer,
 			   SEND_RECV_BUFFER_SIZE, 0)) > 0) {
     if (OptionPrintWholeRequest) {
-      fwrite(connection->sendRecvBuffer, 1, bytesRead, stdout);
+      fwrite(connection->send_recv_buffer, 1, bytesRead, stdout);
     }
     connection->bytes_received += bytesRead;
-    parser.Parse(connection->sendRecvBuffer, bytesRead);
+    parser.Parse(connection->send_recv_buffer, bytesRead);
     if (parser.HaveFirstLine() && !madeRequestPrintf) {
       ews_printf_debug("Request from %s:%s: %s to %s HTTP version %s\n",
-		       connection->remoteHost,
-		       connection->remotePort,
+		       connection->remote_host,
+		       connection->remote_port,
 		       connection->request.method.c_str(),
 		       connection->request.path.c_str(),
 		       connection->request.version.c_str());
@@ -991,7 +874,8 @@ static void connectionHandlerThread(void* connectionPointer) {
     }
   }
   
-  requestPrintWarnings(&connection->request, connection->remoteHost, connection->remotePort);
+  requestPrintWarnings(&connection->request,
+		       connection->remote_host, connection->remote_port);
 
 
   ssize_t bytesSent = 0;
@@ -1002,8 +886,8 @@ static void connectionHandlerThread(void* connectionPointer) {
     int result = SendResponse(connection, response, &bytesSent);
     if (0 == result) {
       ews_printf_debug("%s:%s: Responded with HTTP %d %s length %" PRId64 "\n",
-		       connection->remoteHost,
-		       connection->remotePort,
+		       connection->remote_host,
+		       connection->remote_port,
 		       response.code,
 		       response.status.c_str(),
 		       (int64)bytesSent);
@@ -1012,13 +896,14 @@ static void connectionHandlerThread(void* connectionPointer) {
     connection->bytes_sent = bytesSent;
 
   } else {
-    ews_printf("No request found from %s:%s? Closing connection. Here's the last "
-	       "bytes we received in the request (length %" PRIi64 "). The total "
-	       "bytes received on this connection: %" PRIi64 " :\n",
-	       connection->remoteHost, connection->remotePort, (int64) bytesRead,
-	       connection->bytes_received);
+    ews_printf(
+	"No request found from %s:%s? Closing connection. Here's the last "
+	"bytes we received in the request (length %" PRIi64 "). The total "
+	"bytes received on this connection: %" PRIi64 " :\n",
+	connection->remote_host, connection->remote_port, (int64) bytesRead,
+	connection->bytes_received);
     if (bytesRead > 0) {
-      fwrite(connection->sendRecvBuffer, 1, bytesRead, stdout);
+      fwrite(connection->send_recv_buffer, 1, bytesRead, stdout);
     }
   }
   /* we're done */
@@ -1029,34 +914,35 @@ static void connectionHandlerThread(void* connectionPointer) {
   server->active_connections->IncrementBy(-1LL);
   
   ews_printf_debug("Connection from %s:%s closed\n",
-		   connection->remoteHost, connection->remotePort);
+		   connection->remote_host, connection->remote_port);
   {
-    connection->server->connectionFinishedLock.lock();
-    connection->server->activeConnectionCount--;
-    connection->server->connectionFinishedCond.notify_all();
-    connection->server->connectionFinishedLock.unlock();
+    connection->server->connection_finished_mutex.lock();
+    connection->server->active_connection_count--;
+    connection->server->connection_finished_cond.notify_all();
+    connection->server->connection_finished_mutex.unlock();
   }
   delete connection;
   return;
 }
 
-static bool StringEndsWith(const string &big, const char* endsWith) {
-  size_t bigLength = big.size();
-  size_t endsWithLength = strlen(endsWith);
-  if (bigLength < endsWithLength) {
+static bool StringEndsWith(const string &big, const char *ends_with) {
+  size_t big_length = big.size();
+  size_t ends_with_length = strlen(ends_with);
+  if (big_length < ends_with_length) {
     return false;
   }
 
-  for (size_t i = 0; i < endsWithLength; i++) {
-    size_t bigIndex = i + (bigLength - endsWithLength);
-    if (big[bigIndex] != endsWith[i]) {
+  for (size_t i = 0; i < ends_with_length; i++) {
+    size_t big_index = i + (big_length - ends_with_length);
+    if (big[big_index] != ends_with[i]) {
       return false;
     }
   }
   return true;
 }
 
-string WebServer::GuessMIMEType(const string &filename, const string &contents) {
+string WebServer::GuessMIMEType(const string &filename,
+				const string &contents) {
   // http://libpng.org/pub/png/spec/1.2/PNG-Structure.html
   static constexpr uint8_t PNGMagic[] = {137, 80, 78, 71, 13, 10, 26, 10};
   // http://www.onicos.com/staff/iz/formats/gif.html
@@ -1096,7 +982,8 @@ string WebServer::GuessMIMEType(const string &filename, const string &contents) 
   if (StringEndsWith(filename, ".js")) {
     return "application/javascript; charset=UTF-8";
   }
-  /* is it a plain text file? Just inspect the first 100 bytes or so for ASCII */
+  /* is it a plain text file? Just inspect the first 100 bytes or so
+     for ASCII */
   bool plaintext = true;
   for (int i = 0; (size_t)i < contents.size() && i < 100; i++) {
     // XXX allows some low ascii
@@ -1123,15 +1010,15 @@ ServerImpl::ServerImpl() {
 
 void ServerImpl::Stop() {
   {
-    MutexLock ml(&globalMutex);
-    shouldRun = false;
+    MutexLock ml(&global_mutex);
+    should_run = false;
     if (listenerfd >= 0) {
       close(listenerfd);
     }
   }
 
-  std::unique_lock<std::mutex> lock_stopped(stoppedMutex);
-  stoppedCond.wait(lock_stopped, [this]() {
+  std::unique_lock<std::mutex> lock_stopped(stopped_mutex);
+  stopped_cond.wait(lock_stopped, [this]() {
       return this->stopped;
     });
 }
@@ -1161,7 +1048,8 @@ static void callWSAStartupIfNecessary() {
     WSADATA data = { 0 };
     int result = WSAStartup(MAKEWORD(2, 2), &data);
     if (0 != result) {
-      ews_printf("Calling WSAStartup failed! It returned %d with GetLastError() = %lld\n",
+      ews_printf("Calling WSAStartup failed! It returned %d with "
+		 "GetLastError() = %lld\n",
 		 result, (int64)GetLastError());
       abort();
     }
@@ -1183,10 +1071,12 @@ static void SIGPIPEHandler(int signal) {
 }
 
 static void ignoreSIGPIPE() {
-  void* previousSIGPIPEHandler = (void*) signal(SIGPIPE, &SIGPIPEHandler);
-  if (nullptr != previousSIGPIPEHandler && previousSIGPIPEHandler != &SIGPIPEHandler) {
-    ews_printf("Warning: Uninstalled previous SIGPIPE handler:%p and installed our "
-	       "handler which ignores SIGPIPE\n", previousSIGPIPEHandler);
+  void *previousSIGPIPEHandler = (void*) signal(SIGPIPE, &SIGPIPEHandler);
+  if (nullptr != previousSIGPIPEHandler &&
+      previousSIGPIPEHandler != &SIGPIPEHandler) {
+    ews_printf(
+	"Warning: Uninstalled previous SIGPIPE handler:%p and installed our "
+	"handler which ignores SIGPIPE\n", previousSIGPIPEHandler);
   }
 }
 
@@ -1195,9 +1085,9 @@ static void callWSAStartupIfNecessary() {
 }
 
 static void printIPv4Addresses(uint16_t portInHostOrder) {
-  struct ifaddrs* addrs = nullptr;
+  struct ifaddrs *addrs = nullptr;
   getifaddrs(&addrs);
-  struct ifaddrs* p = addrs;
+  struct ifaddrs *p = addrs;
   while (nullptr != p) {
     if (nullptr != p->ifa_addr && p->ifa_addr->sa_family == AF_INET) {
       char hostname[256];
@@ -1215,7 +1105,7 @@ static void printIPv4Addresses(uint16_t portInHostOrder) {
 #endif
 
 /*
-Based on EmbeddableWebServer, Copyrightg (c) 2016, 2019 Forrest
+Based on EmbeddableWebServer, Copyright (c) 2016, 2019 Forrest
 Heller, Martin Pulec, Daniel Barry.
 https://www.forrestheller.com/embeddable-c-web-server/
 
