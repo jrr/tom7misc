@@ -589,7 +589,7 @@ uint8_t bcm2835_spi_transfer(uint8_t value) {
   return ret;
 }
 
-/* Writes (and reads) an number of bytes to SPI */
+/* Writes (and reads) a number of bytes to SPI */
 void bcm2835_spi_transfernb(char* tbuf, char* rbuf, uint32_t len) {
   volatile uint32_t *paddr = bcm2835_spi0 + BCM2835_SPI0_CS/4;
   volatile uint32_t *fifo = bcm2835_spi0 + BCM2835_SPI0_FIFO/4;
@@ -1041,7 +1041,7 @@ void bcm2835_i2c_set_baudrate(uint32_t baudrate) {
   bcm2835_i2c_setClockDivider( (uint16_t)divider );
 }
 
-/* Writes an number of bytes to I2C */
+/* Writes a number of bytes to I2C */
 uint8_t bcm2835_i2c_write(const char *buf, uint32_t len) {
 #ifdef I2C_V1
     volatile uint32_t* dlen    = bcm2835_bsc0 + BCM2835_BSC_DLEN/4;
@@ -1105,7 +1105,7 @@ uint8_t bcm2835_i2c_write(const char *buf, uint32_t len) {
     return reason;
 }
 
-/* Read an number of bytes from I2C */
+/* Read a number of bytes from I2C */
 uint8_t bcm2835_i2c_read(char* buf, uint32_t len) {
 #ifdef I2C_V1
     volatile uint32_t* dlen    = bcm2835_bsc0 + BCM2835_BSC_DLEN/4;
@@ -1177,9 +1177,8 @@ uint8_t bcm2835_i2c_read(char* buf, uint32_t len) {
     return reason;
 }
 
-/* Read an number of bytes from I2C sending a repeated start after writing
+// Read a number of bytes from I2C sending a repeated start after writing
 // the required register. Only works if your device supports this mode
-*/
 uint8_t bcm2835_i2c_read_register_rs(char* regaddr, char* buf, uint32_t len) {   
 #ifdef I2C_V1
     volatile uint32_t* dlen    = bcm2835_bsc0 + BCM2835_BSC_DLEN/4;

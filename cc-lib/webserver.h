@@ -60,13 +60,12 @@ struct WebServer {
     // may be discarded.
     std::vector<std::pair<std::string, std::string>> Params() const;
 
-    // TODO: Implement these conveinences...
     // Get the first occurrence of the url param and decode it,
     // or return nullopt if not present.
-    // std::optional<std::string> StringURLParam(const std::string &name) const;
+    std::optional<std::string> StringURLParam(const std::string &name) const;
     // Get the first occurrence of the url param, decode and parse
     // it as an integer, or return nullopt otherwise.
-    // std::optional<int64_t> IntURLParam(const std::string &name) const ;
+    std::optional<int64_t> IntURLParam(const std::string &name) const;
   };
 
   /* You create one of these for the server to send. Use one of the
@@ -92,6 +91,7 @@ struct WebServer {
     virtual void IncrementBy(int64_t v) = 0;
     inline void Increment() { IncrementBy(1LL); }
     virtual void SetTo(int64_t v) = 0;
+    virtual int64_t Value() = 0;
     
   protected:
     // Use WebServer::GetCounter.

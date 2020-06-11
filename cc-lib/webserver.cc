@@ -79,6 +79,7 @@ See web_test.cc for example.
 #include <utility>
 #include <string_view>
 #include <unordered_map>
+#include <optional>
 
 #ifdef WIN32
   #include <WinSock2.h>
@@ -139,6 +140,10 @@ struct CounterImpl final : public WebServer::Counter {
   void SetTo(int64 v) override {
     MutexLock ml(&m);
     value = v;
+  }
+  int64 Value() override {
+    MutexLock ml(&m);
+    return value;
   }
   
   int64 value = 0LL;
@@ -430,6 +435,33 @@ std::vector<std::pair<std::string, std::string>> Request::Params() const {
   }
   return kvs;
 }
+
+// Get the first occurrence of the url param and decode it,
+// or return nullopt if not present.
+std::optional<string> Request::StringURLParam(const string &name) const {
+  // PERF Only need to parse the one parameter.
+  for (const auto &[k, v] : Params()) {
+    if (k == name) return {v};
+  }
+  return {};
+}
+
+// Get the first occurrence of the url param, decode and parse
+// it as an integer, or return nullopt otherwise.
+std::optional<int64_t> Request::IntURLParam(const string &name) const {
+  // PERF Only need to parse the one parameter.
+  for (const auto &[k, v] : Params()) {
+    if (k == name) {
+      if (v.empty()) return {};
+      char *endptr = nullptr;
+      int64_t n = strtoll(v.c_str(), &endptr, 10);
+      if (endptr == nullptr || *endptr != '\0') return {};
+      return {n};
+    }
+  }
+  return {};
+}
+
 
 string WebServer::HTMLEscape(const string &input) {
   string output;
