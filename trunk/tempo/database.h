@@ -66,10 +66,10 @@ struct Database final {
   vector<pair<Probe, vector<pair<int64_t, uint32_t>>>>
   AllReadingsIn(int64_t time_start, int64_t time_end);
 
-  // Get some readings (collated by probe) in the given interval. Only
-  // return values for the probes whose ids appear in the set. Tries
-  // to reduce the number of values (assuming we get about 1 read per
-  // second).
+  // Get some readings (collated by probe) in the given interval. If
+  // the probes set is non-empty, only return for the probes whose ids
+  // appear in the set. Tries to reduce the number of values (assuming
+  // we get about 1 read per second).
   vector<pair<Probe, vector<pair<int64_t, uint32_t>>>>
   SmartReadingsIn(int64_t time_start, int64_t time_end,
 		  const std::set<int> &probes_included);
