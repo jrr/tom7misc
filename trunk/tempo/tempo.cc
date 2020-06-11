@@ -15,7 +15,7 @@
 #include "../cc-lib/base/stringprintf.h"
 #include "../cc-lib/base/logging.h"
 #include "../cc-lib/util.h"
-#include "../cc-lib/web.h"
+#include "../cc-lib/webserver.h"
 #include "../cc-lib/threadutil.h"
 #include "../cc-lib/image.h"
 #include "../cc-lib/pi/bcm2835.h"
