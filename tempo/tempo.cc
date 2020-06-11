@@ -224,9 +224,11 @@ struct Server {
   }
 
   WebServer::Response Graph(const WebServer::Request &request) {
+    const int64 now = time(nullptr);
     // TODO: Make these settable by url params!
-    int64 time_end = time(nullptr);
-    int64 time_start = time_end - 3600;
+    int64 time_end = request.IntURLParam("end").value_or(now);
+    int64 minutes = request.IntURLParam("min").value_or(60LL);
+    int64 time_start = time_end - (minutes * 60LL);
 
     // TODO: Dynamic size
     int width = 1920;
@@ -245,7 +247,7 @@ struct Server {
     // XXX todo timing info
     auto db_start = std::chrono::steady_clock::now();
     std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>> temps =
-      db->AllReadingsIn(time_start, time_end);
+      db->SmartReadingsIn(time_start, time_end, {});
     auto db_end = std::chrono::steady_clock::now();
 
     auto blit_start = std::chrono::steady_clock::now();

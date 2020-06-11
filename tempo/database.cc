@@ -287,6 +287,7 @@ Database::AllReadingsIn(int64 time_start, int64 time_end) {
 std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>>
 Database::SmartReadingsIn(int64 time_start, int64 time_end,
 			  const std::set<int> &probes_included) {
+
   // Goal here is to select a random subset of the data in the
   // mysql query itself, so that the pi doesn't have to process much
   // data.
@@ -316,28 +317,48 @@ Database::SmartReadingsIn(int64 time_start, int64 time_end,
 			      "(probeid * 31337)) mod 65537 < %u", frac);
   }
   
-  string probeset;
-  for (const int i : probes_included) {
-    if (!probeset.empty()) probeset += ",";
-    StringAppendF(&probeset, "%d", i);
+  string whereprobes;
+  if (probes_included.empty()) {
+    whereprobes = "true";
+  } else {
+    string probeset;
+    for (const int i : probes_included) {
+      if (!probeset.empty()) probeset += ",";
+      StringAppendF(&probeset, "%d", i);
+    }
+    whereprobes = "probeid in (" + probeset + ")";
   }
   
   string qs = StringPrintf("select probeid, timestamp, value "
 			   "from tempo.reading "
-			   "where probeid in (%s) "
+			   "where %s "
 			   "and timestamp >= %lld "
 			   "and timestamp <= %lld "
 			   "and %s "
 			   "order by timestamp",
-			   probeset.c_str(),
+			   whereprobes.c_str(),
 			   time_start,
 			   time_end,
 			   sample_exp.c_str());
-
+  fprintf(stderr,
+	  "seconds: %.1f\n"
+	  "est samples in period: %.1f\n"
+	  "sample rate: %.2f\n"
+	  "qs: %s\n",
+	  seconds,
+	  est_samples_in_period,
+	  sample_rate,
+	  qs.c_str());
+  
   Query q = conn.query(qs);
   StoreQueryResult res = q.store();
+  // Sometimes this does fail with "unknown MySQL error".
+  // Too slow? Maybe the hash function is bad?
+  // Perhaps we should use the same probe-by-probe approach from
+  // AllReadingsIn.
   if (!res) {
     failed->Increment();
+    fprintf(stderr, "Query failed: %s\n", q.error());
     return {};
   }
 
@@ -345,20 +366,25 @@ Database::SmartReadingsIn(int64 time_start, int64 time_end,
   // recursively) if there are intervals with no samples. This can happen
   // when a device is offline for some time, for example.
   std::unordered_map<int, vector<pair<int64, uint32>>> collated;
-  
+  fprintf(stderr, "Rows in db result: %lld\n", (int64)res.num_rows());
   for (size_t i = 0; i < res.num_rows(); i++) {
     const int probeid = res[i]["probeid"];
-    
+
     vector<pair<int64, uint32>> *vec = &collated[probeid];
     const int64 id = res[i]["timestamp"];
     const uint32 microdegsc = res[i]["value"];
     vec->emplace_back(id, microdegsc);
   }
 
-  // Return them in set order. Ignore probes with unknown ids.
+  // Sort probe ids.
+  std::set<int> probes_seen;
+  for (const auto &[probeid, vec] : collated)
+    probes_seen.insert(probeid);
+    
+  // Return them in sorted order. Ignore probes with unknown ids.
   std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>> out;
-  out.reserve(probes_included.size());
-  for (const int probe : probes_included) {
+  out.reserve(probes_seen.size());
+  for (const int probe : probes_seen) {
     std::optional<Probe> oprobe = ProbeById(probe);
     if (oprobe.has_value()) {
       out.emplace_back(oprobe.value(), std::move(collated[probe]));
