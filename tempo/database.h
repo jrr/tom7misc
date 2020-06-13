@@ -39,6 +39,7 @@ struct Database final {
 
   std::mutex database_m; // Coarse locking.
   WebServer::Counter *written = nullptr;
+  WebServer::Counter *notwritten = nullptr;  
   WebServer::Counter *batches = nullptr;
   WebServer::Counter *failed = nullptr;
   map<string, string> config;
