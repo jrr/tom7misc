@@ -6,10 +6,12 @@
 #include <thread>
 #include <set>
 #include <optional>
+#include <memory>
 
 #include <mysql++.h>
 
 #include "../cc-lib/webserver.h"
+#include "../cc-lib/arcfour.h"
 
 using namespace std;
 
@@ -101,13 +103,10 @@ private:
   // (linear time...)
   std::optional<Probe> ProbeById(int id) const;
   
-  // Common result processing for AllReadingsIn, SmartReadingsIn.
-  // XXX just kidding
-  // vector<pair<Probe, vector<pair<int64_t, uint32_t>>>>
-  // CollateReadings(const string &qs);
-  
+  std::unique_ptr<ArcFour> rc;
   bool should_die = false;
-  vector<tuple<int64_t, int, uint32_t>> batch;
+  // timestamp, probe, value, sample_key
+  vector<tuple<int64_t, int, uint32_t, uint16_t>> batch;
   std::thread periodic_thread;
   string mac_key, ipaddress;
   bool Connect();

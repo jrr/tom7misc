@@ -20,5 +20,6 @@ create table reading (
        id int primary key auto_increment not null,
        timestamp bigint unsigned not null,
        probeid int not null,
-       value mediumint not null
+       value mediumint not null,
+       sample_key smallint unsigned not null,
 );
