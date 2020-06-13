@@ -43,6 +43,7 @@ static string Escape(string s) {
 
 Database::Database() {
   written = WebServer::GetCounter("readings written");
+  notwritten = WebServer::GetCounter("readings not written");
   batches = WebServer::GetCounter("batches written");
   failed = WebServer::GetCounter("failed queries");
 
@@ -180,7 +181,12 @@ string Database::WriteValue(const string &code, uint32_t value) {
   const int id = it->second.id;
   const uint64 now = time(nullptr);
 
-  uint16 sample_key = (uint16)rc->Byte() << 8 | rc->Byte();
+  // TODO: Using a different distribution here would allow us to
+  // use these bits more efficiently. Note that if we request a
+  // two-hour window, for example, we ask to throw out every other
+  // sample, so every sample in the range 32768-65536. Perhaps
+  // even a single byte for the sample key could suffice.
+  const uint16 sample_key = (uint16)rc->Byte() << 8 | rc->Byte();
   batch.emplace_back(now, id, value, sample_key);
   
   return it->second.name;
@@ -236,6 +242,10 @@ void Database::Write() {
   // TODO: If we are disconnected for a very long time, we should
   // probably clear the batch in smaller chunks? Or just enforce
   // a maximum size for it with some ring buffer etc.?
+
+  // TODO: We could first check if we're connected at all. ANY
+  // error below causes us to discard the batch because we're
+  // worried about writing duplicates.
   
   string qs = "insert into tempo.reading "
     "(timestamp, probeid, value, sample_key) "
@@ -256,7 +266,13 @@ void Database::Write() {
     batch.clear();
   } else {
     failed->Increment();
+    // Clear the batch either way. It causes worse problems if
+    // the data was written but we keep reinserting it (and this
+    // failure mode has happened in practice!).
+    notwritten->IncrementBy(batch.size());
+    batch.clear();
   }
+
 }
 
 std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>>
