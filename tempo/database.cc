@@ -13,6 +13,7 @@
 #include "threadutil.h"
 #include "pi/netutil.h"
 #include "periodically.h"
+#include "arcfour.h"
 
 #include <mysql++.h>
 #include <dbdriver.h>
@@ -46,7 +47,7 @@ Database::Database() {
   failed = WebServer::GetCounter("failed queries");
 
   config = Util::ReadFileToMap(configfile);
-
+  
   {
     const auto iface = NetUtil::BestGuessIPWithMAC();
     CHECK(iface.has_value()) << "Unable to determine IP / MAC address!";
@@ -67,6 +68,17 @@ Database::Database() {
     }
   }
 
+  // This stream doesn't need to be secret, but it needs to be
+  // distinct from other devices (even started at the same time)
+  // and distinct across restarts on the same device. Here's
+  // plenty...
+  rc = std::make_unique<ArcFour>(
+      StringPrintf("%s-%s-%s-%lld",
+		   config["location"].c_str(),
+		   ipaddress.c_str(),
+		   mac_key.c_str(),
+		   time(nullptr)));
+  
   CHECK(Connect());  
 
   // Might make sense to do this when we reconnect too, but then we'd
@@ -168,7 +180,8 @@ string Database::WriteValue(const string &code, uint32_t value) {
   const int id = it->second.id;
   const uint64 now = time(nullptr);
 
-  batch.emplace_back(now, id, value);
+  uint16 sample_key = (uint16)rc->Byte() << 8 | rc->Byte();
+  batch.emplace_back(now, id, value, sample_key);
   
   return it->second.name;
 }
@@ -225,13 +238,14 @@ void Database::Write() {
   // a maximum size for it with some ring buffer etc.?
   
   string qs = "insert into tempo.reading "
-    "(timestamp, probeid, value) "
+    "(timestamp, probeid, value, sample_key) "
     "values ";
 
   bool first = true;
-  for (const auto [t, id, microdegs_c] : batch) {
+  for (const auto [t, id, microdegs_c, sample_key] : batch) {
     if (!first) qs.push_back(',');
-    StringAppendF(&qs, " row(%llu, %d, %d)", t, id, microdegs_c);
+    StringAppendF(&qs, " row(%llu, %d, %d, %u)",
+		  t, id, microdegs_c, sample_key);
     first = false;
   }
 
@@ -299,98 +313,96 @@ Database::SmartReadingsIn(int64 time_start, int64 time_end,
 
   const double est_samples_in_period = seconds * EST_DB_SAMPLES_PER_SECOND;
   
-  double sample_rate = target_samples / est_samples_in_period;
+  const double sample_rate = target_samples / est_samples_in_period;
 
-  string sample_exp;
-  if (sample_rate >= 1.0) {
-    sample_exp = "true";
-  } else {
-    // PERF: This probably has to compute the hash function for every
-    // row (in the interval) on the database side. We could insert some
-    // random bits?
-    // PERF: Hash function could be faster by avoiding mod.
-    uint32 frac = 65537 * sample_rate;
-    // Sample at least something.
-    if (frac == 0) frac = 1;
-    sample_exp = StringPrintf("((id * 257) ^ "
-			      "(timestamp * 99989) ^ "
-			      "(probeid * 31337)) mod 65537 < %u", frac);
-  }
-  
-  string whereprobes;
-  if (probes_included.empty()) {
-    whereprobes = "true";
-  } else {
-    string probeset;
-    for (const int i : probes_included) {
-      if (!probeset.empty()) probeset += ",";
-      StringAppendF(&probeset, "%d", i);
+  std::vector<pair<Probe, vector<pair<int64, uint32>>>> out;
+  for (const auto &p : probes) {
+    const Probe &probe = p.second;
+    if (!probes_included.empty()) {
+      // If we have a probes list, skip this probe if it's not in there.
+      if (probes_included.find(probe.id) == probes_included.end()) {
+	continue;
+      }
     }
-    whereprobes = "probeid in (" + probeset + ")";
-  }
-  
-  string qs = StringPrintf("select probeid, timestamp, value "
-			   "from tempo.reading "
-			   "where %s "
-			   "and timestamp >= %lld "
-			   "and timestamp <= %lld "
-			   "and %s "
-			   "order by timestamp",
-			   whereprobes.c_str(),
-			   time_start,
-			   time_end,
-			   sample_exp.c_str());
-  fprintf(stderr,
-	  "seconds: %.1f\n"
-	  "est samples in period: %.1f\n"
-	  "sample rate: %.2f\n"
-	  "qs: %s\n",
-	  seconds,
-	  est_samples_in_period,
-	  sample_rate,
-	  qs.c_str());
-  
-  Query q = conn.query(qs);
-  StoreQueryResult res = q.store();
-  // Sometimes this does fail with "unknown MySQL error".
-  // Too slow? Maybe the hash function is bad?
-  // Perhaps we should use the same probe-by-probe approach from
-  // AllReadingsIn.
-  if (!res) {
-    failed->Increment();
-    fprintf(stderr, "Query failed: %s\n", q.error());
-    return {};
-  }
 
-  // TODO: Could consider "filling gaps" (basically by calling this
-  // recursively) if there are intervals with no samples. This can happen
-  // when a device is offline for some time, for example.
-  std::unordered_map<int, vector<pair<int64, uint32>>> collated;
-  fprintf(stderr, "Rows in db result: %lld\n", (int64)res.num_rows());
-  for (size_t i = 0; i < res.num_rows(); i++) {
-    const int probeid = res[i]["probeid"];
-
-    vector<pair<int64, uint32>> *vec = &collated[probeid];
-    const int64 id = res[i]["timestamp"];
-    const uint32 microdegsc = res[i]["value"];
-    vec->emplace_back(id, microdegsc);
-  }
-
-  // Sort probe ids.
-  std::set<int> probes_seen;
-  for (const auto &[probeid, vec] : collated)
-    probes_seen.insert(probeid);
-    
-  // Return them in sorted order. Ignore probes with unknown ids.
-  std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>> out;
-  out.reserve(probes_seen.size());
-  for (const int probe : probes_seen) {
-    std::optional<Probe> oprobe = ProbeById(probe);
-    if (oprobe.has_value()) {
-      out.emplace_back(oprobe.value(), std::move(collated[probe]));
+    string sample_exp;
+    if (sample_rate >= 1.0) {
+      sample_exp = "true";
+    } else {
+      // PERF: This probably has to compute the hash function for every
+      // row (in the interval) on the database side. There could be a column
+      // with some random bits?
+      // PERF: Hash function could be faster by avoiding mod.
+      uint32 frac = 65537 * sample_rate;
+      // Sample at least something.
+      if (frac == 0) frac = 1;
+      // XXX PERF use sample_key!
+      sample_exp = StringPrintf("((id * 257) ^ "
+				"(timestamp * 99989) ^ "
+				"%d) mod 65537 < %u",
+				(probe.id * 31337),
+				frac);
     }
-  }
 
+    string qs = StringPrintf("select probeid, timestamp, value "
+			     "from tempo.reading "
+			     "where probeid = %d "
+			     "and timestamp >= %lld "
+			     "and timestamp <= %lld "
+			     "and %s "
+			     "order by timestamp",
+			     probe.id,
+			     time_start,
+			     time_end,
+			     sample_exp.c_str());
+    fprintf(stderr,
+	    "[probe %d]\n"
+	    "seconds: %.1f\n"
+	    "est samples in period: %.1f\n"
+	    "sample rate: %.2f\n"
+	    "qs: %s\n",
+	    probe.id,
+	    seconds,
+	    est_samples_in_period,
+	    sample_rate,
+	    qs.c_str());
+
+    const auto query_start = std::chrono::steady_clock::now();
+    MutexLock ml(&database_m);
+
+    Query q = conn.query(qs);
+    StoreQueryResult res = q.store();
+    const auto query_end = std::chrono::steady_clock::now();
+    // Sometimes this does fail with "unknown MySQL error".
+    // Too slow? Maybe the hash function is bad?
+    // Perhaps we should use the same probe-by-probe approach from
+    // AllReadingsIn.
+    if (!res) {
+      failed->Increment();
+      fprintf(stderr, "Query failed: %s\n", q.error());
+      // Further queries might succeed?
+      continue;
+    }
+
+    // TODO: Could consider "filling gaps" (basically by calling this
+    // recursively) if there are intervals with no samples. This can happen
+    // when a device is offline for some time, for example.
+    fprintf(stderr, "[%lld ms] Rows in db result: %lld\n",
+	    (int64)std::chrono::duration_cast<std::chrono::milliseconds>(
+		query_end - query_start).count(),
+	    (int64)res.num_rows());
+
+    vector<pair<int64, uint32>> vec;
+    vec.reserve(res.num_rows());
+    for (size_t i = 0; i < res.num_rows(); i++) {
+      const int64 id = res[i]["timestamp"];
+      const uint32 microdegsc = res[i]["value"];
+      vec.emplace_back(id, microdegsc);
+    }
+
+    out.emplace_back(probe, std::move(vec));
+  }
+  
   return out;
 }
 
