@@ -67,7 +67,7 @@ sudo dpkg-reconfigure tzdata
 (to US Eastern or whatever you like)
 
 sudo apt update
-sudo apt dist-upgrade
+sudo apt full-upgrade
 sudo apt autoremove
 sudo apt autoclean
 

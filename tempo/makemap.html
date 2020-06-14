@@ -21,26 +21,84 @@
 
 <script>
 
- const MIN = -30.0;
- const MAX = 180.0;
 
  function HexByte(i) {
    if (i < 16) return '0' + i.toString(16);
    else return i.toString(16);
  }
+
+ 
+ // temperatures
+ const MIN = -30;
+ const MAX = 180.0;
  
  function GetRGB(t) {
-   let r, g, b;
-   if (t < 32.0) {
-     r = g = b = 0.0;
-   } else if (t > 200.0) {
-     r = 1.0;
-     g = b = 0.0;
-   } else {
-     // XXX better color map!
-     r = ((t - 32.0) / (200.0 - 32.0));
-     g = b = 0.0;
+   const ivals = [{x: -30, r: 0.85, g: 0.85, b: 1.0},
+		  {x: 32, r: 0.15, g: 0.15, b: 1.0},
+		  {x: 72, r: 0.25, g: 0.25, b: 0.25},
+		  {x: 100, r: 1.0, g: 0.15, b: 0.15},
+		  {x: 140, r: 1.0, g: 1.0, b: 0.0},
+		  {x: 180, r: 1.0, g: 1.0, b: 0.85}];
+   
+   let prev = ivals[0];
+   // console.log(t + ' vs ' + prev.x);
+   if (t < prev.x) return {r: prev.r, g: prev.g, b: prev.b};
+   
+   for (let i = 1; i < ivals.length; i++) {
+     let now = ivals[i];
+     // console.log(t + ' vs ' + now.x + ' at ' + i);
+     if (t < now.x) {
+       // linear interpolation
+       let w = (now.x - prev.x);
+       let f = (t - prev.x) / w;
+       let omf = 1.0 - f;
+       // console.log(t.toFixed(1) + ' at idx ' + i);
+       return {r: f * now.r + omf * prev.r,
+	       g: f * now.g + omf * prev.g,
+	       b: f * now.b + omf * prev.b};
+     }
+     prev = now;
    }
+   
+   return {r: prev.r, g: prev.g, b: prev.b};
+ }
+
+ // humidity
+ /*
+    const MIN = 0;
+    const MAX = 100.0;
+    
+    function GetRGB(t) {
+    const ivals = [{x: 0, r: 1.0, g: 1.0, b: 0.15},
+    {x: 40, r: 0.15, g: 0.15, b: 0.15},
+    {x: 100, r: 0.15, g: 0.15, b: 1.0}];
+
+    let prev = ivals[0];
+    // console.log(t + ' vs ' + prev.x);
+    if (t < prev.x) return {r: prev.r, g: prev.g, b: prev.b};
+    
+    for (let i = 1; i < ivals.length; i++) {
+    let now = ivals[i];
+    // console.log(t + ' vs ' + now.x + ' at ' + i);
+    if (t < now.x) {
+    // linear interpolation
+    let w = (now.x - prev.x);
+    let f = (t - prev.x) / w;
+    let omf = 1.0 - f;
+    // console.log(t.toFixed(1) + ' at idx ' + i);
+    return {r: f * now.r + omf * prev.r,
+    g: f * now.g + omf * prev.g,
+    b: f * now.b + omf * prev.b};
+    }
+    prev = now;
+    }
+
+    return {r: prev.r, g: prev.g, b: prev.b};
+    }
+  */ 
+
+ function GetColor(t) {
+   let {r, g, b} = GetRGB(t);
    return '#' +
 	  HexByte(0 | (r * 255)) +
 	  HexByte(0 | (g * 255)) +
@@ -55,7 +113,7 @@
      let c = document.createElement('div');
      elt.appendChild(c);
      c.classList.add('s');
-     c.style.backgroundColor = GetRGB(f);
+     c.style.backgroundColor = GetColor(f);
 
      if (i % 8 == 0) {
        let lab = document.createElement('div');

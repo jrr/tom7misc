@@ -7,6 +7,11 @@
   the last read in the AM2315 module.
 - Associate probes with devices in db? Any point?
 - Install unattended-upgrades on each device.
+- Probeid can probably be smallint unsigned not null. You can just change
+  column types with alter table, no sweat.
+- Periodically thin out old readings using the sample key. Probably we
+  can just delete large values for the sample key, since we sample with
+  <.
 
 (In a pinch, "show processlist;" in mysql admin can likely
  show you the active connections.)
