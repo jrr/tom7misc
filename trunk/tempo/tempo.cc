@@ -225,11 +225,21 @@ struct Server {
 
   WebServer::Response Graph(const WebServer::Request &request) {
     const int64 now = time(nullptr);
-    // TODO: Make these settable by url params!
-    int64 time_end = request.IntURLParam("end").value_or(now);
-    int64 minutes = request.IntURLParam("min").value_or(60LL);
-    int64 time_start = time_end - (minutes * 60LL);
+    const int64 time_end = request.IntURLParam("end").value_or(now);
+    const int64 minutes = request.IntURLParam("min").value_or(60LL);
+    const int64 time_start = time_end - (minutes * 60LL);
 
+    std::set<int> probes_included;
+    std::optional<string> probeparam = request.StringURLParam("probes");
+    if (probeparam.has_value()) {
+      std::vector<string> parts = Util::Split(probeparam.value(), ',');
+      for (const string &part : parts) {
+	if (!part.empty()) {
+	  probes_included.insert(atoi(part.c_str()));
+	}
+      }
+    }
+    
     // TODO: Dynamic size
     int width = 1920;
     int height = 1080;
@@ -247,7 +257,7 @@ struct Server {
     // XXX todo timing info
     auto db_start = std::chrono::steady_clock::now();
     std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>> temps =
-      db->SmartReadingsIn(time_start, time_end, {});
+      db->SmartReadingsIn(time_start, time_end, probes_included);
     auto db_end = std::chrono::steady_clock::now();
 
     auto blit_start = std::chrono::steady_clock::now();
@@ -285,7 +295,8 @@ struct Server {
 	// Slightly transparent
 	// color = (color & 0xFFFFFF00) | 0x000000AA;
 	string label =
-	  StringPrintf("%s: %s",
+	  StringPrintf("%d. %s: %s",
+		       probe.id,
 		       probe.name.c_str(),
 		       probe.desc.c_str());
 	graph.BlendText32(KEY_X, y, color, label);
