@@ -345,19 +345,11 @@ Database::SmartReadingsIn(int64 time_start, int64 time_end,
     if (sample_rate >= 1.0) {
       sample_exp = "true";
     } else {
-      // PERF: This probably has to compute the hash function for every
-      // row (in the interval) on the database side. There could be a column
-      // with some random bits?
-      // PERF: Hash function could be faster by avoiding mod.
+      // PERF: Could index timestamp,sample_key?
       uint32 frac = 65537 * sample_rate;
       // Sample at least something.
       if (frac == 0) frac = 1;
-      // XXX PERF use sample_key!
-      sample_exp = StringPrintf("((id * 257) ^ "
-				"(timestamp * 99989) ^ "
-				"%d) mod 65537 < %u",
-				(probe.id * 31337),
-				frac);
+      sample_exp = StringPrintf("sample_key < %u", frac);
     }
 
     string qs = StringPrintf("select probeid, timestamp, value "
