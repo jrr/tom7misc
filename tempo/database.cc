@@ -434,7 +434,6 @@ Database::LastReading() {
 			     "order by timestamp desc "
 			     "limit 1",
 			     probe.id);
-    // printf("%s\n", qs.c_str());
     Query q = conn.query(qs);
     StoreQueryResult res = q.store();
     if (!res || res.num_rows() != 1) {
@@ -450,14 +449,6 @@ Database::LastReading() {
   return out;
 }
 
-/*
-  struct Device {
-    string mac;
-    int64_t lastseen;
-    string ip;
-    string location;
-  };
-*/
 vector<Database::Device> Database::GetDevices() {
   string qs = StringPrintf("select mac, lastseen, ipaddress, location "
 			   "from tempo.device "

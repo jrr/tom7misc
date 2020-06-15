@@ -119,6 +119,17 @@ make -j 2
 sudo make install
 
 
+To make tempo start up when the pi boots, which is probably a good
+idea, add to the bottom of /etc/rc.local (before exit 0, obviously):
+
+# Start tempo automatically.
+/home/pi/tom7misc/tempo/onstart.sh &
+
+And in .bashrc, a better prompt showing the IP address:
+IP=$(ip addr show wlan0 | grep 'inet ' | sed 's/.*inet \([0-9.]*\).*/\1/g')
+PS1='\[\033[01;32m\]\u@${IP}\[\033[00m\]:\[\033[01;34m\]\w \$\[\033[00m\] '
+
+
 To create the SVG diagram in Illustrator:
  - Layer names yield <g id="abc"> with the SVG export option enabled. Use a-z.
    CSS selectors like #abc path { fill: #F00 !important } are used to set the

@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cmath>
 #include <unistd.h>
+#include <sys/sysinfo.h>
 
 #include <mysql++.h>
 
@@ -58,14 +59,19 @@ static constexpr int NUM_COLORS = sizeof (COLORS) / sizeof (uint32);
 // translation unit, but possibly the whole webserver?
 struct Server {
   Server(Database *db) : db(db) {
+    server_start_time = std::chrono::steady_clock::now();
     server = WebServer::Create();
     CHECK(server);
     favicon = Util::ReadFile("favicon.png");
     diagram_svg = Util::ReadFile("diagram.svg");
 
     server->AddHandler("/stats", server->GetStatsHandler());
+    server->AddHandler("/info",
+		       [this](const WebServer::Request &req) {
+			 return Info(req);
+		       });
     server->AddHandler("/favicon.ico",
-		       [this](const WebServer::Request &request) {
+		       [this](const WebServer::Request &req) {
 			 WebServer::Response response;
 			 response.code = 200;
 			 response.status = "OK";
@@ -100,6 +106,8 @@ struct Server {
       });
   }
 
+  std::chrono::time_point<std::chrono::steady_clock> server_start_time;
+  
   const vector<std::tuple<float, float, float, float>> f_ramp = {
     { -30.0f, 0.85f, 0.85f, 1.0f},
     {  32.0f, 0.15f, 0.15f, 1.0f},
@@ -167,6 +175,35 @@ struct Server {
 			(uint8)(r * 255.0f),
 			(uint8)(g * 255.0f),
 			(uint8)(b * 255.0f));
+  }
+
+  WebServer::Response Info(const WebServer::Request &request) {
+    WebServer::Response r;
+    r.code = 200;
+    r.status = "OK";
+    r.content_type = "text/plain; charset=UTF-8";
+
+    std::chrono::duration<double> server_uptime =
+      std::chrono::steady_clock::now() - server_start_time;
+    
+    struct sysinfo info;
+    if (0 == sysinfo(&info)) {
+      r.body = StringPrintf(
+	  "tempo uptime: %.1f sec\n"
+	  "linux uptime: %ld sec\n"
+	  "load: %ld %ld %ld\n"
+	  "free ram: %ld / %ld\n"
+	  "procs: %d\n",
+	  server_uptime.count(),
+	  info.uptime,
+	  info.loads[0], info.loads[1], info.loads[2],
+	  info.freeram, info.totalram,
+	  (int)info.procs);
+	  
+    } else {
+      r.body = "sysinfo() failed.\n";
+    }
+    return r;
   }
   
   WebServer::Response Diagram(const WebServer::Request &request) {
