@@ -129,6 +129,9 @@ And in .bashrc, a better prompt showing the IP address:
 IP=$(ip addr show wlan0 | grep 'inet ' | sed 's/.*inet \([0-9.]*\).*/\1/g')
 PS1='\[\033[01;32m\]\u@${IP}\[\033[00m\]:\[\033[01;34m\]\w \$\[\033[00m\] '
 
+In /etc/crontab:
+* * * * *  root  /home/pi/tom7misc/tempo/wifi-check.sh
+
 
 To create the SVG diagram in Illustrator:
  - Layer names yield <g id="abc"> with the SVG export option enabled. Use a-z.

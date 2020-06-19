@@ -20,6 +20,7 @@
 #include "../cc-lib/threadutil.h"
 #include "../cc-lib/image.h"
 #include "../cc-lib/pi/bcm2835.h"
+#include "../cc-lib/pi/netutil.h"
 
 #include "onewire.h"
 #include "database.h"
@@ -32,6 +33,8 @@ using uint8 = uint8_t;
 using uint16 = uint16_t;
 using uint32 = uint32_t;
 using uint64 = uint64_t;
+
+static constexpr bool VERBOSE = false;
 
 // Bright colors for a black background.
 static constexpr uint32 COLORS[] = {
@@ -102,7 +105,15 @@ struct Server {
 		       });
     // Detach listening thread.
     listen_thread = std::thread([this](){
-	this->server->ListenOn(8080);
+	for (;;) {
+	  if (this->server->ListenOn(8080)) {
+	    // Successfully listened, but then stopped.
+	    return;
+	  }
+	  // Would be better if this returned an error message!
+	  printf("Listen on 8080 failed.");
+	  sleep(1);
+	}
       });
   }
 
@@ -562,12 +573,29 @@ struct Server {
 };
 
 
+// When connectivity is very bad, we try to restart the network and
+// then restart tempo. But it's common for tempo to come up before
+// the interface has a working IP address. Here we wait specifically
+// for wlan0 (XXX should be configurable) at program startup.
+static void WaitForNetwork() {
+  for (int tries = 1; true; tries++) {
+    const map<string, NetUtil::ip4> ifaces = NetUtil::GetIP4Interfaces();
+    if (ifaces.contains("wlan0"))
+      return;
+
+    printf("[%d] No wlan0 interface...\n", tries); fflush(stdout);
+    sleep(1);
+  }
+}
+
 int main(int argc, char **argv) {
   CHECK(bcm2835_init()) << "BCM Init failed!";
 
+  WaitForNetwork();
+  
   Database db;
   Server server(&db);
-
+  
   OneWire onewire;
   WebServer::GetCounter("onewire probes found")->
     IncrementBy((int64)onewire.probes.size());
@@ -611,6 +639,7 @@ int main(int argc, char **argv) {
   // a pessimal choice. With sub-second timing we could do better...
   Periodically read_am2315_p(2);
   Periodically run_logic_p(1);
+
   for (;;) {
 
     // PERF: This will not run often enough with lots of onewire
@@ -630,9 +659,10 @@ int main(int argc, char **argv) {
 	string s = db.WriteValue(p.first, microdegs_c);
 	readings++;
 	double elapsed = time(nullptr) - start;
-	printf("%s (%s): %u  (%.2f/sec)\n",
-	       p.first.c_str(), s.c_str(), microdegs_c,
-	       readings / elapsed);
+	if (VERBOSE)
+	  printf("%s (%s): %u  (%.2f/sec)\n",
+		 p.first.c_str(), s.c_str(), microdegs_c,
+		 readings / elapsed);
 	// Perf could save these in probe struct?
 	WebServer::GetCounter(s + " last")->SetTo(microdegs_c);
 	WebServer::GetCounter(s + " #")->Increment();
@@ -668,8 +698,9 @@ int main(int argc, char **argv) {
       } else {
 	uint32_t microdegs_c = temp * 1000.0f;
 	string s = db.WriteValue(am2315_temp_code, microdegs_c);
-	printf("%s (%s): %u\n", am2315_temp_code.c_str(), s.c_str(),
-	       microdegs_c);
+	if (VERBOSE)
+	  printf("%s (%s): %u\n", am2315_temp_code.c_str(), s.c_str(),
+		 microdegs_c);
 	WebServer::GetCounter(s + " last")->SetTo(microdegs_c);
 	WebServer::GetCounter(s + " #")->Increment();
       }
@@ -687,8 +718,9 @@ int main(int argc, char **argv) {
       // we have bp = (rh / 100) * 10000 = rh * 100.
       uint32_t rh_bp = rh * 100;
       string s = db.WriteValue(am2315_humidity_code, rh_bp);
-      printf("%s (%s): %u\n", am2315_humidity_code.c_str(), s.c_str(),
-	     rh_bp);
+      if (VERBOSE)
+	printf("%s (%s): %u\n", am2315_humidity_code.c_str(), s.c_str(),
+	       rh_bp);
       WebServer::GetCounter(s + " last")->SetTo(rh_bp);
       WebServer::GetCounter(s + " #")->Increment();
 	
