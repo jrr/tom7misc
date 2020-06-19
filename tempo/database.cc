@@ -67,6 +67,8 @@ Database::Database() {
       mac_key = StringPrintf("%02x%02x%02x" "%02x%02x%02x",
 			     a, b, c,  d, e, f);
     }
+
+    printf("MAC %s. IP %s.\n", mac_key.c_str(), ipaddress.c_str());
   }
 
   // This stream doesn't need to be secret, but it needs to be

@@ -230,10 +230,10 @@ struct ServerImpl final : public WebServer {
   ServerImpl();
 
   void Stop() override;
-  int ListenOn(uint16_t port) override;
+  bool ListenOn(uint16_t port) override;
 
-  int AcceptConnectionsUntilStopped(const struct sockaddr *address,
-				    socklen_t addressLength);
+  bool AcceptConnectionsUntilStopped(const struct sockaddr *address,
+				     socklen_t addressLength);
   
   vector<pair<string, Handler>> handlers;
   void AddHandler(const string &prefix, Handler h) override {
@@ -655,7 +655,7 @@ static void requestPrintWarnings(const Request *request,
 }
 
 
-int ServerImpl::ListenOn(uint16_t portInHostOrder) {
+bool ServerImpl::ListenOn(uint16_t portInHostOrder) {
   /* In order to keep the code really short I've just assumed
      we want to bind to 0.0.0.0, which is all available interfaces.
      What you actually want to do is call getaddrinfo on command line arguments
@@ -669,8 +669,8 @@ int ServerImpl::ListenOn(uint16_t portInHostOrder) {
 				       sizeof(anyInterfaceIPv4));
 }
 
-int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
-					      socklen_t addressLength) {
+bool ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
+					       socklen_t addressLength) {
   callWSAStartupIfNecessary();
   /* resolve the local address we are binding to so we can print it out later */
   char addressHost[256];
@@ -689,7 +689,7 @@ int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
   if (listenerfd  <= 0) {
     ews_printf("Could not create listener socket: %s = %d\n",
 	       strerror(errno), errno);
-    return 1;
+    return false;
   }
   /* SO_REUSEADDR tells the kernel to re-use the bind address in
      certain circumstances. I've always found when making debug/test
@@ -718,7 +718,7 @@ int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
   if (0 != result) {
     ews_printf("Could not bind to %s:%s %s = %d\n",
 	       addressHost, addressPort, strerror(errno), errno);
-    return 1;
+    return false;
   }
   /* listen for the maximum possible amount of connections */
   result = listen(listenerfd, SOMAXCONN);
@@ -807,7 +807,7 @@ int ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
   // the same mutex... in fact doing so is a pessimization"
   stopped_cond.notify_all();
   stopped_mutex.unlock();
-  return 0;
+  return true;
 }
 
 

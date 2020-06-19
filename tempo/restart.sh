@@ -1,7 +1,6 @@
 #!/bin/bash
 
-make -j 2 tempo.exe || exit -1
+cd /home/pi/tom7misc/tempo && make -j 2 tempo.exe
 sudo killall tempo.exe
-sudo nohup ./tempo.exe > /dev/null &
+cd /home/pi/tom7misc/tempo && sudo nohup ./tempo.exe > /dev/null 2>&1 &
 disown
-

@@ -10,4 +10,5 @@
 # Instead check if wlan0 is "up"?
 
 cd /home/pi/tom7misc/tempo
-/bin/ping -q -c4 10.0.0.202 || (/sbin/ifdown --force wlan0 ; /sbin/ifup wlan0 ; sleep 4 ; ./restart.sh )
+date > /home/pi/last-wifi-check
+/bin/ping -q -c4 10.0.0.202 || (/sbin/ip link set wlan0 down ; sleep 1 ; /sbin/ip link set wlan0 up ; sleep 4 ; /home/pi/tom7misc/tempo/restart.sh; date > /home/pi/last-restart-due-to-wifi )

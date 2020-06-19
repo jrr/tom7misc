@@ -12,7 +12,10 @@ struct WebServer {
   static WebServer *Create();
   virtual ~WebServer();
 
-  virtual int ListenOn(uint16_t port) = 0;
+  // If successful, keeps listening until Stop is called (e.g. in
+  // another thread), and then returns true.
+  // Returns false on failure (e.g. port already in use).
+  virtual bool ListenOn(uint16_t port) = 0;
   
   // XXX could just be destructor?
   virtual void Stop() = 0;
