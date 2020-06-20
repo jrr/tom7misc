@@ -580,7 +580,7 @@ struct Server {
 static void WaitForNetwork() {
   for (int tries = 1; true; tries++) {
     const map<string, NetUtil::ip4> ifaces = NetUtil::GetIP4Interfaces();
-    if (ifaces.contains("wlan0"))
+    if (ifaces.find("wlan0") != ifaces.end())
       return;
 
     printf("[%d] No wlan0 interface...\n", tries); fflush(stdout);
