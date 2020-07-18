@@ -6,6 +6,7 @@ Local database server notes:
 
 Set router to only DHCP in 10.0.0.2 - 10.0.0.200.
 Set desktop computer to static IP e.g. 10.0.0.202 (check with ipconfig).
+(Note that this IP is hard-coded in some stuff, e.g. wifi-check.sh!)
 (In Windows 10, do this from "change adapter options", properties,
  then Internet Protocol Version 4 Properties.)
 
@@ -22,11 +23,14 @@ grant insert on tempo.* to 'tempo'@'10.0.0.%';
 grant update on tempo.* to 'tempo'@'10.0.0.%';
 grant select on tempo.* to 'tempo'@'10.0.0.%';
 grant delete on tempo.* to 'tempo'@'10.0.0.%';
-(Also create the tables in database.txt)
+
+(also create the tables described in database.txt)
 
 You can change the storage location (etc.) in
 c:\programdata\mysql\mysql server 8.0\my.ini
 (Move the Data directory itself to the new location too!)
+Since it writes regularly, HDD may be better than SDD?
+
 
 On the pi:
 
@@ -42,7 +46,7 @@ enable_uart=1
 
 Add a file just called 'ssh' to enable ssh on the next boot.
 
-You also need to configure wifi by creating a file called
+Need to configure wifi, by creating a file in /boot called
 wpa_supplicant.conf:
 country=US
 ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
@@ -93,13 +97,11 @@ location (fill in a unique location where this device is going)
 
 Wifi troubleshooting:
   Looks like if the pi boots before the wireless router, it may come
-  up without internet and stay that way. Should probably periodically
-  do something like:
-  sudo ifconfig wlan0 down && sleep 2 && sudo ifconfig wlan0 up && sleep 5
-  (or maybe just reboot)
+  up without internet and stay that way. 
   (There is "wait for internet" boot option in raspi-config which may
    address this.)
-
+  The crontab command below also keeps trying to reconnect if pings
+  to 10.0.0.202 fail.
 
 Note that mysql support now seems to come via the "maria db"
 non-Oracle fork of MySQL.
@@ -145,6 +147,10 @@ LED off:
 
 echo none | sudo tee /sys/class/leds/led0/trigger
 echo 1 | sudo tee /sys/class/leds/led0/brightness
+
+To try:
+/usr/bin/tvservice -o
+apparently turns off HDMI and saves 30mA
 
 
 Wiring AM2315 humidity/temperature sensor:
