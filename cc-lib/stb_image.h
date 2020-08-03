@@ -4,6 +4,7 @@
    Updated by tom7 for cc-lib:
       - Normal .h/.cc file
       - Assume C++(17)
+      - Fix a few warnings
 
    QUICK NOTES:
       Primarily of interest to game developers and other people who can
