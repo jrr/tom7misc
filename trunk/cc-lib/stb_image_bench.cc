@@ -76,7 +76,8 @@ static void BenchmarkPNG() {
   }
 
   const std::vector<uint8> imgbytes = image.SaveToVec();
-  // image.Save("deleteme.png");  
+  // CHECK(image.Save("deleteme.png"));
+  // CHECK(image.SaveJPG("deleteme.jpg"));
   printf("Image ready!\n");
   
   // Now decode a buncha times.
@@ -99,5 +100,7 @@ static void BenchmarkPNG() {
 
 int main (int argc, char **argv) {
   BenchmarkPNG();
+  // TODO: Benchmark JPG
+  // TODO: Benchmark GIF
   return 0;
 }

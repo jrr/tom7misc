@@ -140,9 +140,9 @@ ImageRGBA::ImageRGBA(int width, int height)
   Clear(0, 0, 0, 0);
 }
 
-void ImageRGBA::Save(const std::string &filename) const {
+bool ImageRGBA::Save(const std::string &filename) const {
   CHECK((int)rgba.size() == width * height * 4);
-  stbi_write_png(filename.c_str(), width, height, 4, rgba.data(), 4 * width);
+  return !!stbi_write_png(filename.c_str(), width, height, 4, rgba.data(), 4 * width);
 }
 
 vector<uint8> ImageRGBA::SaveToVec() const {
@@ -157,6 +157,12 @@ string ImageRGBA::SaveToString() const {
   ret.resize(v.size());
   memcpy(ret.data(), v.data(), v.size());
   return ret;
+}
+
+bool ImageRGBA::SaveJPG(const std::string &filename, int quality) const {
+  CHECK((int)rgba.size() == width * height * 4);
+  CHECK(quality >= 0 && quality <= 100) << quality;
+  return !!stbi_write_jpg(filename.c_str(), width, height, 4, rgba.data(), quality);
 }
 
 ImageRGBA *ImageRGBA::Copy() const {
