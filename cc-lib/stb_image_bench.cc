@@ -1,5 +1,9 @@
 // In-memory benchmarks for stb_image.
 // 2 Aug 2020 (Threadripper 2990WX): Decoded 512 times in 27 sec = 18.9630 images/sec
+// same w/v2.26:                     Decoded 512 times in 19 sec = 26.9474 images/sec
+// with -march=native                Decoded 512 times in 20 sec = 25.6000 images/sec
+// with -march=native -O3 -flto      Decoded 512 times in 18 sec = 28.4444 images/sec
+
 
 #include <vector>
 #include <cstdint>
