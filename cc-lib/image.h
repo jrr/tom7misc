@@ -20,6 +20,7 @@ struct ImageRGBA {
   ImageRGBA(int width, int height);
   
   static ImageRGBA *Load(const std::string &filename);
+  // Saves in RGBA PNG format.
   void Save(const std::string &filename) const;
   std::vector<uint8_t> SaveToVec() const;
   std::string SaveToString() const;
