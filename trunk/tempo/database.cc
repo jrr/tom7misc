@@ -29,6 +29,11 @@ static constexpr int SECONDS_BETWEEN_WRITES = 20;
 static constexpr int SECONDS_BETWEEN_UPDATE_SEENS = 61;
 static constexpr int SECONDS_BETWEEN_PINGS = 32;
 
+#ifndef SVN_REVISION
+// Makefile is supposed to define this, but it's not essential.
+#define SVN_REVISION 0
+#endif
+
 static string Escape(string s) {
   mysqlpp::DBDriver::escape_string_no_conn(&s, nullptr, 0);
   return s;
@@ -89,12 +94,13 @@ Database::Database() {
   {
     const int64 now = time(nullptr);
     string qs = StringPrintf(
-	"replace into device (mac, lastseen, ipaddress, location) "
-	"values (\"%s\", %llu, \"%s\", \"%s\")",
+	"replace into device (mac, lastseen, ipaddress, location, rev) "
+	"values (\"%s\", %llu, \"%s\", \"%s\", \"%d\")",
 	mac_key.c_str(),
 	now,
 	ipaddress.c_str(),
-	Escape(config["location"]).c_str());
+	Escape(config["location"]).c_str(),
+	SVN_REVISION);
     Query q = conn.query(qs);
     CHECK(q.exec()) << "Couldn't register device in database?\n" << qs;
   }
@@ -452,9 +458,10 @@ Database::LastReading() {
 }
 
 vector<Database::Device> Database::GetDevices() {
-  string qs = StringPrintf("select mac, lastseen, ipaddress, location "
-			   "from tempo.device "
-			   "order by mac");
+  string qs =
+    "select mac, lastseen, ipaddress, location, rev "
+    "from tempo.device "
+    "order by mac";
   MutexLock ml(&database_m);
   Query q = conn.query(qs);
   StoreQueryResult res = q.store();
@@ -471,6 +478,7 @@ vector<Database::Device> Database::GetDevices() {
     device.lastseen = res[i]["lastseen"];
     device.ipaddress = (string)res[i]["ipaddress"];
     device.location = (string)res[i]["location"];
+    device.rev = (string)res[i]["rev"];
     vec.emplace_back(std::move(device));
   }
   return vec;

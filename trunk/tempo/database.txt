@@ -5,7 +5,8 @@ create table device (
        mac varchar(255) binary primary key not null,
        lastseen int not null,
        ipaddress varchar(255) not null,
-       location text not null
+       location text not null,
+       rev varchar(255) not null,
 );
 
 create table probe (

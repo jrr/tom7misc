@@ -79,7 +79,9 @@ sudo apt autoclean
 # sudo apt-get install default-libmysqlclient-dev libmysql++-dev
 # sudo apt-get install default-libmariaclient-dev libmaria++-dev
 
-sudo apt install subversion emacs-nox libmariadb-dev-compat mariadb-client dos2unix i2c-tools
+sudo apt install subversion emacs-nox libmariadb-dev-compat mariadb-client dos2unix i2c-tools apt-config-auto-update
+
+(auto-update I think just runs "apt update", but you still need to manually up*grade*)
 
 You should be able to connect using the command line client:
 mysql -u tempo -p -h 10.0.0.202

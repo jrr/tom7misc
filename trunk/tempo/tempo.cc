@@ -474,7 +474,9 @@ struct Server {
 		   " body { font: 12px verdana,helvetica,sans-serif }\n"
 		   "</style>\n");
 
-    StringAppendF(&r.body, "<table>\n");
+    StringAppendF(&r.body, "<table>\n"
+		  "<tr><th>MAC</th><th>IP</th><th>seen</th>"
+		  "<th>svn rev</th><th>location</th>\n");
     const int64 now = time(nullptr);
     for (const Database::Device device : devices) {
       // Also target devices page; this makes it easier to click around.
@@ -484,11 +486,13 @@ struct Server {
 		    "<tr><td>%s</td><td><a href=\"%s\">%s</a></td>"
 		    "<td>%lld sec. ago</td>"
 		    "<td>%s</td>"
+		    "<td>%s</td>"
 		    "</tr>\n",
 		    device.mac.c_str(),
 		    url.c_str(),
 		    device.ipaddress.c_str(),
 		    now - device.lastseen,
+		    device.rev.c_str(),
 		    device.location.c_str());
     }
     StringAppendF(&r.body, "</table>\n");

@@ -1,7 +1,9 @@
 all : tempo.exe am2315_test.exe
 
+# Ideally we would rebuild .o files if SVN_REVISION changes; is that possible?
+
 CXX=g++
-CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O --std=c++17 -I ../cc-lib `mysql_config --cflags` -I/usr/include/mysql++ -Wno-psabi -ffunction-sections
+CXXFLAGS=-march=native -Wall -Wno-sign-compare -Wno-deprecated-declarations -O --std=c++17 -I ../cc-lib `mysql_config --cflags` -DSVN_REVISION=`svn info --show-item last-changed-revision` -I/usr/include/mysql++ -Wno-psabi -ffunction-sections
 LFLAGS=`mysql_config --libs` -lmysqlpp -lpthread
 
 %.o : %.cc *.h
