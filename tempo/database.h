@@ -86,6 +86,7 @@ struct Database final {
     int64_t lastseen;
     string ipaddress;
     string location;
+    string rev;
   };
   vector<Device> GetDevices();
   

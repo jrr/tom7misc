@@ -9,6 +9,10 @@
 - Install unattended-upgrades on each device.
 - Probeid can probably be smallint unsigned not null. You can just change
   column types with alter table, no sweat.
+- In devices list, show number of pending apt updates?
+  sudo apt install apt-config-auto-update
+  sudo apt list --upgradable | tail --lines=+2 | wc -l
+  (or just unattended-upgrades?)
 - Periodically thin out old readings using the sample key. Probably we
   can just delete large values for the sample key, since we sample with
   <.
