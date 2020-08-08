@@ -1,11 +1,11 @@
-all : decode-monika.exe pass.exe swipe-ambiguous.exe memtest.exe optional.exe bus.exe
+all : decode-monika.exe pass.exe swipe-ambiguous.exe memtest.exe optional.exe bus.exe cubedex.exe cubedex2.exe
 
 
 CXX=x86_64-w64-mingw32-g++
 CC=x86_64-w64-mingw32-gcc
 
 # -Wno-write-strings
-CPPFLAGS=-m64 -Wall -Wno-sign-compare -O2 --std=c++17 -I ../cc-lib/
+CPPFLAGS=-m64 -march=native -Wall -Wno-sign-compare -O3 --std=c++17 -I ../cc-lib/
 LFLAGS=-static
 CC_LIB=../cc-lib
 
@@ -36,6 +36,12 @@ optional.exe : optional.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 bus.exe : bus.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o $(CC_LIB)/util.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+cubedex.exe : cubedex.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o $(CC_LIB)/util.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+cubedex2.exe : cubedex2.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o $(CC_LIB)/util.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 clean :

@@ -2,8 +2,9 @@
 // Very simple memory stress-tester for 64-bit Windows machines
 // with large amounts of RAM and cores.
 //
-// Run like ./memtest.exe 120 60
-// for a machine with 128GB RAM and 64 hyperthreads.
+// Run like ./memtest.exe 120 60 20
+// for a machine with 128GB RAM and 64 hyperthreads,
+// to run 20 times.
 // If you want to test every last byte, and non-random patterns,
 // you'll need to use some other program.
 
@@ -30,13 +31,16 @@ using namespace std;
 static_assert(sizeof (size_t) == sizeof (uint64),
 	      "size_t needs to be 64 bit");
 
-static inline Hash(uint64 seed, uint64 input) {
-  uint64 result = input;
-  result ^= seed;
-  result = (result >> 13) ^ (result << 51);
-  result *= 0xBADFACEFULL;
-  // result *= 0x87654321ULL;
-  return result;
+static inline Hash(uint64 seed1, uint64 seed2, uint64 input) {
+  // This is basically from CityHash, but instead of reusing the
+  // high 64 twice, we take two different seeds.
+  static constexpr uint64 kMul = 0x9ddfea08eb382d69ULL;
+  uint64 a = (seed1 ^ input) * kMul;
+  a ^= (a >> 47);
+  uint64 b = (seed2 ^ a) * kMul;
+  b ^= (b >> 47);
+  b *= kMul;
+  return b;
 }
 
 int main(int argc, char **argv) {
@@ -60,6 +64,13 @@ int main(int argc, char **argv) {
   }
   printf("Using %d threads.\n", threads);
   CHECK(threads > 0);
+
+  int times = 10;
+  if (argc >= 4) {
+    times = atoi(argv[3]);
+  }
+  printf("Running %d times.\n", times);
+  CHECK(times > 0);
   
   fflush(stdout);
 
@@ -73,20 +84,24 @@ int main(int argc, char **argv) {
     fflush(stdout);
   }
 
-  ArcFour rc(StringPrintf("seed"));
-  for (int i = 0; i < 10; i++) {
+  string seed = StringPrintf("seed %llx", time(nullptr));
+  printf("Seed: [%s]\n", seed.c_str());
+  ArcFour rc(seed);
+  for (int i = 0; i < times; i++) {
     const uint64 seed = Rand64(&rc);
-    printf("Setting memory (hash test):\n");
+    printf("[%d/%d] Setting memory (hash test):\n",
+	   i + 1, times);
     fflush(stdout);
     ParallelComp(
 	chunks.size(),
 	[&chunks, seed](int chunk) {
 	  for (int idx = 0; idx < GIG_IN_64; idx++)
-	    chunks[chunk][idx] = Hash((uint64)chunks[chunk] + seed, idx);
+	    chunks[chunk][idx] = Hash(seed, (uint64)chunks[chunk], idx);
 	},
 	threads);
 
-    printf("Checking its contents:\n");
+    printf("[%d/%d] Checking its contents:\n",
+	   i + 1, times);
     fflush(stdout);
     ParallelComp(
 	chunks.size(),
@@ -94,10 +109,13 @@ int main(int argc, char **argv) {
 	[&chunks, seed](int chunk) {
 	  for (int idx = 0; idx < GIG_IN_64; idx++) {
 	    CHECK(chunks[chunk][idx] ==
-		  Hash((uint64)chunks[chunk] + seed, idx));
+		  Hash(seed, (uint64)chunks[chunk], idx));
 	  }
 	},
 	threads);
+
+    printf("[%d/%d] OK!\n", i + 1, times);
+    fflush(stdout);
   } 
 
   for (uint64 *p : chunks) {
