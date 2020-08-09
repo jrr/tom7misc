@@ -58,6 +58,92 @@ static constexpr uint32 COLORS[] = {
 
 static constexpr int NUM_COLORS = sizeof (COLORS) / sizeof (uint32);
 
+// Return some basic system info as a plain ascii string formatted
+// with newlines.
+static string SysInfoString() {
+  struct sysinfo info;
+  if (0 == sysinfo(&info)) {
+    return StringPrintf(
+	"linux uptime: %ld sec\n"
+	"load: %ld %ld %ld\n"
+	"free ram: %ld / %ld\n"
+	"procs: %d\n",
+	info.uptime,
+	info.loads[0], info.loads[1], info.loads[2],
+	info.freeram, info.totalram,
+	(int)info.procs);
+  } else {
+    return "sysinfo() failed\n";
+  }
+}
+
+// Minimal webserver that runs during startup, to allow servicing
+// HTTP requests before the database is connected.
+// TODO: Reduce code duplication here. Would be nice to have
+// stuff like favicon available either way. I guess we could even
+// transition preserver to server once we have the database, dynamically
+// registering handlers that need it?
+struct PreServer {
+  std::chrono::time_point<std::chrono::steady_clock> server_start_time;
+  PreServer() {
+    server_start_time = std::chrono::steady_clock::now();
+    server = WebServer::Create();
+    CHECK(server);
+    server->AddHandler("/stats", server->GetStatsHandler());
+    server->AddHandler("/",
+		       [this](const WebServer::Request &req) {
+			 return Default(req);
+		       });
+    listen_thread = std::thread([this](){
+	for (;;) {
+	  if (this->server->ListenOn(8080)) {
+	    // Successfully listened, but then stopped.
+	    return;
+	  }
+	  // Would be better if this returned an error message!
+	  printf("(pre-server) Listen on 8080 failed.");
+	  sleep(1);
+	}
+      });
+  }
+
+  WebServer::Response Default(const WebServer::Request &request) {
+    MutexLock ml(&m);
+    WebServer::Response r;
+    r.code = 200;
+    r.status = "OK";
+    r.content_type = "text/plain; charset=UTF-8";
+
+    std::chrono::duration<double> server_uptime =
+      std::chrono::steady_clock::now() - server_start_time;
+    
+    r.body = StringPrintf(
+	"pre-server uptime: %.1f sec\n"
+	"status: %s\n"
+	"%s"
+	server_uptime.count(),
+	status.c_str(),
+	SysInfoString().c_str());
+    return r;
+  }
+  
+  ~Server() {
+    server->Stop();
+    listen_thread.join();
+  }
+
+  void SetStatus(const string &s) {
+    MutexLock ml(&m);
+    status = s;
+  }
+  
+private:
+  std::mutex m;
+  string status = "constructed";
+  WebServer *server = nullptr;
+  std::thread listen_thread;
+};
+
 // TODO: Refactor so that at least the handler code is in a separate
 // translation unit, but possibly the whole webserver?
 struct Server {
@@ -111,7 +197,7 @@ struct Server {
 	    return;
 	  }
 	  // Would be better if this returned an error message!
-	  printf("Listen on 8080 failed.");
+	  printf("(real server) Listen on 8080 failed.");
 	  sleep(1);
 	}
       });
@@ -197,23 +283,11 @@ struct Server {
     std::chrono::duration<double> server_uptime =
       std::chrono::steady_clock::now() - server_start_time;
     
-    struct sysinfo info;
-    if (0 == sysinfo(&info)) {
-      r.body = StringPrintf(
-	  "tempo uptime: %.1f sec\n"
-	  "linux uptime: %ld sec\n"
-	  "load: %ld %ld %ld\n"
-	  "free ram: %ld / %ld\n"
-	  "procs: %d\n",
-	  server_uptime.count(),
-	  info.uptime,
-	  info.loads[0], info.loads[1], info.loads[2],
-	  info.freeram, info.totalram,
-	  (int)info.procs);
-	  
-    } else {
-      r.body = "sysinfo() failed.\n";
-    }
+    r.body = StringPrintf(
+	"tempo uptime: %.1f sec\n"
+	"%s"
+	server_uptime.count(),
+	SysInfoString().c_str());
     return r;
   }
   
@@ -596,8 +670,11 @@ int main(int argc, char **argv) {
   CHECK(bcm2835_init()) << "BCM Init failed!";
 
   WaitForNetwork();
-  
+
+  std::unique_ptr<PreServer> preserver = std::make_unique<Preserver>();
   Database db;
+  preserver.reset();
+  
   Server server(&db);
   
   OneWire onewire;
