@@ -16,6 +16,8 @@
 - Periodically thin out old readings using the sample key. Probably we
   can just delete large values for the sample key, since we sample with
   <.
+- Fix wifi restart commands (ifup is deprecated/not working)
+- AM2315 code seems to use 50% CPU? why?
 
 (In a pinch, "show processlist;" in mysql admin can likely
  show you the active connections.)

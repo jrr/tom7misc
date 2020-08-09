@@ -86,8 +86,13 @@ Database::Database() {
 		   ipaddress.c_str(),
 		   mac_key.c_str(),
 		   time(nullptr)));
-  
-  CHECK(Connect());  
+
+  while (!Connect()) {
+    printf("Couldn't connect to database...\n");
+    WebServer::GetCounter("startup connection failed")->Increment();
+    sleep(3);
+  }
+  printf("Connected to database.\n");
 
   // Might make sense to do this when we reconnect too, but then we'd
   // at least want to recalculate our IP address.
