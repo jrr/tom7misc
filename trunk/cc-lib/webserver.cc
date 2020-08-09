@@ -91,6 +91,9 @@ See web_test.cc for example.
 #else
   #include <unistd.h>
   #include <sys/socket.h>
+  #include <sys/select.h>
+  #include <sys/time.h>
+  #include <sys/types.h>
   #include <netdb.h>
   #include <ifaddrs.h>
   #include <sys/stat.h>
@@ -127,6 +130,14 @@ struct MutexLock {
   ~MutexLock() { m->unlock(); }
   std::mutex *m;
 };
+
+// Read with the mutex that protects it. T must be copyable,
+// obviously!
+template<class T>
+T ReadWithLock(std::mutex *m, const T *t) {
+  MutexLock ml(m);
+  return *t;
+}
 
 struct CounterImpl final : public WebServer::Counter {
   explicit CounterImpl(string s) : name(std::move(s)) {}
@@ -744,7 +755,34 @@ bool ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
   /* allocate a connection (which sets connection->remote_addr_length)
      and accept the next inbound connection */
   Connection *next_connection = new Connection(this);
-  while (should_run) {
+  while (ReadWithLock(&global_mutex, &should_run)) {
+    // We want Stop to be able to stop us quickly, so we wait for
+    // a connection before calling accept(). XXX: There's actually
+    // a race condition here since the select/accept is not atomic
+    // and the connection could go away. Should move to non-blocking
+    // socket.
+    for (;;) {
+      fd_set fds;
+      FD_ZERO(&fds);
+      FD_SET(listenerfd, &fds);
+      struct timeval tv;
+      tv.tv_sec = 1;
+      tv.tv_usec = 0;
+      int ret = select(listenerfd + 1, &fds, nullptr, nullptr, &tv);
+      if (!ReadWithLock(&global_mutex, &should_run)) break;
+      if (ret < 0) {
+	// Error... could be a signal so we keep trying.
+	continue;
+      }
+      if (ret == 0) {
+	// Timeout. Keep looping.
+	continue;
+      }
+      if (ret > 0) break;
+    } 
+    
+    if (!ReadWithLock(&global_mutex, &should_run)) break;
+
     next_connection->remote_addr_length = sizeof(next_connection->remote_addr);
     next_connection->socketfd =
       accept(listenerfd, (struct sockaddr*) &next_connection->remote_addr,
@@ -779,7 +817,6 @@ bool ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
     connectionThread.detach();
     next_connection = new Connection(this);
   }
-
 
   {
     MutexLock ml(&global_mutex);
