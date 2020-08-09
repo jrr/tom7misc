@@ -1,15 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <vector>
-#include <string>
-#include <cstdint>
-#include <unordered_map>
-#include <thread>
-#include <mutex>
-#include <chrono>
-#include <cmath>
 #include <unistd.h>
 #include <sys/sysinfo.h>
+
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <unordered_map>
+#include <vector>
 
 #include <mysql++.h>
 
@@ -120,16 +122,18 @@ struct PreServer {
     r.body = StringPrintf(
 	"pre-server uptime: %.1f sec\n"
 	"status: %s\n"
-	"%s"
+	"%s",
 	server_uptime.count(),
 	status.c_str(),
 	SysInfoString().c_str());
     return r;
   }
   
-  ~Server() {
+  ~PreServer() {
+    printf("Shut down PreServer..\n");
     server->Stop();
     listen_thread.join();
+    printf("Done.\n");
   }
 
   void SetStatus(const string &s) {
@@ -285,7 +289,7 @@ struct Server {
     
     r.body = StringPrintf(
 	"tempo uptime: %.1f sec\n"
-	"%s"
+	"%s",
 	server_uptime.count(),
 	SysInfoString().c_str());
     return r;
@@ -671,8 +675,10 @@ int main(int argc, char **argv) {
 
   WaitForNetwork();
 
-  std::unique_ptr<PreServer> preserver = std::make_unique<Preserver>();
+  std::unique_ptr<PreServer> preserver = std::make_unique<PreServer>();
+  preserver->SetStatus("Create DB");
   Database db;
+  preserver->SetStatus("DB ready");
   preserver.reset();
   
   Server server(&db);
