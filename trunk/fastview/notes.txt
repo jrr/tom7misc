@@ -1,0 +1,23 @@
+
+Registering a file type:
+https://docs.microsoft.com/en-us/windows/win32/shell/how-to-register-a-file-type-for-a-new-application
+This is pretty weird but the docs look right.
+First you create like HKEY_CLASSES_ROOT\fastview.jpg which is your ProgID.
+(I think the right granularity is basically... do you want it to have a different icon?
+ If not, they can all just point to FastView)
+It can have DefaultIcon and shell > open > command, which the latter is like
+  "c:\program files\fastview\fastview.exe" "%1"
+Then you also have HKEY_CLASSES_ROOT\.jpg
+ .. many of these just have the equivalent of: (Default) REG_SZ "fastview.jpg"
+    and sometimes also Content Type REG_SZ "image/jpeg"
+    and PerceivedType REG_Z "image"
+Others instead have \OpenWithProgids folder with (among others) "fastview.jpg" REG_SZ ""
+ .. as well as folders like OpenWithList and PersistentHandler.
+Not sure what to make of that.
+
+Rather than actually making the association for .jpg files, it probably makes sense
+to let the user (i.e. me) set that from the shell. So I think we should be looking
+for a way to tell the shell that fastview.exe makes sense for this kind of file so
+that it appears in lists? (Or perhaps don't even bother... looks like you can select
+any program and just "always use this program").
+
