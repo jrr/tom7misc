@@ -8,6 +8,10 @@
 
 // TODO: More tests, though of course RE2 has its own tests; here
 // we are just checking that we didn't screw up in the cc-lib import.
+// (Might also be helpful for me to give some syntax examples too
+// because I can never remember what needs to be backslashed!)
+// (Would also perhaps be nice to have some tests that remind me
+// of traps like "longest match" vs "first match".)
 void TestSimple() {
   CHECK(RE2::FullMatch("the quick brown fox", "[a-z ]+"));
   CHECK(!RE2::FullMatch("the quick brown fox", "[a-z]+"));

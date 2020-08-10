@@ -20,9 +20,11 @@ struct ImageRGBA {
   ImageRGBA(int width, int height);
   
   static ImageRGBA *Load(const std::string &filename);
+  static ImageRGBA *LoadFromMemory(const std::vector<uint8> &bytes);
+  static ImageRGBA *LoadFromMemory(const char *data, size_t size);
   // Saves in RGBA PNG format. Returns true if successful.
   bool Save(const std::string &filename) const;
-  std::vector<uint8_t> SaveToVec() const;
+  std::vector<uint8> SaveToVec() const;
   std::string SaveToString() const;
 
   // Quality in [1, 100]. Returns true if successful.
