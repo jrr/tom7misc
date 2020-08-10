@@ -114,6 +114,8 @@ Unpack32(uint32 color) {
 	  (uint8)(color & 255)};
 }
 
+// TODO: Duplicate code between the different Load routines..
+
 // static
 ImageRGBA *ImageRGBA::Load(const string &filename) {
   vector<uint8> ret;
@@ -125,9 +127,31 @@ ImageRGBA *ImageRGBA::Load(const string &filename) {
   if (stb_rgba == nullptr) return nullptr;
   // TODO: Is this portable (or even correct) wrt to endianness?
   memcpy(ret.data(), stb_rgba, bytes);
+  stbi_image_free(stb_rgba);
   // Does this move image data all the way in, or do we need to
   // write a move constructor manually? Better way?
   return new ImageRGBA(std::move(ret), width, height);
+}
+
+ImageRGBA *ImageRGBA::LoadFromMemory(const char *data, size_t size) {
+  vector<uint8> ret;
+  int width, height, bpp_unused;
+  uint8 *stb_rgba = stbi_load_from_memory(
+      (const stbi_uc*)data, size,
+      &width, &height, &bpp_unused, 4);
+  const int bytes = width * height * 4;
+  ret.resize(bytes);
+  if (stb_rgba == nullptr) return nullptr;
+  // TODO: Is this portable (or even correct) wrt to endianness?
+  memcpy(ret.data(), stb_rgba, bytes);
+  stbi_image_free(stb_rgba);
+  // Does this move image data all the way in, or do we need to
+  // write a move constructor manually? Better way?
+  return new ImageRGBA(std::move(ret), width, height);
+}
+
+ImageRGBA *ImageRGBA::LoadFromMemory(const vector<uint8> &filebytes) {
+  return LoadFromMemory((const char *)filebytes.data(), filebytes.size());
 }
 
 ImageRGBA::ImageRGBA(const vector<uint8> &rgba, int width, int height)

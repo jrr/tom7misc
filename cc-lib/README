@@ -49,17 +49,20 @@ COPYING.
 These are more-or-less verbatim imports of other libraries:
 base/        Google "base" library. APACHE20 license.
 strings/     Google "strings" library. APACHE20 license.
+             (XXX This should be deleted -- base already has stringprintf,
+              the one thing in here. absl has good new string routines.)
 sdl/         Utilities for my habits in SDL. Includes bitmap font rendering.
 jdksmidi/    Baroque but thorough MIDI library, GPL.
 city/        The excellent CityHash hash algorithm.
 gtest/       Google testing library. New BSD license.
 re2/         Local copy of a good, free Regular Expression library.
+             See re2_test for example. Now you have two problems.
 rapidjson/   Good fast JSON parser. See json_test for example. MIT license.
 gtl/         Bits of the Google Template Library that have been released
              as open source (usually Apache 2.0).
 
 wavesave      - Saves an array of audio samples as a WAV file. Limited input
-                formats, though it is not hard to add more.
+                formats, though it is not hard to add more. See also dr_wav.
 util          - General C++ utilities, accumulated throughout the ages. Some
                 are pretty embarrassing and should be cleaned up/out.
 heap          - Implementation of binary heaps.
@@ -78,7 +81,8 @@ threadutil    - Utilities for threaded programming. These are mostly convenience
 interval-tree - Stores intervals on a 1D number line, with an efficient query
                 for intervals that contain a given point.
 color-util    - Does that one thing you always need to do: Convert HSV to RGB.
-lines         - Draw lines using Bresenham's algorithm.
+lines         - Draw pixely lines using Bresenham's algorithm or anti-aliased
+                lines using Wu's algorithm.
 base64        - Very simple base64 encoding and decoding.
 md5           - Simple interface to MD5 hash algorithm. Note that MD5 should
                 no longer be considered safe for cryptography, so you should
@@ -86,6 +90,14 @@ md5           - Simple interface to MD5 hash algorithm. Note that MD5 should
                 still considered good.)
 bounds        - Simple bounding box implementation, typically used for
                 generating plots of data
+image         - Headless representation of RGBA images. Load and save various
+                formats via stb library, but also simple graphics primitives.
+                I often use this for generating images programmatically.
+webserver     - Simple embeddable webserver that works on win32 and linux.
+simpledxf     - Simple and incomplete parser for DXF (CAD) files. This
+                file format is insanely complex, but this does some
+                superficial parsing that may work for extracting basic
+                geometry.
 crypt/        - Simple implementations of cryptographic algorithms like AES
                 and SHA256. Perhaps arcfour and MD5 should be in here too.
 pi/           - Some code for working on the raspberry pi, particularly
