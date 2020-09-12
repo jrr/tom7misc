@@ -492,6 +492,15 @@
   ;; don't use tab characters to indent
   (setq indent-tabs-mode nil))
 
+(add-hook 'aaph-mode-hook 'save-without-trailing-whitespace)
+(add-hook 'aaph-mode-hook 'aaph-set-tabs)
+
+(defun aaph-set-tabs ()
+  "Set up tab preferences for Aphasia 2."
+  (setq aaph-indent-level 2)
+  ;; don't use tab characters to indent
+  (setq indent-tabs-mode nil))
+
 ;; XXX move to aphasia mode
 (add-hook 'aphasia-mode-hook 'turn-on-font-lock)
 (add-hook 'aphasia-mode-hook 'save-without-trailing-whitespace)
