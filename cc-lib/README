@@ -30,8 +30,8 @@ Some of the numerical routines in randutil are based on Numpy. If you
 believe that this is a "copy" or "substantial portion", then please
 abide by Numpy's permissive license; see NUMPY.LICENSE.
 
-The base64 and md5 code originally came from the public domain utilities;
-I've only made light changes there, and let's call those public domain
+The base64 code originally came from a public domain utility;
+I've only made light changes there, and let's call that public domain
 as well.
 
 The re2 subdirectory comes from Google and community contributors; see

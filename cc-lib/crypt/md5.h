@@ -1,6 +1,8 @@
 // Note! MD5 is not suitable for cryptographic applications; it can be
 // attacked IN PRACTICE. Consider SHA256 unless you need to specifically
 // be compatible with some legacy MD5 hashes.
+//
+// GPL.
 
 #ifndef _CCLIB_MD5_H
 #define _CCLIB_MD5_H
@@ -12,12 +14,9 @@
 
 // Hashes are returned as 16-byte binary data strings.
 struct MD5 {
-  /* initialize MD5. This detects
-     byte order and swaps if necessary. Note that
-     this is not thread safe, ugh!
-  */
-  static void Init();
-
+  // (There used to be Init() here, but it is no longer
+  // necessary. You can just delete the call.)
+  
   static std::string Hash(const std::string &s);
   static std::string Hashv(const std::vector<uint8_t> &v);
   // Hashes the remainder of the file.
