@@ -12,7 +12,9 @@
 #include "directories.h"
 
 #include "../cc-lib/base64.h"
-#include "../cc-lib/md5.h"
+#include "../cc-lib/crypt/md5.h"
+
+#include "bytes.h"
 
 #ifdef WIN32
 # include <time.h>
@@ -43,33 +45,33 @@ string NamedSolution::ToString() const {
   const string solstring = sol.ToString();
 
   return
-    sizes(date) +
-    sizes(name.length()) + name +
-    sizes(author.length()) + author +
-    sizes(solstring.length()) + solstring +
-    sizes(bookmark ? 1 : 0);
+    BigEndian32(date) +
+    BigEndian32(name.length()) + name +
+    BigEndian32(author.length()) + author +
+    BigEndian32(solstring.length()) + solstring +
+    BigEndian32(bookmark ? 1 : 0);
 }
 
 // static
 bool NamedSolution::FromString(const string &s, NamedSolution *ns) {
   unsigned int idx = 0;
   if (idx + 4 > s.length()) return false;
-  int d = shout(4, s, idx);
+  int d = ReadBigEndian32(s, idx);
 
   if (idx + 4 > s.length()) return false;
-  int nl = shout(4, s, idx);
+  int nl = ReadBigEndian32(s, idx);
   if (idx + nl > s.length()) return false;
   string name = s.substr(idx, nl);
   idx += nl;
 
   if (idx + 4 > s.length()) return false;
-  int dl = shout(4, s, idx);
+  int dl = ReadBigEndian32(s, idx);
   if (idx + dl > s.length()) return false;
   string de = s.substr(idx, dl);
   idx += dl;
 
   if (idx + 4 > s.length()) return false;
-  int sl = shout(4, s, idx);
+  int sl = ReadBigEndian32(s, idx);
   if (idx + sl > s.length()) return false;
   string ss = s.substr(idx, sl);
   idx += sl;
@@ -80,7 +82,7 @@ bool NamedSolution::FromString(const string &s, NamedSolution *ns) {
   bool bm;
   if (idx + 4 > s.length()) bm = false;
   else {
-    int bl = shout(4, s, idx);
+    int bl = ReadBigEndian32(s, idx);
     idx += 4;
     bm = !!bl;
   }

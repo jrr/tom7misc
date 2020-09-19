@@ -1,5 +1,5 @@
 #include "../cc-lib/sdl/sdlutil.h"
-#include "../cc-lib/md5.h"
+#include "../cc-lib/crypt/md5.h"
 
 #include "level.h"
 #include "util.h"
@@ -48,9 +48,6 @@ int main(int argc, char **argv) {
   }
 
   // util::setclipboard("hello escapists");
-
-  /* set up md5 early, before any threads */
-  MD5::Init();
 
   Drawable::Init();
 

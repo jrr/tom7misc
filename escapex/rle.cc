@@ -3,12 +3,14 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <cstring>
 
 // n.b. should not depend on SDL; used by the server.
 #include <assert.h>
 
 using namespace std;
 using uint32 = uint32_t;
+using uint8 = uint8_t;
 
 namespace {
 /* for call to 'free' */

@@ -3,7 +3,7 @@
 #include "loadlevel.h"
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
-#include "../cc-lib/md5.h"
+#include "../cc-lib/crypt/md5.h"
 
 #include <string.h>
 #include <sys/stat.h>

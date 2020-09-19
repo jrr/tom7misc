@@ -32,11 +32,6 @@ bool writefile(string fn, string s);
 
 string itos(int i);
 
-int shout(int, string, unsigned int &);
-string shint(int b, int i);
-/* converts int to byte string that represents it */
-string sizes(int i);
-
 template <class T>
 struct vallist {
   T head;

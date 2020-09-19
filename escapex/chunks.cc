@@ -4,6 +4,8 @@
 #include "util.h"
 #include "ptrlist.h"
 
+#include "bytes.h"
+
 Chunk::Chunk(uint32 k, int32 ii) : type(CT_INT32), key(k), i(ii) {}
 Chunk::Chunk(uint32 k, bool bb) : type(CT_BOOL), key(k), i(bb) {}
 Chunk::Chunk(uint32 k, string ss) : type(CT_STRING), key(k), i(0), s(ss) {}
@@ -14,10 +16,10 @@ string Chunk::ToString() {
      source. */
   // printf("tostring(%p): key %d, type %d, i %d, b %d, s %");
 
-  string res = sizes((uint32)key) + sizes((uint32)type);
+  string res = BigEndian32((uint32)key) + BigEndian32((uint32)type);
   switch (type) {
   case CT_BOOL:
-  case CT_INT32: return res + sizes(i);
+  case CT_INT32: return res + BigEndian32(i);
   case CT_STRING: return res + s;
   default: break;
   }
@@ -28,16 +30,16 @@ Chunk *Chunk::FromString(const string &s) {
   /* no type field */
   if (s.length() < 8) return nullptr;
   uint32 idx = 0;
-  uint32 key = (unsigned int)shout(4, s, idx);
-  ChunkType ty = (ChunkType)shout(4, s, idx);
+  uint32 key = (unsigned int)ReadBigEndian32(s, idx);
+  ChunkType ty = (ChunkType)ReadBigEndian32(s, idx);
 
   switch (ty) {
   case CT_BOOL:
     if (s.length() < 12) return nullptr;
-    else return new Chunk(key, (bool)shout(4, s, idx));
+    else return new Chunk(key, (bool)ReadBigEndian32(s, idx));
   case CT_INT32:
     if (s.length() < 12) return nullptr;
-    else return new Chunk(key, (int)shout(4, s, idx));
+    else return new Chunk(key, (int)ReadBigEndian32(s, idx));
   case CT_STRING:
     return new Chunk(key, (string)s.substr(8, s.length() - 8));
   default:
@@ -66,7 +68,7 @@ int Chunks::Compare(Chunk *l, Chunk *r) {
 }
 
 string Chunks::ToString() {
-  string op; /*  = sizes(data->length()); */
+  string op; /*  = BigEndian32(data->length()); */
 
   /* sort so that we change the player file less often */
   PtrList<Chunk>::sort(Chunks::Compare, data);
@@ -90,7 +92,7 @@ string Chunks::ToString() {
       printf("    .. %d\n", tmp->head->key);
     */
     const string it = tmp->head->ToString();
-    op = op + sizes(it.length()) + it;
+    op = op + BigEndian32(it.length()) + it;
   }
 
   return op;
@@ -102,7 +104,7 @@ std::unique_ptr<Chunks> Chunks::FromString(const string &s) {
   PtrList<Chunk> *dat = nullptr;
 
   while (idx < s.length()) {
-    int len = shout(4, s, idx);
+    int len = ReadBigEndian32(s, idx);
     /* XXX cleanup */
     if (idx + len > s.length()) {
       printf("bad length\n");

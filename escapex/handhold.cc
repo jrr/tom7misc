@@ -10,6 +10,8 @@
 #include "time.h"
 #include "message.h"
 
+#include "bytes.h"
+
 /* try to avoid being annoying if something is wrong */
 static bool hh_ok = false;
 
@@ -38,8 +40,8 @@ void HandHold::init() {
 
   unsigned int idx = strlen(HANDHOLD_MAGIC);
   if (hh.length() == (idx + (2 * 4))) {
-    hh_lastupdate = shout(4, hh, idx);
-    hh_lastupgrade = shout(4, hh, idx);
+    hh_lastupdate = ReadBigEndian32(hh, idx);
+    hh_lastupgrade = ReadBigEndian32(hh, idx);
     hh_ok = true;
   } else {
     /* well, try making it! */

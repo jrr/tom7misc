@@ -167,35 +167,6 @@ string util::ptos(void *p) {
   return (string)s;
 }
 
-
-string sizes(int i) {
-  string s = "    ";
-  s[0] = 255&(i >> 24);
-  s[1] = 255&(i >> 16);
-  s[2] = 255&(i >> 8);
-  s[3] = 255& i;
-  return s;
-}
-
-/* XXX these have terrible names */
-
-/* represent int i (as i mod (2^(b/8)))
-   using only b bytes */
-string shint(int b, int i) {
-  return sizes(i).substr(4-b, b);
-}
-
-/* inverse of shint. does not check that
-   there is enough room in s to read b bytes
-   from idx ... */
-int shout(int b, string s, unsigned int &idx) {
-  int r = 0;
-  while (b--) {
-    r = ((unsigned char)s[idx++]) + (r<<8);
-  }
-  return r;
-}
-
 unsigned int util::hash(string s) {
   unsigned int h = 0x714FA5DD;
   for (unsigned int i = 0; i < s.length(); i++) {

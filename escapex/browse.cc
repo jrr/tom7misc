@@ -6,7 +6,7 @@
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "browse.h"
-#include "../cc-lib/md5.h"
+#include "../cc-lib/crypt/md5.h"
 #include "backgrounds.h"
 
 #include <string.h>

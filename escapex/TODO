@@ -23,6 +23,10 @@ Maybe move primes to cc-lib.
 Avoid sdl-image? Server-side code would certainly benefit, at least
 (this caused the screenshot outage late 2019).
 
+Actually try to do some ML-based level generation? There aren't
+that many levels to train on, but it's possible that we could
+generate solvable levels programmatically, then train on those?
+
 Bugs in 2016:
     Bug: If I download new solutions from the servers, then
     immediately quit the program without solving any levels, then when
