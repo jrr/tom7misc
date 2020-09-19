@@ -620,6 +620,12 @@ Match group 1 is MUMBLE.")
   "Face used to highlight 'this' keyword."
   :group 'typescript)
 
+;; -tom7
+(defface typescript-any-face
+  '((t (:inherit font-lock-keyword-face)))
+  "Face used to highlight 'any' keyword."
+  :group 'typescript)
+
 (defface typescript-primitive-face
   '((t (:inherit font-lock-keyword-face)))
   "Face used to highlight builtin types."
@@ -1988,6 +1994,10 @@ This performs fontification according to `typescript--class-styles'."
     ("\\(this\\)\\."
      (1 'typescript-this-face))
 
+    ;; special highlight for `any' type --tom7
+    ("\\<\\(any\\)\\>"
+     (1 'typescript-any-face))
+    
     (,typescript--access-modifier-re (1 'typescript-access-modifier-face))
     (,typescript--basic-type-re (1 'typescript-primitive-face))
 

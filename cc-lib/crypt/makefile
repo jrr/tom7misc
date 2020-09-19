@@ -1,5 +1,5 @@
 
-default : aes_test.exe sha256_test.exe cryptrand_test.exe
+default : aes_test.exe sha256_test.exe cryptrand_test.exe md5_test.exe
 
 BASE=../base/logging.o ../base/stringprintf.o
 
@@ -38,6 +38,9 @@ cryptrand_test.o : cryptrand_test.cc cryptrand.h
 	$(CXX) $(CXXFLAGS) $< -o $@ -c
 
 cryptrand_test.exe : cryptrand.o cryptrand_test.o $(BASE)
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+md5_test.exe : md5_test.o md5.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 clean :

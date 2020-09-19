@@ -1,6 +1,24 @@
 
 // Sketch of simulation
 
+// TODO: Some of this code is generic "core" code and some is specific
+// to an instantiation on specific states/input/step definitions.
+// Annoyingly, there seems to be no clean way to make this separation
+// in typescript since "static" cannot be used in either interfaces
+// (to constrain a generic type parameter) or with abstract (to enforce
+// that e.g. an implementation of Inputs should have a static method
+// empty()). We can't use <> in typescript like templates in C++
+// (I guess at the place(s) that we instantiate Sim<T> for some particular
+// T, it is not making a new instance of Sim specialized to T. Rather
+// the class Sim is just erased to create a single instance. So if we
+// want to do dispatch based on T, we need to do that explicitly by
+// having an instance of T available. T's constructor is often used; this
+// is essentially what the class "is", and the constructor apparently
+// has the static properties attached to it. So you could also pass T's
+// constructor to Sim's constructor and save it. Not awful, but note
+// that we have to do this for all static methods of Sim, too (they
+// wouldn't have access to members we saved in the constructor).
+
 // TODO: Frame index representation! 32 bits is seemingly not enough?
 // (810 days at 60fps, but we really do want simulations to be able to
 // persist indefinitely and assume the frame counter is monotonic).
@@ -16,6 +34,7 @@
 //
 // A simulation has a fixed number of players N with indices 0..N-1.
 // I also know which player index I am.
+type QueuedInput = {frame: number, player_idx: number, input: Inputs};
 class Sim {
   readonly N: number;
   readonly my_id: number;
@@ -25,7 +44,7 @@ class Sim {
   mframe: number;
   window: UWindow;
   nframe: number;
-  queued_inputs: any;
+  queued_inputs: Array<QueuedInput>;
   
   constructor(N, my_id, start_frame, start_state) {
     // Constants.
@@ -176,15 +195,15 @@ class Sim {
 
       if (!inputs.complete()) throw 'guessed inputs not complete?!';
 
-      let state = Sim.zipStep(src_state,
-			      // (possibly guessed) inputs for this execution.
-			      inputs,
-			      // State from previous row.
-			      stale_src_state,
-			      // Stale inputs saved in row.
-			      row.stale,
-			      // State we computed last time.
-			      row.state);
+      let state = State.zipStep(src_state,
+				// (possibly guessed) inputs for this execution.
+				inputs,
+				// State from previous row.
+				stale_src_state,
+				// Stale inputs saved in row.
+				row.stale,
+				// State we computed last time.
+				row.state);
 
       // Get values for next round.
       // State we computed last time is used for the next round,
@@ -208,42 +227,6 @@ class Sim {
     // State exiting the window; this is what we'd show to the user or
     // use to extend the window with recent user inputs.
     return src_state;
-  }
-    
-  // For complete input_row and stale_row.
-  // Assuming that step(stale_src_state, stale_row) results in stale_dst_state,
-  // compute step(state, input_row). This can apply various optimizations,
-  // for example in the simple case that state = stale_src_state and
-  // input_row = stale_row are the same!
-  static zipStep(src_state : State, input_row : InputRow,
-		 stale_src_state : State, stale_row : InputRow,
-		 stale_dst_state : State) : State {
-    if (!input_row.complete()) throw 'zipStep input_row not complete';
-    if (!stale_row.complete()) throw 'zipStep stale_row not complete';
-
-    // TODO: For debugging, we should compute the step fresh and
-    // assert that it is the same as the one recomputed from the 
-    // stale data.
-    
-    // This optimization is always valid because step() must be
-    // deterministic.
-    if (State.eq(src_state, stale_src_state) &&
-	InputRow.eq(input_row, stale_row))
-      return stale_dst_state;
-
-    
-    // TODO: Further optimizations in the hierarchical case.
-    // TODO: Some way to write the state transformation just once, but
-    // with optional stale data.
-    
-    // Always safe (but maybe slower) to just ignore the stale data.
-    return Sim.step(src_state, input_row);
-  }
-  
-  // The simulation's step function. Needs a complete input row.
-  // Returns a new state.
-  static step(state : State, input_row : InputRow) : State {
-    throw 'unimplemented';
   }
 }
 
@@ -289,12 +272,48 @@ class UWindow {
 // Complete state of the simulation. Needs to be serializable because we
 // share them, at least to onboard new players, but also to "save"/"load"
 // simulations.
-class State {
+abstract class State {
 
   static eq(a : State, b : State) : boolean {
     // TODO EZ: Check the serialized representations.
     // Might be smart to maintain a checksum and check it here.
     return false;
+  }
+
+  // For complete input_row and stale_row.
+  // Assuming that step(stale_src_state, stale_row) results in stale_dst_state,
+  // compute step(state, input_row). This can apply various optimizations,
+  // for example in the simple case that state = stale_src_state and
+  // input_row = stale_row are the same!
+  static zipStep(src_state : State, input_row : InputRow,
+		 stale_src_state : State, stale_row : InputRow,
+		 stale_dst_state : State) : State {
+    if (!input_row.complete()) throw 'zipStep input_row not complete';
+    if (!stale_row.complete()) throw 'zipStep stale_row not complete';
+
+    // TODO: For debugging, we should compute the step fresh and
+    // assert that it is the same as the one recomputed from the 
+    // stale data.
+    
+    // This optimization is always valid because step() must be
+    // deterministic.
+    if (State.eq(src_state, stale_src_state) &&
+	InputRow.eq(input_row, stale_row))
+      return stale_dst_state;
+
+    
+    // TODO: Further optimizations in the hierarchical case.
+    // TODO: Some way to write the state transformation just once, but
+    // with optional stale data.
+    
+    // Always safe (but maybe slower) to just ignore the stale data.
+    return State.step(src_state, input_row);
+  }
+  
+  // The simulation's step function. Needs a complete input row.
+  // Returns a new state.
+  static step(state : State, input_row : InputRow) : State {
+    throw 'unimplemented';
   }
   
 }
@@ -362,7 +381,7 @@ class InputRow {
 }
 
 // Per-player input for a frame.
-class Inputs {
+abstract class Inputs {
   // TODO
   constructor() {
 

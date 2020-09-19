@@ -9,6 +9,7 @@ Make this work again on OSX 10.10+ and windows!
        differs per platform (RGBA, ARGB, etc.)
      - any more of these?
  - Probably release a source-only tarball for linux?
+ - I moved cc-lib md5 to the crypt subdirectory; need to update references.
 
 Merge some changes from Matt McCutchen:
  https://gitlab.com/mattmccutchen/escape

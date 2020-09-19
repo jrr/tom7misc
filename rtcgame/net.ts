@@ -154,8 +154,8 @@ class Peer {
   puid : string;
   // XXX typescript enum?
   peerType : number;
-  connection : any;
-  channel : any;
+  connection : RTCPeerConnection;
+  channel : RTCDataChannel;
   lastPing : number;
   private periodicallyPing : Periodically;
   
