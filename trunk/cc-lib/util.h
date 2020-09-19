@@ -24,6 +24,7 @@ using namespace std;
 
 #define UTIL_PI 3.141592653589f
 
+// Move stuff like this to Util struct or remove
 string itos(int i);
 int stoi(const string &s);
 string dtos(double d);
