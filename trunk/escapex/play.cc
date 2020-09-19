@@ -14,7 +14,7 @@
 #include "chars.h"
 #include "util.h"
 #include "dirindex.h"
-#include "../cc-lib/md5.h"
+#include "../cc-lib/crypt/md5.h"
 #include "prefs.h"
 #include "prompt.h"
 

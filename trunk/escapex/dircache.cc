@@ -6,7 +6,7 @@
 
 #include "level.h"
 #include "loadlevel.h"
-#include "../cc-lib/md5.h"
+#include "../cc-lib/crypt/md5.h"
 #include "directories.h"
 #include "util.h"
 #include "dircache.h"

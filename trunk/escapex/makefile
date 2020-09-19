@@ -11,7 +11,7 @@
 ifdef LINUX
 # makefile for linux
 
-CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/md5.o ../cc-lib/base64.o
+CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
 
 OFILES = main.o level.o solution.o rle.o disamb.o loadlevel.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o ${CCLIBOBJECTS}
 
@@ -81,6 +81,7 @@ RELEASEFILES=
 releasefiles.linux : ${RELEASEFILES}
 	echo ${RELEASEFILES} > releasefiles.linux
 
+# XXX should be cc-lib/crypt/md5.cc?
 mkupgrade.exe : mkupgrade.cc md5.cc
 	g++ -DLINUX mkupgrade.cc md5.cc -o mkupgrade.exe
 
@@ -187,7 +188,7 @@ CFLAGS=-Wno-objc-protocol-method-implementation
 # used to use /usr/local/lib
 LIBS=-L/usr/lib
 
-CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/md5.o ../cc-lib/base64.o
+CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
 
 escape.exe : escapex.o browse.o main.o rle.o level.o solution.o disamb.o loadlevel.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
 	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
@@ -209,8 +210,8 @@ version : .dummy
 
 RELEASEFILES=escape.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt COPYING changelog animation.png splash.png
 
-mkupgrade.exe : mkupgrade.cc ../cc-lib/md5.cc
-	g++ ${CPPFLAGS} ${CXXFLAGS} -DOSX mkupgrade.cc ../cc-lib/md5.cc -o mkupgrade.exe
+mkupgrade.exe : mkupgrade.cc ../cc-lib/crypt/md5.cc
+	g++ ${CPPFLAGS} ${CXXFLAGS} -DOSX mkupgrade.cc ../cc-lib/crypt/md5.cc -o mkupgrade.exe
 
 releasefiles.osx :
 	echo ${RELEASEFILES} > releasefiles.osx
@@ -329,7 +330,7 @@ ESCOBJECTS= main.o rle.o level.o solution.o disamb.o loadlevel.o font.o play.o u
 # XXX
 # ../cc-lib/sdl/font.o
 SDLUTILOBJECTS= ../cc-lib/sdl/sdlutil.o 
-CCLIBOBJECTS= ../cc-lib/md5.o ../cc-lib/base64.o ../cc-lib/stb_image_write.o ../cc-lib/stb_image.o
+CCLIBOBJECTS= ../cc-lib/crypt/md5.o ../cc-lib/base64.o ../cc-lib/stb_image_write.o ../cc-lib/stb_image.o
 
 
 # XXX reenable sound
@@ -447,8 +448,8 @@ RELEASEFILES=escape.exe replace.exe font.png fontsmall.png tiles.png tileutil.pn
 releasefiles.win32 : ${RELEASEFILES}
 	echo ${RELEASEFILES} > releasefiles.win32
 
-mkupgrade.exe : mkupgrade.cc ../cc-lib/md5.cc
-	${CXX} ${CPPFLAGS} ${CXXFLAGS} -DWIN32 mkupgrade.cc ../cc-lib/md5.cc -o mkupgrade.exe
+mkupgrade.exe : mkupgrade.cc ../cc-lib/crypt/md5.cc
+	${CXX} ${CPPFLAGS} ${CXXFLAGS} -DWIN32 mkupgrade.cc ../cc-lib/crypt/md5.cc -o mkupgrade.exe
 
 CURRENT : .dummy escape.exe releasefiles.win32 symlinks.win32 deletefiles.win32 mkupgrade.exe
 	@:$(call release_check)

@@ -2,7 +2,7 @@
 #include "upgrade.h"
 
 #include <time.h>
-#include "../cc-lib/md5.h"
+#include "../cc-lib/crypt/md5.h"
 
 #include "util.h"
 #include "textscroll.h"

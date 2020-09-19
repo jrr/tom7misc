@@ -1,7 +1,7 @@
 
 #include "upload.h"
 
-#include "../cc-lib/md5.h"
+#include "../cc-lib/crypt/md5.h"
 
 #include "client.h"
 #include "http.h"

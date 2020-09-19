@@ -83,7 +83,7 @@ std::unique_ptr<UnionFind> Analysis::Reachable(Level *lev) {
 
     }
   } /* loop over level */
-  return std::move(of);
+  return of;
 }
 
 static bool Separator(Level *lev, int x, int y,

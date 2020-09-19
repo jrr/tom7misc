@@ -4,7 +4,7 @@
 #include "prompt.h"
 #include "client.h"
 #include "http.h"
-#include "../cc-lib/md5.h"
+#include "../cc-lib/crypt/md5.h"
 #include "../cc-lib/base64.h"
 #include "menu.h"
 #include "textbox.h"

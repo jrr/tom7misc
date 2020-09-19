@@ -6,7 +6,7 @@
 #include "SDL.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/lines.h"
-#include "../cc-lib/md5.h"
+#include "../cc-lib/crypt/md5.h"
 
 #include "draw.h"
 #include "escapex.h"

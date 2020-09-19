@@ -6,7 +6,7 @@
 #include "escapex.h"
 #include "leveldb.h"
 #include "directories.h"
-#include "../cc-lib/md5.h"
+#include "../cc-lib/crypt/md5.h"
 #include "SDL.h"
 #include "player.h"
 #include "message.h"

@@ -6,6 +6,7 @@
 
 #include "ptrlist.h"
 #include "rle.h"
+#include "bytes.h"
 
 /* This code is non-SDL, so it should be portable! */
 
@@ -385,8 +386,8 @@ std::unique_ptr<Level> Level::FromString(string s, bool allow_corrupted) {
   unsigned int idx = ((string)LEVELMAGIC).length();
 
   if (idx + 12 > s.length()) return 0;
-  sw = shout(4, s, idx);
-  sh = shout(4, s, idx);
+  sw = ReadBigEndian32(s, idx);
+  sh = ReadBigEndian32(s, idx);
 
   FSDEBUG printf("%d x %d...\n", sw, sh);
 
@@ -395,14 +396,14 @@ std::unique_ptr<Level> Level::FromString(string s, bool allow_corrupted) {
       sh > LEVEL_MAX_HEIGHT || sh < 0 ||
       (sw * sh) > LEVEL_MAX_AREA) return 0;
 
-  int ts = shout(4, s, idx);
+  int ts = ReadBigEndian32(s, idx);
   if (idx + ts > s.length()) return 0;
   string title = s.substr(idx, ts);
 
   idx += ts;
 
   if (idx + 4 > s.length()) return 0;
-  int as = shout(4, s, idx);
+  int as = ReadBigEndian32(s, idx);
 
   if (idx + as > s.length()) return 0;
   string author = s.substr(idx, as);
@@ -413,8 +414,8 @@ std::unique_ptr<Level> Level::FromString(string s, bool allow_corrupted) {
 
   if (idx + 8 > s.length()) return 0;
 
-  int gx = shout(4, s, idx);
-  int gy = shout(4, s, idx);
+  int gx = ReadBigEndian32(s, idx);
+  int gy = ReadBigEndian32(s, idx);
 
   FSDEBUG printf("guy: %d,%d\n", gx, gy);
 
@@ -450,7 +451,7 @@ std::unique_ptr<Level> Level::FromString(string s, bool allow_corrupted) {
     l->botd = 0;
     l->bota = 0;
   } else {
-    l->nbots = shout(4, s, idx);
+    l->nbots = ReadBigEndian32(s, idx);
     if (l->nbots < 0 ||
         l->nbots > LEVEL_MAX_ROBOTS) {
       l->nbots = 0;
@@ -536,24 +537,24 @@ string Level::tostring() const {
   /* magic */
   ou += (string)LEVELMAGIC;
 
-  ou += sizes(w);
-  ou += sizes(h);
+  ou += BigEndian32(w);
+  ou += BigEndian32(h);
 
-  ou += sizes(title.length());
+  ou += BigEndian32(title.length());
   ou += title;
 
-  ou += sizes(author.length());
+  ou += BigEndian32(author.length());
   ou += author;
 
-  ou += sizes(guyx);
-  ou += sizes(guyy);
+  ou += BigEndian32(guyx);
+  ou += BigEndian32(guyy);
 
   ou += EscapeRLE::Encode(w * h, tiles);
   ou += EscapeRLE::Encode(w * h, otiles);
   ou += EscapeRLE::Encode(w * h, dests);
   ou += EscapeRLE::Encode(w * h, flags);
 
-  ou += sizes(nbots);
+  ou += BigEndian32(nbots);
   ou += EscapeRLE::Encode(nbots, boti);
   ou += EscapeRLE::Encode(nbots, (int*)bott);
   return ou;
