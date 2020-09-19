@@ -56,7 +56,7 @@ struct Solution {
     const Solution *sol;
 
     iter(const Solution &s) : pos(0), sol(&s) {}
-    bool hasnext() { return pos < sol->dirs.size(); }
+    bool hasnext() { return pos < (int)sol->dirs.size(); }
     void next() { pos++; }
     dir item() { return sol->dirs[pos]; }
   };

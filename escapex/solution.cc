@@ -33,7 +33,7 @@ bool Solution::FromString(const string &s, Solution *sol) {
 // static
 bool Solution::Equal(const Solution &l, const Solution &r) {
   if (l.dirs.size() != r.dirs.size()) return false;
-  for (int i = 0; i < l.dirs.size(); i++) {
+  for (int i = 0; i < (int)l.dirs.size(); i++) {
     if (l.dirs[i] != r.dirs[i]) return false;
   }
   return true;
