@@ -10,6 +10,7 @@
 #include <vector>
 #include <cstdint>
 #include <string_view>
+#include <optional>
 
 using namespace std;
 
@@ -28,7 +29,11 @@ int stoi(const string &s);
 string dtos(double d);
 
 struct Util {
+  // No error handling; it just returns "".
   static string ReadFile(const string &filename);
+  // Same but returns nullopt if the file can't be read.
+  static std::optional<string> ReadFileOpt(const string &filename);
+  
   static bool WriteFile(const string &filename, const string &contents);
   
   // Reads the lines in the file to the vector. Ignores all
