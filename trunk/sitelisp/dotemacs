@@ -780,11 +780,19 @@
 	      '((match-js-bad-for 1 font-lock-warning-face t)))
 	     (set-face-foreground (quote font-lock-warning-face) "red")))
 
+(make-empty-face 'outline-mode-one-face)
+(defvar typescript-mode-any-face   'typescript-mode-any-face
+  "Color the 'any' type keyword.")
+
 (add-hook 'typescript-mode-hook
 	  '(lambda ()
 	     (font-lock-add-keywords
 	      nil
-	      '((match-js-bad-for 1 font-lock-warning-face t)))
+	      '((match-js-bad-for 1 font-lock-warning-face t)
+		;; now doing this inside typescript.el
+		;; TODO: only match this as a type?
+		;; ("\\<\\(any\\)\\>" 1 typescript-mode-any-face t)
+		))
 	     (set-face-foreground (quote font-lock-warning-face) "red")))
 
 ;;;;;;;;; fix outline mode levels

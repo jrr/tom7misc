@@ -296,20 +296,22 @@ clean :
 # end OSX makefile
 endif
 
-# mingw makefile, using TDM-GCC. This is the new way to compile on Windows.
+# mingw makefile. This is the new way to compile on Windows.
 ifdef WIN32
 
 default : escape.exe
-
-# Tom, you may need to do this:
-# export PATH=/c/TDM-GCC-64/bin:${PATH}
 
 %.o : %.cc
 	@${CXX} ${CPPFLAGS} ${CXXFLAGS} -c -o $@ $<
 	@bash -c "echo -n '.'"
 
-CXX=g++
-CC=gcc
+# Depending on your installation, this may work better for you...
+# CXX=g++
+# CC=gcc
+# But this is how Tom compiles, specifically requesting the 64-bit compiler.
+CXX=x86_64-w64-mingw32-g++
+CC=x86_64-w64-mingw32-g++
+
 
 SDLARCH=x64
 SDLINCLUDES=-ISDL/include

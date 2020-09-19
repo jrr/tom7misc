@@ -22,7 +22,7 @@ CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O2 --std=c++14 -D
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -S -c -o $@ $<
 
 CCLIB_OBJECTS= ../../../cc-lib/base/logging.o ../../../cc-lib/stb_image.o  ../../../cc-lib/arcfour.o ../../../cc-lib/util.o ../../../cc-lib/color-util.o ../../../cc-lib/base/stringprintf.o
-ALL_CCLIB_OBJECTS=$(CCLIB_OBJECTS) ../../../cc-lib/stb_image_write.o ../../../cc-lib/image.o ../../../cc-lib/md5.o
+ALL_CCLIB_OBJECTS=$(CCLIB_OBJECTS) ../../../cc-lib/stb_image_write.o ../../../cc-lib/image.o ../../../cc-lib/crypt/md5.o
 
 CCLIB_PI_OBJECTS=../../../cc-lib/pi/bcm2835.o
 

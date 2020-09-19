@@ -54,9 +54,6 @@ rle_test.exe : rle_test.o rle.o $(BASE) arcfour.o
 arcfour_test.exe : arcfour_test.o arcfour.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-md5_test.exe : md5_test.o md5.o $(BASE)
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
 lastn-buffer_test.o : lastn-buffer_test.cc lastn-buffer.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 

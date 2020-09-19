@@ -43,8 +43,38 @@ using PositionMap = std::unordered_map<Position, T, PositionHash, PositionEq>;
 
 static constexpr bool VERBOSE = false;
 
+// Can be either 75 or 50. 75 is correct by FIDE rules, but 50 can be used
+// to compare with other solutions.
+static constexpr int MOVE_RULE = 50;
+
+// If true, keep randomly trying to expand until the slack is either 0 or 1.
+static constexpr bool OPTIMIZE = true;
+
 // Don't even allow threefold repetition!
-static constexpr int POS_MAX = 2;
+static constexpr int POS_MAX = 10;
+
+static bool PositionEqIgnoringCastlingEp(const Position &pos1,
+					 const Position &pos2) {
+  // Must be same player's move.
+  if (pos1.BlackMove() != pos2.BlackMove())
+    return false;
+
+  // And pieces must be the same, but allowing ROOK == C_ROOK.
+  for (int r = 0; r < 8; r++) {
+    for (int c = 0; c < 8; c++) {
+      uint8 p1 = pos1.PieceAt(r, c);
+      uint8 p2 = pos2.PieceAt(r, c);
+      if ((p1 & Position::COLOR_MASK) !=
+	  (p2 & Position::COLOR_MASK)) return false;
+      uint8 t1 = p1 & Position::TYPE_MASK;
+      uint8 t2 = p2 & Position::TYPE_MASK;
+      if (t1 == Position::C_ROOK) t1 = Position::ROOK;
+      if (t2 == Position::C_ROOK) t2 = Position::ROOK;
+      if (t1 != t2) return false;
+    }
+  }
+  return true;
+}
 
 // (Note: The paper linked above has a more careful description of the
 // strategy I took; the following is my original notes for posterity.)
@@ -244,6 +274,7 @@ static vector<Critical> MakeCritical() {
   )";
 #endif
 
+  // (from the paper)
   // Good! Mate with 3 slack! I think this is the longest possible!
   string slowgame_pgn = R"(
     1. Nf3 b6 2. Nc3 g6 3. Ne5 g5 4. Nd5 b5
@@ -284,8 +315,17 @@ static vector<Critical> MakeCritical() {
     141. Kf6 Ke8 142. Qg2 Rg8 143. Ke6 Rg7 144. Qxg7 Kd8
     145. Qd7#
 )";
-  
 
+  // XXX
+  slowgame_pgn = R"(
+1. Nf3 Nf6 2. Nc3 Nc6 3. Nd4 Nd5 4. Ne4 b6
+5. Rb1 Ncb4 6. Rg1 g6 7. Ng3 Nf6 8. Ngf5 Nbd5
+9. Ne3 Nf4 10. Nc4 Ne4 11. Ne6 Nd5 12. Nf4 Nef6
+13. Rh1 b5 14. Ra1 bxc4 15. Rg1 g5 16. Rb1 gxf4
+17. Rh1 Nh5 18. Ra1 c6 19. Rb1 c5 20. Ra1 f6
+21. Rg1 f5 22. b3
+)";
+  
   #if 0
   // Draw game, just 3 slack! But this game ends with the
   // last move being forced, which means that it is actually
@@ -396,7 +436,9 @@ static vector<Critical> MakeCritical() {
 	 pawn_moves, captures,
 	 maybe_checkmate,
 	 (int)crits.size());
-  CHECK(crits.size() == 118) << crits.size();
+
+  // This should be the case for a maximal input game.
+  // CHECK(crits.size() == 118) << crits.size();
   return crits;
 }
 
@@ -471,13 +513,12 @@ static bool MakeEvenExcursion(const Position &orig_pos,
       pos5.ApplyMove(ropp_move);
       if ((*seen)[pos5] >= POS_MAX)
 	continue;
-      // And this should now equal the original pos. Note that we are
-      // a bit too conservative here because we don't even allow the
-      // excursion to change en passant or castling state, even though
-      // we know our game won't castle or capture en passant. So if we
-      // fail to find excursions, this is one way to give us a bit
-      // more flexibility.
-      if (PositionEq{}(orig_pos, pos5)) {
+      // And this should now equal the original pos. Note that we
+      // ignore castling and e.p. state when comparing positions, since
+      // we know that the input does not do this. It gives us a bit
+      // more flexibility, especially in the early game where we may only
+      // be able to move rooks.
+      if (PositionEqIgnoringCastlingEp(orig_pos, pos5)) {
 	// Got one! Commit.
 	if (VERBOSE)
 	printf("Excursion: %s %s  %s %s\n",
@@ -610,7 +651,7 @@ static bool MakeOddExcursion(const Position &orig_pos,
 		continue;
 	      
 	      // Like in the Even case.
-	      if (PositionEq{}(orig_pos, pos7)) {
+	      if (PositionEqIgnoringCastlingEp(orig_pos, pos7)) {
 		// Got one! Commit.
 		if (VERBOSE)
 		printf("Odd Excursion: %s %s  %s %s  %s %s\n",
@@ -650,14 +691,14 @@ static bool MakeOddExcursion(const Position &orig_pos,
 // without repeating. We can do this by just repeatedly adding short
 // sequences that are net no-ops somewhere within the existing
 // sequence, probably.
-static void Expand(Critical *crit) {
-  ArcFour rc((string)"expand" + crit->start_pos.ToFEN(1, 2));
-
+//
+// Returns the amount of slack.
+static int Expand(Critical *crit, ArcFour *rc) {
   // Target length of the move list.
   // The ideal amount here is 75+74 moves (if black will make the critical
   // move), or 74+75 moves (if white will); this is the maximum number
   // without forcing a draw.
-  static constexpr int TARGET_SIZE = 149;
+  static constexpr int TARGET_SIZE = (MOVE_RULE * 2) - 1;
 
   // Count of times we've seen each position. No need to consider
   // the position after the critical move, since it cannot repeat
@@ -679,7 +720,7 @@ static void Expand(Critical *crit) {
       CHECK(seen[pos] < 5);
     }
     // Sanity check.
-    CHECK(PositionEq{}(pos, crit->end_pos));
+    CHECK(PositionEqIgnoringCastlingEp(pos, crit->end_pos));
   }
 
   enum TryExcursionResult {
@@ -697,10 +738,10 @@ static void Expand(Critical *crit) {
     // half-moves.
     if (slack < 4) {
       printf("Finished with slack of %d\n", slack);
-      return;
+      return slack;
     }
       
-    auto TryExcursions = [crit, &rc, &seen](
+    auto TryExcursions = [crit, rc, &seen](
 	std::function<bool(const Position &,
 			   ArcFour *,
 			   PositionMap<int> *,
@@ -710,7 +751,7 @@ static void Expand(Critical *crit) {
       for (int idx = 0; idx <= crit->moves.size(); idx++) {
 	vector<Move> excursion;
 
-	if (MakeExcursion(pos, &rc, &seen, &excursion)) {
+	if (MakeExcursion(pos, rc, &seen, &excursion)) {
 	  vector<Move> newmoves;
 	  newmoves.reserve(crit->moves.size() + excursion.size());
 	  for (int i = 0; i < idx; i++) {
@@ -748,16 +789,67 @@ static void Expand(Critical *crit) {
       for (const auto &p : seen) {
 	printf("\n%d times:\n%s\n", p.second, p.first.BoardString().c_str());
       }
-      return;
+      return slack;
     }
 
   }
   printf("Finished with slack of 0 [perfect!]\n");
+  return 0;
 }
+
+static string CriticalString(const Critical &crit) {
+  string moves, crit_move, end_pos;
+  {
+    Position p = crit.start_pos;
+    for (const Move m : crit.moves) {
+      moves += p.ShortMoveString(m) + " ";
+      p.ApplyMove(m);
+    }
+    crit_move = p.ShortMoveString(crit.critical_move);
+  }
+  
+  return StringPrintf("ExpandMulti. Critical:\n"
+		      "== start ==\n"
+		      "%s"
+		      "== moves ==\n"
+		      "%s\n"
+		      "== end ==\n"
+		      "%s"
+		      "== critical ==\n"
+		      "%s\n",
+		      crit.start_pos.BoardString().c_str(),
+		      moves.c_str(),
+		      crit.end_pos.BoardString().c_str(),
+		      crit_move.c_str());
+}
+
+// If OPTIMIZE is true, then keep calling Expand until we get a slack of 1.
+// This may not terminate for certain input PGNs.
+static void ExpandMulti(Critical *crit) {
+  ArcFour rc((string)"expand" + crit->start_pos.ToFEN(1, 2));
+
+  printf("%s", CriticalString(*crit).c_str());
+  
+  Critical orig = *crit;
+  for (int tries = 0; true; tries++) {
+    int slack = Expand(crit, &rc);
+    // Good!
+    if (slack <= 1 || !OPTIMIZE)
+      return;
+
+    printf("Got with slack %d:\n%s\n", slack,
+	   CriticalString(*crit).c_str());
+    
+    printf("Slack %d. Try again (%d)...\n", slack, tries);
+    // Replace and try again.
+    *crit = orig;
+  }
+}
+
 
 static void MakeLongest() {
   vector<Critical> crits = MakeCritical();
-  for (Critical &crit : crits) Expand(&crit);
+  for (Critical &crit : crits) ExpandMulti(&crit);
   // Expand(&crits[0]);
 
   PositionMap<int> seen;
@@ -773,7 +865,7 @@ static void MakeLongest() {
   std::set<int> critical_indices;
   
   for (const Critical &crit : crits) {
-    CHECK(PositionEq{}(pos, crit.start_pos));
+    CHECK(PositionEqIgnoringCastlingEp(pos, crit.start_pos));
     for (const Move &m : crit.moves) {
       CHECK(pos.IsLegal(m));
       CHECK(!pos.IsPawnMove(m));
@@ -783,13 +875,13 @@ static void MakeLongest() {
       } else {
 	white_noncritical++;
       }
-      CHECK(black_noncritical < 75 || white_noncritical < 75);
+      CHECK(black_noncritical < MOVE_RULE || white_noncritical < MOVE_RULE);
       pos.ApplyMove(m);
       seen[pos]++;
       CHECK(seen[pos] < 5);
       final_moves.push_back(m);
     }
-    CHECK(PositionEq{}(pos, crit.end_pos));
+    CHECK(PositionEqIgnoringCastlingEp(pos, crit.end_pos));
     CHECK(pos.IsLegal(crit.critical_move));
 
     // Check that the critical move is indeed critical, which
@@ -802,7 +894,8 @@ static void MakeLongest() {
 						});
 
     CHECK(is_pawn_move || is_capturing || is_checkmate);
-    int move_slack = 149 - (white_noncritical + black_noncritical);
+    int move_slack = (MOVE_RULE * 2 - 1) -
+        (white_noncritical + black_noncritical);
     printf("Critical move (%s%s%s) with w %d, b %d",
 	   (is_pawn_move ? "p" : ""),
 	   (is_capturing ? "x" : ""),

@@ -9,7 +9,7 @@
 
 #include "arcfour.h"
 #include "image.h"
-#include "md5.h"
+#include "crypt/md5.h"
 #include "base/stringprintf.h"
 
 #define VERBOSE if (0)

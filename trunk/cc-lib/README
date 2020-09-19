@@ -84,10 +84,6 @@ color-util    - Does that one thing you always need to do: Convert HSV to RGB.
 lines         - Draw pixely lines using Bresenham's algorithm or anti-aliased
                 lines using Wu's algorithm.
 base64        - Very simple base64 encoding and decoding.
-md5           - Simple interface to MD5 hash algorithm. Note that MD5 should
-                no longer be considered safe for cryptography, so you should
-                probably avoid it for new applications. (SHA256 in crypt/ is
-                still considered good.)
 bounds        - Simple bounding box implementation, typically used for
                 generating plots of data
 image         - Headless representation of RGBA images. Load and save various
@@ -98,8 +94,9 @@ simpledxf     - Simple and incomplete parser for DXF (CAD) files. This
                 file format is insanely complex, but this does some
                 superficial parsing that may work for extracting basic
                 geometry.
-crypt/        - Simple implementations of cryptographic algorithms like AES
-                and SHA256. Perhaps arcfour and MD5 should be in here too.
+crypt/        - Simple implementations of cryptographic algorithms like AES,
+                SHA256 and (deprecated) MD5. Perhaps arcfour should be in here
+                too.
 pi/           - Some code for working on the raspberry pi, particularly
                 for doing GPIO.
 bignum/       - Simple arbitrary-precision integers and rationals (BSD-like
