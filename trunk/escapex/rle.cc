@@ -2,11 +2,13 @@
 
 #include <vector>
 #include <string>
-#include "util.h"
-#include "escapex.h"
+#include <cstdint>
+
+// n.b. should not depend on SDL; used by the server.
 #include <assert.h>
 
 using namespace std;
+using uint32 = uint32_t;
 
 namespace {
 /* for call to 'free' */
