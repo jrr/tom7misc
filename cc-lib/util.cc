@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <type_traits>
 #include <string_view>
+#include <optional>
 
 #include "util.h"
 
@@ -343,6 +344,18 @@ static T ReadAndCloseFile(FILE *f, const T *magic_opt) {
       return {};
     }
   }
+}
+
+std::optional<string> Util::ReadFileOpt(const string &s) {
+  if (Util::isdir(s)) return nullopt;
+  if (s.empty()) return nullopt;
+  FILE *f = fopen(s.c_str(), "rb");
+  if (f == nullptr) return nullopt;
+
+  // TODO: Some failures are possible in here; should return nullopt for
+  // those as well.
+  // TODO PERF: Make sure we aren't unnecessarily copying here?
+  return {ReadAndCloseFile<string>(f, nullptr)};
 }
 
 string Util::ReadFile(const string &s) {

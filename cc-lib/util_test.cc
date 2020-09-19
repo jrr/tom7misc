@@ -19,6 +19,9 @@ static string SlowReadFile(const string &filename) {
   return ret;
 }
 
+static constexpr char NONEXISTENT_FILE[] =
+  "util_test_DOESNT_EXIST.cc";
+
 
 // This test uses its source code as test data, so don't
 // mess with the lines that tell you to keep them, duh.
@@ -33,12 +36,19 @@ static void TestReadFiles() {
 					"/* PLEASE KEEP THIS");
   CHECK_EQ(reference, s2);
   CHECK_EQ("", Util::ReadFileMagic("util_test.cc", "WRONG"));
-  CHECK_EQ("", Util::ReadFile("util_test_DOESNT_EXIST.cc"));
-  CHECK_EQ("", Util::ReadFileMagic("util_test_DOESNT_EXIST.cc", "/"));
+  CHECK_EQ("", Util::ReadFile(NONEXISTENT_FILE));
+  CHECK_EQ("", Util::ReadFileMagic(NONEXISTENT_FILE, "/"));
   CHECK(Util::HasMagic("util_test.cc", "/* PLEASE KEEP THIS"));
   CHECK(!Util::HasMagic("util_test.cc", "* PLEASE KEEP"));
   // Would be nice to test files larger than 2^31 and 2^32, since these
   // have caused problems in the past.
+
+  std::optional<string> os3 = Util::ReadFileOpt("util_test.cc");
+  CHECK(os3.has_value());
+  CHECK_EQ(reference, *os3);
+
+  std::optional<string> os4 = Util::ReadFileOpt(NONEXISTENT_FILE);
+  CHECK(!os4.has_value());
 }
 
 static void TestWhitespace() {
