@@ -1,7 +1,7 @@
 
 default : heap_test.exe minmax-heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe textsvg_test.exe lines_test.exe image_test.exe util_test.exe randutil_test.exe json_test.exe arcfour_test.exe lastn-buffer_test.exe list-util_test.exe edit-distance_test.exe re2_test.exe webserver_test.exe stb_image_bench.exe $(TESTCOMPILE)
 
-TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o simpledxf.o
+TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o simpledxf.o bitbuffer.o
 
 BASE=base/logging.o base/stringprintf.o
 
