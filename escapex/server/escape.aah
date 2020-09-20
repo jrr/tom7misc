@@ -21,7 +21,7 @@ signature Escape =
   val getauthor : level -> string
 
   val sfromfile : string -> solution
-  val stobase64 : solution -> string
+  val stostring : solution -> string
   val verify : (level * solution) -> bool
   val slength : solution -> int
 
@@ -109,7 +109,7 @@ fun splitmd md =
 (* Give fraction; returns score as "9.86". *)
 fun scorestring (n, nvotes) =
     if nvotes > 0
-    then 
+    then
         let val pmil = (n * 1000) div (nvotes * 10)
             val fp = itos (pmil mod 100)
             val fp = if size fp = 1
@@ -133,20 +133,20 @@ fun credentials () =
         id
     end
 
-fun mkcomment s = 
+fun mkcomment s =
     replace ("\n", "<br/>\n",
-             replace(">", "&gt;", 
-                     replace("<", "&lt;", 
+             replace(">", "&gt;",
+                     replace("<", "&lt;",
                              replace("&", "&amp;", s))))
-    
-    
+
+
 fun make-screenshot md =
     let
         val f = PNGROOT ^ md ^ ".png"
     in
         fexists f
         otherwise
-        let 
+        let
             val cmd = [[SCREENSHOT-EXE] [MD5ROOT ^ splitmd md] [f]]
         in
             (* print [<p><b>[cmd]</b></p>]; *)
@@ -175,7 +175,7 @@ fun get-subdirs c =
             let
                 fun expand 0 s = s
                   | expand n s =
-                    let val (_, fp, _, r) = findd rawdirs n 
+                    let val (_, fp, _, r) = findd rawdirs n
                     in
                         expand r (fp ^ "/" ^ s)
                     end
@@ -204,7 +204,7 @@ val disp = tohtml
 fun lookup-dir cdirs 0 = ""
   | lookup-dir nil _ = die "database corrupt: dir not found"
   | lookup-dir ((i, name, _)::rest) d =
-    if i = d 
+    if i = d
     then name ^ "/"
     else lookup-dir rest d
 
@@ -233,13 +233,13 @@ fun update-collection c =
 
 
         fun printlev (lev, dir) =
-            let 
-                open escape : level(lev) : (nvotes, difficulty, style, 
+            let
+                open escape : level(lev) : (nvotes, difficulty, style,
                                             rigidity, cooked, solved, md,
                                             uploaded, owner)
                 val best = getrecord lev
             in
-                fprint(f, 
+                fprint(f,
                        [[lookup-dir cdirs dir]lev[itos lev].esx [md] \
                         [itos nvotes] [itos difficulty] [itos style] [itos rigidity] \
                         [itos cooked] [itos solved] \
@@ -261,27 +261,27 @@ fun update-collection c =
 
 fun htmlheadtop s =
     let in
-        print 
+        print
         [<html><head><title>[s]</title>
          [* for iphone; improves scaling *]\
          <meta name="viewport" content="width=640">
 
          <STYLE TYPE="text/css">
-         
+
          H1 { font: bold 16pt Verdana,Arial,Helvetica }
          P  { font: 12px Verdana,Arial,Helvetica }
-         
-         TH { font: bold 12px Verdana,Arial,Helvetica ; 
+
+         TH { font: bold 12px Verdana,Arial,Helvetica ;
               text-align: center}
-         
+
          TD { font: 12px Verdana,Arial,Helvetica }
 
          .small { font : 9px Verdana,Arial,Helvetica }
-               
+
          A:link { color: #4444DD; font : bold 12px Verdana,Arial,Helvetica }
          A:visited { color: #9999FF; font : bold 12px Verdana,Arial,Helvetica }
          A:active { color: #DDDD44; font : bold 12px Verdana,Arial,Helvetica }
-         
+
          .blackline { border: 2pt;
                       border-style: solid;
                       border-color: black; }
@@ -290,7 +290,7 @@ fun htmlheadtop s =
 
 fun htmlheadbot () =
     let in
-        print 
+        print
         [</head><body bgcolor="#FFFFFF">
          <font face="Verdana,Arial,Helvetica" size=-1>]
     end
@@ -312,7 +312,7 @@ fun adminheader s =
 
 (* safely turn escape colors into html colors *)
 fun colorize s =
-    let 
+    let
         val l = explode s
         fun c nil 0 = nil
             (* unmatched -- close all remaining tags *)
@@ -371,8 +371,8 @@ fun loadlevel md =
 (* limit a string to n characters, for n >= 3 *)
 fun limitto n s =
     if size s > n
-    then 
-        if n >= 3 
+    then
+        if n >= 3
         then substr (s, 0, n - 3) ^ [...]
         else [...]
     else s
@@ -394,7 +394,7 @@ val naughty =
 
 (* is this a "dirty" string? *)
 fun dirty s =
-    let 
+    let
         val s = tr ("A-Z", "a-z", s)
         val s = tr ("a-z", "/cd/", s)
     in
@@ -404,12 +404,12 @@ fun dirty s =
 
 fun ago n =
     let
-        val l = 
+        val l =
             (1, 0, "1 sec ago", "secs")  ::
             (60, 15, "a minute ago", "mins")  ::
             (60 * 60, 3 * 60, "an hour ago", "hours") ::
             (60 * 60 * 24, 6 * 60 * 60, "a day ago", "days") ::
-            (60 * 60 * 24 * 7, 2 * 60 * 60 * 24, 
+            (60 * 60 * 24 * 7, 2 * 60 * 60 * 24,
                                 "a week ago", "weeks") ::
             (* well... *)
             (60 * 60 * 24 * 30, 3 * 60 * 60 * 24 * 7,
@@ -422,10 +422,10 @@ fun ago n =
         fun plural 1 s _ = s
           | plural n _ s = [[itos n] [s] ago]
 
-        fun findbest ((divi, slack, names, namep) :: 
+        fun findbest ((divi, slack, names, namep) ::
                       (rest as (modu, _, sing, _) :: _)) =
             if n < modu
-            then 
+            then
                 (* if we're "almost" to the next division,
                    round up. *)
                 (if ( n + slack < modu )
