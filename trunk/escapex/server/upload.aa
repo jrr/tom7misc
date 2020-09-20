@@ -21,7 +21,7 @@ in
          (* get level *)
          val levloc = requires "lev.location"
          val levmd5 = md5file levloc
-             
+
          (* get solution *)
          val solloc = requires "sol.location"
          val solmd5 = md5file solloc
@@ -52,7 +52,7 @@ in
                  debug s;
                  system s
              end
-                 
+
      in
          ensuredir pre;
 
@@ -79,7 +79,7 @@ in
              exists(sames,
                     fn i =>
                     (* ... that isn't deleted? *)
-                    not (empty 
+                    not (empty
                          (select col from escape : levelrel
                           where lev = {i} and col <> {grave}
                           limit {1})))
@@ -94,17 +94,17 @@ in
 
          (* Check for other levels uploaded by the same player. *)
          (* XXX skip for trusted players. *)
-         let 
+         let
              val sames = select id from escape : level
                          where owner = {userid}
                          and uploaded > {now - LEVEL-LIMIT-SECONDS}
          in
-             (1 + length sames) > LEVEL-LIMIT-NUM 
+             (1 + length sames) > LEVEL-LIMIT-NUM
              andthen failm [Can't upload more than [itos LEVEL-LIMIT-NUM] \
                             levels in [LEVEL-LIMIT-NAME]]
          end;
 
-         let 
+         let
              (* insert level *)
              do debug-system [/bin/mv [levloc] [pre]/[pos]]
 
@@ -112,7 +112,7 @@ in
                 since we store solutions in the database *)
              do debug-system [/bin/mv [solloc] [SOLROOT][levmd5].sol]
 
-             val levid = 
+             val levid =
                  insert (levmd5,
                          title,
                          author,
@@ -133,7 +133,7 @@ in
          in
              (* put solution as "official" *)
              insert (levid, "Original", username, solmd5, now,
-                     Escape.stobase64 sol, Escape.slength sol, false)
+                     base64 (Escape.stostring sol), Escape.slength sol, false)
              into escape : solution : (of, name, author, md5, date,
                                        moves, len, speedrecord);
 
@@ -143,12 +143,12 @@ in
 
              (* add info comment *)
              insert (userid, levid, now, post, false, true)
-             into escape : lcomment : (byuser, of, date, comment, 
+             into escape : lcomment : (byuser, of, date, comment,
                                        spoiler, info);
 
              (* fix triage collection *)
              print "ok\n";
-             
+
              done ();
 
              (* this stuff takes a long time. *)
