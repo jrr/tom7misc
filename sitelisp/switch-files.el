@@ -52,11 +52,46 @@
 (require 'cl)
 (require 'seq)
 
+;; switch to the first file in the list for which we already have an open
+;; buffer and return that filename. Returns nil if none have open buffers.
+(defun switch-to-buffer-rec (fs)
+  (if (null fs) nil
+    (let* ((h (car fs))
+	   (tl (cdr fs)))
+      (if (bufferp h)
+	  (progn
+	    (switch-to-buffer h)
+	    h)
+	(switch-to-buffer-rec tl)))
+    ))
+
+;; Like above, but opens files with find-file.
+;; looks in all the switch-files-paths.
+(defun switch-by-opening-rec (fs)
+  (if (null fs) nil
+    (let* ((h (car fs))
+	   (tl (cdr fs))
+	   ;; modified in while loop
+	   (pathlist switch-files-paths))
+
+      (setq success nil)
+      (while (and (not success) pathlist)
+	(setq thefile (expand-file-name h (car pathlist)))
+	(if (file-exists-p thefile)
+	    (setq success t)
+	  (setq pathlist (cdr pathlist))))
+      (if success
+	  (progn
+	    (find-file thefile)
+	    thefile)
+	(switch-by-opening-rec tl)))))
+      
+	      
+    
 (defun switch-files ()
   (interactive)
   (let* ((curbuffer (current-buffer))
 	 (buffername (buffer-file-name))
-	 (pathlist switch-files-paths)
 	 ;; single file based on history or what we're looking at
 	 (already
 	  ;; are we staring at an include directive?
@@ -75,7 +110,7 @@
 
 	 
 	 ; list of files to try switching to, in priority order
-	 (startfile
+	 (startfiles
 	  (if already
 	      ;; if we already have a single file, return that
 	      (list already)
@@ -104,33 +139,29 @@
 			     matches-with-nils)))
 
 	      (message "%s" targets)
-	      ;; XXX no return the list!
-	      (if (null targets) nil (car targets)))))
-	 )
+	      targets
+	 ))))
 
-    (if (not startfile)
-	(message "Can't switch. Buffer '%s' name '%s' startfile '%s'" 
-		 curbuffer buffername startfile)
-      (progn
-	(if (bufferp startfile)
-	    (switch-to-buffer startfile)
-	  (setq done nil)
-	  (while (and (not done) pathlist)
-	    (setq thefile (expand-file-name startfile (car pathlist)))
-	    (if (file-exists-p thefile)
-		(setq done t)
-	      (setq pathlist (cdr pathlist))))
+    ;; body of let*
+    ;; can we switch to anything in startfiles?
 
-	  (if done
-	      (progn
-		(find-file thefile)
-		(make-local-variable 'switch-file-backto)
-		(setq switch-file-backto curbuffer))
-	    (message "Can't find file: %s" startfile)
-	    ))))
-    )
-  )
+    (cond
+     ;; first prefer open buffers
+     ((switch-to-buffer-rec startfiles)
+      ;; (note, we didn't used to do this in the case that the buffer is already
+      ;; open, but it seems to make sense!
+      (make-local-variable 'switch-file-backto)
+      (setq switch-file-backto curbuffer))
 
+     ((switch-by-opening-rec startfiles)
+      (make-local-variable 'switch-file-backto)
+      (setq switch-file-backto curbuffer))
+
+     (t
+      (message "(From buffer '%s' name '%s', no targets matched: %s"
+	       curbuffer buffername startfiles)))
+    ))
+    
 (global-set-key "\C-x\M-f" 'switch-files)
 
 ; (switch-files)
