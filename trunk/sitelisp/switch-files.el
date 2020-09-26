@@ -43,7 +43,6 @@
 
 			    ("-sig\\.sml" ".sml")
 			    ("\\.sml" "-sig.sml")
-
 			    )
   "A list of file regexp matches and replacements switch between.")
 
@@ -51,39 +50,64 @@
   "A buffer local variable containing a buffer to jump back to for switch-file.")
 
 (require 'cl)
+(require 'seq)
 
 (defun switch-files ()
   (interactive)
   (let* ((curbuffer (current-buffer))
 	 (buffername (buffer-file-name))
-	 (list switch-files-list)
 	 (pathlist switch-files-paths)
-
-	 ; the name of the file to go look for.  Used for (message)s only.
-	 (startfile
+	 ;; single file based on history or what we're looking at
+	 (already
+	  ;; are we staring at an include directive?
+	  ;; XXX do I need this? I don't think I ever use C-o for this. -tom7
 	  (or
-	   ; are we staring at an include directive.
 	   (and
 	    (looking-at
 	     "#include [<\\\"]\\([^/>\\\"]*\\|.*/[^/>\\\"]*\\)[>\\\"]")
 	    (buffer-substring (match-beginning 1) (match-end 1)))
-	   ; are we in a buffer that we know where to go back to already?
-	   switch-file-backto
-	   ; can we guess at a file name from the current buffer name?
-	   (let ((it
-		  (assoc-if (function (lambda (key) 
-					(message "regex %s" key)
-					(string-match
-					 (concat "\\(.*\\)" key)
-					 buffername)))
-		  switch-files-list)))
-	     (if it
-		 (file-name-nondirectory
-		  (concat (substring buffername (match-beginning 1)
-				     (match-end 1))
-			  (cadr it)))))))
-	 done thefile)
-    
+           ;; are we in a buffer that we know where to go back to already?
+	   ;; XXX if so, just prioritizing it as the first element might make
+	   ;; more sense thatn returning a singleton list...
+	   switch-file-backto))
+
+	   ;; can we guess at a file name from the current buffer name?
+
+	 
+	 ; list of files to try switching to, in priority order
+	 (startfile
+	  (if already
+	      ;; if we already have a single file, return that
+	      (list already)
+	    ;; otherwise, get all associations that match the buffer
+	    ;; (XXX more convoluted than it needs to be. we want mapPartial, but
+	    ;; instead we first map to the filename or nil, then filter out nils.
+	    ;; note that due to the history of this code, we need to do the
+	    ;; transform right after the match (uses regex match state))
+	    (let* ((matches-with-nils
+		    (seq-map
+		     (function (lambda (row) 
+				 ;; (message "regex %s" (car key))
+				 (if (string-match
+				      (concat "\\(.*\\)" (car row))
+				      buffername)
+				     ;; matched
+				     (file-name-nondirectory
+				      (concat (substring buffername (match-beginning 1)
+							 (match-end 1))
+					      (cadr row)))
+				   ;; not matched
+				   nil)))
+		     switch-files-list))
+		   (targets (seq-filter
+			     (function (lambda (elt) (not (null elt))))
+			     matches-with-nils)))
+
+	      (message "%s" targets)
+	      ;; XXX no return the list!
+	      (if (null targets) nil (car targets)))))
+	 )
+
     (if (not startfile)
 	(message "Can't switch. Buffer '%s' name '%s' startfile '%s'" 
 		 curbuffer buffername startfile)
