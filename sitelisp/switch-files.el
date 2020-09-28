@@ -22,12 +22,13 @@
 ;;
 ;; $Revision: 1.8 $
 
-(defvar switch-files-paths '("." "/usr/include" "/usr/local/include")
+;; here 'nil' is like "." but behaves better with stuff like "plink:" paths.
+(defvar switch-files-paths '(nil "/usr/include" "/usr/local/include")
   "the list of paths to look through for matching files.")
 
-;; XXX there need to be multiple possible destinations for
+;; There need to be multiple possible destinations for
 ;; certain suffixes, for example .h (.c, .cc, .cpp, etc.).
-;; just return a list below.
+;; We open the first one that works.
 (defvar switch-files-list '(
 			    ("\\.cc" ".h")
 			    ("\\.h" ".cc")
@@ -76,7 +77,9 @@
 
       (setq success nil)
       (while (and (not success) pathlist)
+	;; (message "expand-file-name %s %s" h (car pathlist))
 	(setq thefile (expand-file-name h (car pathlist)))
+	;; (message "file-exists-p %s" thefile)
 	(if (file-exists-p thefile)
 	    (setq success t)
 	  (setq pathlist (cdr pathlist))))
