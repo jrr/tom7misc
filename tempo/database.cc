@@ -14,6 +14,7 @@
 #include "pi/netutil.h"
 #include "periodically.h"
 #include "arcfour.h"
+#include "process-util.h"
 
 #include <mysql++.h>
 #include <dbdriver.h>
@@ -28,6 +29,7 @@ using int64 = int64_t;
 static constexpr int SECONDS_BETWEEN_WRITES = 20;
 static constexpr int SECONDS_BETWEEN_UPDATE_SEENS = 61;
 static constexpr int SECONDS_BETWEEN_PINGS = 32;
+static constexpr int SECONDS_BETWEEN_PACKAGE_CHECKS = 3600 * 8;
 
 #ifndef SVN_REVISION
 // Makefile is supposed to define this, but it's not essential.
@@ -53,7 +55,7 @@ Database::Database() {
   failed = WebServer::GetCounter("failed queries");
 
   config = Util::ReadFileToMap(configfile);
-  
+
   {
     const auto iface = NetUtil::BestGuessIPWithMAC();
     CHECK(iface.has_value()) << "Unable to determine IP / MAC address!";
@@ -99,17 +101,18 @@ Database::Database() {
   {
     const int64 now = time(nullptr);
     string qs = StringPrintf(
-	"replace into device (mac, lastseen, ipaddress, location, rev) "
-	"values (\"%s\", %llu, \"%s\", \"%s\", \"%d\")",
+	"replace into device (mac, lastseen, ipaddress, location, rev, packages) "
+	"values (\"%s\", %llu, \"%s\", \"%s\", \"%d\", \"%s\")",
 	mac_key.c_str(),
 	now,
 	ipaddress.c_str(),
 	Escape(config["location"]).c_str(),
-	SVN_REVISION);
+	SVN_REVISION,
+	"?");
     Query q = conn.query(qs);
     CHECK(q.exec()) << "Couldn't register device in database?\n" << qs;
   }
-  
+
   // Just read all the probes into a local map.
   Query q = conn.query(
       "select id, type, code, name, description from probe order by id");
@@ -201,7 +204,7 @@ string Database::WriteValue(const string &code, uint32_t value) {
   // even a single byte for the sample key could suffice.
   const uint16 sample_key = (uint16)rc->Byte() << 8 | rc->Byte();
   batch.emplace_back(now, id, value, sample_key);
-  
+
   return it->second.name;
 }
 
@@ -212,16 +215,21 @@ void Database::PeriodicThread() {
   Periodically write_p(SECONDS_BETWEEN_WRITES);
   Periodically update_seen_p(SECONDS_BETWEEN_UPDATE_SEENS);
   Periodically ping_p(SECONDS_BETWEEN_PINGS);
+  Periodically update_packages_p(SECONDS_BETWEEN_PACKAGE_CHECKS);
   for (;;) {
     // n.b. can wake early on signal, which is fine...
     sleep(1);
 
+    if (update_packages_p.ShouldRun()) {
+      UpdatePackages();
+    }
+    
     {
       MutexLock ml(&database_m);
       if (ping_p.ShouldRun()) {
 	Ping();
       }
-      
+
       if (write_p.ShouldRun()) {
 	Write();
       }
@@ -232,6 +240,34 @@ void Database::PeriodicThread() {
 
       if (should_die) return;
     }
+  }
+}
+
+// Runs rarely because it's pretty expensive.
+// (TODO: This and svn revision are kind of pushing the limits of
+// what should reasonably be part of "database." We should factor the
+// device updating stuff out and just call like UpdateDeviceInfo() here.)
+//
+// Should not hold lock.
+void Database::UpdatePackages() {
+  std::optional<string> pkgo =
+    ProcessUtil::GetOutput(
+	"sudo apt list --upgradable | tail --lines=+2 | wc -l");
+  string res = "error";
+  if (pkgo.has_value()) res = Util::NormalizeWhitespace(pkgo.value());
+  {
+    MutexLock ml(&database_m);
+    string qs =
+      StringPrintf("update tempo.device "
+		   "set packages = \"%s\" "
+		   "where mac = \"%s\"",
+		   // XXX should sqlescape, though we don't
+		   // expect wc -l to output anything escapable.
+		   res.c_str(),
+		   mac_key.c_str());
+    Query q = conn.query(qs);
+    if (!q.exec())
+      failed->Increment();
   }
 }
 
@@ -259,7 +295,7 @@ void Database::Write() {
   // TODO: We could first check if we're connected at all. ANY
   // error below causes us to discard the batch because we're
   // worried about writing duplicates.
-  
+
   string qs = "insert into tempo.reading "
     "(timestamp, probeid, value, sample_key) "
     "values ";
@@ -341,7 +377,7 @@ Database::SmartReadingsIn(int64 time_start, int64 time_end,
   constexpr double EST_DB_SAMPLES_PER_SECOND = 0.5;
 
   const double est_samples_in_period = seconds * EST_DB_SAMPLES_PER_SECOND;
-  
+
   const double sample_rate = target_samples / est_samples_in_period;
 
   std::vector<pair<Probe, vector<pair<int64, uint32>>>> out;
@@ -423,7 +459,7 @@ Database::SmartReadingsIn(int64 time_start, int64 time_end,
 
     out.emplace_back(probe, std::move(vec));
   }
-  
+
   return out;
 }
 
@@ -464,7 +500,7 @@ Database::LastReading() {
 
 vector<Database::Device> Database::GetDevices() {
   string qs =
-    "select mac, lastseen, ipaddress, location, rev "
+    "select mac, lastseen, ipaddress, location, rev, packages "
     "from tempo.device "
     "order by mac";
   MutexLock ml(&database_m);
@@ -484,6 +520,7 @@ vector<Database::Device> Database::GetDevices() {
     device.ipaddress = (string)res[i]["ipaddress"];
     device.location = (string)res[i]["location"];
     device.rev = (string)res[i]["rev"];
+    device.packages = (string)res[i]["packages"];
     vec.emplace_back(std::move(device));
   }
   return vec;
