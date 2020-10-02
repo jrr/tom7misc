@@ -87,6 +87,7 @@ struct Database final {
     string ipaddress;
     string location;
     string rev;
+    string packages;
   };
   vector<Device> GetDevices();
   
@@ -95,6 +96,7 @@ private:
   void Write();
   // Mark this device as recently alive in the database.
   void UpdateLastSeen();
+  void UpdatePackages();
   // Ping the server, and try to reconnect if it fails.
   // Automatically called every few minutes by the periodic thread.
   void Ping();
