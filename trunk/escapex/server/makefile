@@ -4,3 +4,6 @@ default : genbest.aph register.aph upload.aph rate.aph fixup.aph admin.aph admin
 
 %.aph : %.aa escape.aah escape.db
 	${AAPH} -I ../ $< -o $@
+
+clean :
+	rm -f *.aph
