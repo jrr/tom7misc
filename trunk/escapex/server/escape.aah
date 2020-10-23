@@ -141,18 +141,19 @@ fun mkcomment s =
 
 
 fun make-screenshot md =
+  let
+    val f = [[PNGROOT][md].png]
+  in
+    fexists f
+    otherwise
     let
-        val f = PNGROOT ^ md ^ ".png"
+      val cmd = [[SCREENSHOT-EXE] [MD5ROOT ^ splitmd md] [f]]
     in
-        fexists f
-        otherwise
-        let
-            val cmd = [[SCREENSHOT-EXE] [MD5ROOT ^ splitmd md] [f]]
-        in
-            (* print [<p><b>[cmd]</b></p>]; *)
-            system cmd
-        end
+      (* print [<p><b>[cmd]</b></p>]; *)
+      system cmd;
+      ()
     end
+  end
 
 (* return a list of subdirs (of the collection c) as
    (id, full/path/to/subdir, index name) *)
