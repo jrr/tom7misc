@@ -2,8 +2,8 @@
 // Templated on integer/float types since sometimes it is helpful
 // to use lower-precision types in embedded applications.
 
-#ifndef __CC_LIB_LINES_H
-#define __CC_LIB_LINES_H
+#ifndef _CC_LIB_LINES_H
+#define _CC_LIB_LINES_H
 
 #include <utility>
 #include <cmath>

@@ -1,6 +1,6 @@
 
-#ifndef __FONT_H
-#define __FONT_H
+#ifndef _CC_LIB_SDL_FONT_H
+#define _CC_LIB_SDL_FONT_H
 
 #include <string>
 

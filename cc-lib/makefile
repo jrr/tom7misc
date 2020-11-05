@@ -6,18 +6,18 @@ TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o simpledxf.o bitbuffe
 BASE=base/logging.o base/stringprintf.o
 
 # for 64 bits on windows
-# CXX=x86_64-w64-mingw32-g++
-# CC=x86_64-w64-mingw32-g++
-# CXXFLAGS=-march=native -pipe -Wall -I. -DWIN32 --std=c++17 -O3 -static -flto
-# SOCK_LFLAGS= -lws2_32
+CXX=x86_64-w64-mingw32-g++
+CC=x86_64-w64-mingw32-g++
+CXXFLAGS=-march=native -pipe -Wall -I. -DWIN32 --std=c++17 -O3 -static -flto
+SOCK_LFLAGS= -lws2_32
 
 # Linux
 # no-psabi suppresses warnings all over STL in GCC 7.1 for ARM (e.g. pi)
 # it can probably be removed in a few years?
-CXX=g++
-CC=gcc
-CXXFLAGS=-Wall -I. --std=c++17 -O2 -Wno-psabi
-SOCK_LFLAGS=
+# CXX=g++
+# CC=gcc
+# CXXFLAGS=-Wall -I. --std=c++17 -O2 -Wno-psabi
+# SOCK_LFLAGS=
 
 RE2_OBJECTS=re2/bitstate.o re2/compile.o re2/dfa.o re2/filtered_re2.o re2/mimics_pcre.o re2/nfa.o re2/onepass.o re2/parse.o re2/perl_groups.o re2/prefilter.o re2/prefilter_tree.o re2/prog.o re2/re2.o re2/regexp.o re2/set.o re2/simplify.o re2/stringpiece.o re2/tostring.o re2/unicode_casefold.o re2/unicode_groups.o re2/util/rune.o re2/util/strutil.o
 

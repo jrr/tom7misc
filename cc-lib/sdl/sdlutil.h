@@ -5,8 +5,8 @@
 // You can still probably use LoadImage to do what you want.
 //////////////////////////////////////////////////////////////////////
 
-#ifndef __SDLUTIL_H
-#define __SDLUTIL_H
+#ifndef _CC_LIB_SDL_SDLUTIL_H
+#define _CC_LIB_SDL_SDLUTIL_H
 
 #include "SDL.h"
 #include <string>

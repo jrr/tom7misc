@@ -4,8 +4,8 @@
 // Warning: There are definitely some bugs in the database
 // that this is derived from; please suggest any fixes!
 
-#ifndef __CCLIB_GUITAR_H
-#define __CCLIB_GUITAR_H
+#ifndef _CC_LIB_GUITAR_H
+#define _CC_LIB_GUITAR_H
 
 #include <string>
 #include <cstdint>

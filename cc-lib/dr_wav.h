@@ -103,8 +103,8 @@
 //   not strictly conformant to the WAV format.
 
 
-#ifndef __DR_WAV_H
-#define __DR_WAV_H
+#ifndef _CC_LIB_DR_WAV_H
+#define _CC_LIB_DR_WAV_H
 
 #include <stddef.h>
 

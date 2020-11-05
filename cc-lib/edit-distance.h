@@ -1,6 +1,6 @@
 
-#ifndef __CCLIB_EDIT_DISTANCE_H
-#define __CCLIB_EDIT_DISTANCE_H
+#ifndef _CC_LIB_EDIT_DISTANCE_H
+#define _CC_LIB_EDIT_DISTANCE_H
 
 #include <string>
 

@@ -16,8 +16,8 @@
    http://cglab.ca/~morin/teaching/5408/refs/minmax.pdf
 */
 
-#ifndef __CCLIB_MINMAX_HEAP_H
-#define __CCLIB_MINMAX_HEAP_H
+#ifndef _CC_LIB_MINMAX_HEAP_H
+#define _CC_LIB_MINMAX_HEAP_H
 
 #include <vector>
 #include "base/logging.h"

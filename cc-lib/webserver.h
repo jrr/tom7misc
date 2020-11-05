@@ -1,5 +1,5 @@
-#ifndef __CCLIB_WEBSERVER_H
-#define __CCLIB_WEBSERVER_H
+#ifndef _CC_LIB_WEBSERVER_H
+#define _CC_LIB_WEBSERVER_H
 
 #include <cstdint>
 #include <string>

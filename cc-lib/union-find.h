@@ -1,6 +1,6 @@
 
-#ifndef __UNION_FIND_H
-#define __UNION_FIND_H
+#ifndef _CC_LIB_UNION_FIND_H
+#define _CC_LIB_UNION_FIND_H
 
 #include <vector>
 

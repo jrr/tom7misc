@@ -25,8 +25,8 @@
 */
 
 /* Defines for BCM2835 */
-#ifndef BCM2835_H
-#define BCM2835_H
+#ifndef _CC_LIB_PI_BCM2835_H
+#define _CC_LIB_PI_BCM2835_H
 
 #include <stdint.h>
 #include <string.h>

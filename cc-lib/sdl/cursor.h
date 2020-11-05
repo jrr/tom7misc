@@ -4,8 +4,8 @@
 // should SDL_ShowCursor(SDL_DISABLE) and just blit the cursor
 // yourself.
 
-#ifndef __SDLUTIL_CURSOR_H
-#define __SDLUTIL_CURSOR_H
+#ifndef _CC_LIB_SDL_CURSOR_H
+#define _CC_LIB_SDL_CURSOR_H
 
 struct SDL_Cursor;
 

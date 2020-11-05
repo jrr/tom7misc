@@ -1,5 +1,5 @@
-#ifndef __INTERVAL_TREE_H
-#define __INTERVAL_TREE_H
+#ifndef _CC_LIB_INTERVAL_TREE_H
+#define _CC_LIB_INTERVAL_TREE_H
 
 #include <map>
 #include <utility>

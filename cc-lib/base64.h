@@ -1,5 +1,5 @@
-#ifndef __BASE64_H
-#define __BASE64_H
+#ifndef _CC_LIB_BASE64_H
+#define _CC_LIB_BASE64_H
 
 #include <string>
 #include <cstdint>

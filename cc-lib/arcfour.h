@@ -11,8 +11,8 @@
    some small biases in its output statistics.
 */
 
-#ifndef __CCLIB_ARCFOUR_H
-#define __CCLIB_ARCFOUR_H
+#ifndef _CC_LIB_ARCFOUR_H
+#define _CC_LIB_ARCFOUR_H
 
 #include <string>
 #include <vector>

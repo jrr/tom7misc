@@ -1,8 +1,8 @@
 // Images residing in RAM as vectors of pixels.
 // Goal is to be simple and portable.
 
-#ifndef __IMAGE_H
-#define __IMAGE_H
+#ifndef _CC_LIB_IMAGE_H
+#define _CC_LIB_IMAGE_H
 
 #include <string>
 #include <vector>

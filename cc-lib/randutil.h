@@ -1,5 +1,5 @@
-#ifndef __RANDUTIL_H
-#define __RANDUTIL_H
+#ifndef _CC_LIB_RANDUTIL_H
+#define _CC_LIB_RANDUTIL_H
 
 #include <algorithm>
 #include <cmath>

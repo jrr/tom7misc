@@ -1,5 +1,5 @@
-#ifndef __AES_H_
-#define __AES_H_
+#ifndef _CC_LIB_CRYPT_AES_H_
+#define _CC_LIB_CRYPT_AES_H_
 
 #include <cstdint>
 
