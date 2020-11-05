@@ -1,6 +1,6 @@
 
-#ifndef __THREADUTIL_H
-#define __THREADUTIL_H
+#ifndef _CC_LIB_THREADUTIL_H
+#define _CC_LIB_THREADUTIL_H
 
 #include <vector>
 #include <thread>

@@ -1,6 +1,6 @@
 
-#ifndef __LIST_UTIL_H
-#define __LIST_UTIL_H
+#ifndef _CC_LIB_LIST_UTIL_H
+#define _CC_LIB_LIST_UTIL_H
 
 #include <list>
 

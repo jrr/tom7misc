@@ -3,8 +3,8 @@
   license; see sha256.cc.
 */
 
-#ifndef __SHA256_H
-#define __SHA256_H
+#ifndef _CC_LIB_CRYPT_SHA256_H
+#define _CC_LIB_CRYPT_SHA256_H
 
 #include <cstdint>
 #include <vector>

@@ -4,8 +4,8 @@
 //
 // GPL.
 
-#ifndef _CCLIB_MD5_H
-#define _CCLIB_MD5_H
+#ifndef _CC_LIB_CRYPT_MD5_H
+#define _CC_LIB_CRYPT_MD5_H
 
 #include <stdio.h>
 #include <string>

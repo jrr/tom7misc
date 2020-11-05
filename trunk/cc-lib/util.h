@@ -1,6 +1,6 @@
 
-#ifndef __CCLIB_UTIL_H
-#define __CCLIB_UTIL_H
+#ifndef _CC_LIB_UTIL_H
+#define _CC_LIB_UTIL_H
 
 #include <cstdlib>
 #include <map>

@@ -2,8 +2,8 @@
    my sml implementation.
 */
 
-#ifndef __CCLIB_HEAP_H
-#define __CCLIB_HEAP_H
+#ifndef _CC_LIB_HEAP_H
+#define _CC_LIB_HEAP_H
 
 #include <vector>
 

@@ -2,8 +2,8 @@
 // Everything in here is single-threaded to improve portability; for
 // multithreaded stuff, see threadutil.h.
 
-#ifndef __VECTOR_UTIL_H
-#define __VECTOR_UTIL_H
+#ifndef _CC_LIB_VECTOR_UTIL_H
+#define _CC_LIB_VECTOR_UTIL_H
 
 #include <vector>
 

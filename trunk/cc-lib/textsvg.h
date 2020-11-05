@@ -1,6 +1,6 @@
 
-#ifndef __CCLIB_TEXTSVG_H
-#define __CCLIB_TEXTSVG_H
+#ifndef _CC_LIB_TEXTSVG_H
+#define _CC_LIB_TEXTSVG_H
 
 #include <string>
 #include <utility>

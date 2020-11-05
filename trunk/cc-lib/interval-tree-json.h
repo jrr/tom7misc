@@ -1,6 +1,6 @@
 
-#ifndef __INTERVAL_TREE_JSON
-#define __INTERVAL_TREE_JSON
+#ifndef _CC_LIB_INTERVAL_TREE_JSON
+#define _CC_LIB_INTERVAL_TREE_JSON
 
 #include <map>
 #include <utility>

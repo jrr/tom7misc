@@ -1,6 +1,8 @@
 
-#ifndef __BIGINT_H
-#define __BIGINT_H
+// C++ wrappers for big integers and rationals by tom7 for cc-lib.
+
+#ifndef _CC_LIB_BIGNUM_BIG_H
+#define _CC_LIB_BIGNUM_BIG_H
 
 #include "bigz.h"
 #include "bign.h"

@@ -1,5 +1,5 @@
-#ifndef __COLORUTIL_H
-#define __COLORUTIL_H
+#ifndef _CC_LIB_COLORUTIL_H
+#define _CC_LIB_COLORUTIL_H
 
 struct ColorUtil {
   static void HSVToRGB(float hue, float saturation, float value,

@@ -1,5 +1,5 @@
-#ifndef __CCLIB_NETUTIL_H
-#define __CCLIB_NETUTIL_H
+#ifndef _CC_LIB_PI_NETUTIL_H
+#define _CC_LIB_PI_NETUTIL_H
 
 #include <map>
 #include <string>

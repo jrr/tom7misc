@@ -1,6 +1,6 @@
 
-#ifndef __CCLIB_BOUNDS_H
-#define __CCLIB_BOUNDS_H
+#ifndef _CC_LIB_BOUNDS_H
+#define _CC_LIB_BOUNDS_H
 
 #include <limits>
 #include <utility>

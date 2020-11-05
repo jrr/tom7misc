@@ -1,6 +1,6 @@
 
-#ifndef __CRYPTRAND_H
-#define __CRYPTRAND_H
+#ifndef _CC_LIB_CRYPT_CRYPTRAND_H
+#define _CC_LIB_CRYPT_CRYPTRAND_H
 
 #include <cstdint>
 

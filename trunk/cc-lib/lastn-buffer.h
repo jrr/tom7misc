@@ -1,6 +1,6 @@
 
-#ifndef __LASTN_BUFFER_H
-#define __LASTN_BUFFER_H
+#ifndef _CC_LIB_LASTN_BUFFER_H
+#define _CC_LIB_LASTN_BUFFER_H
 
 #include <vector>
 

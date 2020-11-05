@@ -1,6 +1,6 @@
 
-#ifndef __WAVESAVE_H
-#define __WAVESAVE_H
+#ifndef _CC_LIB_WAVESAVE_H
+#define _CC_LIB_WAVESAVE_H
 
 #include <string>
 #include <vector>

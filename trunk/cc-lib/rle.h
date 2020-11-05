@@ -10,8 +10,8 @@
 // some subtlety to the coding of the control byte; see the
 // implementation for details.
 
-#ifndef __RLE_H
-#define __RLE_H
+#ifndef _CC_LIB_RLE_H
+#define _CC_LIB_RLE_H
 
 #include <vector>
 #include <cstdint>

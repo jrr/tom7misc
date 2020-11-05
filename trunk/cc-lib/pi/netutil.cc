@@ -93,6 +93,9 @@ std::optional<std::pair<ip4, mac>> NetUtil::BestGuessIPWithMAC() {
   // Avoid 127.0.0.1.
   // Prefer interfaces named "eth0", "eth1", "wlan0", etc.
   // Prefer "real" internet addresses over 10.* and 192.168.*
+  // And prefer those NAT addresses over "link local" addresses
+  // like 169.254.* (have seen this in practice while the network
+  // comes up).
   map<string, ip4> ips = GetIP4Interfaces();
   map<string, mac> macs = GetMACAddresses();
 
