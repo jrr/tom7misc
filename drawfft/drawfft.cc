@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <unistd.h>
 #include <cmath>
+#include <tuple>
 
 #include "../cc-lib/threadutil.h"
 #include "../cc-lib/randutil.h"
@@ -21,6 +22,9 @@
 #include "../cc-lib/sdl/cursor.h"
 #include "../cc-lib/lines.h"
 #include "../cc-lib/util.h"
+#include "../cc-lib/image.h"
+
+#include <api/fftw3.h>
 
 /* there are some non-ascii symbols in the font */
 #define CHECKMARK "\xF2"
@@ -72,6 +76,19 @@ static SDL_Cursor *cursor_eraser = nullptr;
 #define SCREENW 1920
 #define SCREENH (VIDEOH + STATUSH)
 
+
+constexpr int SQUARE = 512;
+
+constexpr int IMGX = 32;
+constexpr int IMGY = 32;
+constexpr int FFTX = IMGX + SQUARE + 32;
+constexpr int FFTY = IMGY;
+
+
+using Rect = std::tuple<int, int, int, int>;
+constexpr Rect IMGRECT = {IMGX, IMGY, IMGX + SQUARE, IMGY + SQUARE};
+constexpr Rect FFTRECT = {FFTX, FFTY, FFTX + SQUARE, FFTY + SQUARE};
+
 static SDL_Surface *screen = nullptr;
 
 static constexpr uint32 COLORS[] = {
@@ -92,6 +109,74 @@ static constexpr uint32 COLORS[] = {
   /* 0 */ 0xFF7500c7, // purple
 };
 
+/*
+  FFTW_R2HC computes a real-input DFT with output in halfcomplex format, i.e. real and imaginary parts for a transform of size n stored as:
+  r0, r1, r2, ..., rn/2, i(n+1)/2-1, ..., i2, i1
+
+  (Logical N=n, inverse is FFTW_HC2R.)
+  FFTW_HC2R computes the reverse of FFTW_R2HC, above. (Logical N=n, inverse is FFTW_R2HC.)
+  FFTW_DHT computes a discrete Hartley transform. (Logical N=n, inverse is FFTW_DHT.)
+  FFTW_REDFT00 computes an REDFT00 transform, i.e. a DCT-I. (Logical N=2*(n-1), inverse is FFTW_REDFT00.)
+  FFTW_REDFT10 computes an REDFT10 transform, i.e. a DCT-II (sometimes called “the” DCT). (Logical N=2*n, inverse is FFTW_REDFT01.)
+  FFTW_REDFT01 computes an REDFT01 transform, i.e. a DCT-III (sometimes called “the” IDCT, being the inverse of DCT-II). (Logical N=2*n, inverse is FFTW_REDFT=10.)
+  FFTW_REDFT11 computes an REDFT11 transform, i.e. a DCT-IV. (Logical N=2*n, inverse is FFTW_REDFT11.)
+  FFTW_RODFT00 computes an RODFT00 transform, i.e. a DST-I. (Logical N=2*(n+1), inverse is FFTW_RODFT00.)
+  FFTW_RODFT10 computes an RODFT10 transform, i.e. a DST-II. (Logical N=2*n, inverse is FFTW_RODFT01.)
+  FFTW_RODFT01 computes an RODFT01 transform, i.e. a DST-III. (Logical N=2*n, inverse is FFTW_RODFT=10.)
+  FFTW_RODFT11 computes an RODFT11 transform, i.e. a DST-IV. (Logical N=2*n, inverse is FFTW_RODFT11.)
+*/
+
+// Real-to-real 2D FFT transform for size*size square.
+// PERF: Use float, not double (fftwf_ prefix... but need to build library
+// for this I guess)
+struct FFTBuffer2D {
+
+  FFTBuffer2D(int size) : size(size) {
+    in = (double*) fftw_malloc(sizeof (double) * size * size);
+    out = (double*) fftw_malloc(sizeof (double) * size * size);
+
+    auto [fwd, inv] = make_tuple(FFTW_DHT, FFTW_DHT);
+    // auto [fwd, inv] = make_tuple(FFTW_REDFT00, FFTW_REDFT00);
+    // auto [fwd, inv] = make_tuple(FFTW_REDFT10, FFTW_REDFT01);
+    
+    plan = fftw_plan_r2r_2d(size, size, in, out,
+			    fwd, fwd,
+			    FFTW_MEASURE);
+    printf("Forward plan:\n");
+    fftw_print_plan(plan);
+
+    rplan = fftw_plan_r2r_2d(size, size, out, in,
+			     inv, inv,
+			     FFTW_MEASURE);
+    
+    printf("Inverse plan:\n");
+    fftw_print_plan(rplan);
+  }
+  
+  ~FFTBuffer2D() {
+    fftw_free(in);
+    fftw_free(out);
+    fftw_destroy_plan(plan);
+    fftw_destroy_plan(rplan);    
+  }
+
+  void Forward() {
+    fftw_execute(plan);
+  }
+
+  void Inverse() {
+    fftw_execute(rplan);
+  }
+  
+  const int size;
+  // Row-major.
+  double *in = nullptr, *out = nullptr;
+  
+private:
+  
+  fftw_plan plan, rplan;
+};
+
 // Mode basically controls what happens when we use the mouse.
 enum class Mode {
   ERASING,
@@ -108,122 +193,272 @@ struct UI {
   void DrawStatus();
   void Draw();
 
-  void SaveUndo() {
-    undo_buffer.push_back(sdlutil::duplicate(drawing));
-    while (undo_buffer.size() > MAX_UNDO) {
-      SDL_FreeSurface(undo_buffer.front());
-      undo_buffer.pop_front();
-    }
+  uint8 current_value = 0xFF;
 
-    while (!redo_buffer.empty()) {
-      SDL_FreeSurface(redo_buffer.front());
-      redo_buffer.pop_front();
-    }
-  }
+  ImageA img, fft;
+  FFTBuffer2D fft_buffer;
+  
+  void DrawThick(int x0, int y0,
+		 int x1, int y1,
+		 uint8 value);
+  void FloodFill(int x, int y, uint8 value);
 
-  uint32 current_color = COLORS[2];
-  // Single nybble in [1, 15]. 0 is disallowed.
-  int current_alpha = 15;
-  inline uint32 GetColor() const {
-    uint8 aa = current_alpha | (current_alpha << 4);
-    return (current_color & 0xFFFFFF) | (aa << 24);
-  }
+  void Forward();
 
-  SDL_Surface *drawing = nullptr;
+  void ImgChanged();
+  void FftChanged();
+
+  void DrawImg();
+  void DrawFft();
+  
   int mousex = 0, mousey = 0;
   bool dragging = false;
-
-  static constexpr int MAX_UNDO = 32;
-  deque<SDL_Surface *> undo_buffer;
-  deque<SDL_Surface *> redo_buffer;
-
 };
 
-UI::UI() {
-  drawing = sdlutil::makesurface(SCREENW, SCREENH, true);
-  sdlutil::ClearSurface(drawing, 0, 0, 0, 0);
-  CHECK(drawing != nullptr);
+UI::UI() : img(SQUARE, SQUARE), fft(SQUARE, SQUARE), fft_buffer(SQUARE) {
+  img.Clear(0x00);
+
+  ImgChanged();
 }
 
-static void DrawThick(SDL_Surface *surf, int x0, int y0,
-                      int x1, int y1,
-                      Uint32 color) {
-  static constexpr int THICKNESS = 3;
-  Line<int> l{x0, y0, x1, y1};
+void UI::ImgChanged() {
 
-  const int w = surf->w, h = surf->h;
-
-  Uint32 *bufp = (Uint32 *)surf->pixels;
-  int stride = surf->pitch >> 2;
-  auto SetPixel = [color, w, h, bufp, stride](int x, int y) {
-      if (x >= 0 && y >= 0 &&
-          x < w && y < h) {
-        bufp[y * stride + x] = color;
-      }
-    };
-
-  auto ThickPixel = [&SetPixel](int x, int y) {
-      static constexpr int LO = THICKNESS >> 1;
-      // static constexpr int RO = THICKNESS - LO;
-
-      for (int xx = x - LO; xx < x - LO + THICKNESS; xx++) {
-        for (int yy = y - LO; yy < y - LO + THICKNESS; yy++) {
-          SetPixel(xx, yy);
-        }
-      }
-    };
-
-  ThickPixel(x0, y0);
-
-  for (const std::pair<int, int> point : Line<int>{x0, y0, x1, y1}) {
-    const int x = point.first, y = point.second;
-    ThickPixel(x, y);
-  }
+  // XXX do FFT
+  Forward();
+  
 }
 
-static void FloodFill(SDL_Surface *surf, int x, int y,
-                      Uint32 color) {
-  const int w = surf->w, h = surf->h;
+void UI::FftChanged() {
+  // XXX do inverse fft
+}
 
-  Uint32 *bufp = (Uint32 *)surf->pixels;
-  int stride = surf->pitch >> 2;
 
-  const Uint32 replace_color = bufp[y * stride + x];
-
-  auto GetPixel = [w, h, bufp, stride, replace_color](int x, int y) {
-      if (x >= 0 && y >= 0 &&
-          x < w && y < h) {
-        return bufp[y * stride + x];
-      } else {
-        return ~replace_color;
-      }
-    };
-
-  auto SetPixel = [color, w, h, bufp, stride](int x, int y) {
-      if (x >= 0 && y >= 0 &&
-          x < w && y < h) {
-        bufp[y * stride + x] = color;
-      }
-    };
-
-  std::vector<std::pair<int, int>> todo;
-  if (color != replace_color)
-    todo.emplace_back(x, y);
-
-  while (!todo.empty()) {
-    int xx, yy;
-    std::tie(xx, yy) = todo.back();
-    todo.pop_back();
-
-    Uint32 c = GetPixel(xx, yy);
-    if (c == replace_color) {
-      SetPixel(xx, yy);
-      todo.emplace_back(xx - 1, yy);
-      todo.emplace_back(xx + 1, yy);
-      todo.emplace_back(xx, yy - 1);
-      todo.emplace_back(xx, yy + 1);
+void UI::Forward () {
+  constexpr float o255 = 1.0f / 255.0f;
+  for (int y = 0; y < SQUARE; y++) {
+    for (int x = 0; x < SQUARE; x++) {
+      fft_buffer.in[y * SQUARE + x] = (float)img.GetPixel(x, y) * o255;
     }
   }
+  fft_buffer.Forward();
+
+  // Copy FFT result floats to "fft image".
+  // XXX I should do some normalization here, I think; what?
+  for (int y = 0; y < SQUARE; y++) {
+    for (int x = 0; x < SQUARE; x++) {
+      const float f = fft_buffer.out[y * SQUARE + x];
+
+      uint8 v = f > 1.0f ? 255.0f : f < 0.0f ? 0.0f : f * 255.0;
+      fft.SetPixel(x, y, v);
+    }
+  }
+}
+
+void UI::DrawImg() {
+  // Draw to screen
+  for (int y = 0; y < SQUARE; y++) {
+    for (int x = 0; x < SQUARE; x++) {
+      const uint8 v = img.GetPixel(x, y);
+      const uint32 color = SDL_MapRGBA(screen->format, v, v, v, 0xFF);
+      sdlutil::SetPixel32(screen, IMGX + x, IMGY + y, color);
+    }
+  }
+}
+
+void UI::DrawFft() {
+  // Draw to screen
+  for (int y = 0; y < SQUARE; y++) {
+    for (int x = 0; x < SQUARE; x++) {
+      const uint8 v = fft.GetPixel(x, y);
+      const uint32 color = SDL_MapRGBA(screen->format, v, v, v, 0xFF);      
+      sdlutil::SetPixel32(screen, FFTX + x, FFTY + y, color);
+    }
+  }
+}
+
+
+// Clips the line to the rectangle (with both in, say, screen
+// coordinates), and puts it in rectangle-local coordinates. Returns
+// nullopt if the whole line is outside the rectangle.
+std::optional<std::tuple<int, int, int, int>>
+ClipLineToRect(std::tuple<int, int, int, int> line,
+	       std::tuple<int, int, int, int> rect) {
+  auto [lx0, ly0, lx1, ly1] = line;
+  auto [rx0, ry0, rx1, ry1] = rect;
+  // This algorithm wants rectangle bounds to be inclusive...
+  rx1++;
+  ry1++;
+  
+  // Cohen-Sutherland
+  using OutCode = int;
+  constexpr int INSIDE = 0b0000;
+  constexpr int LEFT   = 0b0001;
+  constexpr int RIGHT  = 0b0010;
+  constexpr int BOTTOM = 0b0100;
+  constexpr int TOP    = 0b1000;
+  
+  auto ComputeOutCode = [rx0, ry0, rx1, ry1](int xx, int yy) {
+      OutCode code = INSIDE;
+      if (xx < rx0)
+	code |= LEFT;
+      else if (xx > rx1)
+	code |= RIGHT;
+
+      // (XXX BOTTOM and TOP using Euclidean, not screen)
+      if (yy < ry0)
+	code |= BOTTOM;
+      else if (yy > ry1)
+	code |= TOP;
+      return code;
+    };
+
+  OutCode outcode0 = ComputeOutCode(lx0, ly0);
+  OutCode outcode1 = ComputeOutCode(lx1, ly1);
+
+  // Loop until both points are inside window.
+  while (0 != (outcode0 | outcode1)) {
+    if (outcode0 & outcode1)
+      return nullopt;
+
+    // Then clip: Calculate the line segment to clip from an outside
+    // point to an intersection with clip edge.
+
+    // At least one endpoint is outside the clip rectangle; pick it.
+    OutCode outcodeOut = outcode1 > outcode0 ? outcode1 : outcode0;
+
+    // Now find the intersection point;
+    // use formulas:
+    //   slope = (y1 - y0) / (x1 - x0)
+    //   x = x0 + (1 / slope) * (ym - y0), where ym is ymin or ymax
+    //   y = y0 + slope * (xm - x0), where xm is xmin or xmax
+    // No need to worry about divide-by-zero because, in each case, the
+    // outcode bit being tested guarantees the denominator is non-zero
+
+    // XXX not obvious that this terminates? Note I keep the intermediate points
+    // as integers.
+    int x, y;
+    if (outcodeOut & TOP) {           // point is above the clip window
+      x = lx0 + (lx1 - lx0) * (ry1 - ly0) / float(ly1 - ly0);
+      y = ry1;
+    } else if (outcodeOut & BOTTOM) { // point is below the clip window
+      x = lx0 + (lx1 - lx0) * (ry0 - ly0) / float(ly1 - ly0);
+      y = ry0;
+    } else if (outcodeOut & RIGHT) {  // point is to the right of clip window
+      y = ly0 + (ly1 - ly0) * (rx1 - lx0) / float(lx1 - lx0);
+      x = rx1;
+    } else {
+      // (outcodeOut & LEFT)
+      // point is to the left of clip window
+      y = ly0 + (ly1 - ly0) * (rx0 - lx0) / float(lx1 - lx0);
+      x = rx0;
+    }
+
+    // Now we move outside point to intersection point to clip
+    // and get ready for next pass.
+    if (outcodeOut == outcode0) {
+      lx0 = x;
+      ly0 = y;
+      outcode0 = ComputeOutCode(lx0, ly0);
+    } else {
+      lx1 = x;
+      ly1 = y;
+      outcode1 = ComputeOutCode(lx1, ly1);
+    }
+  }
+  return {{lx0 - rx0, ly0 - ry0, lx1 - rx0, ly1 - ry0}};
+}
+
+// Draw a line, if it falls on either the original or FFT image.
+void UI::DrawThick(int x0, int y0,
+		   int x1, int y1,
+		   uint8 value) {
+
+  std::tuple<int, int, int, int> line = {x0, y0, x1, y1};
+  auto imgo = ClipLineToRect(line, IMGRECT);
+
+  if (imgo.has_value()) {
+    static constexpr int THICKNESS = 3;
+
+    auto ThickPixel = [this, value](int x, int y) {
+	static constexpr int LO = THICKNESS >> 1;
+	for (int xx = x - LO; xx < x - LO + THICKNESS; xx++) {
+	  for (int yy = y - LO; yy < y - LO + THICKNESS; yy++) {
+	    img.SetPixel(xx, yy, value);
+	  }
+	}
+      };
+    
+    const auto [x0, y0, x1, y1] = imgo.value();
+    for (const auto [x, y] : Line<int>{x0, y0, x1, y1}) {
+      ThickPixel(x, y);
+    }
+
+    ImgChanged();
+  } 
+
+  auto ffto = ClipLineToRect(line, IMGRECT);
+  if (ffto.has_value()) {
+    // ...
+
+    FftChanged();
+  }
+}
+
+std::optional<std::tuple<int, int>>
+ClipPointToRect(std::tuple<int, int> point, Rect rect) {
+  const auto [x0, y0, x1, y1] = rect;
+  const auto [x, y] = point;
+  if (x >= x1) return nullopt;
+  if (y >= y1) return nullopt;
+
+  int xx = x - x0;
+  if (xx < 0) return nullopt;
+  int yy = y - y0;
+  if (yy < 0) return nullopt;
+  return {{xx, yy}};
+}
+
+void UI::FloodFill(int x, int y, uint8 value) {
+
+  auto imgo = ClipPointToRect({x, y}, IMGRECT);
+  if (imgo.has_value()) {
+    auto [x, y] = imgo.value();
+    const uint8 replace_value = img.GetPixel(x, y);
+    
+    // Treat the border of the image as a color != to the value
+    // being replaced.
+    auto GetPixel = [this, value, replace_value](int x, int y) -> uint8 {
+	if (x >= 0 && y >= 0 &&
+	    x < img.width && y < img.height) {
+	  return img.GetPixel(x, y);
+	} else {
+	  return ~replace_value;
+	}
+      };
+
+    std::vector<std::pair<int, int>> todo;
+    if (value != replace_value)
+      todo.emplace_back(x, y);
+
+    while (!todo.empty()) {
+      const auto [xx, yy] = todo.back();
+      todo.pop_back();
+
+      uint8 c = GetPixel(xx, yy);
+      if (c == replace_value) {
+	img.SetPixel(xx, yy, value);
+	todo.emplace_back(xx - 1, yy);
+	todo.emplace_back(xx + 1, yy);
+	todo.emplace_back(xx, yy - 1);
+	todo.emplace_back(xx, yy + 1);
+      }
+    }
+
+    ImgChanged();
+  }
+
+  // XXX for fft too..
+  
 }
 
 void UI::Loop() {
@@ -247,10 +482,10 @@ void UI::Loop() {
         if (dragging) {
           switch (mode) {
           case Mode::DRAWING:
-            DrawThick(drawing, oldx, oldy, mousex, mousey, GetColor());
+            DrawThick(oldx, oldy, mousex, mousey, current_value);
             break;
           case Mode::ERASING:
-            DrawThick(drawing, oldx, oldy, mousex, mousey, 0x00000000);
+            DrawThick(oldx, oldy, mousex, mousey, 0x00);
             break;
           default:;
           }
@@ -287,55 +522,29 @@ void UI::Loop() {
         }
 
         case SDLK_q: {
-          SaveUndo();
-          sdlutil::clearsurface(drawing, 0x0);
+	  img.Clear(0x0);
           ui_dirty = true;
-          break;
-        }
-
-        case SDLK_z: {
-          // XXX check ctrl?
-          if (!undo_buffer.empty()) {
-            redo_buffer.push_front(drawing);
-            drawing = undo_buffer.back();
-            undo_buffer.pop_back();
-            ui_dirty = true;
-            printf("Undo size %d\n", undo_buffer.size());
-            fflush(stdout);
-          }
-          break;
-        }
-
-        case SDLK_y: {
-          // XXX check ctrl?
-          if (!redo_buffer.empty()) {
-            undo_buffer.push_back(drawing);
-            drawing = redo_buffer.front();
-            redo_buffer.pop_front();
-            ui_dirty = true;
-          }
           break;
         }
 	  
         case SDLK_KP_PLUS:
         case SDLK_EQUALS:
         case SDLK_PLUS:
-          current_alpha++;
-          if (current_alpha > 15) current_alpha = 15;
-          ui_dirty = true;
-          break;
-
-  
+	  if (current_value < 0xF0) current_value += 0x10;
+	  else current_value = 0xFF;
+	  ui_dirty = true;
+	  break;
+	  
         case SDLK_KP_MINUS:
         case SDLK_MINUS:
-          current_alpha--;
-          if (current_alpha < 1) current_alpha = 1;
-          ui_dirty = true;
-          break;
+	  if (current_value >= 0x10) current_value -= 0x10;
+	  else current_value = 0x00;
+	  ui_dirty = true;
+	  break;
 
 	case SDLK_l: {
 	  if (event.key.keysym.mod & KMOD_CTRL) {
-	    SaveUndo();
+#if 0
 	    printf("Load drawing.png...\n");
 	    fflush(stdout);
 	    SDL_Surface *s = sdlutil::LoadImage("drawing.png");
@@ -344,15 +553,18 @@ void UI::Loop() {
 	    sdlutil::blitall(s, drawing, 0, 0);
 	    SDL_FreeSurface(s);
 	    ui_dirty = true;
+#endif
 	  }
 	  break;
 	}
 	  
         case SDLK_s: {
 	  if (event.key.keysym.mod & KMOD_CTRL) {
+#if 0
 	    sdlutil::SavePNG("drawing.png", drawing);
 	    printf("Wrote drawing.png\n");
 	    fflush(stdout);
+#endif
 	  }
 	  break;
         }
@@ -370,7 +582,7 @@ void UI::Loop() {
           // Not only are these in order, but they map to their
           // ASCII Values!
           const int n = ((event.key.keysym.sym - SDLK_0) + 9) % 10;
-          current_color = COLORS[n];
+	  current_value = (uint8)((n / 9.0f) * 255.0f);
           ui_dirty = true;
           break;
         }
@@ -388,19 +600,14 @@ void UI::Loop() {
 
         dragging = true;
         if (mode == Mode::DRAWING) {
-          SaveUndo();
-          // Make sure that a click also makes a pixel.
-          DrawThick(drawing, mousex, mousey, mousex, mousey, GetColor());
+          DrawThick(mousex, mousey, mousex, mousey, current_value);
           ui_dirty = true;
         } else if (mode == Mode::ERASING) {
-          SaveUndo();
-          DrawThick(drawing, mousex, mousey, mousex, mousey, 0x00000000);
+          DrawThick(mousex, mousey, mousex, mousey, 0x00);
           ui_dirty = true;
 
         } else if (mode == Mode::FILLING) {
-          SaveUndo();
-
-          FloodFill(drawing, mousex, mousey, GetColor());
+          FloodFill(mousex, mousey, current_value);
 
           ui_dirty = true;
         }
@@ -467,18 +674,17 @@ void UI::DrawStatus() {
     const int yy = SCREENH - (FONTHEIGHT * 4) - 1;
     static constexpr int SWATCHWIDTH = 64;
     for (int i = 0; i < 10; i++) {
-      sdlutil::fillrect(screen, COLORS[i],
+      uint8 value = (uint8)((i / 10.0f) * 255.0f);
+      const uint32 value32 = SDL_MapRGBA(screen->format,
+					 value, value, value, 0xFF);            
+      sdlutil::fillrect(screen, value32,
                         SWATCHWIDTH * i, yy,
                         SWATCHWIDTH, FONTHEIGHT * 2);
       font2x->draw(SWATCHWIDTH * i + (SWATCHWIDTH >> 1) - FONTWIDTH, yy + 1,
                    StringPrintf("%d", (i + 1) % 10));
-      if ((COLORS[i] & 0x00FFFFFF) ==
-          (current_color & 0x00FFFFFF)) {
-        uint32 fake_brightness = (current_color & 0xFF) +
-          ((current_color >> 8) & 0xFF) +
-          ((current_color >> 16) & 0xFF);
-
-        uint32 outline = fake_brightness > 0x77 ? 0xFF000000 : 0xFFFFFF00;
+      
+      if (value == current_value) {
+        uint32 outline = current_value > 0x77 ? 0xFF000000 : 0xFFFFFF00;
 
         for (int w = 0; w < 3; w++) {
           sdlutil::DrawBox32(screen,
@@ -489,8 +695,6 @@ void UI::DrawStatus() {
       }
     }
 
-    const char a = "0123456789ABCDEF"[current_alpha];
-    font2x->draw(SWATCHWIDTH * 11, yy + 1, StringPrintf("0x%c%c", a, a));
     break;
   }
   }
@@ -533,7 +737,8 @@ void UI::Draw() {
   DrawStatus();
 
   // On-screen stuff
-  sdlutil::blitall(drawing, screen, 0, 0);
+  DrawImg();
+  DrawFft();
 }
 
 int main(int argc, char **argv) {
