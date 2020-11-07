@@ -1,0 +1,597 @@
+
+#include <string>
+#include <vector>
+#include <shared_mutex>
+#include <cstdint>
+#include <deque>
+#include <unordered_map>
+#include <unistd.h>
+#include <cmath>
+
+#include "../cc-lib/threadutil.h"
+#include "../cc-lib/randutil.h"
+#include "../cc-lib/arcfour.h"
+#include "../cc-lib/base/logging.h"
+#include "../cc-lib/base/stringprintf.h"
+
+#include "SDL.h"
+#include "SDL_main.h"
+#include "../cc-lib/sdl/sdlutil.h"
+#include "../cc-lib/sdl/font.h"
+#include "../cc-lib/sdl/cursor.h"
+#include "../cc-lib/lines.h"
+#include "../cc-lib/util.h"
+
+/* there are some non-ascii symbols in the font */
+#define CHECKMARK "\xF2"
+#define ESC "\xF3"
+#define HEART "\xF4"
+/* here L means "long" */
+#define LCMARK1 "\xF5"
+#define LCMARK2 "\xF6"
+#define LCHECKMARK LCMARK1 LCMARK2
+#define LRARROW1 "\xF7"
+#define LRARROW2 "\xF8"
+#define LRARROW LRARROW1 LRARROW2
+#define LLARROW1 "\xF9"
+#define LLARROW2 "\xFA"
+#define LLARROW LLARROW1 LLARROW2
+
+/* BAR_0 ... BAR_10 are guaranteed to be consecutive */
+#define BAR_0 "\xE0"
+#define BAR_1 "\xE1"
+#define BAR_2 "\xE2"
+#define BAR_3 "\xE3"
+#define BAR_4 "\xE4"
+#define BAR_5 "\xE5"
+#define BAR_6 "\xE6"
+#define BAR_7 "\xE7"
+#define BAR_8 "\xE8"
+#define BAR_9 "\xE9"
+#define BAR_10 "\xEA"
+#define BARSTART "\xEB"
+
+#define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" CHECKMARK ESC HEART LCMARK1 LCMARK2 BAR_0 BAR_1 BAR_2 BAR_3 BAR_4 BAR_5 BAR_6 BAR_7 BAR_8 BAR_9 BAR_10 BARSTART LRARROW LLARROW
+
+#define FONTSTYLES 7
+
+using namespace std;
+
+using int64 = int64_t;
+using uint32 = uint32_t;
+
+#define FONTWIDTH 9
+#define FONTHEIGHT 16
+static Font *font = nullptr, *font2x = nullptr, *font4x = nullptr;
+
+static SDL_Cursor *cursor_arrow = nullptr, *cursor_bucket = nullptr;
+static SDL_Cursor *cursor_hand = nullptr, *cursor_hand_closed = nullptr;
+static SDL_Cursor *cursor_eraser = nullptr;
+#define VIDEOH 1080
+#define STATUSH 128
+#define SCREENW 1920
+#define SCREENH (VIDEOH + STATUSH)
+
+static SDL_Surface *screen = nullptr;
+
+static constexpr uint32 COLORS[] = {
+  // black, white
+  /* 1 */ 0xFF000000,
+  /* 2 */ 0xFFFFFFFF,
+  // 'nice' RGB
+  /* 3 */ 0xFFbd3838, // R
+  /* 4 */ 0xFF0ba112, // G
+  /* 5 */ 0xFF1664CE, // B
+  // intense
+  /* 6 */ 0xFFf943ea, // magenta
+  /* 7 */ 0xFFeef943, // yellow
+  /* 8 */ 0xFF29edef, // cyan
+  // misc
+  /* 9 */ 0xFFc77e00, // orange/brown
+  // Note zero is actually like "10"
+  /* 0 */ 0xFF7500c7, // purple
+};
+
+// Mode basically controls what happens when we use the mouse.
+enum class Mode {
+  ERASING,
+  DRAWING,
+  FILLING,
+};
+
+struct UI {
+  Mode mode = Mode::DRAWING;
+  bool ui_dirty = true;
+
+  UI();
+  void Loop();
+  void DrawStatus();
+  void Draw();
+
+  void SaveUndo() {
+    undo_buffer.push_back(sdlutil::duplicate(drawing));
+    while (undo_buffer.size() > MAX_UNDO) {
+      SDL_FreeSurface(undo_buffer.front());
+      undo_buffer.pop_front();
+    }
+
+    while (!redo_buffer.empty()) {
+      SDL_FreeSurface(redo_buffer.front());
+      redo_buffer.pop_front();
+    }
+  }
+
+  uint32 current_color = COLORS[2];
+  // Single nybble in [1, 15]. 0 is disallowed.
+  int current_alpha = 15;
+  inline uint32 GetColor() const {
+    uint8 aa = current_alpha | (current_alpha << 4);
+    return (current_color & 0xFFFFFF) | (aa << 24);
+  }
+
+  SDL_Surface *drawing = nullptr;
+  int mousex = 0, mousey = 0;
+  bool dragging = false;
+
+  static constexpr int MAX_UNDO = 32;
+  deque<SDL_Surface *> undo_buffer;
+  deque<SDL_Surface *> redo_buffer;
+
+};
+
+UI::UI() {
+  drawing = sdlutil::makesurface(SCREENW, SCREENH, true);
+  sdlutil::ClearSurface(drawing, 0, 0, 0, 0);
+  CHECK(drawing != nullptr);
+}
+
+static void DrawThick(SDL_Surface *surf, int x0, int y0,
+                      int x1, int y1,
+                      Uint32 color) {
+  static constexpr int THICKNESS = 3;
+  Line<int> l{x0, y0, x1, y1};
+
+  const int w = surf->w, h = surf->h;
+
+  Uint32 *bufp = (Uint32 *)surf->pixels;
+  int stride = surf->pitch >> 2;
+  auto SetPixel = [color, w, h, bufp, stride](int x, int y) {
+      if (x >= 0 && y >= 0 &&
+          x < w && y < h) {
+        bufp[y * stride + x] = color;
+      }
+    };
+
+  auto ThickPixel = [&SetPixel](int x, int y) {
+      static constexpr int LO = THICKNESS >> 1;
+      // static constexpr int RO = THICKNESS - LO;
+
+      for (int xx = x - LO; xx < x - LO + THICKNESS; xx++) {
+        for (int yy = y - LO; yy < y - LO + THICKNESS; yy++) {
+          SetPixel(xx, yy);
+        }
+      }
+    };
+
+  ThickPixel(x0, y0);
+
+  for (const std::pair<int, int> point : Line<int>{x0, y0, x1, y1}) {
+    const int x = point.first, y = point.second;
+    ThickPixel(x, y);
+  }
+}
+
+static void FloodFill(SDL_Surface *surf, int x, int y,
+                      Uint32 color) {
+  const int w = surf->w, h = surf->h;
+
+  Uint32 *bufp = (Uint32 *)surf->pixels;
+  int stride = surf->pitch >> 2;
+
+  const Uint32 replace_color = bufp[y * stride + x];
+
+  auto GetPixel = [w, h, bufp, stride, replace_color](int x, int y) {
+      if (x >= 0 && y >= 0 &&
+          x < w && y < h) {
+        return bufp[y * stride + x];
+      } else {
+        return ~replace_color;
+      }
+    };
+
+  auto SetPixel = [color, w, h, bufp, stride](int x, int y) {
+      if (x >= 0 && y >= 0 &&
+          x < w && y < h) {
+        bufp[y * stride + x] = color;
+      }
+    };
+
+  std::vector<std::pair<int, int>> todo;
+  if (color != replace_color)
+    todo.emplace_back(x, y);
+
+  while (!todo.empty()) {
+    int xx, yy;
+    std::tie(xx, yy) = todo.back();
+    todo.pop_back();
+
+    Uint32 c = GetPixel(xx, yy);
+    if (c == replace_color) {
+      SetPixel(xx, yy);
+      todo.emplace_back(xx - 1, yy);
+      todo.emplace_back(xx + 1, yy);
+      todo.emplace_back(xx, yy - 1);
+      todo.emplace_back(xx, yy + 1);
+    }
+  }
+}
+
+void UI::Loop() {
+  for (;;) {
+
+    SDL_Event event;
+    if (SDL_PollEvent(&event)) {
+      switch (event.type) {
+      case SDL_QUIT:
+        printf("QUIT.\n");
+        return;
+
+      case SDL_MOUSEMOTION: {
+        SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
+
+        const int oldx = mousex, oldy = mousey;
+
+        mousex = e->x;
+        mousey = e->y;
+
+        if (dragging) {
+          switch (mode) {
+          case Mode::DRAWING:
+            DrawThick(drawing, oldx, oldy, mousex, mousey, GetColor());
+            break;
+          case Mode::ERASING:
+            DrawThick(drawing, oldx, oldy, mousex, mousey, 0x00000000);
+            break;
+          default:;
+          }
+          ui_dirty = true;
+        }
+        break;
+      }
+
+      case SDL_KEYDOWN: {
+        switch (event.key.keysym.sym) {
+        case SDLK_ESCAPE:
+          printf("ESCAPE.\n");
+          return;
+
+        case SDLK_e: {
+          mode = Mode::ERASING;
+          SDL_SetCursor(cursor_eraser);
+          ui_dirty = true;
+          break;
+        }
+
+        case SDLK_d: {
+          mode = Mode::DRAWING;
+          SDL_SetCursor(cursor_arrow);
+          ui_dirty = true;
+          break;
+        }
+
+        case SDLK_f: {
+          mode = Mode::FILLING;
+          SDL_SetCursor(cursor_bucket);
+          ui_dirty = true;
+          break;
+        }
+
+        case SDLK_q: {
+          SaveUndo();
+          sdlutil::clearsurface(drawing, 0x0);
+          ui_dirty = true;
+          break;
+        }
+
+        case SDLK_z: {
+          // XXX check ctrl?
+          if (!undo_buffer.empty()) {
+            redo_buffer.push_front(drawing);
+            drawing = undo_buffer.back();
+            undo_buffer.pop_back();
+            ui_dirty = true;
+            printf("Undo size %d\n", undo_buffer.size());
+            fflush(stdout);
+          }
+          break;
+        }
+
+        case SDLK_y: {
+          // XXX check ctrl?
+          if (!redo_buffer.empty()) {
+            undo_buffer.push_back(drawing);
+            drawing = redo_buffer.front();
+            redo_buffer.pop_front();
+            ui_dirty = true;
+          }
+          break;
+        }
+	  
+        case SDLK_KP_PLUS:
+        case SDLK_EQUALS:
+        case SDLK_PLUS:
+          current_alpha++;
+          if (current_alpha > 15) current_alpha = 15;
+          ui_dirty = true;
+          break;
+
+  
+        case SDLK_KP_MINUS:
+        case SDLK_MINUS:
+          current_alpha--;
+          if (current_alpha < 1) current_alpha = 1;
+          ui_dirty = true;
+          break;
+
+	case SDLK_l: {
+	  if (event.key.keysym.mod & KMOD_CTRL) {
+	    SaveUndo();
+	    printf("Load drawing.png...\n");
+	    fflush(stdout);
+	    SDL_Surface *s = sdlutil::LoadImage("drawing.png");
+	    CHECK(s);
+	    SDL_SetAlpha(s, 0, 0xFF);
+	    sdlutil::blitall(s, drawing, 0, 0);
+	    SDL_FreeSurface(s);
+	    ui_dirty = true;
+	  }
+	  break;
+	}
+	  
+        case SDLK_s: {
+	  if (event.key.keysym.mod & KMOD_CTRL) {
+	    sdlutil::SavePNG("drawing.png", drawing);
+	    printf("Wrote drawing.png\n");
+	    fflush(stdout);
+	  }
+	  break;
+        }
+
+        case SDLK_0:
+        case SDLK_1:
+        case SDLK_2:
+        case SDLK_3:
+        case SDLK_4:
+        case SDLK_5:
+        case SDLK_6:
+        case SDLK_7:
+        case SDLK_8:
+        case SDLK_9: {
+          // Not only are these in order, but they map to their
+          // ASCII Values!
+          const int n = ((event.key.keysym.sym - SDLK_0) + 9) % 10;
+          current_color = COLORS[n];
+          ui_dirty = true;
+          break;
+        }
+
+        default:;
+        }
+        break;
+      }
+
+      case SDL_MOUSEBUTTONDOWN: {
+        // LMB/RMB, drag, etc.
+	SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
+        mousex = e->x;
+        mousey = e->y;
+
+        dragging = true;
+        if (mode == Mode::DRAWING) {
+          SaveUndo();
+          // Make sure that a click also makes a pixel.
+          DrawThick(drawing, mousex, mousey, mousex, mousey, GetColor());
+          ui_dirty = true;
+        } else if (mode == Mode::ERASING) {
+          SaveUndo();
+          DrawThick(drawing, mousex, mousey, mousex, mousey, 0x00000000);
+          ui_dirty = true;
+
+        } else if (mode == Mode::FILLING) {
+          SaveUndo();
+
+          FloodFill(drawing, mousex, mousey, GetColor());
+
+          ui_dirty = true;
+        }
+
+        break;
+      }
+
+      case SDL_MOUSEBUTTONUP: {
+        // LMB/RMB, drag, etc.
+        dragging = false;
+        break;
+      }
+
+      default:;
+      }
+    }
+
+    if (ui_dirty) {
+      sdlutil::clearsurface(screen, 0xFFFFFFFF);
+      Draw();
+      SDL_Flip(screen);
+      ui_dirty = false;
+    }
+  }
+
+}
+
+void UI::DrawStatus() {
+  int erasecolor = 1;
+  int drawcolor = 1;
+  int fillcolor = 1;
+
+  switch (mode) {
+  case Mode::ERASING:
+    erasecolor = 2;
+    break;
+
+  case Mode::DRAWING:
+    drawcolor = 2;
+    break;
+
+  case Mode::FILLING:
+    fillcolor = 2;
+    break;
+  }
+
+#define KEY(s) "^3" s "^<"
+  const string modestring =
+    StringPrintf(KEY("E") "^%drase^<  "
+                 KEY("D") "^%draw^<  "
+                 KEY("F") "^%dill^<  "
+                 ,
+                 erasecolor,
+                 drawcolor, fillcolor
+                 );
+  font2x->draw(5, SCREENH - (FONTHEIGHT * 2) - 1, modestring);
+#undef KEY
+
+  // Color swatches.
+  switch (mode) {
+  case Mode::ERASING:
+  case Mode::DRAWING:
+  case Mode::FILLING: {
+    const int yy = SCREENH - (FONTHEIGHT * 4) - 1;
+    static constexpr int SWATCHWIDTH = 64;
+    for (int i = 0; i < 10; i++) {
+      sdlutil::fillrect(screen, COLORS[i],
+                        SWATCHWIDTH * i, yy,
+                        SWATCHWIDTH, FONTHEIGHT * 2);
+      font2x->draw(SWATCHWIDTH * i + (SWATCHWIDTH >> 1) - FONTWIDTH, yy + 1,
+                   StringPrintf("%d", (i + 1) % 10));
+      if ((COLORS[i] & 0x00FFFFFF) ==
+          (current_color & 0x00FFFFFF)) {
+        uint32 fake_brightness = (current_color & 0xFF) +
+          ((current_color >> 8) & 0xFF) +
+          ((current_color >> 16) & 0xFF);
+
+        uint32 outline = fake_brightness > 0x77 ? 0xFF000000 : 0xFFFFFF00;
+
+        for (int w = 0; w < 3; w++) {
+          sdlutil::DrawBox32(screen,
+                             SWATCHWIDTH * i + w, yy + w,
+                             SWATCHWIDTH - w * 2, FONTHEIGHT * 2 - w * 2,
+                             outline);
+        }
+      }
+    }
+
+    const char a = "0123456789ABCDEF"[current_alpha];
+    font2x->draw(SWATCHWIDTH * 11, yy + 1, StringPrintf("0x%c%c", a, a));
+    break;
+  }
+  }
+}
+
+struct Typewriter {
+  Typewriter(Font *fon, int x, int y, int w, int h) :
+    fon(fon),
+    startx(x), starty(y),
+    width(w), height(h) { }
+
+  // Assumes
+  void Write(const string &s) {
+    int w = fon->sizex(s);
+    if (current_line_width > 0 &&
+        current_line_width + w > width) {
+      current_line++;
+      current_line_width = 0;
+    }
+    fon->draw(startx + current_line_width,
+              starty + current_line * fon->height,
+              s);
+    current_line_width += w;
+  }
+
+  void Newline() {
+    current_line++;
+    current_line_width = 0;
+  }
+
+  int current_line = 0;
+  int current_line_width = 0;
+  Font *fon = nullptr;
+  const int startx = 0, starty = 0, width = 0, height = 0;
+};
+
+
+void UI::Draw() {
+  // Status stuff, always outside the 1920x1080 window.
+  DrawStatus();
+
+  // On-screen stuff
+  sdlutil::blitall(drawing, screen, 0, 0);
+}
+
+int main(int argc, char **argv) {
+  /* Initialize SDL and network, if we're using it. */
+  CHECK(SDL_Init(SDL_INIT_VIDEO |
+		 SDL_INIT_TIMER |
+		 SDL_INIT_AUDIO) >= 0);
+  fprintf(stderr, "SDL initialized OK.\n");
+
+  SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,
+		      SDL_DEFAULT_REPEAT_INTERVAL);
+
+  SDL_EnableUNICODE(1);
+
+  SDL_Surface *icon = SDL_LoadBMP("drawfft.bmp");
+  if (icon != nullptr) {
+    SDL_WM_SetIcon(icon, nullptr);
+  }
+
+  screen = sdlutil::makescreen(SCREENW, SCREENH);
+  CHECK(screen);
+  
+  font = Font::create(screen,
+		      "font.png",
+		      FONTCHARS,
+		      FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
+  CHECK(font != nullptr) << "Couldn't load font.";
+
+
+  
+  font2x = Font::CreateX(2,
+			 screen,
+			 "font.png",
+			 FONTCHARS,
+			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
+  CHECK(font2x != nullptr) << "Couldn't load font.";
+
+  font4x = Font::CreateX(4,
+			 screen,
+			 "font.png",
+			 FONTCHARS,
+			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
+  CHECK(font4x != nullptr) << "Couldn't load font.";
+
+  CHECK((cursor_arrow = Cursor::MakeArrow()));
+  CHECK((cursor_bucket = Cursor::MakeBucket()));
+  CHECK((cursor_hand = Cursor::MakeHand()));
+  CHECK((cursor_hand_closed = Cursor::MakeHandClosed()));
+  CHECK((cursor_eraser = Cursor::MakeEraser()));
+
+  SDL_SetCursor(cursor_arrow);
+  SDL_ShowCursor(SDL_ENABLE);
+
+  UI ui;
+  
+  ui.Loop();
+
+  SDL_Quit();
+  return 0;
+}
+
