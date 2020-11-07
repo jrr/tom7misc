@@ -1,0 +1,8 @@
+
+Here's how I configured fftw:
+
+
+CC=x86_64-w64-mingw32-gcc ./configure --with-our-malloc16 --disable-shared --
+enable-static --enable-threads --with-combined-threads --enable-sse2 --enable-a
+vx2 --disable-alloca
+
