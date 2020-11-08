@@ -23,6 +23,7 @@
 #include "../cc-lib/lines.h"
 #include "../cc-lib/util.h"
 #include "../cc-lib/image.h"
+#include "../cc-lib/color-util.h"
 
 #include <api/fftw3.h>
 
@@ -127,13 +128,14 @@ static constexpr uint32 COLORS[] = {
 */
 
 // Real-to-real 2D FFT transform for size*size square.
-// PERF: Use float, not double (fftwf_ prefix... but need to build library
-// for this I guess)
 struct FFTBuffer2D {
-
+  // PERF: Use float, not double (fftwf_ prefix... but need to build library
+  // for this I guess)
+  using element_type = double;
+  
   FFTBuffer2D(int size) : size(size) {
-    in = (double*) fftw_malloc(sizeof (double) * size * size);
-    out = (double*) fftw_malloc(sizeof (double) * size * size);
+    in = (double*) fftw_malloc(sizeof (element_type) * size * size);
+    out = (double*) fftw_malloc(sizeof (element_type) * size * size);
 
     auto [fwd, inv] = make_tuple(FFTW_DHT, FFTW_DHT);
     // auto [fwd, inv] = make_tuple(FFTW_REDFT00, FFTW_REDFT00);
@@ -162,15 +164,21 @@ struct FFTBuffer2D {
 
   void Forward() {
     fftw_execute(plan);
+    for (int i = 0; i < size * size; i++) {
+      out[i] *= (1.0 / size);
+    }
   }
 
   void Inverse() {
     fftw_execute(rplan);
+    for (int i = 0; i < size * size; i++) {
+      in[i] *= (1.0 / size);
+    }
   }
   
   const int size;
   // Row-major.
-  double *in = nullptr, *out = nullptr;
+  element_type *in = nullptr, *out = nullptr;
   
 private:
   
@@ -195,7 +203,7 @@ struct UI {
 
   uint8 current_value = 0xFF;
 
-  ImageA img, fft;
+  ImageA img, fft, gamut;
   FFTBuffer2D fft_buffer;
   
   void DrawThick(int x0, int y0,
@@ -215,7 +223,8 @@ struct UI {
   bool dragging = false;
 };
 
-UI::UI() : img(SQUARE, SQUARE), fft(SQUARE, SQUARE), fft_buffer(SQUARE) {
+UI::UI() : img(SQUARE, SQUARE), fft(SQUARE, SQUARE), gamut(SQUARE, SQUARE),
+	   fft_buffer(SQUARE) {
   img.Clear(0x00);
 
   ImgChanged();
@@ -244,14 +253,34 @@ void UI::Forward () {
 
   // Copy FFT result floats to "fft image".
   // XXX I should do some normalization here, I think; what?
+  FFTBuffer2D::element_type mx = -9999.0f, mn = 9999.0f;
+
+  int over = 0, under = 0;
   for (int y = 0; y < SQUARE; y++) {
     for (int x = 0; x < SQUARE; x++) {
-      const float f = fft_buffer.out[y * SQUARE + x];
+      FFTBuffer2D::element_type f = fft_buffer.out[y * SQUARE + x];
+      // float rf = 
+      mx = std::max(f, mx);
+      mn = std::min(f, mn);
+      uint8 g = 0x77;
+      if (f > 1.0f) {
+	over++;
+	g = 0xFF;
+	f = 1.0f;
+      } else if (f < -1.0f) {
+	under++;
+	g = 0x00;
+	f = -1.0f;
+      }
 
-      uint8 v = f > 1.0f ? 255.0f : f < 0.0f ? 0.0f : f * 255.0;
+      uint8 v = (uint8) (127.5f + (f * 127.5f));
       fft.SetPixel(x, y, v);
+      gamut.SetPixel(x, y, g);
     }
   }
+  printf("Max: %.2f, Min: %.2f   Over: %d, Under: %d\n",
+	 mx, mn, over, under);
+  
 }
 
 void UI::DrawImg() {
@@ -270,7 +299,20 @@ void UI::DrawFft() {
   for (int y = 0; y < SQUARE; y++) {
     for (int x = 0; x < SQUARE; x++) {
       const uint8 v = fft.GetPixel(x, y);
-      const uint32 color = SDL_MapRGBA(screen->format, v, v, v, 0xFF);      
+      const uint8 gam = gamut.GetPixel(x, y);
+
+      uint8 r = v;
+      uint8 g = v;
+      uint8 b = v;
+      if (gam == 0xFF) {
+	g = 0x0;
+	b = 0x0;
+      } else if (gam == 0x00) {
+	g = 0xFF;
+	r = 0x0;
+	b = 0x0;
+      }
+      const uint32 color = SDL_MapRGBA(screen->format, r, g, b, 0xFF);
       sdlutil::SetPixel32(screen, FFTX + x, FFTY + y, color);
     }
   }
@@ -544,16 +586,30 @@ void UI::Loop() {
 
 	case SDLK_l: {
 	  if (event.key.keysym.mod & KMOD_CTRL) {
-#if 0
 	    printf("Load drawing.png...\n");
 	    fflush(stdout);
-	    SDL_Surface *s = sdlutil::LoadImage("drawing.png");
-	    CHECK(s);
-	    SDL_SetAlpha(s, 0, 0xFF);
-	    sdlutil::blitall(s, drawing, 0, 0);
-	    SDL_FreeSurface(s);
+	    std::unique_ptr<ImageRGBA> rgba(ImageRGBA::Load("drawing.png"));
+	    CHECK(rgba.get());
+	    for (int y = 0; y < SQUARE; y++) {
+	      for (int x = 0; x < SQUARE; x++) {
+		uint32 px = 0;
+		if (x < rgba->width && y < rgba->height)
+		  px = rgba->GetPixel(x, y);
+		constexpr float o255 = 1.0f / 255.0f;
+		float r = ((px >> 24) & 0xFF) * o255;
+		float g = ((px >> 16) & 0xFF) * o255;
+		float b = ((px >> 8) & 0xFF) * o255;
+		float a = (px & 0xFF) * o255;
+		float ll, aa, bb;
+		ColorUtil::RGBToLAB(r, g, b, &ll, &aa, &bb);
+		constexpr float scale100to255 = 255.0f / 100.0f;
+		float light = ll * scale100to255 * a;
+		img.SetPixel(x, y, (uint8)light);
+	      }
+	    }
+		   
+	    ImgChanged();
 	    ui_dirty = true;
-#endif
 	  }
 	  break;
 	}
