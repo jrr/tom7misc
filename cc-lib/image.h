@@ -47,13 +47,23 @@ struct ImageRGBA {
   void BlendPixel(int x, int y, uint8 r, uint8 g, uint8 b, uint8 a);
   void BlendPixel32(int x, int y, uint32 color);
 
+  // Blend a filled rectangle. Clips.
+  void BlendRect(int x, int y, int w, int h,
+		 uint8 r, uint8 g, uint8 b, uint8 a);
+  void BlendRect32(int x, int y, int w, int h, uint32 color);
+  
   // Embedded 9x9 pixel font.
-  // TODO: Support a 2x option.
   void BlendText(int x, int y,
 		 uint8 r, uint8 g, uint8 b, uint8 a,
 		 const std::string &s);
   void BlendText32(int x, int y, uint32 color, const std::string &s);
 
+  // Same font, but scaled to (crisp) 2x2 pixels.
+  void BlendText2x(int x, int y,
+		   uint8 r, uint8 g, uint8 b, uint8 a,
+		   const std::string &s);
+  void BlendText2x32(int x, int y, uint32 color, const std::string &s);
+  
   // Clipped. Alpha blending.
   // This draws a crisp pixel line using Bresenham's algorithm.
   void BlendLine(int x1, int y1, int x2, int y2,
@@ -77,14 +87,36 @@ struct ImageRGBA {
 struct ImageA {
   using uint8 = uint8_t;
   ImageA(const std::vector<uint8> &alpha, int width, int height);
-
+  ImageA(int width, int height);
+  
   ImageA *Copy() const;
 
   // TODO: Text drawing is easy here!
+
+  void Clear(uint8 value);
+  
+  // Clipped.
+  inline void SetPixel(int x, int y, uint8 v);
+  // x/y must be in bounds.
+  inline uint8 GetPixel(int x, int y) const;
   
   const int width, height;
   // Size width * height.
   std::vector<uint8> alpha;
 };
+
+
+// Implementations follow.
+
+uint8_t ImageA::GetPixel(int x, int y) const {
+  return alpha[y * width + x];
+}
+
+void ImageA::SetPixel(int x, int y, uint8_t value) {
+  if (x < 0 || y < 0) return;
+  if (x >= width || y >= height) return;
+  alpha[y * width + x] = value;
+}
+
 
 #endif

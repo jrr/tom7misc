@@ -114,6 +114,11 @@ Unpack32(uint32 color) {
 	  (uint8)(color & 255)};
 }
 
+inline static constexpr uint32 Pack32(uint8 r, uint8 g, uint8 b, uint8 a) {
+  return
+    ((uint32)r << 24) | ((uint32)g << 16) | ((uint32)b << 8) | (uint32)a;
+}
+
 // TODO: Duplicate code between the different Load routines..
 
 // static
@@ -198,10 +203,7 @@ ImageRGBA::uint32 ImageRGBA::GetPixel(int x, int y) const {
   if (x < 0 || x >= width ||
       y < 0 || y >= height) return 0;
   const int base = (y * width + x) << 2;
-  return (rgba[base] << 24) |
-    (rgba[base + 1] << 16) |
-    (rgba[base + 2] << 8) |
-    rgba[base + 3];
+  return Pack32(rgba[base], rgba[base + 1], rgba[base + 2], rgba[base + 3]);
 }
 
 void ImageRGBA::Clear32(uint32 color) {
@@ -286,6 +288,32 @@ void ImageRGBA::BlendPixel32(int x, int y, uint32 color) {
   BlendPixel(x, y, r, g, b, a);
 }
 
+void ImageRGBA::BlendRect(int x, int y, int w, int h,
+			  uint8 r, uint8 g, uint8 b, uint8 a) {
+  // Easy to clip this to the screen. We could call an unclipped
+  // version of BlendPixel here.
+  if (y < 0) { w += y; y = 0; }
+  if (x < 0) { h += x; x = 0; }
+
+  const int yover = (y + h) - height;
+  if (yover > 0) h -= yover;
+  const int xover = (x + w) - width;
+  if (xover > 0) w -= xover;
+
+  if (w <= 0 || h <= 0) return;
+  
+  for (int yy = y; yy < y + h; yy++) {
+    for (int xx = x; xx < x + w; xx++) {
+      BlendPixel(xx, yy, r, g, b, a);
+    }
+  }
+}
+
+void ImageRGBA::BlendRect32(int x, int y, int w, int h, uint32 color) {
+  const auto [r, g, b, a] = Unpack32(color);
+  BlendRect(x, y, w, h, r, g, b, a);
+}
+
 // PERF: For many of these where we call blendpixel in a loop,
 // we could probably benefit by doing premultiplied alpha.
 
@@ -301,6 +329,35 @@ void ImageRGBA::BlendText32(int x, int y, uint32 color, const string &s) {
     if (xx >= width) return;
     EmbeddedFont::Blit(c, xx, y, SetPixel, [](int x, int y) {});
   }
+}
+
+void ImageRGBA::BlendText(int x, int y,
+			  uint8 r, uint8 g, uint8 b, uint8 a,
+			  const string &s) {
+  BlendText32(x, y, Pack32(r, g, b, a), s);
+}
+
+void ImageRGBA::BlendText2x32(int x, int y, uint32 color, const string &s) {
+  for (int i = 0; i < (int)s.size(); i++) {
+    // Here we draw to "0,0", and then this function scales and translates.
+    auto SetPixel = [x, y, i, this, color](int px, int py) {
+	const int xx = x + (i * EmbeddedFont::CHAR_WIDTH * 2) + px * 2;
+	const int yy = y + py * 2;
+	this->BlendPixel32(xx, yy, color);
+	this->BlendPixel32(xx + 1, yy, color);
+	this->BlendPixel32(xx, yy + 1, color);
+	this->BlendPixel32(xx + 1, yy + 1, color);      
+      };
+
+    const uint8 c = s[i];
+    EmbeddedFont::Blit(c, 0, 0, SetPixel, [](int x, int y) {});
+  }
+}
+
+void ImageRGBA::BlendText2x(int x, int y,
+			    uint8 r, uint8 g, uint8 b, uint8 a,
+			    const string &s) {
+  BlendText2x32(x, y, Pack32(r, g, b, a), s);
 }
 
 void ImageRGBA::BlendLine32(int x1, int y1, int x2, int y2,
@@ -337,20 +394,19 @@ void ImageRGBA::BlendLineAA(float x1, float y1, float x2, float y2,
   LineAA::Draw<int>(x1, y1, x2, y2, Plot);
 }
 
-void ImageRGBA::BlendText(int x, int y,
-			  uint8 r, uint8 g, uint8 b, uint8 a,
-			  const string &s) {
-  BlendText32(x, y,
-	      ((uint32)r << 24) | ((uint32)g << 16) |
-	      ((uint32)b << 8) | (uint32)a,
-	      s);
-}
-
 ImageA::ImageA(const vector<uint8> &alpha, int width, int height)
     : width(width), height(height), alpha(alpha) {
   CHECK((int)alpha.size() == width * height);
 }
 
+ImageA::ImageA(int width, int height) : width(width), height(height),
+					alpha(width * height, 0) {
+}
+
 ImageA *ImageA::Copy() const {
   return new ImageA(alpha, width, height);
+}
+
+void ImageA::Clear(uint8 value) {
+  for (int i = 0; i < (int)alpha.size(); i++) alpha[i] = value;
 }
