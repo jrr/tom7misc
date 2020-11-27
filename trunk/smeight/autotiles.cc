@@ -8,6 +8,8 @@
 
 #include "autocamera.h"
 
+using namespace std;
+
 // These are NES constants.
 static constexpr int TILESW = 32;
 static constexpr int TILESH = 30;

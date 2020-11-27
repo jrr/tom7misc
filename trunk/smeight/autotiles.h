@@ -33,7 +33,7 @@ struct AutoTiles {
   static uint64 TilesCRC(const Emulator *emu);
 
   struct Tileset {
-    unordered_map<uint32, bool> is_solid;
+    std::unordered_map<uint32, bool> is_solid;
   };
 
   enum Solidity { SOLID, OPEN, UNKNOWN, };
@@ -47,18 +47,18 @@ struct AutoTiles {
   // Supports scroll position, but treats it coarsely (16x16 pixel
   // blocks). If there are unknown tiles, pauses to experiment on them
   // (but may not succeed!).
-  vector<Tile> GetTileInfo(Emulator *emu,
-			   // Need to know how to make the player face
-			   // left and right.
-			   const AngleRule &left, const AngleRule &right,
-			   bool is_top,
-			   const vector<AutoCamera::XYSprite> &cams);
+  std::vector<Tile> GetTileInfo(Emulator *emu,
+				// Need to know how to make the player face
+				// left and right.
+				const AngleRule &left, const AngleRule &right,
+				bool is_top,
+				const std::vector<AutoCamera::XYSprite> &cams);
   
   // All of the tilesets we've seen, keyed by CRC.
-  unordered_map<uint64, Tileset*> tilesets;
+  std::unordered_map<uint64, Tileset*> tilesets;
 
  private:
-  vector<Emulator *> emus;
+  std::vector<Emulator *> emus;
 };
 
 #endif

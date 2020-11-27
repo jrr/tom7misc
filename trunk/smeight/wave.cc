@@ -8,6 +8,8 @@
 using uint16 = uint16_t;
 using int16 = int16_t;
 
+using namespace std;
+
 WaveFile::WaveFile(const string &filename, int r) : wsize(0) {
   outfile = fopen(filename.c_str(), "wb");
   CHECK(outfile);
