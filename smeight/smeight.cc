@@ -4,6 +4,8 @@
 #include <set>
 #include <memory>
 #include <unordered_map>
+#include <tuple>
+#include <utility>
 
 #include <cstdio>
 #include <cstdlib>
@@ -33,6 +35,8 @@
 #include "autocamera.h"
 #include "autotiles.h"
 #include "wave.h"
+
+using namespace std;
 
 static constexpr int WIDTH = 1920;
 static constexpr int HEIGHT = 1080;
@@ -1182,8 +1186,10 @@ struct SM {
     // Are sprites 16 pixels tall?
     const bool tall_sprites = !!(ppu_ctrl & (1 << 5));
     const int sprite_height = tall_sprites ? 16 : 8;
-    
-    const bool sprites_enabled = !!(ppu_mask && (1 << 4));  
+
+    // (XXX: This used to say &&, which is a bug; I fixed it in
+    // 2020 but didn't test the result!)
+    const bool sprites_enabled = !!(ppu_mask & (1 << 4));
     // I think there's nothing to do with this flag. We could avoid
     // drawing sprites that are into the clip region, but I think
     // most of the time, we'll just be able to draw a more complete

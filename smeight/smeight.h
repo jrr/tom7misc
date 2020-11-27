@@ -11,8 +11,6 @@
 #include <thread>
 #include <mutex>
 
-using namespace std;
-
 #include "../fceulib/types.h"
 #include "../cc-lib/base/stringprintf.h"
 #include "../cc-lib/base/logging.h"
@@ -96,7 +94,7 @@ bool ContainsKey(const T &t, const K &k) {
 struct AngleRule {
   uint16 memory_location = 0xFFFF;
   uint8 value = 0;
-  bool Match(const vector<uint8> &mem) {
+  bool Match(const std::vector<uint8> &mem) {
     if (memory_location == 0xFFFF)
       return false;
 
@@ -109,8 +107,8 @@ struct AngleRule {
 
 // XXX Move to utilities
 inline void SaveEmulatorImage(const Emulator *emu,
-			      const string &filename) {
-  vector<uint8> rgba = emu->GetImage();
+			      const std::string &filename) {
+  std::vector<uint8> rgba = emu->GetImage();
   stbi_write_png(filename.c_str(),
 		 256, 240, 4,
 		 rgba.data(),

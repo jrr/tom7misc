@@ -3,8 +3,10 @@ default: smeight.exe
 
 all: smeight.exe
 
+SDL=/c/code/SDL
+
 #  -I GLEW/include
-CXXFLAGS=-Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I SDL/include
+CXXFLAGS=--std=c++17 -march=native -Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I $(SDL)/include
 OPT=-O2
 SYMBOLS=-g
 
@@ -14,13 +16,13 @@ SYMBOLS=-g
 # Tom, you may need to do this:
 # export PATH=/c/TDM-GCC-64/bin:${PATH}
 
-CXX=g++
-CC=gcc
+# CXX=g++
+# CC=gcc
 
 # for 64 bits on windows
-# CXX=x86_64-w64-mingw32-g++
-# CC=x86_64-w64-mingw32-g++
-# SDLARCH=x64
+CXX=x86_64-w64-mingw32-g++
+CC=x86_64-w64-mingw32-g++
+SDLARCH=x64
 
 # Suppress compilation commands, but show some indication of progress.
 # (Explicitly invoke bash to get shell builtin, since on OS X echo
@@ -43,7 +45,7 @@ LINKGL=-lopengl32
 # -mno-cygwin 
 LINKSDL=-lm -luser32 -lgdi32 -lwinmm -ldxguid
 
-SDLOPATH=SDL/build
+SDLOPATH=$(SDL)/build
 SDL_OBJECTS=$(SDLOPATH)/SDL.o $(SDLOPATH)/SDL_error.o $(SDLOPATH)/SDL_fatal.o $(SDLOPATH)/SDL_audio.o $(SDLOPATH)/SDL_audiocvt.o $(SDLOPATH)/SDL_audiodev.o $(SDLOPATH)/SDL_mixer.o $(SDLOPATH)/SDL_mixer_MMX.o $(SDLOPATH)/SDL_mixer_MMX_VC.o $(SDLOPATH)/SDL_mixer_m68k.o $(SDLOPATH)/SDL_wave.o $(SDLOPATH)/SDL_cdrom.o $(SDLOPATH)/SDL_cpuinfo.o $(SDLOPATH)/SDL_active.o $(SDLOPATH)/SDL_events.o $(SDLOPATH)/SDL_expose.o $(SDLOPATH)/SDL_keyboard.o $(SDLOPATH)/SDL_mouse.o $(SDLOPATH)/SDL_quit.o $(SDLOPATH)/SDL_resize.o $(SDLOPATH)/SDL_rwops.o $(SDLOPATH)/SDL_getenv.o $(SDLOPATH)/SDL_iconv.o $(SDLOPATH)/SDL_malloc.o $(SDLOPATH)/SDL_qsort.o $(SDLOPATH)/SDL_stdlib.o $(SDLOPATH)/SDL_string.o $(SDLOPATH)/SDL_thread.o $(SDLOPATH)/SDL_timer.o $(SDLOPATH)/SDL_RLEaccel.o $(SDLOPATH)/SDL_blit.o $(SDLOPATH)/SDL_blit_0.o $(SDLOPATH)/SDL_blit_1.o $(SDLOPATH)/SDL_blit_A.o $(SDLOPATH)/SDL_blit_N.o $(SDLOPATH)/SDL_bmp.o $(SDLOPATH)/SDL_cursor.o $(SDLOPATH)/SDL_gamma.o $(SDLOPATH)/SDL_pixels.o $(SDLOPATH)/SDL_stretch.o $(SDLOPATH)/SDL_surface.o $(SDLOPATH)/SDL_video.o $(SDLOPATH)/SDL_yuv.o $(SDLOPATH)/SDL_yuv_mmx.o $(SDLOPATH)/SDL_yuv_sw.o $(SDLOPATH)/SDL_joystick.o $(SDLOPATH)/SDL_nullevents.o $(SDLOPATH)/SDL_nullmouse.o $(SDLOPATH)/SDL_nullvideo.o $(SDLOPATH)/SDL_diskaudio.o $(SDLOPATH)/SDL_dummyaudio.o $(SDLOPATH)/SDL_sysevents.o $(SDLOPATH)/SDL_sysmouse.o $(SDLOPATH)/SDL_syswm.o $(SDLOPATH)/SDL_wingl.o $(SDLOPATH)/SDL_dibevents.o $(SDLOPATH)/SDL_dibvideo.o $(SDLOPATH)/SDL_dx5events.o $(SDLOPATH)/SDL_dx5video.o $(SDLOPATH)/SDL_dx5yuv.o $(SDLOPATH)/SDL_dibaudio.o $(SDLOPATH)/SDL_dx5audio.o $(SDLOPATH)/SDL_mmjoystick.o $(SDLOPATH)/SDL_syscdrom.o $(SDLOPATH)/SDL_sysmutex.o $(SDLOPATH)/SDL_syssem.o $(SDLOPATH)/SDL_systhread.o $(SDLOPATH)/SDL_syscond.o $(SDLOPATH)/SDL_systimer.o $(SDLOPATH)/SDL_sysloadso.o
 
 # PROFILE=-pg
@@ -56,7 +58,7 @@ PROFILE=
 INCLUDES=-I "../cc-lib" -I "../cc-lib/city" -I ../fceulib
 
 #  -DNOUNZIP -DDUMMY_UI -DHAVE_ASPRINTF  -DNOWINSTUFF -Wno-write-strings
-CPPFLAGS= -DPSS_STYLE=1 -m64 $(OPT) $(SYMBOLS) -D__MINGW32__ -DHAVE_ALLOCA $(INCLUDES) $(PROFILE) $(FLTO) --std=c++11
+CPPFLAGS= -DPSS_STYLE=1 -m64 $(OPT) $(SYMBOLS) -D__MINGW32__ -DHAVE_ALLOCA $(INCLUDES) $(PROFILE) $(FLTO) --std=c++17
 
 CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/arcfour.o ../cc-lib/base/stringprintf.o ../cc-lib/city/city.o ../cc-lib/textsvg.o ../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/base/logging.o
 
@@ -75,7 +77,7 @@ FCEULIB_OBJECTS=$(FCEUOBJECTS) $(MAPPEROBJECTS) $(UTILSOBJECTS) $(PALLETESOBJECT
 
 # without static, can't find lz or lstdcxx maybe?
 # (actually seems to work on 14 Feb 2016. but I like static -tom7)
-LFLAGS=$(LINKGL) -m64 -Wl,--subsystem,console libz.a $(OPT) $(SYMBOLS) $(FLTO) $(PROFILE) $(LINKSDL) -static
+LFLAGS=$(LINKGL) -m64 -Wl,--subsystem,console -lz $(OPT) $(SYMBOLS) $(FLTO) $(PROFILE) $(LINKSDL) -static
 # -Wl,--subsystem,console
 
 SMEIGHT_OBJECTS=autocamera.o wave.o autotiles.o

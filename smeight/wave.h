@@ -14,17 +14,15 @@
 #include <cstdint>
 #include <cstdio>
 
-using namespace std;
-
 struct WaveFile {
   // Opens the file.
-  WaveFile(const string &filename, int sample_rate);
+  WaveFile(const std::string &filename, int sample_rate);
   ~WaveFile();
 
   // Also closed on destruction, but this makes it explicit.
   void Close();
 
-  void Write(const vector<int16_t> &vec);
+  void Write(const std::vector<int16_t> &vec);
 
  private:
   FILE *outfile;

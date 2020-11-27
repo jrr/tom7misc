@@ -1,6 +1,8 @@
 #ifndef __MATRICES_H
 #define __MATRICES_H
 
+#include <cmath>
+
 // Some basic matrix/vector math. Probably dead code (might even have
 // bugs since I was getting weird results when I abandoned this
 // approach).
@@ -114,7 +116,7 @@ inline Vec2 Project2D(const Vec3 &d, const Vec3 &e) {
 }
 
 inline bool InfiniteVec2(const Vec2 &a) {
-  return isinf(a.x) || isinf(a.y);
+  return std::isinf(a.x) || std::isinf(a.y);
 }
 
 #endif
