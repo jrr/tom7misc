@@ -16,15 +16,13 @@
 #include <vector>
 #include <cstdint>
 
-using namespace std;
-
 struct RLE {
-  typedef uint8_t uint8;
+  using uint8 = uint8_t;
   static constexpr uint8 DEFAULT_CUTOFF = 128;
 
-  static vector<uint8> Compress(const vector<uint8> &in);
+  static std::vector<uint8> Compress(const std::vector<uint8> &in);
   // Aborts if encoding is invalid.
-  static vector<uint8> Decompress(const vector<uint8> &in);
+  static std::vector<uint8> Decompress(const std::vector<uint8> &in);
 
   // Same, but give the maximum anti-run length; this trades off the
   // efficiency of representing runs with the efficiency of represting
@@ -32,14 +30,14 @@ struct RLE {
   // decoding must agree on this value. Note that since a run or
   // anti-run of length 0 is strictly wasteful (of the next byte),
   // we treat every value as a run or anti-run of length value+1.
-  static vector<uint8> CompressEx(const vector<uint8> &in,
-				  uint8 run_cutoff);
+  static std::vector<uint8> CompressEx(const std::vector<uint8> &in,
+				       uint8 run_cutoff);
   // Returns true on success, clears and modifies out to contain the
   // decoded bytes. On failure, out will be in a valid but unspecified
   // state.
-  static bool DecompressEx(const vector<uint8> &in,
+  static bool DecompressEx(const std::vector<uint8> &in,
 			   uint8 run_cutoff,
-			   vector<uint8> *out);
+			   std::vector<uint8> *out);
 };
 
 #endif

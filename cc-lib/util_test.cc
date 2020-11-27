@@ -6,6 +6,8 @@
 #include "util.h"
 #include <stdio.h>
 
+using namespace std;
+
 static string SlowReadFile(const string &filename) {
   FILE *f = fopen(filename.c_str(), "rb");
   if (!f) return "";

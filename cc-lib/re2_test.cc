@@ -6,6 +6,8 @@
 #include "base/logging.h"
 #include "util.h"
 
+using namespace std;
+
 // TODO: More tests, though of course RE2 has its own tests; here
 // we are just checking that we didn't screw up in the cc-lib import.
 // (Might also be helpful for me to give some syntax examples too

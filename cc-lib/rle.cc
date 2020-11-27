@@ -6,7 +6,9 @@
 
 #include "base/logging.h"
 
-typedef uint8_t uint8;
+using namespace std;
+
+using uint8 = uint8_t;
 
 // static
 constexpr uint8 RLE::DEFAULT_CUTOFF;
