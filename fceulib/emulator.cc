@@ -17,6 +17,8 @@
 
 #include "fc.h"
 
+using namespace std;
+
 static constexpr int RAM_BYTE_SIZE = 0x800;
 static constexpr int IMAGE_BYTE_SIZE = 256 * 256 * 4;
 
