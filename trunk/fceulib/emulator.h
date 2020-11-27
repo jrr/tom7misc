@@ -25,10 +25,11 @@
 
 #include "fc.h"
 
-using namespace std;
-
 struct FCEUGI;
 struct Emulator {
+  using string = std::string;
+  template<class T> using vector = std::vector<T>;
+  
   static constexpr int AUDIO_SAMPLE_RATE = 44100;
 
   // Returns nullptr (or aborts) on error. Upon success, returns
