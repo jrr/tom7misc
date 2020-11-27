@@ -6,6 +6,7 @@
 #include "base/logging.h"
 #include "util.h"
 
+using namespace std;
 
 template<class F>
 static void TestDistance(F Distance) {

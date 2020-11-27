@@ -48,6 +48,8 @@
 #  include <dirent.h>
 #endif
 
+using namespace std;
+
 using uint8 = uint8_t;
 using int64 = int64_t;
 using uint64 = uint64_t;

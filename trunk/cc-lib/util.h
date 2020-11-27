@@ -12,8 +12,6 @@
 #include <string_view>
 #include <optional>
 
-using namespace std;
-
 #ifdef WIN32
 #   define DIRSEP  "\\"
 #   define DIRSEPC '\\'
@@ -25,11 +23,14 @@ using namespace std;
 #define UTIL_PI 3.141592653589f
 
 // Move stuff like this to Util struct or remove
-string itos(int i);
-int stoi(const string &s);
-string dtos(double d);
+std::string itos(int i);
+int stoi(const std::string &s);
+std::string dtos(double d);
 
 struct Util {
+  using string = std::string;
+  using string_view = std::string_view;
+  
   // No error handling; it just returns "".
   static string ReadFile(const string &filename);
   // Same but returns nullopt if the file can't be read.
@@ -39,9 +40,9 @@ struct Util {
   
   // Reads the lines in the file to the vector. Ignores all
   // carriage returns, including ones not followed by newline.
-  static vector<string> ReadFileToLines(const string &f);
+  static std::vector<string> ReadFileToLines(const string &f);
 
-  static vector<string> SplitToLines(const string &s);
+  static std::vector<string> SplitToLines(const string &s);
 
   // Calls f on each line (without the newline), streamed from
   // the file. Ignores \r. Suitable for very large files.
@@ -50,17 +51,18 @@ struct Util {
   
   // As above, but treat the first token on each line as a map
   // key. Ignores empty lines.
-  static map<string, string> ReadFileToMap(const string &f);
+  static std::map<string, string> ReadFileToMap(const string &f);
 
-  static vector<uint8_t> ReadFileBytes(const string &f);
-  static bool WriteFileBytes(const string &f, const vector<uint8_t> &b);
+  static std::vector<uint8_t> ReadFileBytes(const string &f);
+  static bool WriteFileBytes(const string &f,
+			     const std::vector<uint8_t> &b);
 
   // Read/write a vector of uint64s in big-endian byte order.
-  static vector<uint64_t> ReadUint64File(const string &filename);
+  static std::vector<uint64_t> ReadUint64File(const string &filename);
   static bool WriteUint64File(const string &filename,
 			      const std::vector<uint64_t> &contents);
   
-  static vector<string> ListFiles(const string &dir);
+  static std::vector<string> ListFiles(const string &dir);
 
   // Join the strings in the input vector with the given delimiter.
   // Join({"a", "b", "c"}, ".") = "a.b.c"
@@ -257,11 +259,11 @@ struct line {
 // Template implementations follow.
 
 template<class F>
-void Util::ForEachLine(const string &s, F f) {
+void Util::ForEachLine(const std::string &s, F f) {
   FILE *file = fopen(s.c_str(), "rb");
   if (!file) return;
   int c;
-  string line;
+  std::string line;
   while ( (c = fgetc(file), c != EOF) ) {
     if (c == '\r') continue;
     if (c == '\n') {
