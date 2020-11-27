@@ -77,6 +77,8 @@ struct ImageRGBA {
 		   uint8 r, uint8 g, uint8 b, uint8 a);
   void BlendLineAA32(float x1, float y1, float x2, float y2, uint32 color);
 
+  // Clipped, alpha blending.
+  void BlendImage(int x, int y, const ImageRGBA &other);
   
   const int width, height;
   // Size width * height * 4.

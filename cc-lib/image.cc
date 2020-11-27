@@ -394,6 +394,18 @@ void ImageRGBA::BlendLineAA(float x1, float y1, float x2, float y2,
   LineAA::Draw<int>(x1, y1, x2, y2, Plot);
 }
 
+void ImageRGBA::BlendImage(int x, int y, const ImageRGBA &other) {
+  // PERF can factor out the pixel clipping here, supposing the
+  // compiler cannot.
+  for (int yy = 0; yy < other.height; yy++) {
+    int yyy = y + yy;
+    for (int xx = 0; xx < other.width; xx++) {
+      int xxx = x + xx;
+      BlendPixel32(xxx, yyy, other.GetPixel(xx, yy));
+    }
+  }
+}
+
 ImageA::ImageA(const vector<uint8> &alpha, int width, int height)
     : width(width), height(height), alpha(alpha) {
   CHECK((int)alpha.size() == width * height);
