@@ -1,14 +1,10 @@
 
-default: unblind.exe eval-unblinder.exe
+default: unblind.exe ui.exe eval-unblinder.exe
 
 all: unblind.exe eval-unblinder.exe vacuum.exe
 
 
 CC_LIB=../cc-lib
-
-
-CXXFLAGS=-march=native -m64 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -I. -I$(CC_LIB) -I$(CC_LIB)/re2 -std=c++17
-OPT=-O2
 
 CXX=x86_64-w64-mingw32-g++
 CC=x86_64-w64-mingw32-gcc
@@ -28,6 +24,9 @@ SDLSDK=c:/code/SDL
 SDLOPATH=$(SDLSDK)/build
 # SDLINCLUDES=-ISDL/include
 SDLINCLUDES=-I$(SDLSDK)/include
+
+CXXFLAGS=-march=native -m64 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include $(SDLINCLUDES) -I. -I$(CC_LIB) -I$(CC_LIB)/re2 -std=c++17
+OPT=-O2
 
 SDLARCH=x64
 SDLUTILOBJECTS=$(CC_LIB)/sdl/sdlutil.o $(CC_LIB)/sdl/font.o
@@ -59,7 +58,7 @@ eval-unblinder.exe : $(OBJECTS) eval-unblinder.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
-ui-unblinder.exe : $(OBJECTS) $(SDLOBJECTS) ui-unblinder.o
+ui.exe : $(OBJECTS) $(SDLOBJECTS) ui.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
