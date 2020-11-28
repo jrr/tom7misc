@@ -12,9 +12,6 @@
 
 #include "timer.h"
 
-#include "unblinder.h"
-#include "unblinder-mk0.h"
-
 #include "SDL.h"
 #include "SDL_main.h"
 #include "../cc-lib/sdl/sdlutil.h"
@@ -48,8 +45,76 @@ struct TTFont {
     CHECK(!ttf_bytes.empty()) << filename;
   
     stbtt_InitFont(&font, ttf_bytes.data(), stbtt_GetFontOffsetForIndex(ttf_bytes.data(), 0));
+
+    /*
+      stbtt_GetFontBoundingBox(&font, &min_x, &min_y, &max_x, &max_y);
+      printf("Bounding box for all chars: %d,%d -> %d,%d\n",
+      min_x, min_y, max_x, max_y);
+      max_height = max_y - min_y;
+      norm = 1.0f / max_height;
+    */
+
+    stbtt_GetFontVMetrics(&font, &native_ascent, &native_descent, nullptr);
+
+    // We use a normalized representation like this:
+    //
+    //      0,0
+    //      +------------------------ ascent = 0.0
+    //      |
+    //      |
+    //      |      ,---,
+    //      |     |     |
+    //      |     `.___.`
+    //      |
+    //      |       ___
+    //      |      /   |
+    //      |      `.  |
+    //      |       |  |
+    //      |       |  |
+    //      |       |  |
+    //      |       |  |
+    //      +-------+--+------------- baseline = 0.75
+    //      |       |  |
+    //      |      /   ;
+    //      |     /   /
+    //      |    /   /
+    //     -+---`   /
+    //    | |      /
+    //    `-+------  ---------------- descent = 1.0
+    //
+    // Note, y-axis is flipped.
+    //
+    // Note the coordinates can be negative or greater than 1.0, but
+    // they are "nominally" in [0,1] vertically. It is normal for
+    // horizontal coordinates to be significantly larger than 1.
+
+    int height = native_ascent - native_descent;
+    norm = 1.0f / height;
+    baseline = native_ascent * norm;
   }
 
+  // font uses "y positive up" coordinates.
+  // ascent is the coordinate above the baseline (typically positive) and
+  // descent is the coordinate below the baseline (typically negative).
+  int native_ascent = 0, native_descent = 0;
+  float norm = 0.0;
+  float baseline = 0.0f;
+
+  // Normalizes an input coordinate (which is usually int16) to be
+  // *nominally* in the unit rectangle. 
+  pair<float, float> Norm(float x, float y) {
+    // x coordinate is easy; just scale by the same factor.
+    x = norm * x;
+    // y is flipped (want +y downward) and offset (want ascent to be 0.0).
+
+    // flip around baseline
+    y = -y;
+    // baseline (0) becomes ascent
+    y += native_ascent;
+    y = norm * y;
+    return {x, y};
+  }
+  
   // Not cached, so this does a lot more allocation than you probably want.
   ImageA GetChar(char c, int size) {
     int width, height;
@@ -201,7 +266,7 @@ struct TTFont {
 	cur.value().paths.emplace_back(v.x, v.y);
 	break;
       case STBTT_vcurve:
-	printf("vcurve\n");
+	// printf("vcurve\n");
 	CHECK(cur.has_value());
 	cur.value().paths.emplace_back(v.x, v.y, v.cx, v.cy);
 	break;
@@ -226,22 +291,15 @@ private:
 namespace {
 struct UI {
   Mode mode = Mode::BITMAP;
-  bool ui_dirty = true, output_dirty = true;
-  
-  std::unique_ptr<Unblinder> unblinder;
+  bool ui_dirty = true;
 
+  char current_char = 'a';
+  
   UI();
   void Loop();
   void Draw();
   
-  uint64 current_bitmap = 0xFFFF00000000FFFFULL;
-  Position current_prediction;
-  // Position current_position;
-
   TTFont times{"times.ttf"};
-  
-  static constexpr int BITX = 260, BITY = 64, BITSCALE = 32;
-  static constexpr int OUTX = 560, OUTY = 64, OUTSCALE = 32;
 };
 }  // namespace
 
@@ -279,6 +337,14 @@ void UI::Loop() {
 	case SDLK_ESCAPE:
 	  printf("ESCAPE.\n");
 	  return;
+	case SDLK_LEFT:
+	  if (current_char > ' ') current_char--;
+	  ui_dirty = true;
+	  break;
+	case SDLK_RIGHT:
+	  if (current_char < '~') current_char++;
+	  ui_dirty = true;
+	  break;
 	default:;
 	}
       }
@@ -311,36 +377,55 @@ void UI::Draw() {
   switch (mode) {
   case Mode::BITMAP:
 
-    char c = 'a';
+    vector<TTFont::Contour> contours = times.GetContours(current_char);
 
-    vector<TTFont::Contour> contours = times.GetContours(c);
+    constexpr int XPOS = 128;
+    constexpr int YPOS = 48;
+    // Basically, the height of the font in pixels.
+    constexpr int SCALE = 1000;
+    auto Line = [&](float x1, float y1, float x2, float y2, uint32 color) {
+	sdlutil::drawclipline(screen,
+			      XPOS + x1 * SCALE, YPOS + y1 * SCALE,
+			      XPOS + x2 * SCALE, YPOS + y2 * SCALE,
+			      0xFF & (color >> 24),
+			      0xFF & (color >> 16),
+			      0xFF & (color >> 8));
+      };
 
+    // One screen pixel in normalized coordinates.
+    double sqerr = 1.0f / (SCALE * SCALE);
+    
     for (const auto &contour : contours) {
+      auto [x, y] = times.Norm(contour.startx, contour.starty);
       printf("Contour:\n"
-	     "start %d,%d\n", contour.startx, contour.starty);
-
-      int x = contour.startx, y = contour.starty;
-
-      
+	     "start %d,%d (norm %.4f %.4f)\n", contour.startx, contour.starty,
+	     x, y);
       for (const auto &p : contour.paths) {
 	switch (p.type) {
-	case TTFont::PathType::LINE:
+	case TTFont::PathType::LINE: {
 	  // printf("  lineto %d,%d\n", p.x, p.y);
-	  sdlutil::DrawClipLine32(screen, x, y, p.x, p.y,
-				  0xFF0000FF);
-	  x = p.x;
-	  y = p.y;
+	  auto [px, py] = times.Norm(p.x, p.y);
+	  Line(x, y, px, py, 0x000000FF);
+	  x = px;
+	  y = py;
 	  break;
-	case TTFont::PathType::BEZIER:
+	}
+	case TTFont::PathType::BEZIER: {
 	  // printf("  bezier %d,%d (%d, %d)\n", p.x, p.y, p.cx, p.cy);
-	  for (const auto [px, py] : 
-		 TesselateQuadraticBezier<float>(x, y, p.cx, p.cy, p.x, p.y, 1.0)) {
-	    sdlutil::DrawClipLine32(screen, x, y, (int)round(px), (int)roundf(py),
-				    0xFF0000FF);
-	    x = (int)roundf(px);
-	    y = (int)roundf(py);
+	  auto [cx, cy] = times.Norm(p.cx, p.cy);
+	  auto [px, py] = times.Norm(p.x, p.y);
+	  // Line(x, y, cx, cy, 0x00FF00FF);
+	  // Line(cx, cy, px, py, 0x0000FFFF);
+
+	  for (const auto [xx, yy] : 
+		 TesselateQuadraticBezier<double>(x, y, cx, cy, px, py, sqerr)) {
+	    // times.Norm(1, 1.0f / 1000.0f).second)) {
+	    Line(x, y, xx, yy, 0xFF0000FF);
+	    x = xx;
+	    y = yy;
 	  }
 	  break;
+	}
 	}
       }
     }
@@ -376,7 +461,7 @@ int main(int argc, char **argv) {
 
   SDL_EnableUNICODE(1);
 
-  SDL_Surface *icon = SDL_LoadBMP("unblind-icon.bmp");
+  SDL_Surface *icon = SDL_LoadBMP("lowercase-icon.bmp");
   if (icon != nullptr) {
     SDL_WM_SetIcon(icon, nullptr);
   }
