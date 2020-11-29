@@ -31,7 +31,7 @@ void Ttfarchive::AddAllFilesRec(const string &dir, vector<string> *all_files) {
 	  // Should probably delete emacs backups..?
 	  filename[filename.size() - 1] != '#' &&
 	  filename[filename.size() - 1] != '~') {
-	all_files->push_back(filename);
+	all_files->push_back(Backslash(filename));
       }
     }
   }
