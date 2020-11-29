@@ -11,6 +11,7 @@
 #include "util.h"
 #include "base/logging.h"
 
+// TODO: Only expose normalized coordinates...
 struct TTF {
   using string = std::string;
   
@@ -31,7 +32,7 @@ struct TTF {
       norm = 1.0f / max_height;
     */
 
-    stbtt_GetFontVMetrics(&font, &native_ascent, &native_descent, nullptr);
+    stbtt_GetFontVMetrics(&font, &native_ascent, &native_descent, &native_linegap);
 
     // We use a normalized representation like this:
     //
@@ -74,9 +75,11 @@ struct TTF {
   // ascent is the coordinate above the baseline (typically positive) and
   // descent is the coordinate below the baseline (typically negative).
   int native_ascent = 0, native_descent = 0;
+  int native_linegap = 0;
   float norm = 0.0;
   float baseline = 0.0f;
-
+  // By definition: ascent = 0.0, descent = 0.0
+  
   // Normalizes an input coordinate (which is usually int16) to be
   // *nominally* in the unit rectangle. 
   pair<float, float> Norm(float x, float y) {
@@ -90,6 +93,13 @@ struct TTF {
     y += native_ascent;
     y = norm * y;
     return {x, y};
+  }
+
+  // amount to advance from one line of text to the next. This would be +1.0 by
+  // definition except that we also take into account the "line gap".
+  float NormLineHeight() {
+    int native = (native_ascent - native_descent) + native_linegap;
+    return native * norm;
   }
   
   // Not cached, so this does a lot more allocation than you probably want.
@@ -167,6 +177,7 @@ struct TTF {
     }
   }
 
+  // Uses SCREEN COORDINATES.
   // Measure the nominal width and height of the string using the same method as above.
   // (This does not mean that all pixels lie within the rectangle.)
   std::pair<int, int> MeasureString(const string &text, int size_px, bool subpixel = true) {
@@ -200,6 +211,7 @@ struct TTF {
     BEZIER,
   };
 
+  // XXX let's use normalized coordinates?
   struct Path {
     PathType type = PathType::LINE;
     int x = 0, y = 0;
@@ -257,6 +269,16 @@ struct TTF {
     
     stbtt_FreeShape(&font, vertices);
     return out;
+  }
+
+  // c2 may be 0 for no kerning.
+  float NormKernAdvance(char c1, char c2) {
+    int advance = 0;
+    stbtt_GetCodepointHMetrics(&font, c1, &advance, nullptr);
+    if (c2 != 0) {
+      advance += stbtt_GetCodepointKernAdvance(&font, c1, c2);
+    }
+    return Norm(advance, 1.0f).first;
   }
   
 private:
