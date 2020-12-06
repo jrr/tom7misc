@@ -10,6 +10,7 @@
 #include "stb_truetype.h"
 #include "util.h"
 #include "base/logging.h"
+#include "image.h"
 
 // TODO: Only expose normalized coordinates...
 struct TTF {
@@ -66,9 +67,24 @@ struct TTF {
     // they are "nominally" in [0,1] vertically. It is normal for
     // horizontal coordinates to be significantly larger than 1.
 
+    // Note that native_descent is frequently wrong in fonts (it is positive).
+    // I don't try to fix that here.
+    
     int height = native_ascent - native_descent;
     norm = 1.0f / height;
     baseline = native_ascent * norm;
+
+    printf("native ascent %d descent %d linegap %d.\n"
+	   "norm = %.5f  baseline = %.5f   lineheight %.5f\n",
+	   native_ascent, native_descent, native_linegap,
+	   norm, baseline, NormLineHeight());
+
+    #if 0
+    int os2ascent, os2descent, os2lg;
+    if (stbtt_GetFontVMetricsOS2(&font, &os2ascent, &os2descent, &os2lg)) {
+      printf("OS/2 versions: %d %d %d\n", os2ascent, os2descent, os2lg);
+    }
+    #endif
   }
 
   // font uses "y positive up" coordinates.
@@ -98,7 +114,10 @@ struct TTF {
   // amount to advance from one line of text to the next. This would be +1.0 by
   // definition except that we also take into account the "line gap".
   float NormLineHeight() {
+    // Note: Lots of fonts have an incorrect descent (i.e., positive when it should
+    // be negative). Maybe it's worth just heuristically taking +abs(native_descent)?
     int native = (native_ascent - native_descent) + native_linegap;
+    // ( = native / (native_ascent - native_descent)
     return native * norm;
   }
   
@@ -211,36 +230,35 @@ struct TTF {
     BEZIER,
   };
 
-  // XXX let's use normalized coordinates?
-  struct Path {
+  struct NativePath {
     PathType type = PathType::LINE;
     int x = 0, y = 0;
     // For Bezier curves.
     int cx = 0, cy = 0;
 
-    Path(int x, int y) : type(PathType::LINE), x(x), y(y) {}
-    Path(int x, int y, int cx, int cy) :
+    NativePath(int x, int y) : type(PathType::LINE), x(x), y(y) {}
+    NativePath(int x, int y, int cx, int cy) :
       type(PathType::BEZIER), x(x), y(y), cx(cx), cy(cy) {}
   };
   
   // Note: Source integer coordinates are int16.
   // XXX is this expected to be closed?
-  struct Contour {
+  struct NativeContour {
     int startx = 0, starty = 0;
-    std::vector<Path> paths;
-    Contour(int startx, int starty) : startx(startx), starty(starty) {}
+    std::vector<NativePath> paths;
+    NativeContour(int startx, int starty) : startx(startx), starty(starty) {}
   };
 
   // Can be empty (e.g. for 'space' character)
-  std::vector<Contour> GetContours(int codepoint) {
+  std::vector<NativeContour> GetNativeContours(int codepoint) {
     stbtt_vertex *vertices = nullptr;
     const int n = stbtt_GetCodepointShape(&font, codepoint, &vertices);
     if (n == 0) return {};
     CHECK(vertices != nullptr);
 
     CHECK(vertices[0].type == STBTT_vmove) << "All shapes should start with a moveto?";
-    std::optional<Contour> cur;
-    std::vector<Contour> out;
+    std::optional<NativeContour> cur;
+    std::vector<NativeContour> out;
     for (int i = 0; i < n; i++) {
       const stbtt_vertex &v = vertices[i];
       switch (v.type) {
@@ -271,6 +289,53 @@ struct TTF {
     return out;
   }
 
+  // Normalized path.
+  struct Path {
+    PathType type = PathType::LINE;
+    float x = 0.0f, y = 0.0f;
+    // For Bezier curves.
+    float cx = 0.0f, cy = 0.0f;
+
+    Path(float x, float y) : type(PathType::LINE), x(x), y(y) {}
+    Path(float x, float y, float cx, float cy) :
+      type(PathType::BEZIER), x(x), y(y), cx(cx), cy(cy) {}
+  };
+  
+  // XXX is this expected to be closed?
+  struct Contour {
+    float startx = 0.0f, starty = 0.0f;
+    std::vector<Path> paths;
+    Contour(float startx, float starty) : startx(startx), starty(starty) {}
+  };
+
+  std::vector<Contour> GetContours(int codepoint) {
+    std::vector<NativeContour> ncs = GetNativeContours(codepoint);
+    std::vector<Contour> out;
+    out.reserve(ncs.size());
+    for (const NativeContour &nc : ncs) {
+      const auto [sx, sy] = Norm(nc.startx, nc.starty);
+      Contour c{sx, sy};
+      c.paths.reserve(nc.paths.size());
+      for (const NativePath &np : nc.paths) {
+	switch (np.type) {
+	case PathType::LINE: {
+	  const auto [x, y] = Norm(np.x, np.y);
+	  c.paths.emplace_back(x, y);
+	  break;
+	}
+	case PathType::BEZIER: {
+	  const auto [x, y] = Norm(np.x, np.y);
+	  const auto [cx, cy] = Norm(np.cx, np.cy);
+	  c.paths.emplace_back(x, y, cx, cy);
+	  break;
+	}
+	}
+      }
+      out.emplace_back(std::move(c));
+    }
+    return out;
+  }
+  
   // c2 may be 0 for no kerning.
   float NormKernAdvance(char c1, char c2) {
     int advance = 0;
