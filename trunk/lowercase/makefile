@@ -1,5 +1,5 @@
 
-default: ui.exe cleandb.exe
+default: ui.exe cleandb.exe samecase.exe
 
 all: unblind.exe eval-unblinder.exe vacuum.exe
 
@@ -69,6 +69,9 @@ vacuum.exe : $(OBJECTS) vacuum.o
 	@echo -n "!"
 
 cleandb.exe : cleandb.o ttfarchive.o $(UTIL_OBJECTS) $(RE2_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+samecase.exe : samecase.o $(UTIL_OBJECTS) $(RE2_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 
