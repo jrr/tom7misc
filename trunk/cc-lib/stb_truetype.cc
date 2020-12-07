@@ -535,7 +535,11 @@ STBTT_DEF int stbtt_FindGlyphIndex(const stbtt_fontinfo *info, int unicode_codep
          stbtt_uint16 offset, start;
          stbtt_uint16 item = (stbtt_uint16) ((search - endCount) >> 1);
 
-         STBTT_assert(unicode_codepoint <= ttUSHORT(data + endCount + 2*item));
+	 // tom7 made this return 0 (failure) instead of asserting
+         // STBTT_assert(unicode_codepoint <= ttUSHORT(data + endCount + 2*item));
+	 if (!(unicode_codepoint <= ttUSHORT(data + endCount + 2*item)))
+	   return 0;
+	 
          start = ttUSHORT(data + index_map + 14 + segcount*2 + 2 + 2*item);
          if (unicode_codepoint < start)
             return 0;
@@ -822,8 +826,11 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
             }
          }
          else {
-            // @TODO handle matching point
-            STBTT_assert(0);
+	   // tom7 made this return an empty shape (probably leaking memory)
+	   // instead of asserting
+	   return 0;
+	   // @TODO handle matching point
+	   STBTT_assert(0);
          }
          if (flags & (1<<3)) { // WE_HAVE_A_SCALE
             mtx[0] = mtx[3] = ttSHORT(comp)/16384.0f; comp+=2;
