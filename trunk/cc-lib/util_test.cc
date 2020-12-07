@@ -137,8 +137,32 @@ static void TestPrefixSuffix() {
   }
 }
 
+static void TestWriteFiles() {
+  const string f = "util_test.deleteme";
+  const string ss = "the\n\0contents";
+  CHECK(Util::WriteFile(f, ss));
+  string ssr = Util::ReadFile(f);
+  CHECK(ss == ssr);
+
+  CHECK(Util::WriteFile(f, ""));
+  string sse = Util::ReadFile(f);
+  CHECK(sse.empty());
+
+  vector<string> lines = {
+    "the first line",
+    "",
+    "",
+    " white - space ",
+  };
+
+  CHECK(Util::WriteLinesToFile(f, lines));
+  vector<string> rlines = Util::ReadFileToLines(f);
+  CHECK(lines == rlines);
+}
+
 int main(int argc, char **argv) {
   TestReadFiles();
+  TestWriteFiles();
   TestWhitespace();
   TestPad();
   TestJoin();
