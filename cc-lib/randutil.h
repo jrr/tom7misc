@@ -14,8 +14,12 @@ using uint16 = uint16_t;
 using uint64 = uint64_t;
 using uint32 = uint32_t;
 
+// Creates another random stream, seeded by (and consuming some)
+// of the input. Supplying a different n yields a different stream,
+// which can be used to create fan-out in parallel.
+//
 // Caller owns new-ly allocated pointer.
-inline ArcFour *Substream(ArcFour *rc, int n) {
+inline ArcFour *Substream(ArcFour *rc, uint32 n) {
   std::vector<uint8> buf;
   buf.resize(64);
   for (int i = 0; i < 4; i++) {
@@ -63,6 +67,7 @@ inline double RandDouble(ArcFour *rc) {
 	  (double)0x3FFFFFFFFFFFFFFFULL);
 };
 
+// Sample in [0, 1).
 inline double RandDoubleNot1(ArcFour *rc) {
   for (;;) {
     double d = RandDouble(rc);
@@ -161,6 +166,7 @@ inline uint32 RandTo32(ArcFour *rc, uint32 n) {
   }
 }
 
+// Permute the elements of the array uniformly at random.
 template<class T>
 static void Shuffle(ArcFour *rc, std::vector<T> *v) {
   if (v->size() <= 1) return;

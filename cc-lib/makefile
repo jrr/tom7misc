@@ -106,4 +106,4 @@ process-util_test.exe : process-util_test.o process-util.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 clean :
-	rm -f *.o *.exe
+	rm -f *.o *.exe *.deleteme

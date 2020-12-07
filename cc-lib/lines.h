@@ -9,6 +9,8 @@
 #include <cmath>
 #include <tuple>
 #include <type_traits>
+#include <vector>
+#include <functional>
 
 // Generate lines with Bresenham's algorithm. Use like this:
 //
@@ -231,6 +233,68 @@ void LineAA::Draw(Float x0, Float y0, Float x1, Float y1, Fn drawpixel) {
     }
   }
 }
+
+// tessellate until threshold p is happy... @TODO warped to compensate for non-linear stretching
+
+// Return a vector of endpoints, not including the start point (but
+// including the end), to draw as individual line segments in order to
+// approximate the given quadratic Bezier curve.
+
+// Num should work as integral (then all math is integral) or floating-point types.
+template<class Num = float>
+std::vector<std::pair<Num, Num>> TesselateQuadraticBezier(
+    // starting vertex
+    Num x0, Num y0,
+    // control point
+    Num x1, Num y1,
+    // end point
+    Num x2, Num y2,
+    Num max_error_squared = Num(2),
+    int max_depth = 16) {
+
+  static_assert(std::is_arithmetic<Num>::value,
+		"TesselateQuadraticBezier needs an integral or floating-point "
+		"template argument.");
+  
+  std::vector<std::pair<Num, Num>> out;
+  std::function<void(Num, Num, Num, Num, Num, Num, int)> Rec =
+    [&out, max_error_squared, &Rec](Num x0, Num y0,
+				    Num x1, Num y1,
+				    Num x2, Num y2,
+				    int max_depth) {
+      // This is based on public-domain code from stb_truetype, thanks!
+      
+      // Midpoint of the curve.
+      // ("Midpoint" here likely means t/2, not the geometric midpoint?
+      // So this might be overly conservative, in that we might have
+      // a good approximation to a line but not pass near the line's
+      // midpoint at the curve's midpoint. (Consider the case where the
+      // control point is on the line, near one of the endpoints.))
+      const Num mx = (x0 + (x1 * 2) + x2) / 4;
+      const Num my = (y0 + (y1 * 2) + y2) / 4;
+
+      // Midpoint of a straight line.
+      const Num lx = (x0 + x2) / 2;
+      const Num ly = (y0 + y2) / 2;
+      
+      // Error.
+      const Num dx = lx - mx;
+      const Num dy = ly - my;
+      const Num error = (dx * dx) + (dy * dy);
+      
+      if (error > max_error_squared && max_depth > 0) {
+	Rec(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2, mx, my, max_depth - 1);
+	Rec(mx, my, (x1 + x2) / 2, (y1 + y2) / 2, x2, y2, max_depth - 1);
+      } else {
+	// Otherwise, emit a straight line.
+	out.emplace_back(x2, y2);
+      }
+    };
+  
+  Rec(x0, y0, x1, y1, x2, y2, max_depth);
+  return out;
+}
+
 
 
 #endif
