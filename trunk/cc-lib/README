@@ -43,6 +43,9 @@ contributions are as well; see guitar/LICENSE.txt.
 The bignum subdirectory is based on BSD-licensed code; it and my
 C++ wrapper are available under that license; see bignum/LICENSE.
 
+The opt subdirectory is based on MIT-licensed code; it and my
+wrapper are available under that license; see opt/LICENSE.
+
 My own fresh code is licensed under the GPL, which can be found in
 COPYING.
 
@@ -102,3 +105,4 @@ pi/           - Some code for working on the raspberry pi, particularly
 bignum/       - Simple arbitrary-precision integers and rationals (BSD-like
                 license). Not as fast as GMP, but easier to compile!
 guitar/       - Guitar chord fingering database.
+opt/          - Black-box function optimization.
