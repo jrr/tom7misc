@@ -35,13 +35,19 @@ struct Util {
   static string ReadFile(const string &filename);
   // Same but returns nullopt if the file can't be read.
   static std::optional<string> ReadFileOpt(const string &filename);
-  
+
+  // Returns true upon success.
   static bool WriteFile(const string &filename, const string &contents);
   
   // Reads the lines in the file to the vector. Ignores all
   // carriage returns, including ones not followed by newline.
   static std::vector<string> ReadFileToLines(const string &f);
-
+  // Overwrite file with the lines; each line ending with a newline char.
+  // (Nothing special is done for newlines already in the input.)
+  // Returns true upon success.
+  static bool WriteLinesToFile(const string &f,
+			       const std::vector<string> &lines);
+  
   static std::vector<string> SplitToLines(const string &s);
 
   // Calls f on each line (without the newline), streamed from

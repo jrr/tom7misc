@@ -374,6 +374,29 @@ vector<string> Util::ReadFileToLines(const string &f) {
   return SplitToLines(ReadFile(f));
 }
 
+bool Util::WriteLinesToFile(const string &fn,
+			    const std::vector<string> &lines) {
+  FILE *f = fopen(fn.c_str(), "wb");
+  if (f == nullptr) return false;
+
+  for (const string &s : lines) {
+    size_t len = s.size();
+    size_t wrote_len = fwrite(s.c_str(), 1, len, f);
+    if (len != wrote_len) {
+      fclose(f);
+      return false;
+    }
+    if (EOF == fputc('\n', f)) {
+      fclose(f);
+      return false;
+    }
+  }
+
+  fclose(f);
+
+  return true;
+}
+
 vector<string> Util::SplitToLines(const string &s) {
   vector<string> v;
   string line;
@@ -493,14 +516,14 @@ string Util::ReadFileMagic(string s, const string &mag) {
 
 bool Util::WriteFile(const string &fn, const string &s) {
   FILE *f = fopen(fn.c_str(), "wb");
-  if (!f) return false;
+  if (f == nullptr) return false;
 
-  /* XXX check failure */
-  fwrite(s.c_str(), 1, s.length(), f);
+  const size_t len = s.length();
+  const size_t wrote_len = fwrite(s.c_str(), 1, len, f);
 
   fclose(f);
 
-  return true;
+  return len == wrote_len;
 }
 
 bool Util::WriteFileBytes(const string &fn,
@@ -508,12 +531,12 @@ bool Util::WriteFileBytes(const string &fn,
   FILE *f = fopen(fn.c_str(), "wb");
   if (!f) return false;
 
-  /* XXX check failure */
-  fwrite(&bytes[0], 1, bytes.size(), f);
+  const size_t len = bytes.size();
+  const size_t wrote_len = fwrite(&bytes[0], 1, len, f);
 
   fclose(f);
 
-  return true;
+  return len == wrote_len;
 }
 
 vector<uint64> Util::ReadUint64File(const string &filename) {
