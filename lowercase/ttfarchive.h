@@ -7,6 +7,7 @@
 
 static constexpr const char *DIRS[] = {
   "d:\\temp\\fonts2020",
+  // "d:\\temp\\fonts2020\\SummitSoftCreativeFonts",  
 };
 
 struct Ttfarchive {

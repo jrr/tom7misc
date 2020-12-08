@@ -6,6 +6,7 @@
 #include <vector>
 #include <cstdint>
 #include <optional>
+#include <cmath>
 
 #include "stb_truetype.h"
 #include "util.h"
@@ -16,7 +17,7 @@
 struct TTF {
   using string = std::string;
   
-  TTF(const string &filename) {
+  explicit TTF(const string &filename) {
     ttf_bytes = Util::ReadFileBytes(filename);
     CHECK(!ttf_bytes.empty()) << filename;
 
@@ -74,10 +75,12 @@ struct TTF {
     norm = 1.0f / height;
     baseline = native_ascent * norm;
 
+    /*
     printf("native ascent %d descent %d linegap %d.\n"
 	   "norm = %.5f  baseline = %.5f   lineheight %.5f\n",
 	   native_ascent, native_descent, native_linegap,
 	   norm, baseline, NormLineHeight());
+    */
 
     #if 0
     int os2ascent, os2descent, os2lg;
@@ -98,7 +101,7 @@ struct TTF {
   
   // Normalizes an input coordinate (which is usually int16) to be
   // *nominally* in the unit rectangle. 
-  pair<float, float> Norm(float x, float y) {
+  pair<float, float> Norm(float x, float y) const {
     // x coordinate is easy; just scale by the same factor.
     x = norm * x;
     // y is flipped (want +y downward) and offset (want ascent to be 0.0).
@@ -113,7 +116,7 @@ struct TTF {
 
   // amount to advance from one line of text to the next. This would be +1.0 by
   // definition except that we also take into account the "line gap".
-  float NormLineHeight() {
+  float NormLineHeight() const {
     // Note: Lots of fonts have an incorrect descent (i.e., positive when it should
     // be negative). Maybe it's worth just heuristically taking +abs(native_descent)?
     int native = (native_ascent - native_descent) + native_linegap;
@@ -124,8 +127,8 @@ struct TTF {
   // Not cached, so this does a lot more allocation than you probably want.
   ImageA GetChar(char c, int size) {
     int width, height;
-    uint8 *bitmap = stbtt_GetCodepointBitmap(&font, 0, stbtt_ScaleForPixelHeight(&font, size),
-					     c, &width, &height, 0, 0);
+    uint8_t *bitmap = stbtt_GetCodepointBitmap(&font, 0, stbtt_ScaleForPixelHeight(&font, size),
+					       c, &width, &height, 0, 0);
     CHECK(bitmap != nullptr) << "Character " << (char)c << " size " << size;
 
     const int bytes = width * height;
@@ -160,7 +163,7 @@ struct TTF {
 
       int bitmap_w = 0, bitmap_h = 0;
       int xoff = 0, yoff = 0;
-      uint8 *bitmap = nullptr;      
+      uint8_t *bitmap = nullptr;      
       if (subpixel) {
 	const float x_shift = xpos - (float) floor(xpos);
 	constexpr float y_shift = 0.0f;
@@ -250,7 +253,7 @@ struct TTF {
   };
 
   // Can be empty (e.g. for 'space' character)
-  std::vector<NativeContour> GetNativeContours(int codepoint) {
+  std::vector<NativeContour> GetNativeContours(int codepoint) const {
     stbtt_vertex *vertices = nullptr;
     const int n = stbtt_GetCodepointShape(&font, codepoint, &vertices);
     if (n == 0) return {};
@@ -308,7 +311,7 @@ struct TTF {
     Contour(float startx, float starty) : startx(startx), starty(starty) {}
   };
 
-  std::vector<Contour> GetContours(int codepoint) {
+  std::vector<Contour> GetContours(int codepoint) const {
     std::vector<NativeContour> ncs = GetNativeContours(codepoint);
     std::vector<Contour> out;
     out.reserve(ncs.size());

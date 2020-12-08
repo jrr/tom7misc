@@ -271,7 +271,7 @@ int main(int argc, char **argv) {
   }
   printf("Deleted %d duplicate files\n", deleted);
 
-  Util::WriteLinesToFile("all_fonts.txt", good);
+  Util::WriteLinesToFile("all_fonts_tmp.txt", good);
   return 0;
 }
 
