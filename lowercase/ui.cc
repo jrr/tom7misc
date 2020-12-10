@@ -39,6 +39,7 @@ using int64 = int64_t;
 
 #define FONTWIDTH 9
 #define FONTHEIGHT 16
+[[maybe_unused]]
 static Font *font = nullptr, *font2x = nullptr;
 #define SCREENW 1920
 #define SCREENH 1280
@@ -47,6 +48,7 @@ static SDL_Surface *screen = nullptr;
 enum class Mode {
   BITMAP,
   SORTITION,
+  SCALETEST,
 };
 
 
@@ -60,7 +62,7 @@ enum class Type {
   SERIF,
   // Including cursive, blackletter, caligraphic
   FANCY,
-  
+
   // Cyber-fonts, pixel outlines, etc.
   TECHNO,
 
@@ -68,14 +70,14 @@ enum class Type {
   // decorative style that makes the letter shapes not be normal (e.g.
   // "old west" font).
   DECORATIVE,
-  
+
   // Scans or distressed fonts with lots of control points. Might work
   // if rendered to bitmaps.
   MESSY,
 
   // Anything that's not actually letters.
   DINGBATS,
-  
+
   // Font is working but doesn't fit above categories.
   // Anything with effects like outlines goes in here.
   OTHER,
@@ -142,7 +144,7 @@ struct FontSets {
   bool Dirty() const {
     return dirty;
   }
-  
+
   std::optional<Type> Lookup(const string &s) const {
     auto it = files.find(s);
     if (it == files.end()) return {};
@@ -154,7 +156,7 @@ struct FontSets {
     // (maybe don't set if this was already the case?)
     dirty = true;
   }
-  
+
   void Save() {
     // (Note: If a set becomes totally empty, we won't save over it,
     // because it won't appear in this map...)
@@ -179,7 +181,7 @@ struct FontSets {
   int64 Size() const {
     return files.size();
   }
-  
+
   // Filename gets assigned to at most one fontset.
   std::unordered_map<string, Type> files;
   bool dirty = false;
@@ -193,9 +195,9 @@ struct UI {
   bool ui_dirty = true;
   // quit confirmations.
   int confirmations = 0;
-  
+
   FontSets fontsets;
-  
+
   // Fonts not in any above set (upon loading this
   // instance).
   vector<string> unsorted_filenames;
@@ -209,17 +211,20 @@ struct UI {
   int DrawChar(TTF *ttf, int sx, int sy, float scale, char c, char nc);
   int DrawString(TTF *ttf, int sx, int sy, float scale, const string &str);
   int DrawAlphabet(TTF *ttf, int sx, int sy, float scale);
+
+  // Drawing for various modes
+  void DrawSortition();
   
   // current index (into unsorted_filenames, fonts, etc.) that we act
   // on with keypresses etc.
   int cur = 0;
-  
+
   // Parallel to unsorted_filenames, but not usually
   // as long. Use GetFont(idx).
   vector<TTF *> fonts;
   // XXX get rid of this?
   vector<std::optional<std::tuple<double, double, double>>> samecases;
-  
+
   TTF *GetFont(int idx) {
     CHECK(idx < unsorted_filenames.size());
     while (idx >= fonts.size()) {
@@ -251,13 +256,169 @@ struct UI {
   int64 num_all_fonts = 0;
 
   ArcFour rc{"lowercase"};
-  
+
   // XXX
   char current_char = 'a';
+  float current_xscale = 1.0, current_yscale = 1.0;
+  float current_xoff = 0.0, current_yoff = 0.0;
   TTF times{"times.ttf"};
 };
 }  // namespace
 
+
+// Render the two characters to bitmaps at the given scale, and then
+// compute the difference as the fraction of pixels in the second
+// bitmap that are the same in the first.
+static
+double BitmapDifference(const TTF &ttf,
+			int c1, int c2,
+			// Determines the base bitmap size for both
+			// characters. c1 is unstretched.
+			float scale,
+			// Additional scale for c2, which can stretch it.
+			// (we use scale * xscale2, scale * yscale2)
+			float xscale2, float yscale2,
+			// Offsets for c2.
+			float xmov2, float ymov2) {
+  
+  const stbtt_fontinfo *info = ttf.Font();
+  CHECK(info != nullptr);
+
+  printf("char %d scale %.2f\n", c1, scale);
+  fflush(stdout);
+
+  float stb_scale = stbtt_ScaleForPixelHeight(info, scale);
+  
+  int width1, height1, xoff1, yoff1;
+  uint8 *bit1 = stbtt_GetCodepointBitmapSubpixel(info,
+						 // uniform scale
+						 stb_scale, stb_scale,
+						 // unshifted
+						 0.0f, 0.0f,
+						 c1,
+						 &width1, &height1,
+						 &xoff1, &yoff1);
+  CHECK(bit1 != nullptr);
+  
+  int int_x = xmov2, int_y = ymov2;
+  const float subpixel_x = xmov2 - int_x;
+  const float subpixel_y = ymov2 - int_y;
+
+  int width2, height2, xoff2, yoff2;
+  uint8 *bit2 = stbtt_GetCodepointBitmapSubpixel(info,
+						 stb_scale * xscale2, stb_scale * yscale2,
+						 subpixel_x, subpixel_y,
+						 c2,
+						 &width2, &height2,
+						 &xoff2, &yoff2);
+
+  CHECK(bit2 != nullptr);  
+  // Draw to screen.
+
+  {
+    constexpr int X1 = 10, Y1 = 200;
+    constexpr int X2 = 400, Y2 = 200;  
+
+    auto DrawBitmap = [](int startx, int starty, uint8 *bm,
+			 int width, int height,
+			 uint8 rmask, uint8 gmask, uint8 bmask) {
+
+	int idx = 0;
+	for (int y = 0; y < height; y++) {
+	  int yy = starty + y;
+	  for (int x = 0; x < width; x++) {
+	    uint8 v = bm[idx];
+	    int xx = startx + x;
+	    sdlutil::drawclippixel(screen, xx, yy,
+				   v & rmask, v & gmask, v & bmask);
+	    idx++;
+	  }
+	}
+      };
+
+    DrawBitmap(X1, Y1, bit1, width1, height1, 0xFF, 0x00, 0x00);
+    DrawBitmap(X2, Y2, bit2, width2, height2, 0x00, 0xFF, 0x00);      
+
+    font->draw(X1, Y1 - font->height, StringPrintf("^3%d^1x^3%d", width1, height1));
+    font->draw(X2, Y2 - font->height, StringPrintf("^3%d^1x^3%d", width2, height2));  
+
+    auto Locate = [](int x, int y) {
+	for (int dy : {-1, 0, 1}) {
+	  for (int dx : {-1, 0, 1}) {
+	    if (dy ==0 && dx == 0) {
+	      sdlutil::drawclippixel(screen, x + dx, y + dy, 0x00, 0x00, 0xFF);
+	    } else {
+	      sdlutil::drawclippixel(screen, x + dx, y + dy, 0xFF, 0xFF, 0xFF);
+	    }
+	  }
+	}
+      };
+
+    Locate(X1 - xoff1, Y1 - yoff1);
+    Locate(X2 - xoff2, Y2 - yoff2);  
+  }
+
+  // overlapping style.
+  
+  // Here we're working in a coordinate space where 0,0 is the origin for both
+  // characters, and the scale is in pixels of the rendered bitmaps. The top left
+  // of the bitmap (and the bounding box containing both bitmaps) is typically
+  // negative:
+  const int minx = std::min(xoff1, int_x + xoff2);
+  const int miny = std::min(yoff1, int_y + yoff2);
+  // (one past the right, bottom)
+  const int maxx = std::max(width1 + xoff1,  width2 + int_x + xoff2);
+  const int maxy = std::max(height1 + yoff1, height2 + int_y + yoff2);
+
+  // Width and height of this bounding box.
+  const int bbw = maxx - minx, bbh = maxy - miny;
+
+  const int BX = 100, BY = 500;
+
+  auto GetPx = [](const uint8 *bm, int width, int height, int x, int y) -> uint8 {
+      // Empty outside the bitmap itself.
+      if (x < 0 || y < 0 ||
+	  x >= width || y >= height) return 0;
+      return bm[y * width + x];
+    };
+
+  font->draw(BX, BY - font->height,
+	     StringPrintf("min: %d,%d  max %d,%d  off1 %d,%d  off2 %d,%d",
+			  minx, miny, maxx, maxy,
+			  xoff1, yoff1,
+			  xoff2, yoff2));
+  
+  // x,y now pixel coordinates in the bounding box.
+  for (int y = 0; y < bbh; y++) {
+    for (int x = 0; x < bbw; x++) {
+      // coordinates in the shared font space
+      const int ox = x + minx;
+      const int oy = y + miny;
+
+      // And coordinates within each bitmap (but they may actually be
+      // out of bounds).
+      const int x1 = ox - xoff1;
+      const int y1 = oy - yoff1;
+
+      const int x2 = ox - (xoff2 + int_x);
+      const int y2 = oy - (yoff2 + int_y);
+
+      // Pixel values for each bitmap.
+      // Here 0 means transparent.
+      const uint8 v1 = GetPx(bit1, width1, height1, x1, y1);
+      const uint8 v2 = GetPx(bit2, width2, height2, x2, y2);
+
+      sdlutil::drawclippixel(screen, BX + x, BY + y, v1, v2, 0);
+    }
+  }
+  
+  printf("Freeing..\n");
+  fflush(stdout);
+  
+  stbtt_FreeBitmap(bit1, nullptr);
+  stbtt_FreeBitmap(bit2, nullptr);
+  return 0.0;
+}
 
 
 UI::UI() {
@@ -269,8 +430,8 @@ UI::UI() {
   // courier, gothic, stencil, comic, ransom, modern, book
   // ITC, google, consol, deco, sans, frutiger, univer, cent,
   // andale, mono
-  
-  RE2 required = ".*Coal Train.*";
+
+  RE2 required = ".*Dekka Dense JL.*"; // ".*Coal Train.*";
 
   // This file generated by cleandb.exe
   for (const string &file : Util::ReadFileToLines("all_fonts.txt")) {
@@ -280,7 +441,7 @@ UI::UI() {
 
     if (!RE2::FullMatch(file, required))
       continue;
-    
+
     if (fontsets.Lookup(file).has_value()) {
       sorted++;
     } else {
@@ -291,7 +452,7 @@ UI::UI() {
   // Optional. Might be good to keep fonts in the same family
   // together, really..
   // Shuffle(&rc, &unsorted_filenames);
-    
+
   printf("All fonts: %d\n"
          "Sorted fonts: %d\n"
          "Unsorted fonts for this session: %lld\n",
@@ -309,8 +470,7 @@ void UI::SetType(Type t) {
 }
 
 void UI::Loop() {
-  Mode mode = Mode::SORTITION;
-  
+
   int mousex = 0, mousey = 0;
   (void)mousex; (void)mousey;
   for (;;) {
@@ -338,7 +498,7 @@ void UI::Loop() {
 	// to exit without saving.
 	if (event.key.keysym.sym != SDLK_ESCAPE)
 	  confirmations = 0;
-	
+
 	switch (event.key.keysym.sym) {
 	case SDLK_ESCAPE:
 	  printf("ESCAPE.\n");
@@ -351,22 +511,91 @@ void UI::Loop() {
 	    return;
 	  }
 	  break;
-	case SDLK_LEFT:
-	  if (current_char > ' ') current_char--;
-	  ui_dirty = true;
-	  break;
-	case SDLK_RIGHT:
-	  if (current_char < '~') current_char++;
+	  
+	case SDLK_TAB:
+	  printf("TAB.\n");
+	  switch (mode) {
+	  default:
+	  case Mode::BITMAP:
+	    mode = Mode::SORTITION;
+	    break;
+	  case Mode::SORTITION:
+	    mode = Mode::SCALETEST;
+	    break;
+	  case Mode::SCALETEST:
+	    mode = Mode::BITMAP;
+	    break;
+	  }
 	  ui_dirty = true;
 	  break;
 
-	  // Sortition mode...
+	case SDLK_0:
+	  current_xoff = current_yoff = 0.0f;
+	  current_scale = 100;
+	  current_xscale = current_yscale = 1.0f;
+	  ui_dirty = true;
+	  break;
+	  
+	case SDLK_UP:
+	case SDLK_DOWN:
+	case SDLK_LEFT:
+	case SDLK_RIGHT: {
+	  int dx = event.key.keysym.sym == SDLK_RIGHT ? 1 :
+	    event.key.keysym.sym == SDLK_LEFT ? -1 : 0;
+	  int dy = event.key.keysym.sym == SDLK_DOWN ? 1 :
+	    event.key.keysym.sym == SDLK_UP ? -1 : 0;
+
+	  switch (mode) {
+	  case Mode::SORTITION:
+	    cur += dy;
+	    if (cur < 0) cur = 0;
+	    if (cur >= unsorted_filenames.size())
+	      cur = unsorted_filenames.size() - 1;
+	    ui_dirty = true;
+	    break;
+	  case Mode::BITMAP:
+	    current_char += dx;
+	    if (current_char > 'Z') current_char = 'Z';
+	    else if (current_char < 'A') current_char = 'A';
+	    ui_dirty = true;
+	    break;
+
+	  case Mode::SCALETEST: {
+	    float fdx = dx;
+	    float fdy = dy;
+	    if (event.key.keysym.mod & KMOD_SHIFT) {
+	      fdx *= 10;
+	      fdy *= 10;
+	    } else if (event.key.keysym.mod & KMOD_ALT) {
+	      fdx *= 0.1;
+	      fdy *= 0.1;
+	    }
+	      
+	    if (event.key.keysym.mod & KMOD_CTRL) {
+	      current_xscale += 0.05 * fdx;
+	      if (current_xscale < 0.01) current_xscale = 0.01;
+
+	      current_yscale += 0.05 * fdy;
+	      if (current_yscale < 0.01) current_yscale = 0.01;
+
+	    } else {
+	      current_xoff += fdx;
+	      current_yoff += fdy;
+	    }
+
+	    ui_dirty = true;
+	    break;
+	  }
+	  }
+	  break;
+	}
+
 
 	case SDLK_PERIOD:
 	  draw_points = !draw_points;
 	  ui_dirty = true;
 	  break;
-	  
+
 	case SDLK_PLUS:
 	case SDLK_EQUALS:
 	  current_scale += 5;
@@ -376,19 +605,6 @@ void UI::Loop() {
 	case SDLK_MINUS:
 	  if (current_scale > 15)
 	    current_scale -= 5;
-	  ui_dirty = true;
-	  break;
-	  
-	case SDLK_DOWN:
-	  cur++;
-	  if (cur >= unsorted_filenames.size())
-	    cur = unsorted_filenames.size() - 1;
-	  ui_dirty = true;
-	  break;
-
-	case SDLK_UP:
-	  cur--;
-	  if (cur < 0) cur = 0;
 	  ui_dirty = true;
 	  break;
 
@@ -415,7 +631,7 @@ void UI::Loop() {
 	case SDLK_d:
 	  SetType(Type::DECORATIVE);
 	  break;
-	  
+
 	case SDLK_m:
 	  SetType(Type::MESSY);
 	  break;
@@ -423,7 +639,7 @@ void UI::Loop() {
 	case SDLK_o:
 	  SetType(Type::OTHER);
 	  break;
-	  
+
 	case SDLK_b:
 	  SetType(Type::BROKEN);
 	  break;
@@ -432,8 +648,8 @@ void UI::Loop() {
 	  fontsets.Save();
 	  ui_dirty = true;
 	  break;
-	  
-	  
+
+
 	default:;
 	}
       }
@@ -464,7 +680,7 @@ void UI::Loop() {
 // returns the pixel width to advance, with kerning if nc != 0
 int UI::DrawChar(TTF *ttf, int sx, int sy, float scale, char c, char nc) {
   vector<TTF::Contour> contours = ttf->GetContours(c);
-    
+
   auto Line = [&](float x1, float y1, float x2, float y2, uint32 color) {
       sdlutil::drawclipline(screen,
 			    sx + x1 * scale, sy + y1 * scale,
@@ -489,7 +705,7 @@ int UI::DrawChar(TTF *ttf, int sx, int sy, float scale, char c, char nc) {
 	break;
       }
       case TTF::PathType::BEZIER: {
-	for (const auto [xx, yy] : 
+	for (const auto [xx, yy] :
 	       TesselateQuadraticBezier<double>(x, y, p.cx, p.cy, p.x, p.y, sqerr)) {
 	  Line(x, y, xx, yy, 0xFF0000FF);
 	  x = xx;
@@ -508,9 +724,9 @@ int UI::DrawChar(TTF *ttf, int sx, int sy, float scale, char c, char nc) {
       sdlutil::drawclippixel(screen, sx + x * scale, sy + y * scale, 0, 0, 0xFF);
       sdlutil::drawclippixel(screen, sx + x * scale - 1, sy + y * scale, 0, 0, 0xFF);
 
-      sdlutil::drawclippixel(screen, sx + x * scale, sy + y * scale + 1, 0, 0, 0xFF);      
+      sdlutil::drawclippixel(screen, sx + x * scale, sy + y * scale + 1, 0, 0, 0xFF);
     };
-  
+
   if (draw_points) {
     // Now draw vertices to give a hint when there are "too many" control points.
     for (const auto &contour : contours) {
@@ -531,8 +747,8 @@ int UI::DrawChar(TTF *ttf, int sx, int sy, float scale, char c, char nc) {
       }
     }
   }
-  
-  
+
+
   return scale * ttf->NormKernAdvance(c, nc);
 }
 
@@ -553,7 +769,8 @@ int UI::DrawAlphabet(TTF *ttf, int sx, int sy, float scale) {
 }
 
 
-void UI::Draw() {
+void UI::DrawSortition() {
+
   font2x->draw(12, 4,
 	       "[^6G^<]eometric " // Sans
 	       "[^6S^<]erif "
@@ -580,56 +797,60 @@ void UI::Draw() {
     font2x->draw(SCREENW - font2x->sizex(progress) - 8, SCREENH - font2x->height - 2,
 		 progress);
   }
-  
-  switch (mode) {
-  case Mode::SORTITION: {
 
-    int xpos = 64;
-    int ypos = 64;
-    constexpr int HISTORY = 2;
-    for (int i = cur - HISTORY; i < cur + WINDOW - HISTORY; i++) {
-      // Can be out of bounds, especially at the beginning...
-      if (i >= 0 && i < unsorted_filenames.size()) {
+    
+  int xpos = 64;
+  int ypos = 64;
+  constexpr int HISTORY = 2;
+  for (int i = cur - HISTORY; i < cur + WINDOW - HISTORY; i++) {
+    // Can be out of bounds, especially at the beginning...
+    if (i >= 0 && i < unsorted_filenames.size()) {
 
-	float scalescale = 1.0f;
-	if (i < cur) scalescale = 0.60f;
-	if (i == cur) scalescale = 1.2f;
+      float scalescale = 1.0f;
+      if (i < cur) scalescale = 0.60f;
+      if (i == cur) scalescale = 1.2f;
 
-	float scale = current_scale * scalescale;
-	
-	const string &ff = unsorted_filenames[i];
-	std::optional<Type> typ = fontsets.Lookup(ff);
+      float scale = current_scale * scalescale;
 
-	string dest = "";
-	if (typ.has_value()) {
-	  dest = TypeString(typ.value());
-	}
-	
-	int slash = ff.rfind("\\");
-	string name = (slash == string::npos) ? ff : ff.substr(slash + 1, string::npos);
-	font->draw(xpos, ypos, name);
-	ypos += font->height + 1;
+      const string &ff = unsorted_filenames[i];
+      std::optional<Type> typ = fontsets.Lookup(ff);
 
-	if (i == cur) {
-	  font2x->draw(xpos - 52, ypos, "^6>^7>^8>");
-	}
-	
-	font2x->draw(4, ypos + font2x->height, dest);
-	
-	ypos += DrawAlphabet(GetFont(i), xpos, ypos, scale);
-	ypos += 2;
-	sdlutil::drawclipline(screen, xpos, ypos, SCREENW - 128, ypos,
-			      0xAA, 0xAA, 0xAA);
-	ypos += 2;
-      } else {
-	sdlutil::drawbox(screen, xpos, ypos, SCREENW - 128, 60,
-			 0x77, 0x77, 0x77);
-	ypos += 64;
+      string dest = "";
+      if (typ.has_value()) {
+	dest = TypeString(typ.value());
       }
+
+      int slash = ff.rfind("\\");
+      string name = (slash == string::npos) ? ff : ff.substr(slash + 1, string::npos);
+      font->draw(xpos, ypos, name);
+      ypos += font->height + 1;
+
+      if (i == cur) {
+	font2x->draw(xpos - 52, ypos, "^6>^7>^8>");
+      }
+
+      font2x->draw(4, ypos + font2x->height, dest);
+
+      ypos += DrawAlphabet(GetFont(i), xpos, ypos, scale);
+      ypos += 2;
+      sdlutil::drawclipline(screen, xpos, ypos, SCREENW - 128, ypos,
+			    0xAA, 0xAA, 0xAA);
+      ypos += 2;
+    } else {
+      sdlutil::drawbox(screen, xpos, ypos, SCREENW - 128, 60,
+		       0x77, 0x77, 0x77);
+      ypos += 64;
     }
-      
+  }
+}
+  
+void UI::Draw() {
+
+  switch (mode) {
+  case Mode::SORTITION:
+    DrawSortition();
     break;
-  }    
+
   case Mode::BITMAP: {
 
     vector<TTF::Contour> contours = times.GetContours(current_char);
@@ -649,7 +870,7 @@ void UI::Draw() {
 
     // One screen pixel in normalized coordinates.
     double sqerr = 1.0f / (SCALE * SCALE);
-    
+
     for (const auto &contour : contours) {
       float x = contour.startx;
       float y = contour.starty;
@@ -665,7 +886,7 @@ void UI::Draw() {
 	  // printf("  bezier %d,%d (%d, %d)\n", p.x, p.y, p.cx, p.cy);
 	  // Line(x, y, p.cx, p.cy, 0x00FF00FF);
 	  // Line(p.cx, p.cy, p.px, p.py, 0x0000FFFF);
-	  for (const auto [xx, yy] : 
+	  for (const auto [xx, yy] :
 		 TesselateQuadraticBezier<double>(x, y, p.cx, p.cy, p.x, p.y, sqerr)) {
 	    // times.Norm(1, 1.0f / 1000.0f).second)) {
 	    Line(x, y, xx, yy, 0xFF0000FF);
@@ -677,16 +898,43 @@ void UI::Draw() {
 	}
       }
     }
+
+    break;
+  }
+
+  case Mode::SCALETEST: {
+    float scale = 1.0f * current_scale;
+    CHECK(cur >= 0 && cur < unsorted_filenames.size()) << cur;
+    const string &ff = unsorted_filenames[cur];
+    
+    int slash = ff.rfind("\\");
+    string name = (slash == string::npos) ? ff : ff.substr(slash + 1, string::npos);
+    font2x->draw(3, 3, name);
+    printf("%s\n", name.c_str());
+    fflush(stdout);
+
+    font2x->draw(3, font2x->height + 3,
+		 StringPrintf("scale ^5%.2f^1x^5%.2f  ^0off ^6%.2f %.2f",
+			      current_xscale, current_yscale,
+			      current_xoff, current_yoff));
+    
+    TTF *ttf = GetFont(cur);
+    CHECK(ttf != nullptr);
+
+    [[maybe_unused]]
+    double diff =
+      BitmapDifference(*ttf,
+		       'A', 'a',
+		       scale,
+		       current_xscale, current_yscale,
+		       current_xoff, current_yoff);
     
     break;
   }
   }
-      
-  // Always draw output...
-  
 }
 
-      
+
 int main(int argc, char **argv) {
 
   // XXX This is specific to my machine. You probably want to remove it.
@@ -714,7 +962,7 @@ int main(int argc, char **argv) {
   if (icon != nullptr) {
     SDL_WM_SetIcon(icon, nullptr);
   }
-  
+
   screen = sdlutil::makescreen(SCREENW, SCREENH);
   CHECK(screen);
 
@@ -730,10 +978,10 @@ int main(int argc, char **argv) {
 			 FONTCHARS,
 			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font2x != nullptr) << "Couldn't load font2x";
-  
+
   UI ui;
   ui.Loop();
-  
+
   SDL_Quit();
   return 0;
 }
