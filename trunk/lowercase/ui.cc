@@ -266,6 +266,8 @@ struct UI {
 }  // namespace
 
 
+
+
 // Render the two characters to bitmaps at the given scale, and then
 // compute the difference as the fraction of pixels in the second
 // bitmap that are the same in the first.
@@ -279,13 +281,16 @@ double BitmapDifference(const TTF &ttf,
 			// (we use scale * xscale2, scale * yscale2)
 			float xscale2, float yscale2,
 			// Offsets for c2.
-			float xmov2, float ymov2) {
+			float xmov2, float ymov2,
+			bool draw = false) {
   
   const stbtt_fontinfo *info = ttf.Font();
   CHECK(info != nullptr);
 
-  printf("char %d scale %.2f\n", c1, scale);
-  fflush(stdout);
+  if (draw) {
+    printf("char %d scale %.2f\n", c1, scale);
+    fflush(stdout);
+  }
 
   float stb_scale = stbtt_ScaleForPixelHeight(info, scale);
   
@@ -313,9 +318,9 @@ double BitmapDifference(const TTF &ttf,
 						 &xoff2, &yoff2);
 
   CHECK(bit2 != nullptr);  
-  // Draw to screen.
 
-  {
+  // Draw to screen (separately).
+  if (draw) {
     constexpr int X1 = 10, Y1 = 200;
     constexpr int X2 = 400, Y2 = 200;  
 
@@ -382,12 +387,18 @@ double BitmapDifference(const TTF &ttf,
       return bm[y * width + x];
     };
 
+  if (draw) {
   font->draw(BX, BY - font->height,
 	     StringPrintf("min: %d,%d  max %d,%d  off1 %d,%d  off2 %d,%d",
 			  minx, miny, maxx, maxy,
 			  xoff1, yoff1,
 			  xoff2, yoff2));
-  
+  }
+
+  // For each pixel in the second bitmap, absolute difference between it
+  // and the the aligned pixel in the first. Max difference per pixel 255.
+  int numer255 = 0;
+  const int denom = width2 * height2;
   // x,y now pixel coordinates in the bounding box.
   for (int y = 0; y < bbh; y++) {
     for (int x = 0; x < bbw; x++) {
@@ -408,16 +419,25 @@ double BitmapDifference(const TTF &ttf,
       const uint8 v1 = GetPx(bit1, width1, height1, x1, y1);
       const uint8 v2 = GetPx(bit2, width2, height2, x2, y2);
 
-      sdlutil::drawclippixel(screen, BX + x, BY + y, v1, v2, 0);
+      if (x2 >= 0 && y2 >= 0 &&
+	  x2 < width2 && y2 < height2) {
+	numer255 += abs((int)v2 - (int)v1);
+      }
+      
+      if (draw) {
+	sdlutil::drawclippixel(screen, BX + x, BY + y, v1, v2, 0);
+      }
     }
   }
-  
-  printf("Freeing..\n");
-  fflush(stdout);
+
+  if (draw) {
+    printf("Freeing..\n");
+    fflush(stdout);
+  }
   
   stbtt_FreeBitmap(bit1, nullptr);
   stbtt_FreeBitmap(bit2, nullptr);
-  return 0.0;
+  return numer / (denom * 255.0);
 }
 
 
@@ -927,7 +947,8 @@ void UI::Draw() {
 		       'A', 'a',
 		       scale,
 		       current_xscale, current_yscale,
-		       current_xoff, current_yoff);
+		       current_xoff, current_yoff,
+		       true);
     
     break;
   }
