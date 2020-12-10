@@ -17,7 +17,15 @@ struct TTFOps {
   // a result whenever an alignment is possible, even if it is bad.
   static std::optional<std::tuple<double, double, double>>
   GetSameCase(const TTF &ttf);
-  
+
+  #if 0
+  // XXX do in UI to test
+  double BitmapDifference(const TTF &ttf,
+			  char c1, char c2,
+			  float xscale, yscale, ...);
+
+#endif
+			  
 };
 
 

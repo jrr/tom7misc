@@ -348,10 +348,15 @@ struct TTF {
     }
     return Norm(advance, 1.0f).first;
   }
+
+  const stbtt_fontinfo *Font() const { return &font; }
   
 private:
   std::vector<uint8_t> ttf_bytes;
   stbtt_fontinfo font;
+
+  TTF(const TTF &other) = delete;
+  TTF &operator =(const TTF &other) = delete;
 };
 
 #endif
