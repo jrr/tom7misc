@@ -111,10 +111,11 @@ const pair<char, char> FlagChar(Flag f) {
 
 const pair<Flag, bool> CharFlag(char c) {
   switch (c) {
-  case 'C': return {Flag::SAME_CASE, true};
-  case 'c': return {Flag::SAME_CASE, false};
   default:
     LOG(FATAL) << "Bad flag char";
+    // Fallthrough to suppress warnings.
+  case 'C': return {Flag::SAME_CASE, true};
+  case 'c': return {Flag::SAME_CASE, false};
   }
 }
 
@@ -138,8 +139,8 @@ const char *TypeFilename(Type s) {
 }
 
 // Could include colors?
-const char *TypeString(Type s) {
-  switch (s) {
+const char *TypeString(Type t) {
+  switch (t) {
   case Type::SANS: return "sans";
   case Type::SERIF: return "serif";
   case Type::FANCY: return "fancy";
@@ -159,7 +160,9 @@ const char *TypeString(Type s) {
 // Keeps track of properties of fonts.
 // Fonts have at most one type.
 // Separately, we can record flags.
-struct FontSets {
+struct FontDB {
+  static constexpr const char *DATABASE_FILENAME = "font-db.txt";
+
   struct Info {
     Type t = Type::UNKNOWN;
     std::map<Flag, bool> flags;
@@ -167,24 +170,40 @@ struct FontSets {
     float bitmap_diffs = -1.0f;
   };
 
-  FontSets() {
-    int64 total = 0;
-    // XXX converts from old-style
+  FontDB() {
+    std::unordered_map<string, Type> string_type;
     for (const Type t : {Type::SANS, Type::SERIF, Type::FANCY,
 	  Type::TECHNO, Type::DECORATIVE,
-	  Type::MESSY, Type::DINGBATS, Type::OTHER, Type::BROKEN}) {
-      string set_filename = TypeFilename(t);
-      int64 count = 0;
-      for (const string &f : Util::ReadFileToLines(set_filename)) {
-	CHECK(files.find(f) == files.end()) << "Duplicate in fontsets: " << f;
-	files[f].t = t;
-	// no flags with this method.
-	count++;
-      }
-      printf("%s: %lld\n", set_filename.c_str(), count);
-      total += count;
+	  Type::MESSY, Type::DINGBATS, Type::OTHER, Type::BROKEN,
+	  Type::UNKNOWN}) {
+      string_type[TypeString(t)] = t;
     }
-    printf("Total in FontSet: %lld\n", total);
+    
+    for (string line : Util::ReadFileToLines(DATABASE_FILENAME)) {
+      const string flagstring = Util::chop(line);
+      const double diffscore = Util::ParseDouble(Util::chop(line), -1.0);
+      const string typestring = Util::chop(line);
+      const string filename = Util::losewhitel(line);
+
+      auto it = string_type.find(typestring);
+      CHECK(it != string_type.end()) << "Unknown type " << typestring;
+      const Type type = it->second;
+      CHECK(files.find(filename) == files.end()) <<
+	"Duplicate in fontdb: " << filename;
+
+      Info info;
+      info.t = type;
+      if (type != Type::UNKNOWN) num_sorted++;
+      info.bitmap_diffs = diffscore;
+      for (char c : flagstring) {
+	if (c == '_') continue;
+	auto [flag, on] = CharFlag(c);
+	info.flags[flag] = on;
+      }
+      files[filename] = info;
+    }
+    
+    printf("Total in FontDB: %lld\n", files.size());
   }
 
   bool Dirty() const {
@@ -204,13 +223,19 @@ struct FontSets {
   }
   
   void AssignType(const string &s, Type t) {
+    if (files[s].t != Type::UNKNOWN) num_sorted--;
     files[s].t = t;
+    if (files[s].t != Type::UNKNOWN) num_sorted++;
     dirty = true;
   }
 
   void SetFlag(const string &s, Flag flag, bool on) {
     files[s].flags[flag] = on;
     dirty = true;
+  }
+
+  int64 NumSorted() const {
+    return num_sorted;
   }
   
   void Save() {
@@ -223,11 +248,10 @@ struct FontSets {
 				   TypeString(info.t),
 				   filename.c_str()));
     }
-    const char *database_filename = "font-db.txt";
-    Util::WriteLinesToFile(database_filename, lines);
+    Util::WriteLinesToFile(DATABASE_FILENAME, lines);
     printf("Wrote %lld entries to %s\n",
 	   (int64)lines.size(),
-	   database_filename);
+	   DATABASE_FILENAME);
     dirty = false;
   }
 
@@ -235,6 +259,11 @@ struct FontSets {
     return files.size();
   }
 
+  const std::unordered_map<string, Info> &Files() const {
+    return files;
+  }
+  
+  
  private:
   static string FlagString(const std::map<Flag, bool> &flags) {
     if (flags.empty()) return "_";
@@ -246,6 +275,7 @@ struct FontSets {
     return ret;
   }
 
+  int64 num_sorted = 0;
   std::unordered_map<string, Info> files;
   bool dirty = false;
 };
@@ -259,10 +289,10 @@ struct UI {
   // quit confirmations.
   int confirmations = 0;
 
-  FontSets fontsets;
+  FontDB fontdb;
 
-  // All the fonts we know about in this instance.
-  vector<string> all_filenames;
+  // All the fonts we want to look at in this instance.
+  vector<string> cur_filenames;
 
   UI();
   // set font at cur to the given type
@@ -278,24 +308,24 @@ struct UI {
   // Drawing for various modes
   void DrawSortition();
   
-  // current index (into all_filenames, fonts, etc.) that we act
+  // current index (into cur_filenames, fonts, etc.) that we act
   // on with keypresses etc.
   int cur = 0;
 
-  // Parallel to all_filenames, but not usually
+  // Parallel to cur_filenames, but not usually
   // as long. Use GetFont(idx).
   vector<TTF *> fonts;
 
   TTF *GetFont(int idx) {
-    CHECK(idx < all_filenames.size());
+    CHECK(idx < cur_filenames.size());
     while (idx >= fonts.size()) {
       fonts.push_back(nullptr);
     }
 
     if (fonts[idx] == nullptr) {
-      printf("Load %s...\n", all_filenames[idx].c_str());
+      printf("Load %s...\n", cur_filenames[idx].c_str());
       fflush(stdout);
-      fonts[idx] = new TTF(all_filenames[idx]);
+      fonts[idx] = new TTF(cur_filenames[idx]);
     }
 
     return fonts[idx];
@@ -303,8 +333,6 @@ struct UI {
 
   int current_scale = 100;
   bool draw_points = true;
-
-  int64 num_all_fonts = 0;
 
   ArcFour rc{"lowercase"};
 
@@ -518,6 +546,7 @@ double BitmapDifference(const TTF &ttf,
 
 UI::UI() {
   int64 sorted = 0, unsorted = 0;
+  int64 case_marked = 0, case_unmarked = 0;  
   // Done: random, (di)stressed, laser, helvetica, antique
   // "sans serif", serif, 3D, outline, handwriting, hand
   // shadow, arial, mirror, flipped, hollow, bats, icon
@@ -528,51 +557,52 @@ UI::UI() {
 
   RE2 required = ".*"; // "Fantom.*"; // ".*Coal Train.*";
 
-  // XXX should just read fontdb.txt
-  // This file generated by cleandb.exe
-  for (string line : Util::ReadFileToLines("bitmap_diffs.txt")) {
-    num_all_fonts++;
-
-    double diffscore = Util::ParseDouble(Util::chopto('\t', line), -1.0);
-    if (diffscore < 0.0) diffscore = 1.0;
-    const string filename = Util::losewhitel(line);
-    // printf("%.5f %s\n", diffscore, filename.c_str());
-
-    
-    if (fontsets.Lookup(filename).has_value()) {
-      sorted++;
-    } else {
+  for (const auto &[filename, info] : fontdb.Files()) {
+    if (info.t == Type::UNKNOWN) {
       unsorted++;
+    } else {
+      sorted++;
     }
-    
-    fontsets.SetBitmapDiffs(filename, diffscore);
-    // XXX just use the fontset, or make this part of fontset...
-    all_filenames.push_back(filename);
-  }
 
+    if (info.flags.find(Flag::SAME_CASE) != info.flags.end()) {
+      case_marked++;
+    } else {
+      case_unmarked++;
+    }
+
+    if (RE2::FullMatch(filename, required) &&
+	info.t != Type::BROKEN) {
+      cur_filenames.push_back(filename);
+    }
+  }
+  
   // Optional. Might be good to keep fonts in the same family
   // together, really..
-  Shuffle(&rc, &all_filenames);
+  Shuffle(&rc, &cur_filenames);
 
   printf("All fonts: %d\n"
-         "Sorted fonts: %d\n"
-         "Unsorted fonts at start: %lld\n",
-	 num_all_fonts,
+         "Sorted fonts: %lld\n"
+         "Unsorted fonts: %lld\n"
+	 "Case marked: %lld\n"
+	 "Case unmarked: %lld\n",
+	 fontdb.Size(),
 	 sorted,
-	 unsorted);
+	 unsorted,
+	 case_marked,
+	 case_unmarked);
 }
 
 void UI::SetType(Type t) {
-  fontsets.AssignType(all_filenames[cur], t);
-  if (cur < all_filenames.size() - 1) {
+  fontdb.AssignType(cur_filenames[cur], t);
+  if (cur < cur_filenames.size() - 1) {
     cur++;
   }
   ui_dirty = true;
 }
 
 void UI::SetFlag(Flag f, bool on) {
-  fontsets.SetFlag(all_filenames[cur], f, on);
-  if (cur < all_filenames.size() - 1) {
+  fontdb.SetFlag(cur_filenames[cur], f, on);
+  if (cur < cur_filenames.size() - 1) {
     cur++;
   }
   ui_dirty = true;
@@ -612,7 +642,7 @@ void UI::Loop() {
 	switch (event.key.keysym.sym) {
 	case SDLK_ESCAPE:
 	  printf("ESCAPE.\n");
-	  if (fontsets.Dirty()) {
+	  if (fontdb.Dirty()) {
 	    ui_dirty = true;
 	    confirmations++;
 	    if (confirmations >= 5)
@@ -704,8 +734,8 @@ void UI::Loop() {
 	  case Mode::SORTITION:
 	    cur += dy;
 	    if (cur < 0) cur = 0;
-	    if (cur >= all_filenames.size())
-	      cur = all_filenames.size() - 1;
+	    if (cur >= cur_filenames.size())
+	      cur = cur_filenames.size() - 1;
 	    ui_dirty = true;
 	    break;
 	  case Mode::BITMAP:
@@ -807,7 +837,7 @@ void UI::Loop() {
 	  break;
 
 	case SDLK_v:
-	  fontsets.Save();
+	  fontdb.Save();
 	  ui_dirty = true;
 	  break;
 
@@ -944,7 +974,7 @@ void UI::DrawSortition() {
 	       "[^6O^<]ther "
 	       "[^6B^<]roken");
 
-  if (fontsets.Dirty()) {
+  if (fontdb.Dirty()) {
     font2x->draw(SCREENW - font2x->width * 8, 4, "(Sa[^6V^<]e?)");
   }
   if (confirmations > 0) {
@@ -953,9 +983,9 @@ void UI::DrawSortition() {
   }
 
   {
-    double pct = (100.0 * fontsets.Size()) / (double)num_all_fonts;
+    double pct = (100.0 * fontdb.NumSorted()) / (double)fontdb.Size();
     string progress = StringPrintf("^6%.2f^4%%^<  %d^4/^<%d",
-				   pct, cur, all_filenames.size());
+				   pct, cur, cur_filenames.size());
     font2x->draw(SCREENW - font2x->sizex(progress) - 8, SCREENH - font2x->height - 2,
 		 progress);
   }
@@ -966,7 +996,7 @@ void UI::DrawSortition() {
   constexpr int HISTORY = 2;
   for (int i = cur - HISTORY; i < cur + WINDOW - HISTORY; i++) {
     // Can be out of bounds, especially at the beginning...
-    if (i >= 0 && i < all_filenames.size()) {
+    if (i >= 0 && i < cur_filenames.size()) {
 
       float scalescale = 1.0f;
       if (i < cur) scalescale = 0.60f;
@@ -974,8 +1004,8 @@ void UI::DrawSortition() {
 
       float scale = current_scale * scalescale;
 
-      const string &ff = all_filenames[i];
-      std::optional<FontSets::Info> info = fontsets.Lookup(ff);
+      const string &ff = cur_filenames[i];
+      std::optional<FontDB::Info> info = fontdb.Lookup(ff);
 
       string dest = "";
       string cstring = "";
@@ -1078,8 +1108,8 @@ void UI::Draw() {
   }
 
   case Mode::SCALETEST: {
-    CHECK(cur >= 0 && cur < all_filenames.size()) << cur;
-    const string &ff = all_filenames[cur];
+    CHECK(cur >= 0 && cur < cur_filenames.size()) << cur;
+    const string &ff = cur_filenames[cur];
     
     int slash = ff.rfind("\\");
     string name = (slash == string::npos) ? ff : ff.substr(slash + 1, string::npos);
