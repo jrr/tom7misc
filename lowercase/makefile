@@ -74,6 +74,8 @@ cleandb.exe : cleandb.o ttfarchive.o $(OBJECTS)
 samecase.exe : samecase.o $(OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+area.exe : area.o $(OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
 
 clean :
 	rm -f *.o $(UTIL_OBJECTS) $(CHESS_OBJECTS) $(RE2_OBJECTS) *.exe
