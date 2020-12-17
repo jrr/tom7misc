@@ -233,6 +233,99 @@ struct TTF {
     BEZIER,
   };
 
+  // Normalized path.
+  struct Path {
+    PathType type = PathType::LINE;
+    float x = 0.0f, y = 0.0f;
+    // For Bezier curves.
+    float cx = 0.0f, cy = 0.0f;
+
+    Path(float x, float y) : type(PathType::LINE), x(x), y(y) {}
+    Path(float x, float y, float cx, float cy) :
+      type(PathType::BEZIER), x(x), y(y), cx(cx), cy(cy) {}
+  };
+  
+  // XXX is this expected to be closed?
+  struct Contour {
+    float startx = 0.0f, starty = 0.0f;
+    std::vector<Path> paths;
+    Contour(float startx, float starty) : startx(startx), starty(starty) {}
+  };
+
+  std::vector<Contour> GetContours(int codepoint) const {
+    std::vector<NativeContour> ncs = GetNativeContours(codepoint);
+    std::vector<Contour> out;
+    out.reserve(ncs.size());
+    for (const NativeContour &nc : ncs) {
+      const auto [sx, sy] = Norm(nc.startx, nc.starty);
+      Contour c{sx, sy};
+      c.paths.reserve(nc.paths.size());
+      for (const NativePath &np : nc.paths) {
+	switch (np.type) {
+	case PathType::LINE: {
+	  const auto [x, y] = Norm(np.x, np.y);
+	  c.paths.emplace_back(x, y);
+	  break;
+	}
+	case PathType::BEZIER: {
+	  const auto [x, y] = Norm(np.x, np.y);
+	  const auto [cx, cy] = Norm(np.cx, np.cy);
+	  c.paths.emplace_back(x, y, cx, cy);
+	  break;
+	}
+	}
+      }
+      out.emplace_back(std::move(c));
+    }
+    return out;
+  }
+
+  static std::vector<Contour> MakeOnlyBezier(
+      const std::vector<Contour> &contours) {
+    std::vector<Contour> out;
+    out.reserve(contours.size());
+    for (const Contour &c : contours) {
+      Contour o{c.startx, c.starty};
+      float x = c.startx, y = c.starty;
+      for (const Path &p : c.paths) {
+	switch (p.type) {
+	case PathType::LINE: {
+	  // This is equivalent to a Bezier curve where the control
+	  // point lies (anywhere) on the line segment. The nicest
+	  // choice seems to be the midpoint.
+	  float mx = (p.x + x) * 0.5f;
+	  float my = (p.y + y) * 0.5f;
+	  o.paths.emplace_back(p.x, p.y, mx, my);
+	  x = p.x;
+	  y = p.y;
+	  break;
+	}
+	case PathType::BEZIER:
+	  o.paths.emplace_back(p.x, p.y, p.cx, p.cy);
+	  x = p.x;
+	  y = p.y;
+	  break;
+	}
+      }
+      out.emplace_back(std::move(o));
+    }
+    return out;
+  }
+  
+  // c2 may be 0 for no kerning.
+  float NormKernAdvance(char c1, char c2) {
+    int advance = 0;
+    stbtt_GetCodepointHMetrics(&font, c1, &advance, nullptr);
+    if (c2 != 0) {
+      advance += stbtt_GetCodepointKernAdvance(&font, c1, c2);
+    }
+    return Norm(advance, 1.0f).first;
+  }
+
+  const stbtt_fontinfo *Font() const { return &font; }
+  
+private:
+
   struct NativePath {
     PathType type = PathType::LINE;
     int x = 0, y = 0;
@@ -291,67 +384,8 @@ struct TTF {
     stbtt_FreeShape(&font, vertices);
     return out;
   }
-
-  // Normalized path.
-  struct Path {
-    PathType type = PathType::LINE;
-    float x = 0.0f, y = 0.0f;
-    // For Bezier curves.
-    float cx = 0.0f, cy = 0.0f;
-
-    Path(float x, float y) : type(PathType::LINE), x(x), y(y) {}
-    Path(float x, float y, float cx, float cy) :
-      type(PathType::BEZIER), x(x), y(y), cx(cx), cy(cy) {}
-  };
   
-  // XXX is this expected to be closed?
-  struct Contour {
-    float startx = 0.0f, starty = 0.0f;
-    std::vector<Path> paths;
-    Contour(float startx, float starty) : startx(startx), starty(starty) {}
-  };
 
-  std::vector<Contour> GetContours(int codepoint) const {
-    std::vector<NativeContour> ncs = GetNativeContours(codepoint);
-    std::vector<Contour> out;
-    out.reserve(ncs.size());
-    for (const NativeContour &nc : ncs) {
-      const auto [sx, sy] = Norm(nc.startx, nc.starty);
-      Contour c{sx, sy};
-      c.paths.reserve(nc.paths.size());
-      for (const NativePath &np : nc.paths) {
-	switch (np.type) {
-	case PathType::LINE: {
-	  const auto [x, y] = Norm(np.x, np.y);
-	  c.paths.emplace_back(x, y);
-	  break;
-	}
-	case PathType::BEZIER: {
-	  const auto [x, y] = Norm(np.x, np.y);
-	  const auto [cx, cy] = Norm(np.cx, np.cy);
-	  c.paths.emplace_back(x, y, cx, cy);
-	  break;
-	}
-	}
-      }
-      out.emplace_back(std::move(c));
-    }
-    return out;
-  }
-  
-  // c2 may be 0 for no kerning.
-  float NormKernAdvance(char c1, char c2) {
-    int advance = 0;
-    stbtt_GetCodepointHMetrics(&font, c1, &advance, nullptr);
-    if (c2 != 0) {
-      advance += stbtt_GetCodepointKernAdvance(&font, c1, c2);
-    }
-    return Norm(advance, 1.0f).first;
-  }
-
-  const stbtt_fontinfo *Font() const { return &font; }
-  
-private:
   std::vector<uint8_t> ttf_bytes;
   stbtt_fontinfo font;
 
