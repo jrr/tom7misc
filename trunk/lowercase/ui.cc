@@ -53,6 +53,10 @@ enum class Mode {
   SCALETEST,
 };
 
+static string GetBaseFilename(const string &ff) {
+  int slash = ff.rfind("\\");
+  return slash == string::npos ? ff : ff.substr(slash + 1, string::npos);
+}
 
 namespace {
 
@@ -403,6 +407,8 @@ struct UI {
 
   ArcFour rc{"lowercase"};
 
+  // Convert lines to beziers.
+  bool only_bezier = false;  
   // XXX
   char current_char = 'a';
   float current_xscale = 1.0, current_yscale = 1.0;
@@ -641,13 +647,25 @@ UI::UI() {
 
     if (RE2::FullMatch(filename, required) &&
 	info.t != Type::BROKEN) {
-      cur_filenames.push_back(filename);
+
+      // Only unlabeled ones while working...
+      if (info.t == Type::UNKNOWN) {
+	cur_filenames.push_back(filename);
+      }
     }
   }
+
+  std::sort(cur_filenames.begin(),
+	    cur_filenames.end(),
+	    [](const string &a, const string &b) {
+	      auto aa = GetBaseFilename(a);
+	      auto bb = GetBaseFilename(b);
+	      return aa < bb;
+	    });
   
   // Optional. Might be good to keep fonts in the same family
   // together, really..
-  Shuffle(&rc, &cur_filenames);
+  // Shuffle(&rc, &cur_filenames);
 
   printf("All fonts: %d\n"
          "Sorted fonts: %lld\n"
@@ -850,6 +868,14 @@ void UI::Loop() {
 	  ui_dirty = true;
 	  break;
 
+	case SDLK_2:
+	  if (event.key.keysym.mod & KMOD_SHIFT) {
+	    printf("AT\n");
+	    only_bezier = !only_bezier;
+	    ui_dirty = true;
+	  }
+	  break;
+	  
 	case SDLK_PLUS:
 	case SDLK_EQUALS:
 	  current_scale += 5;
@@ -1094,9 +1120,7 @@ void UI::DrawSortition() {
       }
 
       
-      
-      int slash = ff.rfind("\\");
-      string name = (slash == string::npos) ? ff : ff.substr(slash + 1, string::npos);
+      string name = GetBaseFilename(ff);
       font->draw(xpos, ypos, name);
       ypos += font->height + 1;
 
@@ -1130,7 +1154,8 @@ void UI::Draw() {
   case Mode::BITMAP: {
 
     vector<TTF::Contour> contours = times.GetContours(current_char);
-
+    if (only_bezier) contours = TTF::MakeOnlyBezier(contours);
+    
     constexpr int XPOS = 128;
     constexpr int YPOS = 48;
     // Basically, the height of the font in pixels.
@@ -1181,9 +1206,8 @@ void UI::Draw() {
   case Mode::SCALETEST: {
     CHECK(cur >= 0 && cur < cur_filenames.size()) << cur;
     const string &ff = cur_filenames[cur];
-    
-    int slash = ff.rfind("\\");
-    string name = (slash == string::npos) ? ff : ff.substr(slash + 1, string::npos);
+
+    string name = GetBaseFilename(ff);
     font2x->draw(3, 3, name);
     printf("%s\n", name.c_str());
     fflush(stdout);
