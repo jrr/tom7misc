@@ -340,7 +340,7 @@ UI::UI() {
   RE2 required = ".*"; // "Fantom.*"; // ".*Coal Train.*";
 
   for (const auto &[filename, info] : fontdb.Files()) {
-    if (info.t == Type::UNKNOWN) {
+    if (info.type == Type::UNKNOWN) {
       unsorted++;
     } else {
       sorted++;
@@ -353,10 +353,10 @@ UI::UI() {
     }
 
     if (RE2::FullMatch(filename, required) &&
-	info.t != Type::BROKEN) {
+	info.type != Type::BROKEN) {
 
       // Only unlabeled ones while working...
-      if (info.t == Type::UNKNOWN) {
+      if (info.type == Type::UNKNOWN) {
 	cur_filenames.push_back(filename);
       }
     }
@@ -824,8 +824,8 @@ void UI::DrawSortition() {
       string dest = "";
       string cstring = "";
       if (info.has_value()) {
-	if (info.value().t != Type::UNKNOWN) {
-	  dest = FontDB::TypeString(info.value().t);
+	if (info.value().type != Type::UNKNOWN) {
+	  dest = FontDB::TypeString(info.value().type);
 	}
 	const auto &flags = info.value().flags;
 	auto it = flags.find(Flag::SAME_CASE);
