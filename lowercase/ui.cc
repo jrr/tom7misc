@@ -32,6 +32,8 @@
 
 #include "ttf.h"
 
+#include "fontdb.h"
+
 #define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" /* removed icons */
 #define FONTSTYLES 7
 
@@ -53,306 +55,11 @@ enum class Mode {
   SCALETEST,
 };
 
-static string GetBaseFilename(const string &ff) {
-  int slash = ff.rfind("\\");
-  return slash == string::npos ? ff : ff.substr(slash + 1, string::npos);
-}
-
 namespace {
-
-enum class Type {
-  // good clean fonts. These should have "normal-looking"
-  // letters with good construction, no effects like outlines etc.
-  // different weights and obliques/italics are ok.
-  SANS,
-  SERIF,
-  // Including cursive, blackletter, caligraphic
-  FANCY,
-
-  // Cyber-fonts, pixel outlines, etc.
-  TECHNO,
-
-  // Clean fonts that are not "fancy" or "techno" but have some other
-  // decorative style that makes the letter shapes not be normal (e.g.
-  // "old west" font).
-  DECORATIVE,
-
-  // Scans or distressed fonts with lots of control points. Might work
-  // if rendered to bitmaps.
-  MESSY,
-
-  // Anything that's not actually letters.
-  DINGBATS,
-
-  // Font is working but doesn't fit above categories.
-  // Anything with effects like outlines goes in here.
-  OTHER,
-
-  // Something is afoot, e.g. metrics look wrong, missing lowercase,
-  // A-Z is some other language, something weird with the rendering, etc.
-  BROKEN,
-
-  // Default, unknown state.
-  UNKNOWN,
-};
-
-// Each flag can be true, false, unknown.
-enum class Flag {
-  SAME_CASE,
-};
-
-// Returns the true state, false state.
-// All chars should be distinct!
-const pair<char, char> FlagChar(Flag f) {
-  switch (f) {
-  case Flag::SAME_CASE:
-    return {'C', 'c'};
-  default:
-    LOG(FATAL) << "Bad flag?";
-    return {'X', 'x'};
-  }
-}
-
-const pair<Flag, bool> CharFlag(char c) {
-  switch (c) {
-  default:
-    LOG(FATAL) << "Bad flag char";
-    // Fallthrough to suppress warnings.
-  case 'C': return {Flag::SAME_CASE, true};
-  case 'c': return {Flag::SAME_CASE, false};
-  }
-}
-
-// XXX delete and use a single-file representation.
-const char *TypeFilename(Type s) {
-  switch (s) {
-  case Type::SANS: return "sans.txt";
-  case Type::SERIF: return "serif.txt";
-  case Type::FANCY: return "fancy.txt";
-  case Type::TECHNO: return "techno.txt";
-  case Type::DECORATIVE: return "decorative.txt";
-  case Type::MESSY: return "messy.txt";
-  case Type::DINGBATS: return "dingbats.txt";
-  case Type::OTHER: return "other.txt";
-  case Type::BROKEN: return "broken.txt";
-    // XXX unknown is not a real old-style fontset
-  default:
-    LOG(FATAL) << "Bad Type?";
-    return "";
-  }
-}
-
-// Could include colors?
-const char *TypeString(Type t) {
-  switch (t) {
-  case Type::SANS: return "sans";
-  case Type::SERIF: return "serif";
-  case Type::FANCY: return "fancy";
-  case Type::TECHNO: return "techno";
-  case Type::DECORATIVE: return "decorative";
-  case Type::MESSY: return "messy";
-  case Type::DINGBATS: return "dingbats";
-  case Type::OTHER: return "other";
-  case Type::BROKEN: return "broken";
-  case Type::UNKNOWN: return "unknown";
-  default:
-    LOG(FATAL) << "Bad Type?";
-    return "";
-  }
-}
-
-// Keeps track of properties of fonts.
-// Fonts have at most one type.
-// Separately, we can record flags.
-struct FontDB {
-  static constexpr const char *DATABASE_FILENAME = "font-db.txt";
-
-  struct Info {
-    Type t = Type::UNKNOWN;
-    std::map<Flag, bool> flags;
-    // In [0,1]. Negative means unknown/incalculable.
-    float bitmap_diffs = -1.0f;
-  };
-
-  FontDB() {
-    std::unordered_map<string, Type> string_type;
-    for (const Type t : {Type::SANS, Type::SERIF, Type::FANCY,
-	  Type::TECHNO, Type::DECORATIVE,
-	  Type::MESSY, Type::DINGBATS, Type::OTHER, Type::BROKEN,
-	  Type::UNKNOWN}) {
-      string_type[TypeString(t)] = t;
-    }
-    
-    for (string line : Util::ReadFileToLines(DATABASE_FILENAME)) {
-      const string flagstring = Util::chop(line);
-      const double diffscore = Util::ParseDouble(Util::chop(line), -1.0);
-      const string typestring = Util::chop(line);
-      const string filename = Util::losewhitel(line);
-
-      auto it = string_type.find(typestring);
-      CHECK(it != string_type.end()) << "Unknown type " << typestring;
-      const Type type = it->second;
-      CHECK(files.find(filename) == files.end()) <<
-	"Duplicate in fontdb: " << filename;
-
-      Info info;
-      info.t = type;
-      if (type != Type::UNKNOWN) num_sorted++;
-      info.bitmap_diffs = diffscore;
-      for (char c : flagstring) {
-	if (c == '_') continue;
-	auto [flag, on] = CharFlag(c);
-	info.flags[flag] = on;
-      }
-      files[filename] = info;
-    }
-    
-    printf("Total in FontDB: %lld\n", files.size());
-  }
-
-  bool Dirty() const {
-    return dirty;
-  }
-
-  // XXX can probably assume success, fail if not
-  std::optional<Info> Lookup(const string &s) const {
-    auto it = files.find(s);
-    if (it == files.end()) return {};
-    else return {it->second};
-  }
-
-  void SetBitmapDiffs(const string &s, float bitmap_diffs = -1.0f) {
-    files[s].bitmap_diffs = bitmap_diffs;
-    dirty = true;
-  }
-  
-  void AssignType(const string &s, Type t) {
-    if (files[s].t != Type::UNKNOWN) num_sorted--;
-    files[s].t = t;
-    if (files[s].t != Type::UNKNOWN) num_sorted++;
-    dirty = true;
-  }
-
-  void SetFlag(const string &s, Flag flag, bool on) {
-    files[s].flags[flag] = on;
-    dirty = true;
-  }
-
-  int64 NumSorted() const {
-    return num_sorted;
-  }
-  
-  void Save() {
-    {
-      vector<string> lines;
-      // XXX sort by filename
-      for (const auto &[filename, info] : files) {
-	lines.push_back(StringPrintf("%s %.5f %s %s",
-				     FlagString(info.flags).c_str(),
-				     info.bitmap_diffs,
-				     TypeString(info.t),
-				     filename.c_str()));
-      }
-      Util::WriteLinesToFile(DATABASE_FILENAME, lines);
-      printf("Wrote %lld entries to %s\n",
-	     (int64)lines.size(),
-	     DATABASE_FILENAME);
-    }
-      
-    {
-      // Temporary? P/R curve export
-      struct Labeled {
-	// "0" = more likely to be same case, 1 = least likely.
-	float score = 0.0;
-	bool same_case = false;
-	Labeled(float score, bool same_case) :
-	  score(score), same_case(same_case) {}
-      };
-
-      vector<Labeled> labs;
-      for (const auto &[filename, info] : files) {
-	if (info.bitmap_diffs >= 0.0 && info.bitmap_diffs <= 1.0) {
-	  auto it = info.flags.find(Flag::SAME_CASE);
-	  if (it != info.flags.end()) {
-	    labs.emplace_back(info.bitmap_diffs, it->second);
-	  }
-	}
-      }
-
-      std::sort(labs.begin(), labs.end(),
-		[](const Labeled &a, const Labeled &b) {
-		  return a.score < b.score;
-		});
-      
-      // "Positive" here means same case (this is a low score).
-      //
-      // As we go, assuming the threshold is set to the current value, what would
-      // our P/R be? This means calling everything we've already seen a positive
-      // and everything else a negative. So first, a parallel array giving the
-      // number of true positives for the rest of the array (strictly higher scores).
-      vector<int64> remaining_positives(labs.size(), 0);
-      int64 total_positives = 0;
-      {
-	int64 pos_above = 0;
-	for (int64 i = labs.size() - 1; i >= 0; i--) {
-	  remaining_positives[i] = pos_above;
-	  if (labs[i].same_case) {
-	    total_positives++;
-	    pos_above++;
-	  }
-	}
-      }
-
-      // Now compute precision at each threshold. Every item up to the threshold
-      // being considered is predicted positive.
-      int64 positives_so_far = 0;
-      std::vector<string> lines;
-      lines.reserve(labs.size() + 1);
-      lines.push_back("threshold\t"
-		      "recall\t"
-		      "precision");
-      for (int64 i = 0; i < labs.size(); i++) {
-	if (labs[i].same_case) positives_so_far++;
-	double precision = (double)positives_so_far / (i + 1);
-	lines.push_back(StringPrintf("%.5f\t%.5f\t%.5f",
-				     labs[i].score,
-				     (total_positives - remaining_positives[i]) /
-				     (double)total_positives,
-				     precision));
-      }
-      Util::WriteLinesToFile("pr-curve.tsv", lines);
-    }
-
-    dirty = false;
-  }
-
-  int64 Size() const {
-    return files.size();
-  }
-
-  const std::unordered_map<string, Info> &Files() const {
-    return files;
-  }
-  
-  
- private:
-  static string FlagString(const std::map<Flag, bool> &flags) {
-    if (flags.empty()) return "_";
-    string ret;
-    for (const auto [flag, val] : flags) {
-      const auto [tc, fc] = FlagChar(flag);
-      ret.push_back(val ? tc : fc);
-    }
-    return ret;
-  }
-
-  int64 num_sorted = 0;
-  std::unordered_map<string, Info> files;
-  bool dirty = false;
-};
+using Type = FontDB::Type;
+using Flag = FontDB::Flag;
 
 static constexpr int WINDOW = 10;
-
 
 struct UI {
   Mode mode = Mode::SORTITION;
@@ -658,8 +365,8 @@ UI::UI() {
   std::sort(cur_filenames.begin(),
 	    cur_filenames.end(),
 	    [](const string &a, const string &b) {
-	      auto aa = GetBaseFilename(a);
-	      auto bb = GetBaseFilename(b);
+	      auto aa = FontDB::GetBaseFilename(a);
+	      auto bb = FontDB::GetBaseFilename(b);
 	      return aa < bb;
 	    });
   
@@ -667,6 +374,18 @@ UI::UI() {
   // together, really..
   // Shuffle(&rc, &cur_filenames);
 
+  // Instead of shuffling, just "cut the deck".
+  {
+    int idx = RandTo(&rc, cur_filenames.size());
+    std::vector<std::string> cut;
+    cut.reserve(cur_filenames.size());
+    for (int i = idx; i < cur_filenames.size(); i++)
+      cut.emplace_back(std::move(cur_filenames[i]));
+    for (int i = 0; i < idx; i++)
+      cut.emplace_back(std::move(cur_filenames[i]));
+    cur_filenames = std::move(cut);
+  }
+  
   printf("All fonts: %d\n"
          "Sorted fonts: %lld\n"
          "Unsorted fonts: %lld\n"
@@ -1106,7 +825,7 @@ void UI::DrawSortition() {
       string cstring = "";
       if (info.has_value()) {
 	if (info.value().t != Type::UNKNOWN) {
-	  dest = TypeString(info.value().t);
+	  dest = FontDB::TypeString(info.value().t);
 	}
 	const auto &flags = info.value().flags;
 	auto it = flags.find(Flag::SAME_CASE);
@@ -1120,7 +839,7 @@ void UI::DrawSortition() {
       }
 
       
-      string name = GetBaseFilename(ff);
+      string name = FontDB::GetBaseFilename(ff);
       font->draw(xpos, ypos, name);
       ypos += font->height + 1;
 
@@ -1207,7 +926,7 @@ void UI::Draw() {
     CHECK(cur >= 0 && cur < cur_filenames.size()) << cur;
     const string &ff = cur_filenames[cur];
 
-    string name = GetBaseFilename(ff);
+    string name = FontDB::GetBaseFilename(ff);
     font2x->draw(3, 3, name);
     printf("%s\n", name.c_str());
     fflush(stdout);

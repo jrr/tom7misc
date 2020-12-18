@@ -1,7 +1,7 @@
 
-default: ui.exe cleandb.exe samecase.exe
+default: ui.exe cleandb.exe samecase.exe train.exe
 
-all: unblind.exe eval-unblinder.exe vacuum.exe
+all: eval-unblinder.exe vacuum.exe
 
 
 CC_LIB=../cc-lib
@@ -47,12 +47,12 @@ CPPFLAGS= -DDISABLE_SOUND=1 -DPSS_STYLE=1 -DDUMMY_UI -DHAVE_ASPRINTF -Wno-write-
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 	@echo -n "."
 
-OBJECTS=$(UTIL_OBJECTS) $(RE2_OBJECTS) network.o ttfops.o
+OBJECTS=$(UTIL_OBJECTS) $(RE2_OBJECTS) ttfops.o fontdb.o
 
 # without static, can't find lz or lstdcxx maybe?
 LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -static
 
-eval-unblinder.exe : $(OBJECTS) eval-unblinder.o
+eval-unblinder.exe : $(OBJECTS) eval-unblinder.o network.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
@@ -60,11 +60,11 @@ ui.exe : $(OBJECTS) $(SDLOBJECTS) ui.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
-unblind.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o unblind.o
+train.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o train.o network.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
-vacuum.exe : $(OBJECTS) vacuum.o
+vacuum.exe : $(OBJECTS) vacuum.o network.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 

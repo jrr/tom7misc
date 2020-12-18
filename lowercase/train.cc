@@ -1,10 +1,12 @@
-// This code was forked from ../../mtoz, which came from ../../redi,
+// This code was forked from ../chess/blind/unblind.cc, which
+// came from ../../mtoz, which came from ../../redi,
 // so check that for some development history / thoughts.
 
-// In this first experiment, I try to predict the actual board state
-// (pieces and colors, castling ability, en passant?) from the 64-bit
-// 'blinded' version. This representation is of course ambiguous, so
-// the result can only be probabilistic.
+// This first experiment tries to predict the letter's shape as
+// Bezier (only) curves. I don't really expect this to work but
+// it may be funny/interesting.
+
+
 
 // TODO: Output error history during training. Could just concatenate
 // it to a file. Would be nice to get it over a large number of examples
@@ -14,23 +16,10 @@
 
 // TODO: 2x/3x for RGB/FLAT.
 
-// TODO: Hover over a square on the chessboard to show those output values?
-
 // TODO: Show timer breakdown in GUI.
 
 // TODO: Now we pass stuff to the video thread at multiple different moments,
 // so they can be desynchronized. Should do something to synchronize this?
-
-// TODO: Debug interface that lets you interactively set bits (or even set
-// a position) and it shows you what it thinks it is.
-
-// TODO: Define a notion of the "chess error" for comparison between approaches.
-// For example if we add a redundant representation of the board to help
-// it understand that there can't be two kings, then that will necessarily
-// magnify the total error. The chess error could just be the number of discrete
-// mistakes averaged over a sample of boards.
-
-// TODO: Softmax or other more formal multinomial?
 
 // TODO: In preparation for having multiple models that we care about,
 // would be good to have the network configuration completely stored within
@@ -44,8 +33,8 @@
 
 #include "SDL.h"
 #include "SDL_main.h"
-#include "../cc-lib/sdl/sdlutil.h"
-#include "../cc-lib/sdl/font.h"
+#include "sdl/sdlutil.h"
+#include "sdl/font.h"
 
 #include <CL/cl.h>
 
@@ -1784,7 +1773,10 @@ static void TrainThread() {
     MakeIndices(nc.width, nc.channels, &rc, net.get());
     Printf("Invert indices:\n");
     Network::ComputeInvertedIndices(net.get());
-    Network::CheckInvertedIndices(*net);
+
+    // Should be well-formed now.
+    net->StructuralCheck();
+    net->NaNCheck();
 
     Printf("Writing network so we don't have to do that again...\n");
     Network::SaveNetworkBinary(*net, "net.val");
