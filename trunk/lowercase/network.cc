@@ -117,6 +117,29 @@ void Network::NaNCheck(const char *message) const {
 
 void Network::StructuralCheck() const {
   // TODO: Other checks!
+  for (int i = 0; i < num_layers; i++) {
+    const Layer &layer = layers[i];
+    const int num_prev_nodes = num_nodes[i];
+    const int num_this_nodes = num_nodes[i + 1];
+    CHECK(layer.indices.size() == num_this_nodes * layer.indices_per_node);
+
+    // Check indices are in bounds. Unsigned ints so this is just
+    // the upper-bound check.
+    for (const uint32 idx : layer.indices) {
+      CHECK(idx < num_prev_nodes);
+    }
+
+    // If dense, check that they are the expected regular structure.
+    if (layer.type == LAYER_DENSE) {
+      CHECK(layer.indices_per_node == num_prev_nodes);
+      for (int n = 0; n < num_this_nodes; n++) {
+	for (int p = 0; p < num_prev_nodes; p++) {
+	  CHECK(layer.indices[n * layer.indices_per_node + p] == p);
+	}
+      }
+    }
+  }
+  
   CheckInvertedIndices();
 }
 
@@ -319,10 +342,34 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   
   // Read Layer structs.
   for (int i = 0; i < file_num_layers; i++) {
-    net->layers[i].type = layer_types[i];
-    // XXX skip reading indices if dense.
-    for (int j = 0; j < net->layers[i].indices.size(); j++) {
-      net->layers[i].indices[j] = Read32();
+    LayerType type = layer_types[i];
+    net->layers[i].type = type;
+    switch(type) {
+    case LAYER_SPARSE:
+      for (int j = 0; j < net->layers[i].indices.size(); j++) {
+	net->layers[i].indices[j] = Read32();
+      }
+      break;
+    case LAYER_DENSE: {
+      // (layer 0 is the input layer)
+      const int prev_num_nodes = net->num_nodes[i];
+      const int num_nodes = net->num_nodes[i + 1];
+      CHECK_EQ(net->layers[i].indices.size(), prev_num_nodes) <<
+	"For a dense layer, indices per node should be the size of "
+	"the previous layer! prev: " << prev_num_nodes <<
+	" but got " << net->layers[i].indices.size();
+      int64 offset = 0;
+      for (int n = 0; n < num_nodes; n++) {
+	for (int p = 0; p < prev_num_nodes; p++) {
+	  net->layers[i].indices[offset] = p;
+	  offset++;
+	}
+      }
+      break;
+    }
+    default:
+      CHECK(false) << "Unsupported layer type " << type;
+      break;
     }
     ReadFloats(&net->layers[i].weights);
     ReadFloats(&net->layers[i].biases);
@@ -379,10 +426,17 @@ void Network::SaveNetworkBinary(const Network &net,
     Write32(layer.type);
   }
 
-  // PERF: Don't write indices if type == DENSE (but this
-  // is an incompatible change!)
   for (const Network::Layer &layer : net.layers) {
-    for (const uint32 idx : layer.indices) Write32(idx);
+    switch (layer.type) {
+    case LAYER_SPARSE:
+      for (const uint32 idx : layer.indices) Write32(idx);
+      break;
+    case LAYER_DENSE:
+      // Don't write dense layers; the structure is computable.
+      break;
+    default:
+      CHECK(false) << "Unknown layer type!";
+    }
     WriteFloats(layer.weights);
     WriteFloats(layer.biases);
   }
