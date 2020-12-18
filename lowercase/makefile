@@ -60,7 +60,7 @@ ui.exe : $(OBJECTS) $(SDLOBJECTS) ui.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
-train.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o train.o network.o
+train.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o train.o network.o loadfonts.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 

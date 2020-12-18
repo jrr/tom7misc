@@ -28,7 +28,7 @@ FontDB::FontDB() {
       "Duplicate in fontdb: " << filename;
 
     Info info;
-    info.t = type;
+    info.type = type;
     if (type != Type::UNKNOWN) num_sorted++;
     info.bitmap_diffs = diffscore;
     for (char c : flagstring) {
@@ -50,7 +50,7 @@ void FontDB::Save() {
       lines.push_back(StringPrintf("%s %.5f %s %s",
 				   FlagString(info.flags).c_str(),
 				   info.bitmap_diffs,
-				   TypeString(info.t),
+				   TypeString(info.type),
 				   filename.c_str()));
     }
     Util::WriteLinesToFile(DATABASE_FILENAME, lines);

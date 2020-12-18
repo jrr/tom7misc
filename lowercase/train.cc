@@ -72,7 +72,7 @@
 #include "../chess/pgn.h"
 #include "../chess/bigchess.h"
 
-#include "loadpositions.h"
+#include "loadfonts.h"
 #include "network.h"
 
 #include "clutil.h"
@@ -174,10 +174,8 @@ static Font *font = nullptr, *chessfont = nullptr;
 #define SCREENH 1280
 static SDL_Surface *screen = nullptr;
 
-static constexpr int MAX_GAMES = 3'000'000;
-// XXX can be much bigger; position is only 33 bytes.
-static constexpr int MAX_POSITIONS = 100'000'000;
-static constexpr int MAX_PGN_PARALLELISM = 12;
+static constexpr int MAX_FONTS = 100'000;
+static constexpr int ENOUGH_FONTS = 100;
 
 // Thread-safe, so shared between train and ui threads.
 static CL *global_cl = nullptr;
@@ -1723,11 +1721,7 @@ static void UIThread() {
   }
 }
 
-LoadPositions load_positions(
-    []() { return ReadWithLock(&train_should_die_m, &train_should_die); },
-    MAX_PGN_PARALLELISM,
-    MAX_GAMES,
-    MAX_POSITIONS);
+static LoadFonts *load_fonts = nullptr;
 
 static void TrainThread() {
   Timer setup_timer; 
@@ -1762,7 +1756,8 @@ static void TrainThread() {
   if (net.get() == nullptr) {
     Printf("Initializing new network...\n");
     NetworkConfiguration nc;
-    net.reset(new Network(nc.num_nodes, nc.indices_per_node, nc.transfer_functions));
+    net.reset(new Network(
+		  nc.num_nodes, nc.indices_per_node, nc.transfer_functions));
     net->width = nc.width;
     net->height = nc.height;
     net->channels = nc.channels;
@@ -1776,7 +1771,7 @@ static void TrainThread() {
 
     // Should be well-formed now.
     net->StructuralCheck();
-    net->NaNCheck();
+    net->NaNCheck("load net.val");
 
     Printf("Writing network so we don't have to do that again...\n");
     Network::SaveNetworkBinary(*net, "net.val");
@@ -1820,6 +1815,16 @@ static void TrainThread() {
   // Asynchronously write_frames{EVAL_ONLY ? 2 : 8};
 
   if (ShouldDie()) return;
+
+
+  // (Note that the below actually works while the examples are still
+  // being loaded, but maybe overkill since this dataset should load
+  // pretty fast? So syncing here.)
+  Printf("Waiting for fonts...\n");
+  CHECK(load_fonts != nullptr);
+  load_fonts->Sync();
+  Printf("Fonts all loaded.\n");
+  
   
   struct TrainingExample {
     vector<float> input;
@@ -1831,8 +1836,10 @@ static void TrainThread() {
   // XXX could just be vector, actually?
   deque<TrainingExample> training_examples;
 
-  auto PopulateExampleFromPos =
-    [](const Position &pos, TrainingExample *example) {
+  auto PopulateExampleFromFont =
+    [](const TTF *ttf, TrainingExample *example) {
+      LOG(FATAL) << "Need to implement this!!";
+#if 0
       example->input.resize(64);
       for (int r = 0; r < 8; r++) {
 	for (int c = 0; c < 8; c++) {
@@ -1867,11 +1874,12 @@ static void TrainThread() {
 	for (float f : example->input) { CHECK(!std::isnan(f)); }
 	for (float f : example->output) { CHECK(!std::isnan(f)); }
       }
+#endif
     };
 
   auto MakeTrainingExamplesThread = [&training_examples_m,
 				     &training_examples,
-				     &PopulateExampleFromPos]() {
+				     &PopulateExampleFromFont]() {
     Printf("Training example thread startup.\n");
     string seed = StringPrintf("make ex %lld", (int64)time(nullptr));
     ArcFour rc(seed);
@@ -1890,17 +1898,17 @@ static void TrainThread() {
 	TrainingExample example;
 
 	{
-	  load_positions.positions_m.lock_shared();
+	  load_fonts->fonts_m.lock_shared();
 	  
-	  if (load_positions.positions.size() < (MAX_POSITIONS / 10)) {
-	    load_positions.positions_m.unlock_shared();
+	  if (load_fonts->fonts.size() < ENOUGH_FONTS) {
+	    load_fonts->fonts_m.unlock_shared();
 	    Printf("Not enough training data loaded yet!\n");
 	    std::this_thread::sleep_for(1s);
 	    continue;
 	  } else {
-	    const int idx = RandTo(&rc, load_positions.positions.size());
-	    PopulateExampleFromPos(load_positions.positions[idx], &example);
-	    load_positions.positions_m.unlock_shared();
+	    const int idx = RandTo(&rc, load_fonts->fonts.size());
+	    PopulateExampleFromFont(load_fonts->fonts[idx], &example);
+	    load_fonts->fonts_m.unlock_shared();
 
 	    {
 	      WriteMutexLock ml(&training_examples_m);
@@ -2354,6 +2362,12 @@ int SDL_main(int argc, char **argv) {
 
   global_cl = new CL;
 
+  // Start loading fonts in background.
+  load_fonts = new LoadFonts(
+      []() { return ReadWithLock(&train_should_die_m, &train_should_die); },
+      12,
+      MAX_FONTS);
+  
   {
     // XXX Maybe UIThread should be an object, then...
     // printf("Allocating video network/stimulations/data...");
@@ -2363,11 +2377,6 @@ int SDL_main(int argc, char **argv) {
     current_expected.resize(NUM_VIDEO_STIMULATIONS);
     // printf("OK.\n");
   }
-
-  std::thread load_games_thread(
-      []() {
-	load_positions.Load("d:/chess/lichess_db_standard_rated_2017-02.pgn");
-      });
   
   std::thread train_thread(&TrainThread);
 
@@ -2375,7 +2384,6 @@ int SDL_main(int argc, char **argv) {
 
   Printf("Killing train thread (might need to wait for round to finish)...\n");
   WriteWithLock(&train_should_die_m, &train_should_die, true);
-  load_games_thread.join();
   train_thread.join();
 
   Printf("Train is dead; now UI exiting.\n");

@@ -110,7 +110,7 @@ struct FontDB {
   }
 
   struct Info {
-    Type t = Type::UNKNOWN;
+    Type type = Type::UNKNOWN;
     std::map<Flag, bool> flags;
     // In [0,1]. Negative means unknown/incalculable.
     float bitmap_diffs = -1.0f;
@@ -135,9 +135,9 @@ struct FontDB {
   }
   
   void AssignType(const string &s, Type t) {
-    if (files[s].t != Type::UNKNOWN) num_sorted--;
-    files[s].t = t;
-    if (files[s].t != Type::UNKNOWN) num_sorted++;
+    if (files[s].type != Type::UNKNOWN) num_sorted--;
+    files[s].type = t;
+    if (files[s].type != Type::UNKNOWN) num_sorted++;
     dirty = true;
   }
 

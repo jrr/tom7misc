@@ -34,7 +34,8 @@ struct TTF {
       norm = 1.0f / max_height;
     */
 
-    stbtt_GetFontVMetrics(&font, &native_ascent, &native_descent, &native_linegap);
+    stbtt_GetFontVMetrics(
+	&font, &native_ascent, &native_descent, &native_linegap);
 
     // We use a normalized representation like this:
     //
@@ -117,8 +118,9 @@ struct TTF {
   // amount to advance from one line of text to the next. This would be +1.0 by
   // definition except that we also take into account the "line gap".
   float NormLineHeight() const {
-    // Note: Lots of fonts have an incorrect descent (i.e., positive when it should
-    // be negative). Maybe it's worth just heuristically taking +abs(native_descent)?
+    // Note: Lots of fonts have an incorrect descent (i.e., positive
+    // when it should be negative). Maybe it's worth just
+    // heuristically taking +abs(native_descent)?
     int native = (native_ascent - native_descent) + native_linegap;
     // ( = native / (native_ascent - native_descent)
     return native * norm;
@@ -159,7 +161,8 @@ struct TTF {
     for (int idx = 0; idx < (int)text.size(); idx++) {
 
       int advance = 0, left_side_bearing = 0;
-      stbtt_GetCodepointHMetrics(&font, text[idx], &advance, &left_side_bearing);
+      stbtt_GetCodepointHMetrics(
+	  &font, text[idx], &advance, &left_side_bearing);
 
       int bitmap_w = 0, bitmap_h = 0;
       int xoff = 0, yoff = 0;
@@ -181,7 +184,8 @@ struct TTF {
       if (bitmap != nullptr) {
 	for (int yy = 0; yy < bitmap_h; yy++) {
 	  for (int xx = 0; xx < bitmap_w; xx++) {
-	    DrawPixel(xpos + xx + xoff, ypos + yy + yoff, bitmap[yy * bitmap_w + xx]);
+	    DrawPixel(xpos + xx + xoff, ypos + yy + yoff,
+		      bitmap[yy * bitmap_w + xx]);
 	  }
 	}
 	stbtt_FreeBitmap(bitmap, nullptr);
@@ -189,7 +193,8 @@ struct TTF {
 	
       xpos += advance * scale;
       if (text[idx + 1] != '\0') {
-	xpos += scale * stbtt_GetCodepointKernAdvance(&font, text[idx], text[idx + 1]);
+	xpos += scale *
+	  stbtt_GetCodepointKernAdvance(&font, text[idx], text[idx + 1]);
       }
       
       if (!subpixel) {
@@ -200,9 +205,11 @@ struct TTF {
   }
 
   // Uses SCREEN COORDINATES.
-  // Measure the nominal width and height of the string using the same method as above.
-  // (This does not mean that all pixels lie within the rectangle.)
-  std::pair<int, int> MeasureString(const string &text, int size_px, bool subpixel = true) {
+  // Measure the nominal width and height of the string using the same
+  // method as above. (This does not mean that all pixels lie within
+  // the rectangle.)
+  std::pair<int, int>
+  MeasureString(const string &text, int size_px, bool subpixel = true) {
     const float scale = stbtt_ScaleForPixelHeight(&font, size_px);
 
     int ascent = 0, descent = 0, line_gap = 0;
@@ -212,11 +219,13 @@ struct TTF {
     for (int idx = 0; idx < (int)text.size(); idx++) {
 
       int advance = 0, left_side_bearing = 0;
-      stbtt_GetCodepointHMetrics(&font, text[idx], &advance, &left_side_bearing);
+      stbtt_GetCodepointHMetrics(
+	  &font, text[idx], &advance, &left_side_bearing);
 
       xpos += advance * scale;
       if (text[idx + 1] != '\0') {
-	xpos += scale * stbtt_GetCodepointKernAdvance(&font, text[idx], text[idx + 1]);
+	xpos += scale *
+	  stbtt_GetCodepointKernAdvance(&font, text[idx], text[idx + 1]);
       }
       
       if (!subpixel) {
@@ -352,7 +361,8 @@ private:
     if (n == 0) return {};
     CHECK(vertices != nullptr);
 
-    CHECK(vertices[0].type == STBTT_vmove) << "All shapes should start with a moveto?";
+    CHECK(vertices[0].type == STBTT_vmove) <<
+      "All shapes should start with a moveto?";
     std::optional<NativeContour> cur;
     std::vector<NativeContour> out;
     for (int i = 0; i < n; i++) {
