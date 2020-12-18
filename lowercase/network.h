@@ -88,7 +88,7 @@ struct Network {
   
   // Just used for serialization. Whenever changing the interpretation
   // of the data in an incomplete way, please change.
-  static constexpr uint32_t FORMAT_ID = 0x2700072EU;
+  static constexpr uint32_t FORMAT_ID = 0x2700072FU;
 
   // The number of "real" layers, that is, not counting the input.
   const int num_layers;
