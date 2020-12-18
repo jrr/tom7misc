@@ -1,19 +1,40 @@
 
 // CPU version of network.
+// Idea is to keep this pretty general and eventually promote it to
+// cc-lib, but for now I've been cloning and making improvements
+// with each ML project.
 
-#ifndef __NETWORK_H
-#define __NETWORK_H
+#ifndef _LOWERCASE_NETWORK_H
+#define _LOWERCASE_NETWORK_H
 
 #include <vector>
 #include <string>
 #include <cstdint>
-#include "../../cc-lib/base/logging.h"
+
+#include "base/logging.h"
 
 enum TransferFunction {
   SIGMOID = 0,
   RELU,
   LEAKY_RELU,
+
   NUM_TRANSFER_FUNCTIONS,
+};
+
+enum LayerType {
+  // Every node takes input from every node in the previous layer.
+  // (indices_per_node = size of the previous layer). This is the most
+  // expressive setup, but also the largest. Training and prediction
+  // can be more efficient (per weight) because of the regular
+  // structure.
+  LAYER_DENSE = 0,
+  // Explicitly specify the input nodes. Every node has the same
+  // number of inputs. Some overhead to store these indices. Really
+  // the only option for large layers, though.
+  LAYER_SPARSE,
+  // TODO: Convolutional
+
+  NUM_LAYER_TYPES,
 };
 
 const char *TransferFunctionName(TransferFunction tf);
@@ -29,6 +50,7 @@ struct Network {
 	  vector<int> indices_per_node,
 	  vector<TransferFunction> transfer_functions);
 
+  // Size of network in RAM.
   int64_t Bytes() const;
 
   void CopyFrom(const Network &other) {
@@ -41,20 +63,32 @@ struct Network {
     this->inverted_indices = other.inverted_indices;
   }
 
+  // Check for NaN weights and abort if any are found.
   void NaNCheck(const char *message) const;
 
-  static Network *Clone(const Network &other);
+  // Check for structural well-formedness (layers are the right size;
+  // indices are in bounds; dense layers have the expected regular
+  // structure; inverted indices are correct). Aborts if something is
+  // wrong. Doesn't check weight values (see NaNCheck).
+  void StructuralCheck() const;
+  // Check the inverted indices specifically. Maybe can just
+  // be private.
+  void CheckInvertedIndices() const;
   
+  static Network *Clone(const Network &other);
+
+  // Note: These use local byte order, so the serialized format is not
+  // portable.
   static Network *ReadNetworkBinary(const string &filename);
   static void SaveNetworkBinary(const Network &net, const string &filename);
 
-  // Just make these members??
-  static void CheckInvertedIndices(const Network &net);
   static void ComputeInvertedIndices(Network *net, int max_parallelism = 8);
+
+  // TODO: Add CPU inference, at least.
   
   // Just used for serialization. Whenever changing the interpretation
   // of the data in an incomplete way, please change.
-  static constexpr uint32_t FORMAT_ID = 0x2700072DU;
+  static constexpr uint32_t FORMAT_ID = 0x2700072EU;
 
   // The number of "real" layers, that is, not counting the input.
   const int num_layers;
@@ -72,7 +106,13 @@ struct Network {
     // The transfer function used to compute the output from the
     // input indices.
     TransferFunction transfer_function;
+    // Whether the layer is sparse or dense. We currently still store
+    // the indices for dense layers, but they can also just be deduced
+    // from the dimensions. (PERF: Save the ram?)
+    LayerType type;
     // indices_per_node * num_nodes[l + 1], flat, node-major
+    // If type = LAYER_DENSE, then for n < num_nodes[l + 1],
+    // indices[n * indices_per_node + i] = i.
     vector<uint32_t> indices;
     // indices_per_node * num_nodes[l + 1]; Parallel to indices.
     vector<float> weights;

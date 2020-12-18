@@ -10,10 +10,10 @@
 #include <string>
 #include <vector>
 
-#include "../../cc-lib/base/logging.h"
-#include "../../cc-lib/base/stringprintf.h"
+#include "base/logging.h"
+#include "base/stringprintf.h"
 
-#include "../../cc-lib/threadutil.h"
+#include "threadutil.h"
 
 using namespace std;
 
@@ -24,6 +24,14 @@ const char *TransferFunctionName(TransferFunction tf) {
   case SIGMOID: return "SIGMOID";
   case RELU: return "RELU";
   case LEAKY_RELU: return "LEAKY_RELU";
+  default: return "??INVALID??";
+  }
+}
+
+const char *LayerTypeName(LayerType lt) {
+  switch (lt) {
+  case LAYER_DENSE: return "LAYER_DENSE";
+  case LAYER_SPARSE: return "LAYER_SPARSE";
   default: return "??INVALID??";
   }
 }
@@ -107,17 +115,22 @@ void Network::NaNCheck(const char *message) const {
 }
 
 
-void Network::CheckInvertedIndices(const Network &net) {
-  for (int layer = 0; layer < net.num_layers; layer++) {
-    const vector<uint32> &indices = net.layers[layer].indices;
-    const Network::InvertedIndices &inv = net.inverted_indices[layer];
-    CHECK_EQ(net.num_nodes[layer + 1] * net.layers[layer].indices_per_node,
+void Network::StructuralCheck() const {
+  // TODO: Other checks!
+  CheckInvertedIndices();
+}
+
+void Network::CheckInvertedIndices() const {
+  for (int layer = 0; layer < num_layers; layer++) {
+    const vector<uint32> &indices = layers[layer].indices;
+    const Network::InvertedIndices &inv = inverted_indices[layer];
+    CHECK_EQ(num_nodes[layer + 1] * layers[layer].indices_per_node,
 	     indices.size());
     // Need one start/length pair for every node in the source layer.
-    CHECK_EQ(net.num_nodes[layer], inv.start.size());
-    CHECK_EQ(net.num_nodes[layer], inv.length.size());
+    CHECK_EQ(num_nodes[layer], inv.start.size());
+    CHECK_EQ(num_nodes[layer], inv.length.size());
     // But the output size is determined by the next layer.
-    CHECK_EQ(net.num_nodes[layer + 1] * net.layers[layer].indices_per_node,
+    CHECK_EQ(num_nodes[layer + 1] * layers[layer].indices_per_node,
 	     inv.output_indices.size());
     // z is a node id from the src layer.
     for (int z = 0; z < inv.start.size(); z++) {
@@ -276,21 +289,27 @@ Network *Network::ReadNetworkBinary(const string &filename) {
     printf("Layer %d: %d x %d x %d\n", i - 1, width[i], height[i], channels[i]);
   }
   
-  printf("\n%s: indices per node/fns: ", filename.c_str());
+  printf("\n%s: indices per node/fns/type: ", filename.c_str());
   vector<int> indices_per_node(file_num_layers, 0);
   vector<TransferFunction> transfer_functions(file_num_layers, SIGMOID);
+  vector<LayerType> layer_types(file_num_layers, LAYER_DENSE);
   for (int i = 0; i < file_num_layers; i++) {
     indices_per_node[i] = Read32();
     TransferFunction tf = (TransferFunction)Read32();
     CHECK(tf >= 0 && tf < NUM_TRANSFER_FUNCTIONS) << tf;
     transfer_functions[i] = tf;
-    printf("%d %s ",
+    LayerType lt = (LayerType)Read32();
+    CHECK(lt >= 0 && lt < NUM_LAYER_TYPES) << lt;
+    layer_types[i] = lt;
+    printf("%d %s %s ",
 	   indices_per_node[i],
-	   TransferFunctionName(tf));
+	   TransferFunctionName(tf),
+	   LayerTypeName(lt));
   }
   printf("\n");
 
-  std::unique_ptr<Network> net{new Network{num_nodes, indices_per_node, transfer_functions}};
+  std::unique_ptr<Network> net{
+    new Network{num_nodes, indices_per_node, transfer_functions}};
   net->width = width;
   net->height = height;
   net->channels = channels;
@@ -300,6 +319,8 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   
   // Read Layer structs.
   for (int i = 0; i < file_num_layers; i++) {
+    net->layers[i].type = layer_types[i];
+    // XXX skip reading indices if dense.
     for (int j = 0; j < net->layers[i].indices.size(); j++) {
       net->layers[i].indices[j] = Read32();
     }
@@ -315,7 +336,8 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   printf("Invert index:\n");
   ComputeInvertedIndices(net.get());
   printf("Check it:\n");
-  CheckInvertedIndices(*net);
+  net->StructuralCheck();
+  // CheckInvertedIndices(*net);
 
   return net.release();
 }
@@ -354,8 +376,11 @@ void Network::SaveNetworkBinary(const Network &net,
   for (const Network::Layer &layer : net.layers) {
     Write32(layer.indices_per_node);
     Write32(layer.transfer_function);
+    Write32(layer.type);
   }
 
+  // PERF: Don't write indices if type == DENSE (but this
+  // is an incompatible change!)
   for (const Network::Layer &layer : net.layers) {
     for (const uint32 idx : layer.indices) Write32(idx);
     WriteFloats(layer.weights);
