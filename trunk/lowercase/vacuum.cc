@@ -38,6 +38,8 @@ static void VacuumLayer(Network *net, int layer_idx) {
   CHECK(layer_idx < net->num_layers);
   const int num_nodes = net->num_nodes[layer_idx + 1];
   Network::Layer *layer = &net->layers[layer_idx];
+  CHECK(layer->type != LAYER_DENSE) << "XXX Need to support "
+    "(or skip) DENSE layers!";
   const int ipn = layer->indices_per_node;
 
   // The indices are hard to work with in their flat representation;
