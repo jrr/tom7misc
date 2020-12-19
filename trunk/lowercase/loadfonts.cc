@@ -79,3 +79,14 @@ void LoadFonts::Sync() {
   init_thread->join();
   init_thread.reset();
 }
+
+LoadFonts::~LoadFonts() {
+  if (init_thread != nullptr) {
+    init_thread->join();
+    init_thread.reset();
+  }
+  for (TTF *ttf : fonts) {
+    delete ttf;
+  }
+  fonts.clear();
+}

@@ -25,6 +25,8 @@ struct LoadFonts {
       int max_parallelism,
       int64 max_fonts);
 
+  ~LoadFonts();
+  
   // Call once. Waits for font vector to be complete. After this
   // returns, safe to access the vector (from a single thread) without
   // taking the mutex.
@@ -32,6 +34,7 @@ struct LoadFonts {
 
   std::shared_mutex fonts_m;
   // Protected by fonts_m.
+  // The font pointers are owned by this object.
   std::vector<TTF *> fonts;
 
 private:
