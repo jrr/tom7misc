@@ -298,18 +298,24 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   printf("\n");
   
   vector<int> width, height, channels;
+  vector<uint32_t> renderstyle;
   for (int i = 0; i < file_num_layers + 1; i++)
     width.push_back(Read32());
   for (int i = 0; i < file_num_layers + 1; i++)
     height.push_back(Read32());
   for (int i = 0; i < file_num_layers + 1; i++)
     channels.push_back(Read32());
+  for (int i = 0; i < file_num_layers + 1; i++)
+    renderstyle.push_back(Read32());
+
   CHECK(num_nodes.size() == width.size());
   CHECK(num_nodes.size() == height.size());
   CHECK(num_nodes.size() == channels.size());
-
+  CHECK(num_nodes.size() == renderstyle.size());
+  
   for (int i = 0; i < file_num_layers + 1; i++) {
-    printf("Layer %d: %d x %d x %d\n", i - 1, width[i], height[i], channels[i]);
+    printf("Layer %d: %d x %d x %d (as %08x)\n",
+	   i - 1, width[i], height[i], channels[i], renderstyle[i]);
   }
   
   printf("\n%s: indices per node/fns/type: ", filename.c_str());
@@ -336,6 +342,7 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   net->width = width;
   net->height = height;
   net->channels = channels;
+  net->renderstyle = renderstyle;
   
   net->rounds = round;
   net->examples = examples;
@@ -354,9 +361,10 @@ Network *Network::ReadNetworkBinary(const string &filename) {
       // (layer 0 is the input layer)
       const int prev_num_nodes = net->num_nodes[i];
       const int num_nodes = net->num_nodes[i + 1];
-      CHECK_EQ(net->layers[i].indices.size(), prev_num_nodes) <<
+      CHECK_EQ(net->layers[i].indices.size(), prev_num_nodes * num_nodes) <<
 	"For a dense layer, indices per node should be the size of "
-	"the previous layer! prev: " << prev_num_nodes <<
+	"the previous layer! prev * cur: " << prev_num_nodes <<
+	" * " << num_nodes << " = " << prev_num_nodes * num_nodes <<
 	" but got " << net->layers[i].indices.size();
       int64 offset = 0;
       for (int n = 0; n < num_nodes; n++) {
@@ -415,10 +423,13 @@ void Network::SaveNetworkBinary(const Network &net,
   CHECK(net.width.size() == net.num_layers + 1) << net.width.size();
   CHECK(net.height.size() == net.num_layers + 1);
   CHECK(net.channels.size() == net.num_layers + 1);
+  CHECK(net.renderstyle.size() == net.num_layers + 1);
+  
   for (const int i : net.num_nodes) Write32(i);
   for (const int w : net.width) Write32(w);
   for (const int h : net.height) Write32(h);
   for (const int c : net.channels) Write32(c);
+  for (const uint32 s : net.renderstyle) Write32(s);
   
   for (const Network::Layer &layer : net.layers) {
     Write32(layer.indices_per_node);

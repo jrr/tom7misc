@@ -15,8 +15,8 @@
 
 enum TransferFunction {
   SIGMOID = 0,
-  RELU,
-  LEAKY_RELU,
+  RELU = 1,
+  LEAKY_RELU = 2,
 
   NUM_TRANSFER_FUNCTIONS,
 };
@@ -31,10 +31,24 @@ enum LayerType {
   // Explicitly specify the input nodes. Every node has the same
   // number of inputs. Some overhead to store these indices. Really
   // the only option for large layers, though.
-  LAYER_SPARSE,
+  LAYER_SPARSE = 1,
   // TODO: Convolutional
 
   NUM_LAYER_TYPES,
+};
+
+// How to draw a layer's stimulations in UIs. Has no effect in network
+// code itself. (If we standardize the rendering code, this enum should
+// go with that.)
+enum RenderStyle : uint32_t {
+  // One pixel per channel.
+  RENDERSTYLE_FLAT = 0,
+  // Assign channels as RGB. Makes most sense when there
+  // are three channels.
+  RENDERSTYLE_RGB = 1,
+
+  // Rest of the range is reserved for users.
+  RENDERSTYLE_USER = 0xF0000000,
 };
 
 const char *TransferFunctionName(TransferFunction tf);
@@ -59,6 +73,7 @@ struct Network {
     this->width = other.width;
     this->height = other.height;
     this->channels = other.channels;
+    this->renderstyle = other.renderstyle;
     this->layers = other.layers;
     this->inverted_indices = other.inverted_indices;
   }
@@ -88,7 +103,7 @@ struct Network {
   
   // Just used for serialization. Whenever changing the interpretation
   // of the data in an incomplete way, please change.
-  static constexpr uint32_t FORMAT_ID = 0x2700072FU;
+  static constexpr uint32_t FORMAT_ID = 0x27000730U;
 
   // The number of "real" layers, that is, not counting the input.
   const int num_layers;
@@ -98,6 +113,9 @@ struct Network {
   // Parallel to num_nodes. These don't affect the network's behavior,
   // just its rendering. num_nodes[i] == width[i] * height[i] * channels[i].
   vector<int> width, height, channels;
+  // Same, but a hint to the UI about how to render. Normal for this
+  // to contain values outside the enum (i.e. in USER_RENDERSTYLE range).
+  vector<uint32_t> renderstyle;
   
   // "Real" layer; none for the input.
   struct Layer {

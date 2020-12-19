@@ -47,10 +47,10 @@ CPPFLAGS= -DDISABLE_SOUND=1 -DPSS_STYLE=1 -DDUMMY_UI -DHAVE_ASPRINTF -Wno-write-
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 	@echo -n "."
 
-OBJECTS=$(UTIL_OBJECTS) $(RE2_OBJECTS) ttfops.o fontdb.o
+OBJECTS=$(UTIL_OBJECTS) $(RE2_OBJECTS) ttfops.o fontdb.o 
 
 # without static, can't find lz or lstdcxx maybe?
-LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -static
+LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -lpsapi -static
 
 eval-unblinder.exe : $(OBJECTS) eval-unblinder.o network.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
@@ -60,7 +60,7 @@ ui.exe : $(OBJECTS) $(SDLOBJECTS) ui.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
-train.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o train.o network.o loadfonts.o
+train.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o train.o network.o loadfonts.o top.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
@@ -75,6 +75,12 @@ samecase.exe : samecase.o $(OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 area.exe : area.o $(OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+info.exe : info.o $(OBJECTS) loadfonts.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+top_test.exe : top.o top_test.o $(OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 clean :
