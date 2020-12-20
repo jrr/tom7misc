@@ -15,18 +15,18 @@
 // For when the destination layer is sparse.
 __kernel void BackwardLayerSparse(
                   // Size src_num_nodes.
-                  __global const uint *inverted_indices_start,
-                  __global const uint *inverted_indices_length,
+                  __global const uint *restrict inverted_indices_start,
+                  __global const uint *restrict inverted_indices_length,
                   // Size dst_num_nodes * dst_indices_per_node.
-                  __global const int *inverted_indices,
+                  __global const int *restrict inverted_indices,
                   // Size dst_num_nodes * dst_indices_per_node.
-                  __global const float *dst_weights,
+                  __global const float *restrict dst_weights,
                   // Size src_num_nodes.
-                  __global const float *src_output,
+                  __global const float *restrict src_output,
                   // Size dst_num_nodes.
-                  __global const float *dst_error,
+                  __global const float *restrict dst_error,
                   // Size src_num_nodes; finally where we write:
-                  __global float *src_error) {
+                  __global float *restrict src_error) {
   const int h = get_global_id(0);
   const float out_h = src_output[h];
   // Unpack inverted index for this node, so that we can loop over all of
@@ -55,20 +55,20 @@ __kernel void BackwardLayerSparse(
 __kernel void BackwardLayerDense(
                   // Size src_num_nodes.
                   // XXX unnecessary
-                  __global const uint *inverted_indices_start,
+                  __global const uint *restrict inverted_indices_start,
                   // XXX unnecessary
-                  __global const uint *inverted_indices_length,
+                  __global const uint *restrict inverted_indices_length,
                   // Size dst_num_nodes * dst_indices_per_node.
                   // XXX unnecessary
-                  __global const int *inverted_indices,
+                  __global const int *restrict inverted_indices,
                   // Size dst_num_nodes * dst_indices_per_node.
-                  __global const float *dst_weights,
+                  __global const float *restrict dst_weights,
                   // Size src_num_nodes.
-                  __global const float *src_output,
+                  __global const float *restrict src_output,
                   // Size dst_num_nodes.
-                  __global const float *dst_error,
+                  __global const float *restrict dst_error,
                   // Size src_num_nodes; finally where we write:
-                  __global float *src_error) {
+                  __global float *restrict src_error) {
   // h in 0..src_num_nodes
   const int h = get_global_id(0);
   const float out_h = src_output[h];
