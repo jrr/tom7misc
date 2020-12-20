@@ -67,17 +67,21 @@
 #include "base/macros.h"
 #include "color-util.h"
 #include "image.h"
+#include "lines.h"
 
 #include "loadfonts.h"
 #include "network.h"
 
 #include "clutil.h"
 #include "timer.h"
+#include "top.h"
+
+#include "../bit7/embed9x9.h"
 
 #define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" /* removed icons */
 #define FONTSTYLES 7
 
-static constexpr int VERBOSE = 1;
+static constexpr int VERBOSE = 2;
 // Perform somewhat expensive sanity checking for NaNs.
 // (Beware: Also enables some other really expensive diagnostics.)
 // XXX PERF turn off once it's working!
@@ -121,6 +125,8 @@ static const char *LEAKY_RELU_FN =
   // See note above.
   "#define DERIVATIVE(fx) ((fx < 0.0f) ? 0.01f : 1.0f)\n";
 
+// Defined at the bottom.
+static std::optional<string> GetExclusiveApp();
 
 // For checks in performance-critical code that should be skipped when
 // we're confident the code is working and want speed.
@@ -253,6 +259,10 @@ enum UserRenderStyle : uint32_t {
   RENDERSTYLE_OUTPUTXY = RENDERSTYLE_USER + 1001,
 };
 
+// Nominal pixel height of a character when rendering.
+// Character can exceed these bounds; it's even normal
+// for this to happen width-wise for wide characters.
+static constexpr int NOMINAL_CHAR_SIZE = 200;
 
 // A stimulation is an evaluation (perhaps an in-progress one) of a
 // network on a particular input; when it's complete we have the
@@ -545,9 +555,43 @@ MakeTransferKernels(CL *cl, const char *base_file, const char *function_name) {
 
 // TODO PERF: Natively support dense layers
 struct ForwardLayerCL {
-  explicit ForwardLayerCL(CL *cl) : cl(cl) {
+  explicit ForwardLayerCL(CL *cl, const Network &net) : cl(cl) {
+    /*
     std::tie(programs, kernels) =
       MakeTransferKernels(cl, "forwardlayer.cl", "ForwardLayer");
+    */
+
+    string base_src = Util::ReadFile("forwardlayer.cl");
+    for (int layer = 0; layer < net.layers.size(); layer++) {
+      const TransferFunction transfer_function =
+	net.layers[layer].transfer_function;
+      const int indices_per_node = net.layers[layer].indices_per_node;
+
+      const bool dense = net.layers[layer].type == LAYER_DENSE;
+      
+      string kernel_src;
+      switch (transfer_function) {
+      case SIGMOID: kernel_src += SIGMOID_FN; break;
+      case RELU: kernel_src += RELU_FN; break;
+      case LEAKY_RELU: kernel_src += LEAKY_RELU_FN; break;
+      default:
+	CHECK(false) << "Invalid transfer function " << transfer_function;
+      }
+
+      StringAppendF(&kernel_src, "\n#define INDICES_PER_NODE %d\n",
+		    indices_per_node);
+	
+      kernel_src += base_src;
+      auto [program, kernel] =
+	cl->BuildOneKernel(kernel_src,
+			   dense ?
+			   "ForwardLayerDense" :
+			   "ForwardLayerSparse");
+      // XXX don't save debugging stuff
+      layer_kernels.emplace_back(program, kernel,
+				 dense, indices_per_node, transfer_function);
+    }
+
   }
 
   struct ForwardContext {
@@ -572,28 +616,33 @@ struct ForwardLayerCL {
 
       Network *net = net_gpu->net;
 
-      // Printf("Setup kernel..\n");
-
-      const TransferFunction transfer_function =
-	net->layers[layer].transfer_function;
-      cl_kernel kernel = parent->kernels[transfer_function];
+      auto [program, kernel, dense, kernel_ipn, kernel_tf] =
+	parent->layer_kernels[layer];
+      
+      // Sanity check we have the right kernel
+      CHECK(dense == (net->layers[layer].type == LAYER_DENSE));
+      CHECK(kernel_ipn == net->layers[layer].indices_per_node);
+      CHECK(kernel_tf == net->layers[layer].transfer_function);
 
       // Can't have multiple threads setting a kernel's argument at one time.
       {
 	WriteMutexLock ml(&parent->m);
 
-	cl_int indices_per_node = net->layers[layer].indices_per_node;
+	// TODO PERF: Remove unused args for dense layers?
+	
+	/*
 	CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_int),
 				     (void *)&indices_per_node));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 1, sizeof (cl_mem),
+	*/
+	CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_mem),
 				     (void *)&src_values));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 2, sizeof (cl_mem),
+	CHECK_SUCCESS(clSetKernelArg(kernel, 1, sizeof (cl_mem),
 				     (void *)&indices));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 3, sizeof (cl_mem),
+	CHECK_SUCCESS(clSetKernelArg(kernel, 2, sizeof (cl_mem),
 				     (void *)&weights));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 4, sizeof (cl_mem),
+	CHECK_SUCCESS(clSetKernelArg(kernel, 3, sizeof (cl_mem),
 				     (void *)&biases));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 5, sizeof (cl_mem),
+	CHECK_SUCCESS(clSetKernelArg(kernel, 4, sizeof (cl_mem),
 				     (void *)&dst_values));
 
 	size_t global_work_offset[] = { 0 };
@@ -631,16 +680,16 @@ struct ForwardLayerCL {
   };
 
   ~ForwardLayerCL() {
-    for (auto &k : kernels)
+    for (auto &[p, k, dense_unused, ipn_unused, tf_unused] : layer_kernels) {
       CHECK_SUCCESS(clReleaseKernel(k));
-    for (auto &p : programs)
       CHECK_SUCCESS(clReleaseProgram(p));
+    }
   }
 
   CL *cl = nullptr;
-  // Owned:
-  std::vector<cl_program> programs;
-  std::vector<cl_kernel> kernels;
+  // Owned. Indexed by layer id.
+  std::vector<std::tuple<cl_program, cl_kernel, bool, int, TransferFunction>>
+  layer_kernels;
 
   std::shared_mutex m;
 };
@@ -727,17 +776,56 @@ struct SetOutputErrorCL {
 };
 
 // Propagate errors backwards. Note that errors flow from "dst" to "src".
-// TODO PERF: Natively support dense layers
 struct BackwardLayerCL {
-  explicit BackwardLayerCL(CL *cl) : cl(cl) {
+  explicit BackwardLayerCL(CL *cl, const Network &net) : cl(cl) {
+    /*
     std::tie(programs, kernels) =
       MakeTransferKernels(cl, "backwardlayer.cl", "BackwardLayer");
+    */
+
+    // TODO PERF: Natively support dense layers
+    string base_src = Util::ReadFile("backwardlayer.cl");
+    for (int src_layer = 0; src_layer < net.layers.size() - 1; src_layer++) {
+      int dst_layer = src_layer + 1;
+      const TransferFunction transfer_function =
+	net.layers[src_layer].transfer_function;
+      const int dst_indices_per_node = net.layers[dst_layer].indices_per_node;
+      // The dest layer, but num_nodes offset by 1.
+      const int dst_num_nodes = net.num_nodes[dst_layer + 1];
+      const bool dst_dense = net.layers[dst_layer].type == LAYER_DENSE;
+      
+      string kernel_src;
+      switch (transfer_function) {
+      case SIGMOID: kernel_src += SIGMOID_FN; break;
+      case RELU: kernel_src += RELU_FN; break;
+      case LEAKY_RELU: kernel_src += LEAKY_RELU_FN; break;
+      default:
+	CHECK(false) << "Invalid transfer function " << transfer_function;
+      }
+
+      StringAppendF(&kernel_src,
+		    "\n"
+		    "#define DST_INDICES_PER_NODE %d\n"
+		    "#define DST_NUM_NODES %d\n",
+		    dst_indices_per_node,
+		    dst_num_nodes);
+	
+      kernel_src += base_src;
+      auto [program, kernel] =
+	cl->BuildOneKernel(kernel_src,
+			   dst_dense ?
+			   "BackwardLayerDense" :
+			   "BackwardLayerSparse");
+      // XXX don't save debugging stuff
+      layer_kernels.emplace_back(program, kernel,
+				 dst_dense,
+				 dst_indices_per_node, transfer_function);
+    }
   }
 
   struct Context {
     Context(BackwardLayerCL *parent, NetworkGPU *net_gpu, int dst_layer) :
       parent(parent), net_gpu(net_gpu), dst_layer(dst_layer) {
-      // CL *cl = parent->cl;
 
       const int gap = dst_layer;
       // const int src_layer = dst_layer - 1;
@@ -754,11 +842,13 @@ struct BackwardLayerCL {
       const int gap = dst_layer;
       const int src_layer = dst_layer - 1;
 
-      const TransferFunction transfer_function =
-	net->layers[src_layer].transfer_function;
-
-      cl_kernel kernel = parent->kernels[transfer_function];
-
+      auto [program_, kernel, dst_dense, dst_ipn, tf] =
+	parent->layer_kernels[src_layer];
+      // Sanity check that this was compiled with the right ipn / tf.
+      CHECK(dst_ipn == net->layers[dst_layer].indices_per_node);
+      CHECK(tf == net->layers[src_layer].transfer_function);
+      CHECK(dst_dense == (net->layers[dst_layer].type == LAYER_DENSE));
+      
       cl_mem src_output = train->stimulations[src_layer + 1];
       cl_mem dst_error = train->errors[dst_layer];
 
@@ -773,22 +863,24 @@ struct BackwardLayerCL {
       {
 	WriteMutexLock ml(&parent->m);
 
+	/*	
 	cl_int dst_indices_per_node = net->layers[dst_layer].indices_per_node;
 	CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_int),
 				     (void *)&dst_indices_per_node));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 1, sizeof (cl_mem),
+	*/
+	CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_mem),
 				     (void *)&starts));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 2, sizeof (cl_mem),
+	CHECK_SUCCESS(clSetKernelArg(kernel, 1, sizeof (cl_mem),
 				     (void *)&lengths));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 3, sizeof (cl_mem),
+	CHECK_SUCCESS(clSetKernelArg(kernel, 2, sizeof (cl_mem),
 				     (void *)&inverted_index));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 4, sizeof (cl_mem),
+	CHECK_SUCCESS(clSetKernelArg(kernel, 3, sizeof (cl_mem),
 				     (void *)&dst_weights));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 5, sizeof (cl_mem),
+	CHECK_SUCCESS(clSetKernelArg(kernel, 4, sizeof (cl_mem),
 				     (void *)&src_output));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 6, sizeof (cl_mem),
+	CHECK_SUCCESS(clSetKernelArg(kernel, 5, sizeof (cl_mem),
 				     (void *)&dst_error));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 7, sizeof (cl_mem),
+	CHECK_SUCCESS(clSetKernelArg(kernel, 6, sizeof (cl_mem),
 				     (void *)&src_error));
 
 	size_t global_work_offset[] = { 0 };
@@ -822,26 +914,46 @@ struct BackwardLayerCL {
   };
 
   ~BackwardLayerCL() {
-    for (auto &k : kernels)
+    for (auto &[p, k, deleteme0, deleteme1, deleteme2] : layer_kernels) {
       CHECK_SUCCESS(clReleaseKernel(k));
-    for (auto &p : programs)
       CHECK_SUCCESS(clReleaseProgram(p));
+    }
   }
 
   CL *cl = nullptr;
-  // Owned:
-  std::vector<cl_program> programs;
-  std::vector<cl_kernel> kernels;
+  // Indexed by source layer index.
+  // Note: Unlike others, these have the layer's parameters
+  // baked in.
+  std::vector<std::tuple<cl_program, cl_kernel, bool, int, TransferFunction>>
+    layer_kernels;
 
   std::shared_mutex m;
 };
 
 struct UpdateWeightsCL {
-  explicit UpdateWeightsCL(CL *cl) : cl(cl) {
-    const string kernel_src =
-      Util::ReadFile("updateweights.cl");
+  explicit UpdateWeightsCL(CL *cl, const Network &net) : cl(cl) {
     // Note that this one doesn't depend on the transfer function/derivative.
-    std::tie(program, kernel) = cl->BuildOneKernel(kernel_src, "UpdateWeights");
+
+    string base_src = Util::ReadFile("updateweights.cl");
+    for (int layer = 0; layer < net.layers.size(); layer++) {
+      const int indices_per_node = net.layers[layer].indices_per_node;
+
+      const bool dense = net.layers[layer].type == LAYER_DENSE;
+      
+      string kernel_src;
+      StringAppendF(&kernel_src, "\n#define INDICES_PER_NODE %d\n",
+		    indices_per_node);
+	
+      kernel_src += base_src;
+      auto [program, kernel] =
+	cl->BuildOneKernel(kernel_src,
+			   dense ?
+			   "UpdateWeightsDense" :
+			   "UpdateWeightsSparse");
+      // XXX don't save debugging stuff
+      layer_kernels.emplace_back(program, kernel,
+				 dense, indices_per_node);
+    }
   }
 
   struct Context {
@@ -862,33 +974,42 @@ struct UpdateWeightsCL {
       cl_mem layer_error = train->errors[layer];
       cl_mem layer_values = train->stimulations[layer];
 
+      auto [program_, kernel, dense, ipn] =
+	parent->layer_kernels[layer];
+      // Sanity check that this was compiled with the right constants.
+      CHECK(ipn == net_gpu->net->layers[layer].indices_per_node);
+      CHECK(dense == (net_gpu->net->layers[layer].type == LAYER_DENSE));
+      
       const int num_nodes = net_gpu->net->num_nodes[layer + 1];
-      cl_int indices_per_node = net_gpu->net->layers[layer].indices_per_node;
+
       CHECK_SUCCESS(
-	  clSetKernelArg(parent->kernel, 0, sizeof (cl_float),
+	  clSetKernelArg(kernel, 0, sizeof (cl_float),
 			 (void *)&learning_rate));
+      /*
+      // cl_int indices_per_node = net_gpu->net->layers[layer].indices_per_node;
       CHECK_SUCCESS(
-	  clSetKernelArg(parent->kernel, 1, sizeof (cl_int),
+	  clSetKernelArg(kernel, 1, sizeof (cl_int),
 			 (void *)&indices_per_node));
+      */
       CHECK_SUCCESS(
-	  clSetKernelArg(parent->kernel, 2, sizeof (cl_mem),
+	  clSetKernelArg(kernel, 1, sizeof (cl_mem),
 			 (void *)&layer_error));
       CHECK_SUCCESS(
-	  clSetKernelArg(parent->kernel, 3, sizeof (cl_mem),
+	  clSetKernelArg(kernel, 2, sizeof (cl_mem),
 			 (void *)&layer_indices));
       CHECK_SUCCESS(
-	  clSetKernelArg(parent->kernel, 4, sizeof (cl_mem),
+	  clSetKernelArg(kernel, 3, sizeof (cl_mem),
 			 (void *)&layer_values));
       CHECK_SUCCESS(
-	  clSetKernelArg(parent->kernel, 5, sizeof (cl_mem),
+	  clSetKernelArg(kernel, 4, sizeof (cl_mem),
 			 (void *)&layer_weights));
       CHECK_SUCCESS(
-	  clSetKernelArg(parent->kernel, 6, sizeof (cl_mem),
+	  clSetKernelArg(kernel, 5, sizeof (cl_mem),
 			 (void *)&layer_biases));
 
       size_t global_work_offset[] = { 0 };
       size_t global_work_size[] = { (size_t)num_nodes };
-      CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, parent->kernel,
+      CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, kernel,
 					   // work dimensions
 					   1,
 					   // global work offset
@@ -916,15 +1037,18 @@ struct UpdateWeightsCL {
     double kernel_ms = 0.0;
   };
 
+
   ~UpdateWeightsCL() {
-    CHECK_SUCCESS(clReleaseKernel(kernel));
-    CHECK_SUCCESS(clReleaseProgram(program));
+    for (auto &[p, k, dense_unused, ipn_unused] : layer_kernels) {
+      CHECK_SUCCESS(clReleaseKernel(k));
+      CHECK_SUCCESS(clReleaseProgram(p));
+    }
   }
 
   CL *cl = nullptr;
-  // Owned:
-  cl_program program;
-  cl_kernel kernel;
+  // Owned. Indexed by layer id. (is_dense, indices_per_node)
+  std::vector<std::tuple<cl_program, cl_kernel, bool, int>>
+  layer_kernels;
 
   std::shared_mutex m;
 };
@@ -1177,7 +1301,14 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 
     for (float &f : net->layers[layer].biases) f = 0.0f;
     // RandomizeFloats(0.000025f, rcs[layer], &net->layers[layer].biases);
-    RandomizeFloats(0.025f, rcs[layer], &net->layers[layer].weights);
+    // RandomizeFloats(0.025f, rcs[layer], &net->layers[layer].weights);
+
+    // The more indices we have, the smaller initial weights we should
+    // use.
+    float base_weight = 1.0f;
+    float gaussian_width = base_weight /
+      (float)net->layers[layer].indices_per_node;
+    RandomizeFloats(gaussian_width, rcs[layer], &net->layers[layer].weights);
   }, 12);
 
   DeleteElements(&rcs);
@@ -1188,7 +1319,7 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 static constexpr int NUM_VIDEO_STIMULATIONS = 6;
 static constexpr int EXPORT_EVERY = 4;
 
-static constexpr bool DRAW_ERRORS = true;
+static constexpr bool DRAW_ERRORS = false;
 
 struct UI {
   UI() {
@@ -1206,9 +1337,16 @@ struct UI {
   Network *current_network = nullptr;
   bool allow_updates = true;
   bool dirty = true;
+  bool take_screenshot = false;
   double current_learning_rate = 0.0;
   double current_total_error = 0.0;
 
+  void SetTakeScreenshot() {
+    WriteMutexLock ml(&video_export_m);
+    take_screenshot = true;
+    dirty = true;
+  }
+  
   void ExportRound(int r) {
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
@@ -1311,6 +1449,13 @@ struct UI {
       int h = net.height[layer];
       return {w, h, MakeScale(w, h)};
     }
+
+    case RENDERSTYLE_INPUTXY:
+      return {NOMINAL_CHAR_SIZE, NOMINAL_CHAR_SIZE, 1};
+    case RENDERSTYLE_OUTPUTXY:
+      return {std::max(NOMINAL_CHAR_SIZE, EmbeddedFont::CHAR_WIDTH * 26),
+	      NOMINAL_CHAR_SIZE + 1 + EmbeddedFont::CHAR_HEIGHT,
+	      1};
     }
   }
 
@@ -1429,6 +1574,80 @@ struct UI {
 	    for (int l = 0; l < stim.values.size(); l++) {
 
 	      switch (current_network->renderstyle[l]) {
+
+	      case RENDERSTYLE_OUTPUTXY: {
+		const vector<float> &outs = stim.values[l];
+		for (int i = 0; i < 26; i++) {
+		  const uint8 v = FloatByte(outs[INPUT_LAYER_SIZE + i]);
+		  EmbeddedFont::Blit('A' + i,
+				     xstart + EmbeddedFont::CHAR_HEIGHT * i,
+				     ystart + NOMINAL_CHAR_SIZE + 1,
+				     [this, v](int x, int y) {
+				       sdlutil::drawclippixel(
+					   screen, x, y,
+					   v, v, 0xFF);
+				     },
+				     [this](int x, int y) {
+				       sdlutil::drawclippixel(
+					   screen, x, y,
+					   0, 0, 0);
+				     });
+		}
+	      }
+		// FALLTHROUGH
+	      case RENDERSTYLE_INPUTXY: {
+		const vector<float> &values = stim.values[l];
+		sdlutil::FillRectRGB(screen, xstart, ystart,
+				     NOMINAL_CHAR_SIZE,
+				     NOMINAL_CHAR_SIZE,
+				     40, 40, 40);
+
+		constexpr double sqerr = 1.0f / (NOMINAL_CHAR_SIZE *
+						 NOMINAL_CHAR_SIZE);
+		
+		auto DrawPath = [xstart, ystart, &values](
+		    int idx, int num_pts,
+		    uint8 r, uint8 g, uint8 b) {
+		    float x = values[idx + 0];
+		    float y = values[idx + 1];
+
+		    auto Line = [xstart, ystart,
+				 r, g, b](float x1, float y1,
+					  float x2, float y2) {
+			sdlutil::drawclipline(
+			    screen,
+			    xstart + x1 * NOMINAL_CHAR_SIZE,
+			    ystart + y1 * NOMINAL_CHAR_SIZE,
+			    xstart + x2 * NOMINAL_CHAR_SIZE,
+			    ystart + y2 * NOMINAL_CHAR_SIZE,
+			    r, g, b);
+		      };
+		    
+		    for (int i = 0; i < num_pts; i++) {
+		      float cx = values[idx + 2 + i * 4 + 0];
+		      float cy = values[idx + 2 + i * 4 + 1];
+		      float dx = values[idx + 2 + i * 4 + 2];
+		      float dy = values[idx + 2 + i * 4 + 3];
+
+		      for (const auto [xx, yy] :
+			     TesselateQuadraticBezier<double>(
+				 x, y, cx, cy, dx, dy, sqerr)) {
+			Line(x, y, xx, yy);
+			x = xx;
+			y = yy;
+		      }
+		    }
+		  };
+
+		DrawPath(0, ROW0_MAX_PTS, 0xFF, 0xFF, 0x00);
+		DrawPath(2 + ROW0_MAX_PTS * 4,
+			 ROW1_MAX_PTS, 0x00, 0xFF, 0x00);
+		DrawPath(2 + ROW0_MAX_PTS * 4 +
+			 2 + ROW1_MAX_PTS * 4,
+			 ROW2_MAX_PTS, 0x00, 0xFF, 0xFF);
+		
+		break;
+	      }
 	      case RENDERSTYLE_RGB:
 		for (int y = 0; y < current_network->height[l]; y++) {
 		  int yy = ystart + y;
@@ -1492,6 +1711,8 @@ struct UI {
 	      }
 
 	      // Now errors.
+	      // (XXX Something wrong with this? It draws on top of
+	      // the output)
 	      if (DRAW_ERRORS && l > 0) {
 		const int exstart = xstart +
 		  std::get<0>(PixelSize(*current_network, l));
@@ -1534,11 +1755,20 @@ struct UI {
 		  yz += FONTHEIGHT;
 		}
 	      }
-	      font->draw(xstart, yz, StringPrintf("[%d] tot: %.9f", vlayer, tot));
+	      font->draw(xstart, yz,
+			 StringPrintf("[%d] tot: %.9f", vlayer, tot));
 	    }
 	  }
 
 	  SDL_Flip(screen);
+
+	  if (take_screenshot) {
+	    string scfile = StringPrintf("video/train%d.png", current_round);
+	    sdlutil::SavePNG(scfile, screen);
+	    Printf("Wrote screenshot to %s\n", scfile.c_str());
+	    take_screenshot = false;
+	  }
+	  
 	  dirty = false;
 	}
       }
@@ -1762,21 +1992,19 @@ static void TrainThread() {
   static constexpr int EXAMPLE_QUEUE_TARGET =
     std::max(EXAMPLES_PER_ROUND * 2, 1024);
 
+  // Write a screenshot of the UI (to show training progress for
+  // videos, etc.) every time the network does this many rounds.
+  static constexpr int SCREENSHOT_ROUND_EVERY = 50;
+  
   // On a verbose round, we write a network checkpoint and maybe some
   // other stuff to disk. XXX: Do this based on time, since round
   // speed can vary a lot based on other parameters!
   static constexpr int VERBOSE_ROUND_EVERY = 250;
-
+  
   string start_seed = StringPrintf("%d  %lld", getpid(), (int64)time(nullptr));
   Printf("Start seed: [%s]\n", start_seed.c_str());
   ArcFour rc(start_seed);
   rc.Discard(2000);
-
-  // Create kernels right away so that we get any compilation errors early.
-  ForwardLayerCL forwardlayer{global_cl};
-  SetOutputErrorCL setoutputerror{global_cl};
-  BackwardLayerCL backwardlayer{global_cl};
-  UpdateWeightsCL updateweights{global_cl};
 
   // Load the existing network from disk or create the initial one.
   Timer initialize_network_timer;
@@ -1796,6 +2024,12 @@ static void TrainThread() {
 
   Printf("Initialized network in %.1fms.\n", initialize_network_timer.MS());
 
+  // Create kernels right away so that we get any compilation errors early.
+  ForwardLayerCL forwardlayer{global_cl, *net};
+  SetOutputErrorCL setoutputerror{global_cl};
+  BackwardLayerCL backwardlayer{global_cl, *net};
+  UpdateWeightsCL updateweights{global_cl, *net};
+  
   NetworkGPU net_gpu{global_cl, net.get()};
 
   if (ReadWithLock(&train_should_die_m, &train_should_die))
@@ -1974,12 +2208,12 @@ static void TrainThread() {
       {
 	example->output.resize(OUTPUT_LAYER_SIZE);
 	int next_idx = 0;
-	next_idx = PopulateRow(&example->input, next_idx, ROW0_MAX_PTS,
-			       upper[0]);
-	next_idx = PopulateRow(&example->input, next_idx, ROW1_MAX_PTS,
-			       upper[1]);
-	next_idx = PopulateRow(&example->input, next_idx, ROW2_MAX_PTS,
-			       upper[2]);
+	next_idx = PopulateRow(&example->output, next_idx, ROW0_MAX_PTS,
+			       lower[0]);
+	next_idx = PopulateRow(&example->output, next_idx, ROW1_MAX_PTS,
+			       lower[1]);
+	next_idx = PopulateRow(&example->output, next_idx, ROW2_MAX_PTS,
+			       lower[2]);
 
 	for (int i = 0; i < 26; i++) {
 	  example->output[next_idx] = i == char_offset ? 1.0f : 0.0f;
@@ -2066,9 +2300,17 @@ static void TrainThread() {
     Timer round_timer;
 
     if (ShouldDie()) return;
-    if (VERBOSE > 2) Printf("\n\n");
-    Printf("** NET ROUND %d (%d in this process) **\n", net->rounds, rounds_executed);
 
+    while (std::optional<string> excl = GetExclusiveApp ()) {
+      Printf("(Sleeping because of exclusive app %s)\n",
+	     excl.value().c_str());
+      std::this_thread::sleep_for(5000ms);
+    }
+    
+    if (VERBOSE > 2) Printf("\n\n");
+    Printf("** NET ROUND %d (%d in this process) **\n",
+	   net->rounds, rounds_executed);
+    
     // When starting from a fresh network, consider this:
 
     // XXX: I think the learning rate should maybe depend on the
@@ -2080,11 +2322,14 @@ static void TrainThread() {
     // rate to an example learning rate, below.
 
     //    const float round_learning_rate =
-    //      std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (net->rounds / 100.0 + 1)/3.0)));
+    //      std::min(0.95, std::max(0.10, 4 * exp(-0.2275 *
+    //                         (net->rounds / 100.0 + 1)/3.0)));
 
-    // This one worked well to get chess started, but drops off too soon I think.
+    // This one worked well to get chess started, but drops off too
+    // soon I think.
     // const float round_learning_rate =
-    // std::min(0.10, std::max(0.002, 4 * exp(-0.2275 * (net->rounds / 100.0 + 1)/3.0)));
+    // std::min(0.10, std::max(0.002, 4 * exp(-0.2275 *
+    //     (net->rounds / 100.0 + 1)/3.0)));
     auto Linear =
       [](double start, double end, double round_target, double input) {
 	if (input < 0.0) return start;
@@ -2093,24 +2338,29 @@ static void TrainThread() {
 	double f = input / round_target;
 	return start + f * height;
       };
-    const float round_learning_rate = Linear(0.10, 0.002, 500000.0, net->rounds);
+    const float round_learning_rate =
+      Linear(0.10, 0.002, 500000.0, net->rounds);
 
     // const float round_learning_rate =
-    //     std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (net->rounds + 1)/3.0)));
+    //     std::min(0.125, std::max(0.002, 2 * exp(-0.2275 *
+    //                         (net->rounds + 1)/3.0)));
 
     // const float round_learning_rate =
-    // std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (net->rounds / 1000.0 + 1)/3.0)));
+    // std::min(0.125, std::max(0.002, 2 * exp(-0.2275 *
+    //         (net->rounds / 1000.0 + 1)/3.0)));
 
     // const float round_learning_rate = 0.0025;
 
     CHECK(!std::isnan(round_learning_rate));
     if (VERBOSE > 2) Printf("Learning rate: %.4f\n", round_learning_rate);
 
-    const float example_learning_rate = round_learning_rate / (double)EXAMPLES_PER_ROUND;
+    const float example_learning_rate =
+      round_learning_rate / (double)EXAMPLES_PER_ROUND;
 
     if (ShouldDie()) return;
 
-    bool is_verbose_round = 0 == ((rounds_executed /* + 1 */) % VERBOSE_ROUND_EVERY);
+    bool is_verbose_round =
+      0 == ((rounds_executed /* + 1 */) % VERBOSE_ROUND_EVERY);
     if (is_verbose_round) {
       Printf("Writing network:\n");
       net_gpu.ReadFromGPU();
@@ -2120,11 +2370,19 @@ static void TrainThread() {
     if (VERBOSE > 2) Printf("Export network:\n");
     ui->ExportRound(net->rounds);
     ui->ExportLearningRate(round_learning_rate);
-    if (rounds_executed % EXPORT_EVERY == 0) {
+
+    const bool take_screenshot =
+      net->rounds % SCREENSHOT_ROUND_EVERY == 0;
+    if (rounds_executed % EXPORT_EVERY == 0 ||
+	take_screenshot) {
       net_gpu.ReadFromGPU();
       ui->ExportNetworkToVideo(*net);
     }
 
+    if (take_screenshot) {
+      ui->SetTakeScreenshot();
+    }
+    
     if (CHECK_NANS) {
       net_gpu.ReadFromGPU();
       net->NaNCheck("round start");
@@ -2137,8 +2395,9 @@ static void TrainThread() {
     examples.reserve(EXAMPLES_PER_ROUND);
     do {
       if (!examples.empty()) {
-	if (VERBOSE > 0) Printf("Blocked grabbing examples (still need %d)...\n",
-				EXAMPLES_PER_ROUND - examples.size());
+	if (VERBOSE > 0)
+	  Printf("Blocked grabbing examples (still need %d)...\n",
+		 EXAMPLES_PER_ROUND - examples.size());
 	std::this_thread::sleep_for(100ms);
       }
       WriteMutexLock ml{&training_examples_m};
@@ -2150,7 +2409,8 @@ static void TrainThread() {
     } while (examples.size() < EXAMPLES_PER_ROUND);
 
     if (VERBOSE > 2) Printf("Setting up expected:\n");
-    vector<vector<float>> expected = Map(examples, [](const TrainingExample &te) {
+    vector<vector<float>> expected =
+      Map(examples, [](const TrainingExample &te) {
       return te.output;
     });
 
@@ -2159,72 +2419,74 @@ static void TrainThread() {
     CHECK_EQ(examples.size(), expected.size());
 
     if (false && CHECK_NANS /* && net->rounds == 3 */) {
-      // Actually run the forward pass on CPU, trying to find the computation that
-      // results in nan...
+      // Actually run the forward pass on CPU, trying to find the
+      // computation that results in nan...
       net_gpu.ReadFromGPU(); // should already be here, but...
-      UnParallelComp(examples.size(),
-		   [&net, &examples](int example_idx) {
-		     // XXX only run on one example...
-		     if (example_idx != 0) return;
+      UnParallelComp(
+	  examples.size(),
+	  [&net, &examples](int example_idx) {
+	    // XXX only run on one example...
+	    if (example_idx != 0) return;
 
-		     Stimulation stim{*net};
-		     for (int src = 0; src < net->num_layers; src++) {
-		       // XXX hard coded to leaky_relu
-		       auto Forward =
-			 [](double potential) -> float {
-			   return ((potential < 0.0f) ? potential * 0.01f : potential);
-			 };
+	    Stimulation stim{*net};
+	    for (int src = 0; src < net->num_layers; src++) {
+	      // XXX hard coded to leaky_relu
+	      auto Forward =
+		[](double potential) -> float {
+		  return ((potential < 0.0f) ? potential * 0.01f : potential);
+		};
 
-		       const vector<float> &src_values = stim.values[src];
-		       vector<float> *dst_values = &stim.values[src + 1];
-		       const vector<float> &biases = net->layers[src].biases;
-		       const vector<float> &weights = net->layers[src].weights;
-		       const vector<uint32> &indices = net->layers[src].indices;
-		       const int indices_per_node = net->layers[src].indices_per_node;
-		       const int num_nodes = net->num_nodes[src + 1];
-		       for (int node_idx = 0; node_idx < num_nodes; node_idx++) {
+	      const vector<float> &src_values = stim.values[src];
+	      vector<float> *dst_values = &stim.values[src + 1];
+	      const vector<float> &biases = net->layers[src].biases;
+	      const vector<float> &weights = net->layers[src].weights;
+	      const vector<uint32> &indices = net->layers[src].indices;
+	      const int indices_per_node = net->layers[src].indices_per_node;
+	      const int num_nodes = net->num_nodes[src + 1];
+	      for (int node_idx = 0; node_idx < num_nodes; node_idx++) {
 
-			 // Start with bias.
-			 double potential = biases[node_idx];
-			 printf("%d|L %d n %d. bias: %f\n",
-				net->rounds, src, node_idx, potential);
-			 CHECK(!std::isnan(potential)) << node_idx;
-			 const int my_weights = node_idx * indices_per_node;
-			 const int my_indices = node_idx * indices_per_node;
-
-			 for (int i = 0; i < indices_per_node; i++) {
-			   const float w = weights[my_weights + i];
-			   int srci = indices[my_indices + i];
-			   // XXX check dupes
-			   CHECK(srci >= 0 && srci < src_values.size()) << srci;
-			   const float v = src_values[srci];
-			   // PERF: fma()?
-			   CHECK(!std::isnan(w) &&
-				 !std::isnan(v) &&
-				 !std::isnan(potential)) <<
-			     StringPrintf("L %d, n %d. [%d=%d] %f * %f + %f\n",
-					  src,
-					  node_idx,
-					  i, srci, w, v, potential);
-			   potential += w * v;
-			 }
-			 CHECK(!std::isnan(potential));
-
-			 CHECK(node_idx >= 0 && node_idx < dst_values->size());
-			 float out = Forward(potential);
-			 printf("    %f -> %f\n", potential, out);
-			 CHECK(!std::isnan(out)) << potential;
-			 (*dst_values)[node_idx] = out;
-		       }
-		     }
-		   },
-		   16);
+		// Start with bias.
+		double potential = biases[node_idx];
+		printf("%d|L %d n %d. bias: %f\n",
+		       net->rounds, src, node_idx, potential);
+		CHECK(!std::isnan(potential)) << node_idx;
+		const int my_weights = node_idx * indices_per_node;
+		const int my_indices = node_idx * indices_per_node;
+		
+		for (int i = 0; i < indices_per_node; i++) {
+		  const float w = weights[my_weights + i];
+		  int srci = indices[my_indices + i];
+		  // XXX check dupes
+		  CHECK(srci >= 0 && srci < src_values.size()) << srci;
+		  const float v = src_values[srci];
+		  // PERF: fma()?
+		  CHECK(!std::isnan(w) &&
+			!std::isnan(v) &&
+			!std::isnan(potential)) <<
+		    StringPrintf("L %d, n %d. [%d=%d] %f * %f + %f\n",
+				 src,
+				 node_idx,
+				 i, srci, w, v, potential);
+		  potential += w * v;
+		}
+		CHECK(!std::isnan(potential));
+		
+		CHECK(node_idx >= 0 && node_idx < dst_values->size());
+		float out = Forward(potential);
+		printf("    %f -> %f\n", potential, out);
+		CHECK(!std::isnan(out)) << potential;
+		(*dst_values)[node_idx] = out;
+	      }
+	    }
+	  },
+	  16);
     }
 
-    // TODO: may make sense to pipeline this loop somehow, so that we can parallelize
-    // CPU/GPU duties?
+    // TODO: may make sense to pipeline this loop somehow, so that we
+    // can parallelize CPU/GPU duties?
 
-    // Run a batch of images all the way through. (Each layer requires significant setup.)
+    // Run a batch of images all the way through. (Each layer requires
+    // significant setup.)
     if (VERBOSE > 2) Printf("Creating stimulations...\n");
     Timer stimulation_init_timer;
 
@@ -2363,7 +2625,9 @@ static void TrainThread() {
     backward_ms += backward_timer.MS();
 
     if (rounds_executed % EXPORT_EVERY == 0) {
-      for (int example_idx = 0; example_idx < NUM_VIDEO_STIMULATIONS; example_idx++) {
+      for (int example_idx = 0;
+	   example_idx < NUM_VIDEO_STIMULATIONS;
+	   example_idx++) {
 	Errors err{*net};
 	training[example_idx]->ExportErrors(&err);
 	ui->ExportErrorsToVideo(example_idx, err);
@@ -2452,6 +2716,19 @@ static void TrainThread() {
   WriteWithLock(&train_done_m, &train_done, true);
 }
 
+// Periodically we check to see if any process name matches something
+// in this function. If so, we pause training.
+static std::optional<string> GetExclusiveApp() {
+  vector<string> procs = Top::Enumerate();
+
+  for (const string &proc : procs) {
+    string match = Util::lcase(proc);
+    if (match == "spel2.exe") return {proc};
+    // Can add more here, including regexes etc...
+  }
+
+  return nullopt;
+}
 
 int SDL_main(int argc, char **argv) {
   // XXX This is specific to my machine. You probably want to remove it.

@@ -7,34 +7,74 @@
 //
 // We have to know how many indices each node uses, as a constant.
 
+// Expects the following defines:
+
+// FORWARD, the transfer function.
+// INDICES_PER_NODE, an integer giving the number of output indices per
+//   node.
+
 // We don't actually need to know the number of nodes within the kernel;
 // the global id just tells us which node we work on. But the number
 // of indices per node is needed to compute offsets.
-__kernel void ForwardLayer(int indices_per_node,
-                           // size num_nodes[layer]
-                           __global const float *previous_layer_outputs,
-                           // size num_nodes[layer + 1] * indices_per_node.
-                           __global const int *indices,
-                           // size num_nodes[layer + 1] * indices_per_node; parallel
-                           // to the previous.
-                           __global const float *weights,
-                           // size num_nodes[layer + 1] (this layer).
-                           __global const float *bias,
-                           // size num_nodes[layer + 1].
-                           __global float *output_values) {
+__kernel void ForwardLayerSparse(
+                // size num_nodes[layer]
+                __global const float *previous_layer_outputs,
+                // size num_nodes[layer + 1] * INDICES_PER_NODE.
+                __global const int *indices,
+                // size num_nodes[layer + 1] * INDICES_PER_NODE; parallel
+                // to the previous.
+                __global const float *weights,
+                // size num_nodes[layer + 1] (this layer).
+                __global const float *bias,
+                // size num_nodes[layer + 1].
+                __global float *output_values) {
   const int node_idx = get_global_id(0);
 
   // Start with bias.
-  double potential = bias[node_idx];
-  const __global float *my_weights = weights + (node_idx * indices_per_node);
-  const __global int *my_indices = indices + (node_idx * indices_per_node);
+  // PERF: float should obviously be faster, but I briefly got better
+  // results with double?
+  float potential = bias[node_idx];
+  const __global float *my_weights = weights + (node_idx * INDICES_PER_NODE);
+  const __global int *my_indices = indices + (node_idx * INDICES_PER_NODE);
 
   // Could itself be a kernel? Not sure what the right granularity of these is.
-  for (int i = 0; i < indices_per_node; i++) {
+  for (int i = 0; i < INDICES_PER_NODE; i++) {
     const float w = my_weights[i];
     const float v = previous_layer_outputs[my_indices[i]];
-    // PERF: fma()?
-    potential += w * v;
+    // potential += w * v;
+    potential = fma(w, v, potential);
+  }
+  output_values[node_idx] = FORWARD(potential);
+}
+
+// Dense version. Here the indices
+__kernel void ForwardLayerDense(
+                // size num_nodes[layer]
+                __global const float *previous_layer_outputs,
+                // size num_nodes[layer + 1] * INDICES_PER_NODE.
+                // XXX don't even pass it
+                __global const int *indices,
+                // size num_nodes[layer + 1] * INDICES_PER_NODE; parallel
+                // to the previous.
+                __global const float *weights,
+                // size num_nodes[layer + 1] (this layer).
+                __global const float *bias,
+                // size num_nodes[layer + 1].
+                __global float *output_values) {
+  const int node_idx = get_global_id(0);
+
+  // Start with bias.
+  // PERF: float should obviously be faster, but I briefly got better
+  // results with double?
+  float potential = bias[node_idx];
+  const __global float *my_weights = weights + (node_idx * INDICES_PER_NODE);
+
+  // Could itself be a kernel? Not sure what the right granularity of these is.
+  for (int i = 0; i < INDICES_PER_NODE; i++) {
+    const float w = my_weights[i];
+    const float v = previous_layer_outputs[i];
+    // potential += w * v;
+    potential = fma(w, v, potential);
   }
   output_values[node_idx] = FORWARD(potential);
 }
