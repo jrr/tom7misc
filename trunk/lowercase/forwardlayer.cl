@@ -18,16 +18,16 @@
 // of indices per node is needed to compute offsets.
 __kernel void ForwardLayerSparse(
                 // size num_nodes[layer]
-                __global const float *previous_layer_outputs,
+                __global const float *restrict previous_layer_outputs,
                 // size num_nodes[layer + 1] * INDICES_PER_NODE.
-                __global const int *indices,
+                __global const int *restrict indices,
                 // size num_nodes[layer + 1] * INDICES_PER_NODE; parallel
                 // to the previous.
-                __global const float *weights,
+                __global const float *restrict weights,
                 // size num_nodes[layer + 1] (this layer).
-                __global const float *bias,
+                __global const float *restrict bias,
                 // size num_nodes[layer + 1].
-                __global float *output_values) {
+                __global float *restrict output_values) {
   const int node_idx = get_global_id(0);
 
   // Start with bias.
@@ -47,20 +47,21 @@ __kernel void ForwardLayerSparse(
   output_values[node_idx] = FORWARD(potential);
 }
 
-// Dense version. Here the indices
+// Dense version. Here we can read the indices in order without any
+// indirection, which is a lot faster.
 __kernel void ForwardLayerDense(
                 // size num_nodes[layer]
-                __global const float *previous_layer_outputs,
+                __global const float *restrict previous_layer_outputs,
                 // size num_nodes[layer + 1] * INDICES_PER_NODE.
                 // XXX don't even pass it
-                __global const int *indices,
+                __global const int *restrict indices,
                 // size num_nodes[layer + 1] * INDICES_PER_NODE; parallel
                 // to the previous.
-                __global const float *weights,
+                __global const float *restrict weights,
                 // size num_nodes[layer + 1] (this layer).
-                __global const float *bias,
+                __global const float *restrict bias,
                 // size num_nodes[layer + 1].
-                __global float *output_values) {
+                __global float *restrict output_values) {
   const int node_idx = get_global_id(0);
 
   // Start with bias.

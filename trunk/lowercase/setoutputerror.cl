@@ -1,8 +1,8 @@
 
 // All memories are the size of the output layer.
-__kernel void SetOutputError(__global const float *actual_outputs,
-                             __global const float *expected,
-                             __global float *output_error) {
+__kernel void SetOutputError(__global const float *restrict actual_outputs,
+                             __global const float *restrict expected,
+                             __global float *restrict output_error) {
   const int k = get_global_id(0);
   // Here we are multiplying by the derivative.
   // Derivative is defined in terms of f(x) (the actual output),

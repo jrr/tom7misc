@@ -14,14 +14,14 @@
 __kernel void UpdateWeightsSparse(
                  float learning_rate,
                  // int indices_per_node,
-                 __global const float *layer_error,
+                 __global const float *restrict layer_error,
                  // num_nodes * INDICES_PER_NODE
-                 __global const int *layer_indices,
-                 __global const float *layer_values,
+                 __global const int *restrict layer_indices,
+                 __global const float *restrict layer_values,
                  // num_nodes * INDICES_PER_NODE,
-                 __global float *layer_weights,
+                 __global float *restrict layer_weights,
                  // num_nodes
-                 __global float *layer_biases) {
+                 __global float *restrict layer_biases) {
   const int node_idx = get_global_id(0);
   const float delta_j = layer_error[node_idx];
   const float learning_rate_times_delta_j = learning_rate * delta_j;
@@ -58,16 +58,16 @@ __kernel void UpdateWeightsSparse(
 __kernel void UpdateWeightsDense(
                  float learning_rate,
                  // int indices_per_node,
-                 __global const float *layer_error,
+                 __global const float *restrict layer_error,
                  // num_nodes * INDICES_PER_NODE
                  // PERF not needed
-                 __global const int *layer_indices,
+                 __global const int *restrict layer_indices,
                  // source layer's output values
-                 __global const float *layer_values,
+                 __global const float *restrict layer_values,
                  // num_nodes * INDICES_PER_NODE,
-                 __global float *layer_weights,
+                 __global float *restrict layer_weights,
                  // num_nodes
-                 __global float *layer_biases) {
+                 __global float *restrict layer_biases) {
   const int node_idx = get_global_id(0);
   const float delta_j = layer_error[node_idx];
   const float learning_rate_times_delta_j = learning_rate * delta_j;
