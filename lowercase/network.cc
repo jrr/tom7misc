@@ -17,6 +17,7 @@
 
 using namespace std;
 
+using uint32 = uint32_t;
 using int64 = int64_t;
 
 const char *TransferFunctionName(TransferFunction tf) {
@@ -91,6 +92,58 @@ int64 Network::Bytes() const {
 
   return ret;
 }
+
+void Network::RunForward(Stimulation *stim) const {
+  for (int src = 0; src < num_layers; src++) {
+
+    // PERF avoid dispatching on every node
+    const TransferFunction transfer_function =
+      layers[src].transfer_function;
+    auto Forward =
+      [transfer_function](float potential) -> float {
+	switch (transfer_function) {
+	case SIGMOID:
+	  return 1.0f / (1.0f + expf(-potential));
+	case RELU:
+	  return (potential < 0.0f) ? 0.0f : potential;
+	case LEAKY_RELU:
+	  return (potential < 0.0f) ? potential * 0.01f : potential;
+	default:
+	  CHECK(false) << "Unimplemented transfer function " <<
+	    TransferFunctionName(transfer_function);
+	  return 0.0f;
+	}
+      };
+
+    const vector<float> &src_values = stim->values[src];
+    vector<float> *dst_values = &stim->values[src + 1];
+    const vector<float> &biases = layers[src].biases;
+    const vector<float> &weights = layers[src].weights;
+    const vector<uint32> &indices = layers[src].indices;
+    const int indices_per_node = layers[src].indices_per_node;
+    const int number_of_nodes = num_nodes[src + 1];
+
+    // PERF in parallel
+    for (int node_idx = 0; node_idx < number_of_nodes; node_idx++) {
+      // Start with bias.
+      float potential = biases[node_idx];
+      const int my_weights = node_idx * indices_per_node;
+      const int my_indices = node_idx * indices_per_node;
+
+      // PERF could support dense layers more efficiently
+      for (int i = 0; i < indices_per_node; i++) {
+	const float w = weights[my_weights + i];
+	int srci = indices[my_indices + i];
+	const float v = src_values[srci];
+	potential += w * v;
+      }
+		
+      float out = Forward(potential);
+      (*dst_values)[node_idx] = out;
+    }
+  }
+}
+
 
 void Network::NaNCheck(const char *message) const {
   bool has_nans = false;
@@ -455,4 +508,42 @@ void Network::SaveNetworkBinary(const Network &net,
   // Inverted indices are not written.
   printf("Wrote %s.\n", filename.c_str());
   fclose(file);
+}
+
+
+int64 Stimulation::Bytes() const {
+  int64 ret = sizeof *this;
+  for (int i = 0; i < values.size(); i++) {
+    ret += sizeof values[i] + sizeof values[i][0] * values[i].size();
+  }
+  return ret;
+}
+
+void Stimulation::NaNCheck(const char *message) const {
+  bool has_nans = false;
+  vector<int> layer_nans;
+  for (const vector<float> &layer : values) {
+    int v = 0;
+    for (float f : layer) if (std::isnan(f)) v++;
+    layer_nans.push_back(v);
+    if (v > 0) has_nans = true;
+  }
+  if (has_nans) {
+    string err;
+    for (int i = 0; i < layer_nans.size(); i++) {
+      err += StringPrintf("stim layer %d. %d/%d values\n",
+			  i,
+			  layer_nans[i], values[i].size());
+    }
+    CHECK(false) << "[" << message
+		 << "] The stimulation has NaNs :-(\n" << err;
+  }
+}
+
+
+int64 Errors::Bytes() const {
+  int64 ret = sizeof *this;
+  for (int i = 0; i < error.size(); i++)
+    ret += sizeof error[i] + sizeof error[i][0] * error[i].size();
+  return ret;
 }

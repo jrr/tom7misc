@@ -53,6 +53,9 @@ enum RenderStyle : uint32_t {
 
 const char *TransferFunctionName(TransferFunction tf);
 
+struct Stimulation;
+struct Errors;
+
 struct Network {
   template<class T> using vector = std::vector<T>;
   using string = std::string;
@@ -100,6 +103,11 @@ struct Network {
   static void ComputeInvertedIndices(Network *net, int max_parallelism = 8);
 
   // TODO: Add CPU inference, at least.
+
+  // Run the network to fill out the stimulation. The Stimulation
+  // must be the right size (i.e. created from this Network) and
+  // the input layer should be filled.
+  void RunForward(Stimulation *stim) const;
   
   // Just used for serialization. Whenever changing the interpretation
   // of the data in an incomplete way, please change.
@@ -185,5 +193,89 @@ private:
   // Value type, but require calling Clone explicitly.
   Network(const Network &other) = default;
 };
+
+// A stimulation is an evaluation (perhaps an in-progress one) of a
+// network on a particular input; when it's complete we have the
+// activation value of each node on each layer, plus the input itself.
+struct Stimulation {
+  explicit Stimulation(const Network &net) : num_layers(net.num_layers),
+					     num_nodes(net.num_nodes) {
+    values.resize(num_layers + 1);
+    for (int i = 0; i < values.size(); i++)
+      values[i].resize(num_nodes[i], 0.0f);
+  }
+
+  // Empty, useless stimulation, but can be used to initialize
+  // vectors, etc.
+  Stimulation() : num_layers(0) {}
+  Stimulation(const Stimulation &other) = default;
+
+  int64_t Bytes() const;
+
+  // TODO: would be nice for these to be const, but then we can't have an
+  // assignment operator.
+  // Same as in Network.
+  int num_layers;
+  // num_layers + 1
+  std::vector<int> num_nodes;
+
+  // Keep track of what's actually been computed?
+
+  // Here the outer vector has size num_layers + 1; first is the input.
+  // Inner vector has size num_nodes[i], and just contains their output values.
+  std::vector<std::vector<float>> values;
+
+  void CopyFrom(const Stimulation &other) {
+    CHECK_EQ(this->num_layers, other.num_layers);
+    CHECK_EQ(this->num_nodes.size(), other.num_nodes.size());
+    for (int i = 0; i < this->num_nodes.size(); i++) {
+      CHECK_EQ(this->num_nodes[i], other.num_nodes[i]);
+    }
+    this->values = other.values;
+  }
+
+  void NaNCheck(const char *message) const;
+};
+
+
+struct Errors {
+  explicit Errors(const Network &net) : num_layers(net.num_layers),
+					num_nodes(net.num_nodes) {
+    error.resize(num_layers);
+    for (int i = 0; i < error.size(); i++) {
+      error[i].resize(num_nodes[i + 1], 0.0f);
+    }
+  }
+  // Empty, useless errors, but can be used to initialize vectors etc.
+  Errors() : num_layers(0) {}
+  Errors(const Errors &other) = default;
+
+  // Would be nice for these to be const, but then we can't have an
+  // assignment operator.
+  int num_layers;
+  // The first entry here is unused (it's the size of the input layer,
+  // which doesn't get errors), but we keep it like this to be
+  // consistent with Network and Stimulation.
+  std::vector<int> num_nodes;
+
+  // These are the delta terms in Mitchell. We have num_layers of
+  // them, where the error[0] is the first real layer (we don't
+  // compute errors for the input) and error[num_layers] is the error
+  // for the output.
+  std::vector<std::vector<float>> error;
+  
+  int64_t Bytes() const;
+
+  void CopyFrom(const Errors &other) {
+    CHECK_EQ(this->num_layers, other.num_layers);
+    CHECK_EQ(this->num_nodes.size(), other.num_nodes.size());
+    for (int i = 0; i < this->num_nodes.size(); i++) {
+      CHECK_EQ(this->num_nodes[i], other.num_nodes[i]);
+    }
+    this->error = other.error;
+  }
+
+};
+
 
 #endif
