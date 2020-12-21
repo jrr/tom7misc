@@ -1,6 +1,10 @@
 // This code was forked from ../chess/blind/unblind.cc, which
 // came from ../../mtoz, which came from ../../redi,
 // so check that for some development history / thoughts.
+// (In this version, I cleaned up the code a bunch, added
+// native support for dense layers, and made several performance
+// improvements. This version should definitely supersede the
+// previous!)
 
 // This first experiment tries to predict the letter's shape as
 // Bezier (only) curves. I don't really expect this to work but
@@ -85,7 +89,7 @@ static constexpr int VERBOSE = 2;
 // Perform somewhat expensive sanity checking for NaNs.
 // (Beware: Also enables some other really expensive diagnostics.)
 // XXX PERF turn off once it's working!
-static constexpr bool CHECK_NANS = true;
+static constexpr bool CHECK_NANS = false;
 
 using namespace std;
 
@@ -97,6 +101,10 @@ using uint32 = uint32_t;
 using uint64 = uint64_t;
 
 using Contour = TTF::Contour;
+
+// TODO: These should be owned by network.h and exposed as
+// constants; we want the CPU implementation to agree with
+// the GPU #defines!
 
 // We use a different compiled kernel depending on the layer's
 // transfer function (these are in the inner loops, so we want
@@ -264,115 +272,6 @@ enum UserRenderStyle : uint32_t {
 // for this to happen width-wise for wide characters.
 static constexpr int NOMINAL_CHAR_SIZE = 200;
 
-// A stimulation is an evaluation (perhaps an in-progress one) of a
-// network on a particular input; when it's complete we have the
-// activation value of each node on each layer, plus the input itself.
-struct Stimulation {
-  explicit Stimulation(const Network &net) : num_layers(net.num_layers),
-					     num_nodes(net.num_nodes) {
-    values.resize(num_layers + 1);
-    for (int i = 0; i < values.size(); i++)
-      values[i].resize(num_nodes[i], 0.0f);
-  }
-
-  // Empty, useless stimulation, but can be used to initialize
-  // vectors, etc.
-  Stimulation() : num_layers(0) {}
-  Stimulation(const Stimulation &other) = default;
-
-  int64 Bytes() const {
-    int64 ret = sizeof *this;
-    for (int i = 0; i < values.size(); i++) {
-      ret += sizeof values[i] + sizeof values[i][0] * values[i].size();
-    }
-    return ret;
-  }
-
-  // TODO: would be nice for these to be const, but then we can't have an
-  // assignment operator.
-  // Same as in Network.
-  int num_layers;
-  // num_layers + 1
-  vector<int> num_nodes;
-
-  // Keep track of what's actually been computed?
-
-  // Here the outer vector has size num_layers + 1; first is the input.
-  // Inner vector has size num_nodes[i], and just contains their output values.
-  vector<vector<float>> values;
-
-  void CopyFrom(const Stimulation &other) {
-    CHECK_EQ(this->num_layers, other.num_layers);
-    CHECK_EQ(this->num_nodes.size(), other.num_nodes.size());
-    for (int i = 0; i < this->num_nodes.size(); i++) {
-      CHECK_EQ(this->num_nodes[i], other.num_nodes[i]);
-    }
-    this->values = other.values;
-  }
-
-  void NaNCheck(const char *message) const {
-    bool has_nans = false;
-    vector<int> layer_nans;
-    for (const vector<float> &layer : values) {
-      int v = 0;
-      for (float f : layer) if (std::isnan(f)) v++;
-      layer_nans.push_back(v);
-      if (v > 0) has_nans = true;
-    }
-    if (has_nans) {
-      string err;
-      for (int i = 0; i < layer_nans.size(); i++) {
-	err += StringPrintf("stim layer %d. %d/%d values\n",
-			    i,
-			    layer_nans[i], values[i].size());
-      }
-      CHECK(false) << "[" << message
-		   << "] The stimulation has NaNs :-(\n" << err;
-    }
-  }
-};
-
-struct Errors {
-  explicit Errors(const Network &net) : num_layers(net.num_layers),
-					num_nodes(net.num_nodes) {
-    error.resize(num_layers);
-    for (int i = 0; i < error.size(); i++) {
-      error[i].resize(num_nodes[i + 1], 0.0f);
-    }
-  }
-  // Empty, useless errors, but can be used to initialize vectors etc.
-  Errors() : num_layers(0) {}
-  Errors(const Errors &other) = default;
-
-  // Would be nice for these to be const, but then we can't have an
-  // assignment operator.
-  int num_layers;
-  // The first entry here is unused (it's the size of the input layer,
-  // which doesn't get errors), but we keep it like this to be
-  // consistent with Network and Stimulation.
-  vector<int> num_nodes;
-  int64 Bytes() const {
-    int64 ret = sizeof *this;
-    for (int i = 0; i < error.size(); i++)
-      ret += sizeof error[i] + sizeof error[i][0] * error[i].size();
-    return ret;
-  }
-
-  void CopyFrom(const Errors &other) {
-    CHECK_EQ(this->num_layers, other.num_layers);
-    CHECK_EQ(this->num_nodes.size(), other.num_nodes.size());
-    for (int i = 0; i < this->num_nodes.size(); i++) {
-      CHECK_EQ(this->num_nodes[i], other.num_nodes[i]);
-    }
-    this->error = other.error;
-  }
-
-  // These are the delta terms in Mitchell. We have num_layers of
-  // them, where the error[0] is the first real layer (we don't
-  // compute errors for the input) and error[num_layers] is the error
-  // for the output.
-  vector<vector<float>> error;
-};
 
 // Network that lives entirely on the GPU, but can be copied back to
 // the Network object.
