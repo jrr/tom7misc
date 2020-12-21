@@ -59,9 +59,6 @@ __kernel void UpdateWeightsDense(
                  float learning_rate,
                  // int indices_per_node,
                  __global const float *restrict layer_error,
-                 // num_nodes * INDICES_PER_NODE
-                 // PERF not needed
-                 __global const int *restrict layer_indices,
                  // source layer's output values
                  __global const float *restrict layer_values,
                  // num_nodes * INDICES_PER_NODE,

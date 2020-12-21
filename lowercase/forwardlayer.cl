@@ -52,9 +52,6 @@ __kernel void ForwardLayerSparse(
 __kernel void ForwardLayerDense(
                 // size num_nodes[layer]
                 __global const float *restrict previous_layer_outputs,
-                // size num_nodes[layer + 1] * INDICES_PER_NODE.
-                // XXX don't even pass it
-                __global const int *restrict indices,
                 // size num_nodes[layer + 1] * INDICES_PER_NODE; parallel
                 // to the previous.
                 __global const float *restrict weights,

@@ -529,6 +529,8 @@ struct TrainingRoundGPU {
   DISALLOW_COPY_AND_ASSIGN(TrainingRoundGPU);
 };
 
+// XXX this is probably obsolete -- now we do more specializations
+// of constants in each wrapper's constructor.
 static std::pair<std::vector<cl_program>, std::vector<cl_kernel>>
 MakeTransferKernels(CL *cl, const char *base_file, const char *function_name) {
   std::vector<cl_program> programs;
@@ -553,14 +555,8 @@ MakeTransferKernels(CL *cl, const char *base_file, const char *function_name) {
   return make_pair(programs, kernels);
 }
 
-// TODO PERF: Natively support dense layers
 struct ForwardLayerCL {
   explicit ForwardLayerCL(CL *cl, const Network &net) : cl(cl) {
-    /*
-    std::tie(programs, kernels) =
-      MakeTransferKernels(cl, "forwardlayer.cl", "ForwardLayer");
-    */
-
     string base_src = Util::ReadFile("forwardlayer.cl");
     for (int layer = 0; layer < net.layers.size(); layer++) {
       const TransferFunction transfer_function =
@@ -628,23 +624,29 @@ struct ForwardLayerCL {
       {
 	WriteMutexLock ml(&parent->m);
 
-	// TODO PERF: Remove unused args for dense layers?
+	if (dense) {
+	  // No indices parameter for dense layers.
+	  CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_mem),
+				       (void *)&src_values));
+	  CHECK_SUCCESS(clSetKernelArg(kernel, 1, sizeof (cl_mem),
+				       (void *)&weights));
+	  CHECK_SUCCESS(clSetKernelArg(kernel, 2, sizeof (cl_mem),
+				       (void *)&biases));
+	  CHECK_SUCCESS(clSetKernelArg(kernel, 3, sizeof (cl_mem),
+				       (void *)&dst_values));
+	} else {
+	  CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_mem),
+				       (void *)&src_values));
+	  CHECK_SUCCESS(clSetKernelArg(kernel, 1, sizeof (cl_mem),
+				       (void *)&indices));
+	  CHECK_SUCCESS(clSetKernelArg(kernel, 2, sizeof (cl_mem),
+				       (void *)&weights));
+	  CHECK_SUCCESS(clSetKernelArg(kernel, 3, sizeof (cl_mem),
+				       (void *)&biases));
+	  CHECK_SUCCESS(clSetKernelArg(kernel, 4, sizeof (cl_mem),
+				       (void *)&dst_values));
+	}
 	
-	/*
-	CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_int),
-				     (void *)&indices_per_node));
-	*/
-	CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_mem),
-				     (void *)&src_values));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 1, sizeof (cl_mem),
-				     (void *)&indices));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 2, sizeof (cl_mem),
-				     (void *)&weights));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 3, sizeof (cl_mem),
-				     (void *)&biases));
-	CHECK_SUCCESS(clSetKernelArg(kernel, 4, sizeof (cl_mem),
-				     (void *)&dst_values));
-
 	size_t global_work_offset[] = { 0 };
         size_t global_work_size[] = { (size_t)(net->num_nodes[layer + 1]) };
 	// Printf("Run FL Kernel.\n");
@@ -778,12 +780,6 @@ struct SetOutputErrorCL {
 // Propagate errors backwards. Note that errors flow from "dst" to "src".
 struct BackwardLayerCL {
   explicit BackwardLayerCL(CL *cl, const Network &net) : cl(cl) {
-    /*
-    std::tie(programs, kernels) =
-      MakeTransferKernels(cl, "backwardlayer.cl", "BackwardLayer");
-    */
-
-    // TODO PERF: Natively support dense layers
     string base_src = Util::ReadFile("backwardlayer.cl");
     for (int src_layer = 0; src_layer < net.layers.size() - 1; src_layer++) {
       int dst_layer = src_layer + 1;
@@ -863,11 +859,7 @@ struct BackwardLayerCL {
       {
 	WriteMutexLock ml(&parent->m);
 
-	/*	
-	cl_int dst_indices_per_node = net->layers[dst_layer].indices_per_node;
-	CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_int),
-				     (void *)&dst_indices_per_node));
-	*/
+	// XXX don't set unused arguments in dense mode
 	CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_mem),
 				     (void *)&starts));
 	CHECK_SUCCESS(clSetKernelArg(kernel, 1, sizeof (cl_mem),
@@ -982,30 +974,32 @@ struct UpdateWeightsCL {
       
       const int num_nodes = net_gpu->net->num_nodes[layer + 1];
 
-      CHECK_SUCCESS(
-	  clSetKernelArg(kernel, 0, sizeof (cl_float),
-			 (void *)&learning_rate));
-      /*
-      // cl_int indices_per_node = net_gpu->net->layers[layer].indices_per_node;
-      CHECK_SUCCESS(
-	  clSetKernelArg(kernel, 1, sizeof (cl_int),
-			 (void *)&indices_per_node));
-      */
-      CHECK_SUCCESS(
-	  clSetKernelArg(kernel, 1, sizeof (cl_mem),
-			 (void *)&layer_error));
-      CHECK_SUCCESS(
-	  clSetKernelArg(kernel, 2, sizeof (cl_mem),
-			 (void *)&layer_indices));
-      CHECK_SUCCESS(
-	  clSetKernelArg(kernel, 3, sizeof (cl_mem),
-			 (void *)&layer_values));
-      CHECK_SUCCESS(
-	  clSetKernelArg(kernel, 4, sizeof (cl_mem),
-			 (void *)&layer_weights));
-      CHECK_SUCCESS(
-	  clSetKernelArg(kernel, 5, sizeof (cl_mem),
-			 (void *)&layer_biases));
+      if (dense) {
+	// Dense version does not need indices arg.
+	CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_float),
+				     (void *)&learning_rate));
+	CHECK_SUCCESS(clSetKernelArg(kernel, 1, sizeof (cl_mem),
+				     (void *)&layer_error));
+	CHECK_SUCCESS(clSetKernelArg(kernel, 2, sizeof (cl_mem),
+				     (void *)&layer_values));
+	CHECK_SUCCESS(clSetKernelArg(kernel, 3, sizeof (cl_mem),
+				     (void *)&layer_weights));
+	CHECK_SUCCESS(clSetKernelArg(kernel, 4, sizeof (cl_mem),
+				     (void *)&layer_biases));
+      } else {
+	CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_float),
+				     (void *)&learning_rate));
+	CHECK_SUCCESS(clSetKernelArg(kernel, 1, sizeof (cl_mem),
+				     (void *)&layer_error));
+	CHECK_SUCCESS(clSetKernelArg(kernel, 2, sizeof (cl_mem),
+				     (void *)&layer_indices));
+	CHECK_SUCCESS(clSetKernelArg(kernel, 3, sizeof (cl_mem),
+				     (void *)&layer_values));
+	CHECK_SUCCESS(clSetKernelArg(kernel, 4, sizeof (cl_mem),
+				     (void *)&layer_weights));
+	CHECK_SUCCESS(clSetKernelArg(kernel, 5, sizeof (cl_mem),
+				     (void *)&layer_biases));
+      }
 
       size_t global_work_offset[] = { 0 };
       size_t global_work_size[] = { (size_t)num_nodes };
