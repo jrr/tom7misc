@@ -79,6 +79,7 @@
 #include "clutil.h"
 #include "timer.h"
 #include "top.h"
+#include "font-problem.h"
 
 #include "../bit7/embed9x9.h"
 
@@ -1995,127 +1996,35 @@ static void TrainThread() {
       const int char_offset = RandTo(rc, 26);
       const int upper_char = 'A' + char_offset;
       const int lower_char = 'a' + char_offset;
-      std::vector<TTF::Contour> upper =
-	TTF::MakeOnlyBezier(ttf->GetContours(upper_char));
-      std::vector<TTF::Contour> lower =
-	TTF::MakeOnlyBezier(ttf->GetContours(lower_char));
 
-      // Only room for three contours.
-      // XXX: Perhaps we should reject the entire font if it will
-      // ever fail these tests; otherwise we are biasing against
-      // characters with more contours (e.g. B).
-      if (upper.size() > 3 || lower.size() > 3)
-	return false;
-
-      // Also don't allow empty characters.
-      if (upper.empty() || lower.empty())
-	return false;
-      
-      auto ByPathSizeDesc = [](const Contour &a, const Contour &b) {
-	  return b.paths.size() < a.paths.size();
-	};
-
-      std::sort(upper.begin(), upper.end(), ByPathSizeDesc);
-      std::sort(lower.begin(), lower.end(), ByPathSizeDesc);
-
-      // We need something to put in rows if there are fewer than
-      // three contours. We treat this as an empty path starting at 0,0.
-      while (upper.size() < 3) {
-	TTF::Contour degenerate(0.0f, 0.0f);
-	upper.push_back(degenerate);
-      }
-      while (lower.size() < 3) {
-	TTF::Contour degenerate(0.0f, 0.0f);
-	lower.push_back(degenerate);
-      }
-
-      
-      if (upper[0].paths.size() > ROW0_MAX_PTS)
-	return false;
-      if (upper[1].paths.size() > ROW1_MAX_PTS)
-	return false;
-      if (upper[2].paths.size() > ROW2_MAX_PTS)
-	return false;
-
-      if (lower[0].paths.size() > ROW0_MAX_PTS)
-	return false;
-      if (lower[1].paths.size() > ROW1_MAX_PTS)
-	return false;
-      if (lower[2].paths.size() > ROW2_MAX_PTS)
-	return false;
-
-      // All right, all is well!
-
-      // TODO: Consider random transform of input data; ideal network
-      // should be robust against small translations, scaling, even
-      // rotation.
-      
-      auto PopulateRow = [](std::vector<float> *floats,
-			    int row_start,
-			    // Not including start position.
-			    int row_max_pts,
-			    const Contour &contour) {
-	constexpr int HDR = 2;
-	(*floats)[row_start + 0] = contour.startx;
-	(*floats)[row_start + 1] = contour.starty;
-	for (int i = 0; i < row_max_pts; i++) {
-	  // When we run out of real points, pad with degenerate
-	  // zero-length curves at the start point.
-	  float cx = i < contour.paths.size() ?
-			 contour.paths[i].cx : contour.startx;
-	  float cy = i < contour.paths.size() ?
-			 contour.paths[i].cy : contour.starty;
-	  float x = i < contour.paths.size() ?
-			contour.paths[i].x : contour.startx;
-	  float y = i < contour.paths.size() ?
-			contour.paths[i].y : contour.starty;
-
-	  (*floats)[row_start + HDR + i * 4 + 0] = cx;
-	  (*floats)[row_start + HDR + i * 4 + 1] = cy;
-	  (*floats)[row_start + HDR + i * 4 + 2] = x;
-	  (*floats)[row_start + HDR + i * 4 + 3] = y;
-	}
-
-	return row_start + HDR + 4 * row_max_pts;
+      vector<int> row_max_points = {
+	ROW0_MAX_PTS,
+	ROW1_MAX_PTS,
+	ROW2_MAX_PTS,
       };
 
-
-      // Inputs
-      {
-	example->input.resize(INPUT_LAYER_SIZE);
-
-	int next_idx = 0;
-	next_idx = PopulateRow(&example->input, next_idx, ROW0_MAX_PTS,
-			       upper[0]);
-	next_idx = PopulateRow(&example->input, next_idx, ROW1_MAX_PTS,
-			       upper[1]);
-	next_idx = PopulateRow(&example->input, next_idx, ROW2_MAX_PTS,
-			       upper[2]);
-
-	CHECK(next_idx == example->input.size()) << next_idx << " vs "
-						 << example->input.size();
+      example->input.resize(INPUT_LAYER_SIZE);	
+      if (!FontProblem::FillVector(ttf, upper_char, row_max_points,
+				   example->input.data())) {
+	return false;
       }
 
-
-      // Outputs
-      {
-	example->output.resize(OUTPUT_LAYER_SIZE);
-	int next_idx = 0;
-	next_idx = PopulateRow(&example->output, next_idx, ROW0_MAX_PTS,
-			       lower[0]);
-	next_idx = PopulateRow(&example->output, next_idx, ROW1_MAX_PTS,
-			       lower[1]);
-	next_idx = PopulateRow(&example->output, next_idx, ROW2_MAX_PTS,
-			       lower[2]);
-
-	for (int i = 0; i < 26; i++) {
-	  example->output[next_idx] = i == char_offset ? 1.0f : 0.0f;
-	  next_idx++;
-	}
-	
-	CHECK(next_idx == example->output.size());
+      example->output.resize(OUTPUT_LAYER_SIZE);	
+      if (!FontProblem::FillVector(ttf, lower_char, row_max_points,
+				   example->output.data())) {
+	return false;
       }
 
+      // Output is same as input size, plus 26 letters. So use the
+      // length of the input to know where to start putting letters.
+      int next_idx = example->input.size();
+      for (int i = 0; i < 26; i++) {
+	CHECK(next_idx < example->output.size());
+	example->output[next_idx] = i == char_offset ? 1.0f : 0.0f;
+	next_idx++;
+      }
+      CHECK(next_idx == example->output.size());
+      
       if (CHECK_NANS) {
 	for (float f : example->input) { CHECK(!std::isnan(f)); }
 	for (float f : example->output) { CHECK(!std::isnan(f)); }
