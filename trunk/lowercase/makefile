@@ -47,12 +47,12 @@ CPPFLAGS= -DDISABLE_SOUND=1 -DPSS_STYLE=1 -DDUMMY_UI -DHAVE_ASPRINTF -Wno-write-
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 	@echo -n "."
 
-OBJECTS=$(UTIL_OBJECTS) $(RE2_OBJECTS) ttfops.o fontdb.o 
+OBJECTS=$(UTIL_OBJECTS) $(RE2_OBJECTS) ttfops.o fontdb.o network.o font-problem.o
 
 # without static, can't find lz or lstdcxx maybe?
 LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -lpsapi -static
 
-eval-unblinder.exe : $(OBJECTS) eval-unblinder.o network.o
+eval-unblinder.exe : $(OBJECTS) eval-unblinder.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
@@ -60,11 +60,11 @@ ui.exe : $(OBJECTS) $(SDLOBJECTS) ui.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
-train.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o train.o network.o loadfonts.o top.o
+train.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o train.o loadfonts.o top.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
-vacuum.exe : $(OBJECTS) vacuum.o network.o
+vacuum.exe : $(OBJECTS) vacuum.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
