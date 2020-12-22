@@ -2182,7 +2182,18 @@ static void TrainThread() {
     }
 
     if (take_screenshot) {
+      // Training screenshot.
       ui->SetTakeScreenshot();
+
+      // Stable eval screenshot on Helvetica (iterative).
+      vector<int> row_max_points = {
+	ROW0_MAX_PTS, ROW1_MAX_PTS, ROW2_MAX_PTS,
+      };
+      FontProblem::RenderVector("helvetica.ttf",
+				*net,
+				row_max_points,
+				StringPrintf("eval%lld.png",
+					     net->rounds));
     }
     
     if (CHECK_NANS) {

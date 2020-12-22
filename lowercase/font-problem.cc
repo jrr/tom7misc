@@ -4,88 +4,146 @@
 #include <vector>
 #include <string>
 
+#include "base/stringprintf.h"
+
 #include "network.h"
 
 #include "image.h"
 #include "ttf.h"
 #include "threadutil.h"
+#include "lines.h"
 
 using namespace std;
 
 using Contour = TTF::Contour;
+using uint32 = uint32_t;
+
+static constexpr int NUM_COLORS = 4;
+static uint32 COLORS[NUM_COLORS] = {
+  0xFFFF00FF,
+  0x00FF00FF,
+  0x00FFFFFF,
+  0xFF00FFFF,
+};
+
+static void DrawFloats(const vector<int> &row_max_points,
+		       const vector<float> &values,
+		       int startx, int starty,
+		       int nominal_char_size,
+		       ImageRGBA *img) {
+  
+  auto DrawPath = [nominal_char_size, img, startx, starty, &values](
+      int idx, int num_pts, uint32 color) -> int {
+      float x = values[idx + 0];
+      float y = values[idx + 1];
+
+      const double sqerr = 1.0f / (nominal_char_size *
+				   nominal_char_size);
+      
+      auto Line = [nominal_char_size,
+		   img, startx, starty, color](float x1, float y1,
+					       float x2, float y2) {
+	  img->BlendLine32(
+	      startx + x1 * nominal_char_size,
+	      starty + y1 * nominal_char_size,
+	      startx + x2 * nominal_char_size,
+	      starty + y2 * nominal_char_size,
+	      color);
+	};
+
+      for (int i = 0; i < num_pts; i++) {
+	float cx = values[idx + 2 + i * 4 + 0];
+	float cy = values[idx + 2 + i * 4 + 1];
+	float dx = values[idx + 2 + i * 4 + 2];
+	float dy = values[idx + 2 + i * 4 + 3];
+
+	for (const auto [xx, yy] :
+	       TesselateQuadraticBezier<double>(
+		   x, y, cx, cy, dx, dy, sqerr)) {
+	  Line(x, y, xx, yy);
+	  x = xx;
+	  y = yy;
+	}
+      }
+
+      return idx + 2 + (num_pts * 4);
+    };
+
+  int next_idx = 0;
+  for (int i = 0; i < row_max_points.size(); i++) {
+    next_idx =
+      DrawPath(next_idx, row_max_points[i], COLORS[i % NUM_COLORS]);
+  }
+}
 
 void FontProblem::RenderVector(const string &font_filename,
 			       const Network &net,
-			       const vector<int> &row_max_points) {
+			       const vector<int> &row_max_points,
+			       const string &out_filename) {
 
   static constexpr int WIDTH = 1920;
   static constexpr int HEIGHT = 1080;
+
+  static constexpr int LETTER_WIDTH = 71; // 73;
+  static constexpr int LETTER_X_MARGIN = 2;
+  static constexpr int LETTER_HEIGHT = 84; // 73;
+  static constexpr int LETTER_Y_MARGIN = 2;  
+  static constexpr int LEFT_MARGIN = 12;
+  static constexpr int TOP_MARGIN = 28;
+  
+  static constexpr int NUM_ITERS = 12;
   
   TTF ttf{font_filename};
   ImageRGBA img{WIDTH, HEIGHT};
 
   img.Clear32(0x000000FF);
 
-  Stimulation stim;
-    
+  // XXX do this threaded
+  for (int letter = 0; letter < 26; letter++) {
+    const int startx =
+      LEFT_MARGIN + (LETTER_WIDTH + LETTER_X_MARGIN) * letter;
+    const int codepoint = 'A' + letter;
+    Stimulation stim{net};
+    // We assume the given font fits for evaluation!
+    CHECK(FillVector(&ttf, codepoint, row_max_points,
+		     stim.values[0].data())) << "Eval font doesn't "
+      "fit in input vector?? " << (char)codepoint;
+
+    for (int iter = 0; iter < NUM_ITERS; iter++) {
+      const int starty =
+	TOP_MARGIN + iter * (LETTER_HEIGHT + LETTER_Y_MARGIN);
+      img.BlendRect32(startx, starty, LETTER_WIDTH, LETTER_HEIGHT,
+		      0x222222FF);
+
+      DrawFloats(row_max_points,
+		 stim.values[0],
+		 startx, starty,
+		 LETTER_HEIGHT,
+		 &img);
+
+      // (XXX Don't bother if this is the last round)
+      if (iter == NUM_ITERS - 1)
+	break;
+
+      net.RunForward(&stim);
+      
+      vector<float> *input = &stim.values[0];
+      const vector<float> &output = stim.values[stim.values.size() - 1];
+
+      for (int i = 0; i < input->size(); i++) {
+	(*input)[i] = output[i];
+      }
+    }
+  }
+
+  img.BlendText2x32(LEFT_MARGIN, 4, 0xCCCCCCFF,
+		    StringPrintf("Round %lld   Examples %lld   Bytes %lld",
+				 net.rounds, net.examples, net.Bytes()));
+  img.Save(out_filename);
 }
 
-#if 0
-		const vector<float> &values = stim.values[l];
-		sdlutil::FillRectRGB(screen, xstart, ystart,
-				     NOMINAL_CHAR_SIZE,
-				     NOMINAL_CHAR_SIZE,
-				     40, 40, 40);
-
-		constexpr double sqerr = 1.0f / (NOMINAL_CHAR_SIZE *
-						 NOMINAL_CHAR_SIZE);
-		
-		auto DrawPath = [xstart, ystart, &values](
-		    int idx, int num_pts,
-		    uint8 r, uint8 g, uint8 b) {
-		    float x = values[idx + 0];
-		    float y = values[idx + 1];
-
-		    auto Line = [xstart, ystart,
-				 r, g, b](float x1, float y1,
-					  float x2, float y2) {
-			sdlutil::drawclipline(
-			    screen,
-			    xstart + x1 * NOMINAL_CHAR_SIZE,
-			    ystart + y1 * NOMINAL_CHAR_SIZE,
-			    xstart + x2 * NOMINAL_CHAR_SIZE,
-			    ystart + y2 * NOMINAL_CHAR_SIZE,
-			    r, g, b);
-		      };
-		    
-		    for (int i = 0; i < num_pts; i++) {
-		      float cx = values[idx + 2 + i * 4 + 0];
-		      float cy = values[idx + 2 + i * 4 + 1];
-		      float dx = values[idx + 2 + i * 4 + 2];
-		      float dy = values[idx + 2 + i * 4 + 3];
-
-		      for (const auto [xx, yy] :
-			     TesselateQuadraticBezier<double>(
-				 x, y, cx, cy, dx, dy, sqerr)) {
-			Line(x, y, xx, yy);
-			x = xx;
-			y = yy;
-		      }
-		    }
-		  };
-
-		DrawPath(0, ROW0_MAX_PTS, 0xFF, 0xFF, 0x00);
-		DrawPath(2 + ROW0_MAX_PTS * 4,
-			 ROW1_MAX_PTS, 0x00, 0xFF, 0x00);
-		DrawPath(2 + ROW0_MAX_PTS * 4 +
-			 2 + ROW1_MAX_PTS * 4,
-			 ROW2_MAX_PTS, 0x00, 0xFF, 0xFF);
-#endif
-
-
-
 bool FontProblem::FillVector(const TTF *ttf, int codepoint,
-			     std::vector<int> &row_max_points,
+			     const std::vector<int> &row_max_points,
 			     float *buffer) {
   std::vector<TTF::Contour> contours =
     TTF::MakeOnlyBezier(ttf->GetContours(codepoint));
