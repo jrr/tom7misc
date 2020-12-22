@@ -80,6 +80,9 @@ area.exe : area.o $(OBJECTS)
 info.exe : info.o $(OBJECTS) loadfonts.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+eval.exe : $(OBJECTS) eval.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 top_test.exe : top.o top_test.o $(OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 

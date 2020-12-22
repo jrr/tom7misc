@@ -15,7 +15,7 @@ struct FontProblem {
   // Fill the buffer (which must be big enough) with contours.
   // Returns true if successful.
   static bool FillVector(const TTF *ttf, int codepoint,
-			 std::vector<int> &row_max_points,
+			 const std::vector<int> &row_max_points,
 			 float *buffer);
   
   // Requires that the network be the kind of the first experiment,
@@ -23,7 +23,9 @@ struct FontProblem {
   // rows of bezier-only paths.
   static void RenderVector(const std::string &font_filename,
 			   const Network &net,
-			   const std::vector<int> &row_max_points);    
+			   const std::vector<int> &row_max_points,
+			   const std::string &out_filename);    
+
 };
 
 #endif
