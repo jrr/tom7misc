@@ -9,15 +9,18 @@
 
 #include "threadutil.h"
 #include "fontdb.h"
+#include "font-problem.h"
 
 using namespace std;
 
 LoadFonts::LoadFonts(
     std::function<bool()> ExitEarly,
+    const vector<int> &row_max_points,
     int max_parallelism,
     int64 max_fonts) : max_parallelism(max_parallelism),
 		       max_fonts(max_fonts),
-		       ExitEarly(ExitEarly) {
+		       ExitEarly(ExitEarly),
+		       row_max_points(row_max_points) {
   fonts.reserve(max_fonts);
 
   init_thread.reset(new std::thread([this]() {
@@ -64,7 +67,25 @@ void LoadFonts::Init() {
 		if (ExitEarly()) return;
 		
 		TTF *ttf = new TTF{filename};
-		// XXX can filter for stuff like "too many points"
+
+		vector<float> v;
+		v.resize(
+		    FontProblem::BufferSizeForPoints(row_max_points));
+		
+		// Make sure ALL letters will fit in training data.
+		for (int c = 0; c < 26; c++) {
+		  int upper = 'A' + c;
+		  int lower = 'a' + c;
+		  if (!FontProblem::FillVector(ttf, upper, row_max_points,
+					       v.data()) ||
+		      !FontProblem::FillVector(ttf, lower, row_max_points,
+					       v.data())) {
+		    delete ttf;
+		    return;
+		  }
+		}
+		  
+		// XXX other filters
 		{
 		  WriteMutexLock ml(&fonts_m);
 		  fonts.push_back(ttf);

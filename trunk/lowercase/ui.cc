@@ -115,7 +115,8 @@ struct UI {
   ArcFour rc{"lowercase"};
 
   // Convert lines to beziers.
-  bool only_bezier = false;  
+  bool only_bezier = false;
+  bool normalize = false;
   // XXX
   char current_char = 'a';
   float current_xscale = 1.0, current_yscale = 1.0;
@@ -594,6 +595,14 @@ void UI::Loop() {
 	    ui_dirty = true;
 	  }
 	  break;
+
+	case SDLK_6:
+	  if (event.key.keysym.mod & KMOD_SHIFT) {
+	    printf("CARET\n");
+	    normalize = !normalize;
+	    ui_dirty = true;
+	  }
+	  break;
 	  
 	case SDLK_PLUS:
 	case SDLK_EQUALS:
@@ -874,6 +883,8 @@ void UI::Draw() {
 
     vector<TTF::Contour> contours = times.GetContours(current_char);
     if (only_bezier) contours = TTF::MakeOnlyBezier(contours);
+    if (normalize) contours = TTF::NormalizeOrder(contours,
+						  0.0f, 0.0f);
     
     constexpr int XPOS = 128;
     constexpr int YPOS = 48;
@@ -888,22 +899,36 @@ void UI::Draw() {
 			      0xFF & (color >> 8));
       };
 
+    auto Point = [&](float x, float y, int n) {
+	int xx = XPOS + x * SCALE;
+	int yy = YPOS + y * SCALE;
+	font->draw(xx, yy, StringPrintf("%d", n));
+      };
+    
     // One screen pixel in normalized coordinates.
     double sqerr = 1.0f / (SCALE * SCALE);
 
     for (const auto &contour : contours) {
       float x = contour.startx;
       float y = contour.starty;
-      for (const auto &p : contour.paths) {
+      printf("CONTOUR. Start %.5f %.5f\n", x, y);
+      Point(x, y, -1);
+      for (int i = 0; i < contour.paths.size(); i++) {
+	const auto &p = contour.paths[i];
+	Point(p.x, p.y, i);
 	switch (p.type) {
 	case TTF::PathType::LINE: {
+	  printf("   %d. LINE %.5f %.5f\n", i, p.x, p.y);
 	  Line(x, y, p.x, p.y, 0x000000FF);
 	  x = p.x;
 	  y = p.y;
 	  break;
 	}
 	case TTF::PathType::BEZIER: {
-	  // printf("  bezier %d,%d (%d, %d)\n", p.x, p.y, p.cx, p.cy);
+	  printf("   %d. BEZ  %.5f %.5f   %.5f %.5f\n",
+		 i,
+		 p.cx, p.cy,
+		 p.x, p.y);
 	  // Line(x, y, p.cx, p.cy, 0x00FF00FF);
 	  // Line(p.cx, p.cy, p.px, p.py, 0x0000FFFF);
 	  for (const auto [xx, yy] :

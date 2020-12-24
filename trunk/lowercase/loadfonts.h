@@ -22,6 +22,7 @@ struct LoadFonts {
       // If this returns true (e.g. because the startup process is
       // aborted), just stop loading.
       std::function<bool()> ExitEarly,
+      const vector<int> &row_max_points,
       int max_parallelism,
       int64 max_fonts);
 
@@ -43,7 +44,8 @@ private:
   const int max_parallelism;
   const int64 max_fonts;
   const std::function<bool()> ExitEarly;
-
+  const std::vector<int> row_max_points;
+  
   std::unique_ptr<FontDB> font_db;
   std::unique_ptr<std::thread> init_thread;
 };

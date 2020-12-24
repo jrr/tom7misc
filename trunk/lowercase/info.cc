@@ -10,6 +10,7 @@ int main(int argc, char **argv) {
 
   LoadFonts loadfonts(
       []() { return false; },
+      std::vector<int>{1000, 1000, 1000},
       24,
       1'000'000);
 
@@ -33,7 +34,11 @@ int main(int argc, char **argv) {
     for (int idx = 0; idx < letters.size(); idx++) {
       int c = letters[idx];
       
-      std::vector<TTF::Contour> contours = ttf->GetContours(c);
+      std::vector<TTF::Contour> contours =
+	// XXX just to ensure that expectations are met
+	TTF::NormalizeOrder(
+	    ttf->GetContours(c),
+	    0.0f, 0.0f);
       mc = std::max(mc, (int)contours.size());
       std::vector<int> path_lengths;
       for (const TTF::Contour &c : contours) {

@@ -21,9 +21,9 @@ int main(int argc, char **argv) {
   printf("Render image...\n");
 
   // XXX somehow needs to be shared?
-  static constexpr int ROW0_MAX_PTS = 100;
-  static constexpr int ROW1_MAX_PTS = 25;
-  static constexpr int ROW2_MAX_PTS = 16;
+  static constexpr int ROW0_MAX_PTS = 38;
+  static constexpr int ROW1_MAX_PTS = 14;
+  static constexpr int ROW2_MAX_PTS = 10;
   vector<int> row_max_points = {
     ROW0_MAX_PTS,
     ROW1_MAX_PTS,

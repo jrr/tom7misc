@@ -246,9 +246,9 @@ static constexpr float ByteFloat(uint8 b) {
 // being lowercased, to coax the network to distinguish between
 // letters.
 
-static constexpr int ROW0_MAX_PTS = 100;
-static constexpr int ROW1_MAX_PTS = 25;
-static constexpr int ROW2_MAX_PTS = 16;
+static constexpr int ROW0_MAX_PTS = 38;
+static constexpr int ROW1_MAX_PTS = 14;
+static constexpr int ROW2_MAX_PTS = 10;
 
 static constexpr int INPUT_LAYER_SIZE =
   // start point, then beziers as control point, end point.
@@ -1732,9 +1732,9 @@ static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
   const int num_layers = 4;
   const vector<int> width_config =
     { INPUT_LAYER_SIZE,
-      INPUT_LAYER_SIZE,
       INPUT_LAYER_SIZE * 2,
-      OUTPUT_LAYER_SIZE,
+      INPUT_LAYER_SIZE * 2,
+      OUTPUT_LAYER_SIZE * 2,
       OUTPUT_LAYER_SIZE, };
 
   // If zero, automatically factor to make square-ish.
@@ -1750,12 +1750,12 @@ static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
   // When zero, create a dense layer.
   const vector<int> indices_per_node_config =
     {
-      // First layer dense
+      // Start dense
       0,
-      // Then half
-      INPUT_LAYER_SIZE >> 1,
-      INPUT_LAYER_SIZE >> 1,      
-      INPUT_LAYER_SIZE >> 1,
+      0,
+      // Then half of the points
+      INPUT_LAYER_SIZE,
+      OUTPUT_LAYER_SIZE,
     };
 
   const vector<uint32_t> renderstyle = {
@@ -2192,7 +2192,7 @@ static void TrainThread() {
       FontProblem::RenderVector("helvetica.ttf",
 				*net,
 				row_max_points,
-				StringPrintf("eval%lld.png",
+				StringPrintf("eval/eval%lld.png",
 					     net->rounds));
     }
     
@@ -2234,6 +2234,8 @@ static void TrainThread() {
     if (false && CHECK_NANS /* && net->rounds == 3 */) {
       // Actually run the forward pass on CPU, trying to find the
       // computation that results in nan...
+      // (XXX could use the code from Network, though is not
+      // instrumented at every step. Still maybe this belongs there?)
       net_gpu.ReadFromGPU(); // should already be here, but...
       UnParallelComp(
 	  examples.size(),
@@ -2305,6 +2307,9 @@ static void TrainThread() {
 
     if (VERBOSE > 2) Printf("Setting input layer of Stimulations...\n");
     // These are just memory copies; easy to do in parallel.
+    // PERF: Perhaps do serially if the total amount of data is very
+    // small (this is like 4.3% of the loop on the font problem, but
+    // it's only a few hundred kb per example??)
     CHECK_EQ(examples.size(), training.size());
     ParallelComp(examples.size(),
 		 [&examples, &training](int i) {
@@ -2582,6 +2587,7 @@ int SDL_main(int argc, char **argv) {
   // Start loading fonts in background.
   load_fonts = new LoadFonts(
       []() { return ReadWithLock(&train_should_die_m, &train_should_die); },
+      {ROW0_MAX_PTS, ROW1_MAX_PTS, ROW2_MAX_PTS},
       12,
       MAX_FONTS);
 
