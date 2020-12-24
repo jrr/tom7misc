@@ -105,10 +105,16 @@ void FontProblem::RenderVector(const string &font_filename,
     const int codepoint = 'A' + letter;
     Stimulation stim{net};
     // We assume the given font fits for evaluation!
-    CHECK(FillVector(&ttf, codepoint, row_max_points,
-		     stim.values[0].data())) << "Eval font doesn't "
-      "fit in input vector?? " << (char)codepoint;
-
+    if (!FillVector(&ttf, codepoint, row_max_points,
+		    stim.values[0].data())) {
+      for (const TTF::Contour &contour : 
+	     TTF::MakeOnlyBezier(ttf.GetContours(codepoint))) {
+	printf("FAIL: contour length %d\n", (int)contour.paths.size());
+      }
+      CHECK(false) << "Eval font doesn't fit in input vector?? "
+		   << (char)codepoint;
+    }
+    
     for (int iter = 0; iter < NUM_ITERS; iter++) {
       const int starty =
 	TOP_MARGIN + iter * (LETTER_HEIGHT + LETTER_Y_MARGIN);
@@ -165,6 +171,12 @@ bool FontProblem::FillVector(const TTF *ttf, int codepoint,
 
   std::sort(contours.begin(), contours.end(), ByPathSizeDesc);
 
+  for (int i = 0; i < contours.size(); i++) {
+    if (contours[i].paths.size() > row_max_points[i]) {
+      return false;
+    }
+  }
+  
   // We need something to put in rows if there are fewer than
   // the maximum number of contours.
   // We treat this as an empty path starting at 0,0.
@@ -173,11 +185,6 @@ bool FontProblem::FillVector(const TTF *ttf, int codepoint,
     contours.push_back(degenerate);
   }
 
-  for (int i = 0; i < contours.size(); i++) {
-    if (contours[i].paths.size() > row_max_points[i]) {
-      return false;
-    }
-  }
 
   // All right, all is well!
 
@@ -220,4 +227,11 @@ bool FontProblem::FillVector(const TTF *ttf, int codepoint,
   }
 
   return true;
+}
+
+int FontProblem::BufferSizeForPoints(const std::vector<int> &row_max_points) {
+  int size = 0;
+  for (int r : row_max_points)
+    size += 2 + (r * 4);
+  return size;
 }

@@ -13,6 +13,7 @@
 #include "base/logging.h"
 #include "image.h"
 
+// TODO: Split to .cc and .h
 // TODO: Only expose normalized coordinates...
 struct TTF {
   using string = std::string;
@@ -129,8 +130,10 @@ struct TTF {
   // Not cached, so this does a lot more allocation than you probably want.
   ImageA GetChar(char c, int size) {
     int width, height;
-    uint8_t *bitmap = stbtt_GetCodepointBitmap(&font, 0, stbtt_ScaleForPixelHeight(&font, size),
-					       c, &width, &height, 0, 0);
+    uint8_t *bitmap =
+      stbtt_GetCodepointBitmap(
+	  &font, 0, stbtt_ScaleForPixelHeight(&font, size), c,
+	  &width, &height, 0, 0);
     CHECK(bitmap != nullptr) << "Character " << (char)c << " size " << size;
 
     const int bytes = width * height;
@@ -253,7 +256,20 @@ struct TTF {
     Path(float x, float y, float cx, float cy) :
       type(PathType::BEZIER), x(x), y(y), cx(cx), cy(cy) {}
   };
-  
+
+  // There can be clockwise and counterclockwise (thinking about non-
+  // self-intersecting) contours. Clockwise increases the winding count
+  // by 1; counter-clockwise decreases it.
+  // 
+  // TTF uses the nonzero winding rule: As a ray passes from a point
+  // (pixel) to infinity (any direction works), the sum of contours it
+  // crosses gives the winding number. If zero, it is "white" (outside
+  // the shape). If nonzero, it is "black".
+  //
+  // Because negative is also nonzero, a shape without holes like an
+  // 'm' can be drawn with either winding order (XXX check), although
+  // clockwise is normative.
+  //
   // XXX is this expected to be closed?
   struct Contour {
     float startx = 0.0f, starty = 0.0f;
@@ -289,6 +305,9 @@ struct TTF {
     return out;
   }
 
+  // For a vector of contours describing a shape, convert any lines
+  // into equivalent Bezier curves (with the control point at the
+  // midpoint of the line). Beziers are 
   static std::vector<Contour> MakeOnlyBezier(
       const std::vector<Contour> &contours) {
     std::vector<Contour> out;
@@ -317,6 +336,67 @@ struct TTF {
 	}
       }
       out.emplace_back(std::move(o));
+    }
+    return out;
+  }
+
+  // A contour is just a loop so it can equivalently start at any of
+  // its points. This picks the point closest to the given origin.
+  // Doesn't change winding orders.
+  //
+  // Requires that the last path end exactly on the start point. This will
+  // be the
+  static std::vector<Contour> NormalizeOrder(
+      const std::vector<Contour> &contours,
+      float origin_x, float origin_y) {
+    auto SqDist = [origin_x, origin_y](float x, float y) {
+	float dx = (x - origin_x);
+	float dy = (y - origin_y);
+	return (dx * dx) + (dy * dy);
+      };
+    std::vector<Contour> out;
+    out.reserve(contours.size());
+    for (const Contour &c : contours) {
+      // index (of end point) closest to the origin point.
+      // -1 means the start point was already closest.
+      int bestidx = -1;
+      float best_sqerr = SqDist(c.startx, c.starty);
+      for (int i = 0; i < c.paths.size(); i++) {
+	// Both LINE and BEZIER have an end point.
+	const float sqerr = SqDist(c.paths[i].x, c.paths[i].y);
+	if (sqerr < best_sqerr) {
+	  bestidx = i;
+	  best_sqerr = sqerr;
+	}
+      }
+      
+      if (bestidx == -1) {
+	out.push_back(c);
+      } else {
+	// Some end point was closer than the current start.
+	// Start there instead.
+	float x = c.paths[bestidx].x;
+	float y = c.paths[bestidx].y;
+	Contour r{x, y};
+	// Paths that come after it.
+	for (int i = bestidx + 1; i < c.paths.size(); i++) {
+	  r.paths.push_back(c.paths[i]);
+	  x = c.paths[i].x;
+	  y = c.paths[i].y;
+	}
+	// When we get to the end, we assume a closed path.
+	// (If not, we could always insert a LINE here.
+	CHECK_EQ(c.startx, x) << c.startx << " " << x;
+	CHECK_EQ(c.starty, y) << c.starty << " " << y;
+	// Because the path was closed, our cursor is already
+	// on startx, starty.
+	for (int i = 0; i <= bestidx; i++) {
+	  r.paths.push_back(c.paths[i]);
+	  x = c.paths[i].x;
+	  y = c.paths[i].y;
+	}
+	out.push_back(std::move(r));
+      }
     }
     return out;
   }

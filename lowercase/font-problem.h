@@ -12,6 +12,8 @@ class TTF;
 // Generates an image to the given filename.
 struct FontProblem {
 
+  static int BufferSizeForPoints(const std::vector<int> &row_max_points);
+  
   // Fill the buffer (which must be big enough) with contours.
   // Returns true if successful.
   static bool FillVector(const TTF *ttf, int codepoint,
