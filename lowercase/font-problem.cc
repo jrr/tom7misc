@@ -152,7 +152,9 @@ bool FontProblem::FillVector(const TTF *ttf, int codepoint,
 			     const std::vector<int> &row_max_points,
 			     float *buffer) {
   std::vector<TTF::Contour> contours =
-    TTF::MakeOnlyBezier(ttf->GetContours(codepoint));
+    TTF::MakeOnlyBezier(
+	TTF::NormalizeOrder(ttf->GetContours(codepoint),
+			    0.0f, 0.0f));
 
   // Only room for three contours.
   // XXX: Perhaps we should reject the entire font if it will

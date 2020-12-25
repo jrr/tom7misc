@@ -80,6 +80,7 @@
 #include "timer.h"
 #include "top.h"
 #include "font-problem.h"
+#include "autoparallel.h"
 
 #include "../bit7/embed9x9.h"
 
@@ -2092,6 +2093,24 @@ static void TrainThread() {
 
   if (ShouldDie()) return;
 
+  // Automatically tune parallelism for some loops, caching the results
+  // on disk. The experiment string should change (or cache files deleted)
+  // when significant parameters change (not just these!).
+  const string experiment =
+    StringPrintf("vec-%d-%d", EXAMPLES_PER_ROUND, ROW0_MAX_PTS);
+
+  AutoParallelComp stim_init_comp{32, 50, false,
+				  StringPrintf("autoparallel.%s.stim.txt",
+					       experiment.c_str())};
+
+  AutoParallelComp forward_comp{32, 50, true,
+				StringPrintf("autoparallel.%s.fwd.txt",
+					     experiment.c_str())};
+
+  AutoParallelComp error_comp{32, 50, true,
+			      StringPrintf("autoparallel.%s.err.txt",
+					   experiment.c_str())};
+  
   // Training round: Loop over all images in random order.
   double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
     fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0,
@@ -2104,9 +2123,12 @@ static void TrainThread() {
     if (ShouldDie()) return;
 
     while (std::optional<string> excl = GetExclusiveApp ()) {
+      // Don't keep time while deliberately stopped.
+      total_timer.Stop();
       Printf("(Sleeping because of exclusive app %s)\n",
 	     excl.value().c_str());
       std::this_thread::sleep_for(5000ms);
+      total_timer.Start();
     }
     
     if (VERBOSE > 2) Printf("\n\n");
@@ -2311,10 +2333,11 @@ static void TrainThread() {
     // small (this is like 4.3% of the loop on the font problem, but
     // it's only a few hundred kb per example??)
     CHECK_EQ(examples.size(), training.size());
-    ParallelComp(examples.size(),
-		 [&examples, &training](int i) {
-		   training[i]->LoadInput(examples[i].input);
-		 }, 16);
+    stim_init_comp.ParallelComp(
+	examples.size(),
+	[&examples, &training](int i) {
+	  training[i]->LoadInput(examples[i].input);
+	});
     stimulation_init_ms += stimulation_init_timer.MS();
 
     if (ShouldDie()) return;
@@ -2329,26 +2352,27 @@ static void TrainThread() {
       // too many simultaneous value src/dst buffers.
       Timer forward_timer;
       if (VERBOSE > 3) Printf("Parallelcomp...\n");
-      ParallelComp(examples.size(),
-		   [&net, rounds_executed, num_examples = examples.size(),
-		    &fc, &training](int example_idx) {
-		     fc.Forward(training[example_idx]);
-		     /*
-		     if (example_idx % 10 == 0) {
-		       Printf("[%d/%d] (%.2f%%) ", example_idx, num_examples,
-			      100.0 * example_idx / num_examples);
-		     }
-		     */
+      forward_comp.ParallelComp(
+	  examples.size(),
+	  [&net, rounds_executed, num_examples = examples.size(),
+	   &fc, &training](int example_idx) {
+	    fc.Forward(training[example_idx]);
+	    /*
+	      if (example_idx % 10 == 0) {
+	      Printf("[%d/%d] (%.2f%%) ", example_idx, num_examples,
+	      100.0 * example_idx / num_examples);
+	      }
+	    */
 
-		     if (rounds_executed % EXPORT_EVERY == 0 &&
-			 example_idx < NUM_VIDEO_STIMULATIONS) {
-		       // XXX this uses unintialized/stale memory btw
-		       Stimulation stim{*net};
-		       training[example_idx]->ExportStimulation(&stim);
-		       // Copy to screen.
-		       ui->ExportStimulusToVideo(example_idx, stim);
-		     }
-		   }, 16);
+	    if (rounds_executed % EXPORT_EVERY == 0 &&
+		example_idx < NUM_VIDEO_STIMULATIONS) {
+	      // XXX this uses unintialized/stale memory btw
+	      Stimulation stim{*net};
+	      training[example_idx]->ExportStimulation(&stim);
+	      // Copy to screen.
+	      ui->ExportStimulusToVideo(example_idx, stim);
+	    }
+	  });
       forward_ms += forward_timer.MS();
       kernel_ms += fc.kernel_ms;
       if (VERBOSE > 2) Printf("\n");
@@ -2396,7 +2420,7 @@ static void TrainThread() {
     if (ShouldDie()) return;
     if (VERBOSE > 2) Printf("Error calc.\n");
     Timer output_error_timer;
-    ParallelComp(
+    error_comp.ParallelComp(
 	num_examples,
 	[rounds_executed,
 	 &setoutputerror, &net_gpu, &training, &expected](int example_idx) {
@@ -2411,7 +2435,7 @@ static void TrainThread() {
 	  SetOutputErrorCL::Context sc{&setoutputerror, &net_gpu};
 	  sc.SetOutputError(training[example_idx]);
 	  /* Printf("."); */
-	}, 16);
+	});
     output_error_ms += output_error_timer.MS();
     if (VERBOSE > 2) Printf("\n");
 
