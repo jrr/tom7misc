@@ -7,6 +7,7 @@
 
 class Network;
 class TTF;
+class ArcFour;
 
 struct FontProblem {
 
@@ -43,6 +44,7 @@ struct FontProblem {
   // also need to attribute the error to specific points (including
   // Bezier control points), including the error's derivative.
   //
+  // XXX docs are out of date
   // Takes an expected loop and actual loop as a series of points 
   // (for this code, we can just think of the edges as straight lines).
   // Finds a mapping from each expected point to some actual point,
@@ -59,8 +61,20 @@ struct FontProblem {
   // the index of the mapped point in actual.
   // Note: Expensive!
   using Point = std::pair<float, float>;
-  std::vector<int> BestLoopMapping(const std::vector<Point> &expected,
-				   const std::vector<Point> &actual);
+  // An assignment can be equivalently specified as a start point
+  // (index into a) and then the number of expected points consumed
+  // by each point a (>= 1, summing to |expected|).
+  struct LoopAssignment {
+    explicit LoopAssignment(int size) : groups(size, 1) {}
+    // index into assignments
+    int point0 = 0;
+    // size |expected|. number of actual points that are
+    // grouped into the expected point.
+    std::vector<int> groups;
+  };
+  LoopAssignment BestLoopAssignment(ArcFour *rc,
+				    const std::vector<Point> &expected,
+				    const std::vector<Point> &actual);
 };
 
 #endif

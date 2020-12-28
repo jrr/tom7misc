@@ -12,6 +12,8 @@
 #include "ttf.h"
 #include "threadutil.h"
 #include "lines.h"
+#include "arcfour.h"
+#include "randutil.h"
 
 using namespace std;
 
@@ -238,189 +240,158 @@ int FontProblem::BufferSizeForPoints(const std::vector<int> &row_max_points) {
   return size;
 }
 
-namespace {
-struct HashPair {
-  std::size_t operator()(const std::pair<int, int> &p) const {
-    const auto [a, b] = p;
-    return std::size_t(a) * 4294967291 + b;
-  }
-};
+// Initially tried doing this exactly with dynamic programming. But it
+// didn't work out (core issue is that it's not just a matter of
+// computing the "best error" for each cell, but also what the
+// next_point is. But there is no clear best choice, since as you use
+// the solution to that subproblem you may find points that are very
+// close to a next_point that you didn't choose. So there are some
+// non-local effects.)
+//
+// We don't need the solution to be exact, and even with an exact
+// solution to that mapping problem, the final result would not have
+// been, anyway.
+//
+// New approach is designed to be fast and heuristic. Try out random
+// assignments and improve them locally (moving any point to a neighbor)
+// until we can't any more. Return the best one.
+
+using Point = FontProblem::Point;
+static float SqDistance(const Point &a, const Point &b) {
+  const float dx = a.first - b.first;
+  const float dy = a.second - b.second;
+  return dx * dx + dy + dy;
 }
 
-// Code for computing the error between a predicted vector shape ("loop")
-// and the expected one.
-//
-// When we predict a loop it is of fixed size, but the expected
-// font's loop is generally smaller. The predicted loop needs to
-// follow the same sequence of vertices, but to use up its extra
-// points, it is permitted to duplicate them. (At first I was asking
-// it to always duplicate the start point at the end of the loop,
-// but this may be more rigid than we want.) Alas we cannot "just"
-// compute some geometric distance between the two loops, because we
-// also need to attribute the error to specific points (including
-// Bezier control points), including the error's derivative.
-//
-// Takes an expected loop and actual loop as a series of points 
-// (for this code, we can just think of the edges as straight lines).
-// Finds a mapping from each expected point to some actual point,
-// such that:
-//   - the expected points appear in strictly increasing order
-//       (modulo the loop)
-//   - the error is minimized:
-//       - for each actual point in the domain of the mapping,
-//         its Euclidean distance to the expected point
-//       - also, all the unmapped points between it and the
-//         previously mapped point.
-//
-// The output is a vector the same length as expected, which gives
-// the index of the mapped point in actual.
-using Point = FontProblem::Point;
-vector<int> FontProblem::BestLoopMapping(const vector<Point> &expected,
-					 const vector<Point> &actual) {
+
+FontProblem::LoopAssignment
+FontProblem::BestLoopAssignment(ArcFour *rc,
+				const vector<Point> &expected,
+					       const vector<Point> &actual) {
   const int num_expected = expected.size();
   const int num_actual = actual.size();
 
-  // The first expected point will be mapped to some actual point. So
-  // without loss of generality we'll try all rotations of the actual
-  // vector, but then require that the 0th element be the destination
-  // of the 0th expected point. The final result is the one of those
-  // with the minimal error.
-
-  int best_a_rotation = 0;
-  float best_error = std::numeric_limits<float>::infinity();
-
-  for (int a_rotation = 0; a_rotation < actual.size(); a_rotation++) {
-    // PERF don't actually compute this; just wrap the subscript
-    // calls.
-    vector<Point> rot_actual;
-    rot_actual.reserve(actual.size());
-    for (int i = 0; i < actual.size(); i++) {
-      rot_actual.push_back(actual[(i + a_rotation) % actual.size()]);
-    }
-
-    // OK, now expected[0] maps to actual[0], and we want to find
-    // the best mapping for the rest. This is a natural dynamic
-    // programming problem: We can tabulate the score yielding
-    // the "best assignment of the suffix of expected to
-    // the suffix of actual", with a table size of
-    // O(|expected| * |actual|). Let e be the current index into
-    // the expected vector, a the same for the (rotated) actual
-    // vector. Then erest and arest are the number of elements that
-    // remain.
-    // Boundary conditions:
-    //    - If erest=arest, then we must do the single 1:1 mapping possible.
-    //    - If erest > arest, then it is impossible (infinite error).
-    //    - If erest = 0, then all the points in arest are measured
-    //      against the 0th point (already assigned in the outer loop),
-    //      because of wraparound.
-    // Otherwise, the general case. We can either assign the expected
-    // point at the head to the actual point at head or not. If we
-    // assign it,
-
-    // Actually just kidding: We should go from the end. Let e
-    // be the index from the end of the array
-    // (starting at expected.size() - 1) and likewise a. We also
-    // keep track of a bound > a; this span of points have not
-    // been assigned yet. When we make an assignment, we include
-    // the error for all these points (against the next assignment,
-    // which has already been made; it begins as the wrapped-around
-    // assignment of point 0). Either we're adding some more error
-    // against that next point, or committing the current error and
-
-    // XXX PERF use a dense vector.
-    struct Info {
-      // best error for this cell. Already includes the error from
-      // points that get grouped to the next one.
-      float err = 0.0f;
-      // the point that intermediate points get measured against,
-      // if they are not assigned to.
-      Point next_point = {0.0f, 0.0f};
+  // Since we want to find the overall best match, we need to do
+  // |e|*|a| distance computations, so we might as well cache that
+  // distance matrix.
+  vector<float> distances(num_expected * num_actual, 0.0f);
+  auto DistanceAt = [&distances, num_expected](int e, int a) -> float & {
+      return distances[num_expected * a + e];
     };
-    std::unordered_map<std::pair<int, int>, Info> table;
-    auto Has = [&table](int e, int a) {
-	return table.find({e, a}) != table.end();
-      };
-    auto At = [&table](int e, int a) -> float & {
-	return table[{e, a}];
-      };
 
-    // e ranges from 0 to expected.size()
-    // a ranges from 0 to actual.size()
-    //
-    //    
-    //       qrstuvwx ""
-    //      b      -- -
-    //      c    $1 - -
-    //      d    23 * -
-    //     ""<<<<<<<& i
-    //
-    // Here we have the string of actual points (p)qrstuvwx as
-    // columns, and expected (a)bcd as rows. The first letter is
-    // already assigned, so it is left off. Thinking about the cell
-    // *, we're computing the best way of mapping the string "d"
-    // to the string "x". The only way to do this is to make the
-    // assignment.
-    //   - Since we do, that cell gets its next_point set to d, and the
-    //     error is the distance between x and d, plus any carried
-    //     error (there is none).
-    // 
-    // The cells marked - are impossible (infinite error) because
-    // they ask us to assign more expected points (e.g. "cd") to fewer
-    // actual (e.g. "x"). Note that the rightmost column (where actual
-    // is the empty string is "-" except for the bottom-right diagonal.
-    // This cell, "i", is the empty assignment, so its error is 0.0,
-    // and the next_point is the assignment we started with (a->p; not
-    // pictured).
-    //
-    // The cell marked & asks us to assign "" to the string "x". There
-    // is just one way to do this, which is to skip "x" (it gets grouped
-    // into the next_point from the cell to the right). And so we measure
-    // the error against that next_point (and propagate it), as well
-    // as add the error.
-    //
-    // The cells marked < do the same. The ones off the diagonal (e.g.
-    // the bottom left one) can't be used in the solution.
-    //
-    // Finally, a general case, the cell $. It will be built from
-    // neighbors 1, 2, 3. In this cell we're being asked to find the
-    // best assignment of "cd" to "uvwx". We have two choices here;
-    // assign c to u or not.
-    //   - From cell 3, we have a solution to the subproblem "d" to "vwx".
-    //     We can use this to solve the current problem by assigning c to u.
-    //     We take its error, and since we made an assignment, we don't
-    //     need its next_point. The next_point becomes this one.
-    //   - From cell 2, we have a solution to the subproblem "d" to "uvwx".
-    //     This is not useful here because we must assign "c" to something,
-    //     but there's nothing to assign it 
-    //   - From cell 1, a solution to the subproblem "cd" to "vwx".
-    //     Here we don't assign anything to "u" and then get a solution
-    //     to the current problem. We propagate the next_point from 1,
-    //     and add error from "u" against that next_point.
-    //
-    // So we only use the cell to the right and down-right.
-    //
-    // So we can state that every cell contains the best error achievable
-    // for that subproblem, but how do we know that the next_point is the
-    // "best" next_point? When looking at $, "d" could have been assigned
-    // to "w" or "x" with some (minimal) resulting error, but what if we
-    // chose "w" and yet "c" is much closer to "x" than "w"? Now we'll have
-    // to incur a large error, which may be larger than the savings from
-    // the other points? Basically it seems like THIS APPROACH IS JUST
-    // BUGGY.
-    //
-    // Since we'll go from the end of the vector, we need to fill
-    // the right column (e = expected.size()) and bottom row
-    // (a = actual.size()) first.
-
-    // For the right column, the error is zero. The next point
-    // is the assigned point, expected[0].
-    for (int i = 0; i < actual.size(); i++) {
-      Info &info = At(expected.size(), i);
-      info.err = 0.0f;
-      info.next_point = expected[0];
+  int closest_a = -1;
+  int closest_e = -1;
+  float closest_dist = std::numeric_limits<float>::infinity();
+  for (int a = 0; a < num_actual; a++) {
+    for (int e = 0; e < num_expected; e++) {
+      const float dist = sqrtf(SqDistance(expected[e], actual[a]));
+      DistanceAt(e, a) = dist;
+      if (dist < closest_dist) {
+	closest_a = a;
+	closest_e = e;
+      }
     }
-    
-    // For the bottom row, 
-    
   }
+
+  // (PERF: Not actually using this)
+  CHECK(closest_a >= 0 && closest_e >= 0)
+    << closest_a << " " << closest_e;
+
+  auto Score = [&actual, &expected, &DistanceAt](
+      const LoopAssignment &assn) -> float {
+      // here we have like
+      //        0       1 2
+      //        x       y z      <- expected
+      //    a b c d e f g h i j  <- actual
+      //    0 1 2 3 4 5 6 7 8 9 
+      // This would be represented with point0 = 2,
+      // and groups = {4, 1, 5}.
+
+      // PERF sanity check
+      {
+	int total = 0;
+	for (int g : assn.groups) total += g;
+	CHECK(total == actual.size()) << total << " " << actual.size();
+      }
+
+      float err = 0.0f;
+      int a = assn.point0;
+      for (int e = 0; e < expected.size(); e++) {
+	int num = assn.groups[e];
+	for (int i = 0; i < num; i++) {
+	  err += DistanceAt(e, a);
+	  a++;
+	  if (a == actual.size()) a = 0;
+	}
+      }
+      return err;
+    };
+  
+  static constexpr int NUM_ATTEMPTS = 10;
+  
+  LoopAssignment best_assignment{(int)expected.size()};
+  float best_error = std::numeric_limits<float>::infinity();
+  for (int attempt = 0; attempt < NUM_ATTEMPTS; attempt++) {
+    // Make a random assignment.
+    LoopAssignment assn{(int)expected.size()};
+    assn.point0 = RandTo32(rc, actual.size());
+    // The assignment is initialized to all ones. Distribute
+    // the extra so that the sum is the same size as expected.
+    int extra = actual.size() - expected.size();
+    while (extra--)
+      assn.groups[RandTo32(rc, assn.groups.size())]++;
+
+    float current_score = Score(assn);
+    bool improved = false;
+    do {
+      // Iteratively try to improve by moving points to neighbors.
+      for (int i = 0; i < assn.groups.size(); i++) {
+	int next_i = i < assn.groups.size() - 1 ? i + 1 : 0;
+
+	// Move point forward.
+	if (assn.groups[i] > 1) {
+	  assn.groups[i]--;
+	  assn.groups[next_i]++;
+	  float new_score = Score(assn);
+	  if (new_score < current_score) {
+	    improved = true;
+	    current_score = new_score;
+	    // No point in trying to move mass backward then, because
+	    // we just put it there.
+	    continue;
+	  } else {
+	    // Undo.
+	    assn.groups[i]++;
+	    assn.groups[next_i]--;
+	  }
+	}
+
+	// And backward.
+	if (assn.groups[next_i] > 1) {
+	  assn.groups[i]++;
+	  assn.groups[next_i]--;
+
+	  float new_score = Score(assn);
+	  if (new_score < current_score) {
+	    improved = true;
+	    current_score = new_score;
+	  } else {
+	    // Undo.
+	    assn.groups[i]--;
+	    assn.groups[next_i]++;
+	  }
+	}
+      }
+	
+    } while (improved);
+
+
+    // Local maximum.
+    if (current_score < best_error) {
+      best_assignment = assn;
+      best_error = current_score;
+    }
+  }
+
+  return best_assignment;
 }
