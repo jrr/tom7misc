@@ -42,7 +42,7 @@ struct AutoParallelComp {
     verbose(verbose),
     cachefile(cachefile),
     experiments(max_parallelism, Experiment{}) {
-    if (cachefile.empty()) {
+    if (!cachefile.empty()) {
       ReadCache();
       // Number of milliseconds since we started running, so
       // that we can throttle saving.
@@ -218,7 +218,9 @@ private:
     double total = 0.0;
     for (double d : expt->sample_ms)
       total += d;
-    const double mean = total / (double)num_samples;
+    const double mean =
+      num_samples == 0 ? 0.0 :
+      total / (double)num_samples;
 
 
     double sqerr = 0.0;

@@ -108,6 +108,9 @@ struct Network {
   // must be the right size (i.e. created from this Network) and
   // the input layer should be filled.
   void RunForward(Stimulation *stim) const;
+  // Same, but print lots of garbage and abort if a NaN is encountered
+  // at any point.
+  void RunForwardVerbose(Stimulation *stim) const;
   
   // Just used for serialization. Whenever changing the interpretation
   // of the data in an incomplete way, please change.
