@@ -144,6 +144,70 @@ void Network::RunForward(Stimulation *stim) const {
   }
 }
 
+void Network::RunForwardVerbose(Stimulation *stim) const {
+  for (int src = 0; src < num_layers; src++) {
+    const TransferFunction transfer_function =
+      layers[src].transfer_function;
+    auto Forward =
+      [transfer_function](float potential) -> float {
+	switch (transfer_function) {
+	case SIGMOID:
+	  return 1.0f / (1.0f + expf(-potential));
+	case RELU:
+	  return (potential < 0.0f) ? 0.0f : potential;
+	case LEAKY_RELU:
+	  return (potential < 0.0f) ? potential * 0.01f : potential;
+	default:
+	  CHECK(false) << "Unimplemented transfer function " <<
+	    TransferFunctionName(transfer_function);
+	  return 0.0f;
+	}
+      };
+
+
+    const vector<float> &src_values = stim->values[src];
+    vector<float> *dst_values = &stim->values[src + 1];
+    const vector<float> &biases = layers[src].biases;
+    const vector<float> &weights = layers[src].weights;
+    const vector<uint32> &indices = layers[src].indices;
+    const int indices_per_node = layers[src].indices_per_node;
+    const int number_of_nodes = num_nodes[src + 1];
+    for (int node_idx = 0; node_idx < number_of_nodes; node_idx++) {
+
+      // Start with bias.
+      double potential = biases[node_idx];
+      printf("%d|L %d n %d. bias: %f\n",
+	     rounds, src, node_idx, potential);
+      CHECK(!std::isnan(potential)) << node_idx;
+      const int my_weights = node_idx * indices_per_node;
+      const int my_indices = node_idx * indices_per_node;
+		
+      for (int i = 0; i < indices_per_node; i++) {
+	const float w = weights[my_weights + i];
+	int srci = indices[my_indices + i];
+	// XXX check dupes
+	CHECK(srci >= 0 && srci < src_values.size()) << srci;
+	const float v = src_values[srci];
+	CHECK(!std::isnan(w) &&
+	      !std::isnan(v) &&
+	      !std::isnan(potential)) <<
+	  StringPrintf("L %d, n %d. [%d=%d] %f * %f + %f\n",
+		       src,
+		       node_idx,
+		       i, srci, w, v, potential);
+	potential += w * v;
+      }
+      CHECK(!std::isnan(potential));
+		
+      CHECK(node_idx >= 0 && node_idx < dst_values->size());
+      float out = Forward(potential);
+      printf("    %f -> %f\n", potential, out);
+      CHECK(!std::isnan(out)) << potential;
+      (*dst_values)[node_idx] = out;
+    }
+  }
+}
+
 
 void Network::NaNCheck(const char *message) const {
   bool has_nans = false;

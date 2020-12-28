@@ -2103,13 +2103,17 @@ static void TrainThread() {
 				  StringPrintf("autoparallel.%s.stim.txt",
 					       experiment.c_str())};
 
-  AutoParallelComp forward_comp{32, 50, true,
+  AutoParallelComp forward_comp{32, 50, false,
 				StringPrintf("autoparallel.%s.fwd.txt",
 					     experiment.c_str())};
 
-  AutoParallelComp error_comp{32, 50, true,
+  AutoParallelComp error_comp{32, 50, false,
 			      StringPrintf("autoparallel.%s.err.txt",
 					   experiment.c_str())};
+
+  AutoParallelComp backward_comp{32, 50, false,
+				 StringPrintf("autoparallel.%s.bwd.txt",
+					      experiment.c_str())};
   
   // Training round: Loop over all images in random order.
   double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
@@ -2122,13 +2126,15 @@ static void TrainThread() {
 
     if (ShouldDie()) return;
 
-    while (std::optional<string> excl = GetExclusiveApp ()) {
+    while (std::optional<string> excl = GetExclusiveApp()) {
       // Don't keep time while deliberately stopped.
       total_timer.Stop();
+      round_timer.Stop();
       Printf("(Sleeping because of exclusive app %s)\n",
 	     excl.value().c_str());
       std::this_thread::sleep_for(5000ms);
       total_timer.Start();
+      round_timer.Start();
     }
     
     if (VERBOSE > 2) Printf("\n\n");
@@ -2162,8 +2168,9 @@ static void TrainThread() {
 	double f = input / round_target;
 	return start + f * height;
       };
+    // was 500000 rounds, 26 Dec 2020
     const float round_learning_rate =
-      Linear(0.10, 0.002, 500000.0, net->rounds);
+      Linear(0.10, 0.002, 50000.0, net->rounds);
 
     // const float round_learning_rate =
     //     std::min(0.125, std::max(0.002, 2 * exp(-0.2275 *
@@ -2256,67 +2263,14 @@ static void TrainThread() {
     if (false && CHECK_NANS /* && net->rounds == 3 */) {
       // Actually run the forward pass on CPU, trying to find the
       // computation that results in nan...
-      // (XXX could use the code from Network, though is not
-      // instrumented at every step. Still maybe this belongs there?)
       net_gpu.ReadFromGPU(); // should already be here, but...
-      UnParallelComp(
-	  examples.size(),
-	  [&net, &examples](int example_idx) {
-	    // XXX only run on one example...
-	    if (example_idx != 0) return;
-
-	    Stimulation stim{*net};
-	    for (int src = 0; src < net->num_layers; src++) {
-	      // XXX hard coded to leaky_relu
-	      auto Forward =
-		[](double potential) -> float {
-		  return ((potential < 0.0f) ? potential * 0.01f : potential);
-		};
-
-	      const vector<float> &src_values = stim.values[src];
-	      vector<float> *dst_values = &stim.values[src + 1];
-	      const vector<float> &biases = net->layers[src].biases;
-	      const vector<float> &weights = net->layers[src].weights;
-	      const vector<uint32> &indices = net->layers[src].indices;
-	      const int indices_per_node = net->layers[src].indices_per_node;
-	      const int num_nodes = net->num_nodes[src + 1];
-	      for (int node_idx = 0; node_idx < num_nodes; node_idx++) {
-
-		// Start with bias.
-		double potential = biases[node_idx];
-		printf("%d|L %d n %d. bias: %f\n",
-		       net->rounds, src, node_idx, potential);
-		CHECK(!std::isnan(potential)) << node_idx;
-		const int my_weights = node_idx * indices_per_node;
-		const int my_indices = node_idx * indices_per_node;
-		
-		for (int i = 0; i < indices_per_node; i++) {
-		  const float w = weights[my_weights + i];
-		  int srci = indices[my_indices + i];
-		  // XXX check dupes
-		  CHECK(srci >= 0 && srci < src_values.size()) << srci;
-		  const float v = src_values[srci];
-		  // PERF: fma()?
-		  CHECK(!std::isnan(w) &&
-			!std::isnan(v) &&
-			!std::isnan(potential)) <<
-		    StringPrintf("L %d, n %d. [%d=%d] %f * %f + %f\n",
-				 src,
-				 node_idx,
-				 i, srci, w, v, potential);
-		  potential += w * v;
-		}
-		CHECK(!std::isnan(potential));
-		
-		CHECK(node_idx >= 0 && node_idx < dst_values->size());
-		float out = Forward(potential);
-		printf("    %f -> %f\n", potential, out);
-		CHECK(!std::isnan(out)) << potential;
-		(*dst_values)[node_idx] = out;
-	      }
-	    }
-	  },
-	  16);
+      CHECK(!examples.empty());
+      const TrainingExample &example = examples[0];
+      Stimulation stim{*net};
+      CHECK_EQ(stim.values[0].size(), example.input.size());
+      for (int i = 0; i < example.input.size(); i++)
+	stim.values[0][i] = example.input[i];
+      net->RunForwardVerbose(&stim);
     }
 
     // TODO: may make sense to pipeline this loop somehow, so that we
@@ -2452,16 +2406,11 @@ static void TrainThread() {
       BackwardLayerCL::Context bc{&backwardlayer, &net_gpu, dst};
       bc_init_ms += bc_init_timer.MS();
 
-      ParallelComp(num_examples,
-		   [num_examples, &training, &bc](int example) {
-		     bc.Backward(training[example]);
-		     /*
-		     if (example % 10 == 0) {
-		       Printf("[%d/%d] (%.2f%%) ", example, (int)num_examples,
-			      100.0 * example / num_examples);
-		     }
-		     */
-		   }, 16);
+      backward_comp.ParallelComp(
+	  num_examples,
+	  [num_examples, &training, &bc](int example) {
+	    bc.Backward(training[example]);
+	  });
       if (VERBOSE > 2) Printf("\n");
     }
     backward_ms += backward_timer.MS();
@@ -2566,6 +2515,7 @@ static std::optional<string> GetExclusiveApp() {
   for (const string &proc : procs) {
     string match = Util::lcase(proc);
     if (match == "spel2.exe") return {proc};
+    if (match == "disc room.exe") return {proc};
     // Can add more here, including regexes etc...
   }
 
