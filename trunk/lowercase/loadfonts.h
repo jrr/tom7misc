@@ -17,7 +17,9 @@ struct LoadFonts {
   using int64 = int64_t;
 
   // Starts loading fonts into memory immediately, in separate
-  // threads.
+  // threads. Note that we reject the entire font if any letter
+  // exceeds row_max_points, because we don't want to create bias
+  // in the training data (e.g. to make Q less common).
   LoadFonts(
       // If this returns true (e.g. because the startup process is
       // aborted), just stop loading.

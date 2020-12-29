@@ -20,6 +20,8 @@ using namespace std;
 using Contour = TTF::Contour;
 using uint32 = uint32_t;
 
+#define EXTRA_CHECKS true
+
 static constexpr int NUM_COLORS = 4;
 static uint32 COLORS[NUM_COLORS] = {
   0xFFFF00FF,
@@ -36,6 +38,7 @@ static void DrawFloats(const vector<int> &row_max_points,
   
   auto DrawPath = [nominal_char_size, img, startx, starty, &values](
       int idx, int num_pts, uint32 color) -> int {
+      // FIXME ignore these and use the end point
       float x = values[idx + 0];
       float y = values[idx + 1];
 
@@ -100,7 +103,7 @@ void FontProblem::RenderVector(const string &font_filename,
 
   img.Clear32(0x000000FF);
 
-  // XXX do this threaded
+  // threaded?
   for (int letter = 0; letter < 26; letter++) {
     const int startx =
       LEFT_MARGIN + (LETTER_WIDTH + LETTER_X_MARGIN) * letter;
@@ -150,33 +153,30 @@ void FontProblem::RenderVector(const string &font_filename,
   img.Save(out_filename);
 }
 
-bool FontProblem::FillVector(const TTF *ttf, int codepoint,
-			     const std::vector<int> &row_max_points,
-			     float *buffer) {
-  std::vector<TTF::Contour> contours =
+bool FontProblem::GetRows(const TTF *ttf, int codepoint,
+			  const std::vector<int> &row_max_points,
+			  std::vector<TTF::Contour> *contours) {
+  *contours =
     TTF::MakeOnlyBezier(
 	TTF::NormalizeOrder(ttf->GetContours(codepoint),
 			    0.0f, 0.0f));
 
   // Only room for three contours.
-  // XXX: Perhaps we should reject the entire font if it will
-  // ever fail these tests; otherwise we are biasing against
-  // characters with more contours (e.g. B).
-  if (contours.size() > row_max_points.size())
+  if (contours->size() > row_max_points.size())
     return false;
 
   // Also don't allow empty characters.
-  if (contours.empty())
+  if (contours->empty())
     return false;
 
   auto ByPathSizeDesc = [](const Contour &a, const Contour &b) {
       return b.paths.size() < a.paths.size();
     };
 
-  std::sort(contours.begin(), contours.end(), ByPathSizeDesc);
+  std::sort(contours->begin(), contours->end(), ByPathSizeDesc);
 
-  for (int i = 0; i < contours.size(); i++) {
-    if (contours[i].paths.size() > row_max_points[i]) {
+  for (int i = 0; i < contours->size(); i++) {
+    if ((*contours)[i].paths.size() > row_max_points[i]) {
       return false;
     }
   }
@@ -184,10 +184,21 @@ bool FontProblem::FillVector(const TTF *ttf, int codepoint,
   // We need something to put in rows if there are fewer than
   // the maximum number of contours.
   // We treat this as an empty path starting at 0,0.
-  while (contours.size() < row_max_points.size()) {
+  while (contours->size() < row_max_points.size()) {
     TTF::Contour degenerate(0.0f, 0.0f);
-    contours.push_back(degenerate);
+    contours->push_back(degenerate);
   }
+
+  return true;
+}
+
+bool FontProblem::FillVector(const TTF *ttf, int codepoint,
+			     const std::vector<int> &row_max_points,
+			     float *buffer) {
+
+  std::vector<TTF::Contour> contours;
+  if (!GetRows(ttf, codepoint, row_max_points, &contours))
+    return false;
 
 
   // All right, all is well!
@@ -231,6 +242,186 @@ bool FontProblem::FillVector(const TTF *ttf, int codepoint,
   }
 
   return true;
+}
+
+void FontProblem::FillExpectedVector(
+    ArcFour *rc,
+    const std::vector<int> &row_max_points,
+    const std::vector<TTF::Contour> &expected_contours,
+    const std::vector<float> &predicted,
+    std::vector<float> *buffer) {
+
+  #if 0
+  printf("FillExpectedVector. RMP: ");
+  for (int i : row_max_points) {
+    printf(" %d", i);
+  }
+  printf("\n%d contours, %d predicted, %d buffer",
+	 (int)expected_contours.size(),
+	 (int)predicted.size(),
+	 (int)buffer->size());
+  fflush(stdout);
+  #endif
+  
+  if (EXTRA_CHECKS) {
+    // Mark as -inf so we can check everything gets initialized.
+    int size = BufferSizeForPoints(row_max_points);
+    CHECK(buffer->size() >= size);
+    for (int i = 0; i < size; i++) {
+      (*buffer)[i] = -std::numeric_limits<float>::infinity();
+    }
+  }
+  
+  CHECK_EQ(expected_contours.size(), row_max_points.size());
+  // Each row is independent.
+  for (int row = 0; row < row_max_points.size(); row++) {
+    CHECK(row < expected_contours.size());
+    const TTF::Contour &contour = expected_contours[row];
+    // printf("  Contour %d\n", row); fflush(stdout);
+
+    // This is the index of the points in both the predicted
+    // and parallel output buffers.
+    int start_idx = 0;
+    for (int j = 0; j < row; j++)
+      start_idx += 2 + row_max_points[j] * 4;
+    
+    // The path can actually be empty. In this case the
+    // values should all be zero.
+    if (contour.paths.empty()) {
+      // .. but again allow the start point to be anything.
+      (*buffer)[start_idx + 0] = predicted[start_idx + 0];
+      (*buffer)[start_idx + 1] = predicted[start_idx + 1];
+
+      for (int a = 0; a < row_max_points[row]; a++) {
+	const int idx = start_idx + 2 + a * 4;
+	(*buffer)[idx + 0] = 0.0f;
+	(*buffer)[idx + 1] = 0.0f;
+	(*buffer)[idx + 2] = 0.0f;
+	(*buffer)[idx + 3] = 0.0f;	
+      }
+	
+      continue;
+    }
+    
+    // Otherwise, the font is expected to be a closed loop.
+    // We then ignore the start point.
+    CHECK(contour.paths.back().x == contour.startx);
+    CHECK(contour.paths.back().y == contour.starty);
+
+    // Put in Point format for BestLoopAssignment.
+    vector<Point> expected;
+    for (int j = 0; j < contour.paths.size(); j++) {
+      CHECK(j < contour.paths.size());
+      expected.emplace_back(contour.paths[j].x,
+			    contour.paths[j].y);
+    }
+
+    // And now the actual points, from the predictions.
+
+    // Again we actually ignore the start coordinates.
+    vector<Point> actual;
+    // actual.emplace_back(predicted[start_idx], predicted[start_idx + 1]);
+    for (int j = 0; j < row_max_points[row]; j++) {
+      const int idx = start_idx + 2 + 4 * j;
+      CHECK(idx + 3 < predicted.size());
+      // Skip the control points for this step.
+      actual.emplace_back(predicted[idx + 2],
+			  predicted[idx + 3]);
+    }
+
+    CHECK(expected.size() <= actual.size())
+      << expected.size() << " " << actual.size();
+
+    // printf("  BestLoopAssignment...\n"); fflush(stdout);    
+    LoopAssignment assn = BestLoopAssignment(rc, expected, actual);
+    // printf("  Got assn...\n"); fflush(stdout);
+    
+    // Now we want to populate the "expected" results in the
+    // output buffer, but rotated and padded to be favorable to the
+    // order that was predicted.
+
+    // We don't actually use the start coordinates in the output
+    // any more. So just copy the predicted values (whatever they are)
+    // so that we don't penalize "mistakes" here.
+    (*buffer)[start_idx + 0] = predicted[start_idx + 0];
+    (*buffer)[start_idx + 1] = predicted[start_idx + 1];
+
+    // Output parallels the structure of the prediction.
+    // The location of the endpoint in the buffer.
+    auto PointIdx = [start_idx](int a) {
+	return start_idx +
+	  // skip start points
+	  2 +
+	  // control*2, coord*2
+	  (4 * a) + 2;
+      };
+
+    // The location of the control point leading into the
+    // point a.
+    auto ControlIdx = [start_idx](int a) {
+	return start_idx +
+	  // skip start points
+	  2 +
+	  (4 * a) + 0;
+      };
+
+    // a will be the index into the actual points.
+    int a = assn.point0;
+    for (int e = 0; e < expected.size(); e++) {
+      // In the general case, several actual points are mapped
+      // to this expected point.
+
+      // Sanity check that we're looking at the right point.
+      CHECK(e < contour.paths.size()) << e;
+      CHECK_EQ(expected[e].first, contour.paths[e].x);
+      CHECK_EQ(expected[e].second, contour.paths[e].y);
+      const float expected_x = contour.paths[e].x;
+      const float expected_y = contour.paths[e].y;      
+      const float expected_cx = contour.paths[e].cx;
+      const float expected_cy = contour.paths[e].cy;
+      
+      const int num = assn.groups[e];
+      for (int i = 0; i < num; i++) {
+	CHECK(a >= 0 && a < actual.size()) << a;
+	// The expected location of the point is just the
+	// point it's mapped to.
+	const int pidx = PointIdx(a);
+	(*buffer)[pidx + 0] = expected_x;
+	(*buffer)[pidx + 1] = expected_y;
+
+	const int cidx = ControlIdx(a);
+	if (i == 0) {
+	  // The first point in each group gets a proper
+	  // control point. It is the control point from
+	  // the corresponding expected point.
+	  (*buffer)[cidx + 0] = expected_cx;
+	  (*buffer)[cidx + 1] = expected_cy;
+	} else {
+	  // Duplicates should just use the point itself
+	  // as the control point, since they represent a
+	  // 0-length curve.
+	  (*buffer)[cidx + 0] = expected_x;
+	  (*buffer)[cidx + 1] = expected_y;
+	}
+
+	// Advance actual index and wrap around.
+	a++;
+	if (a == actual.size()) a = 0;
+      }
+
+      // printf("  ... finished contour\n"); fflush(stdout);
+    }
+  }
+
+  if (EXTRA_CHECKS) {
+    // Mark as -inf so we can check everything gets initialized.
+    int size = BufferSizeForPoints(row_max_points);
+    CHECK(buffer->size() >= size);
+    for (int i = 0; i < size; i++) {
+      CHECK((*buffer)[i] != 
+	    -std::numeric_limits<float>::infinity()) << i;
+    }
+  }
 }
 
 int FontProblem::BufferSizeForPoints(const std::vector<int> &row_max_points) {

@@ -5,8 +5,9 @@
 #include <string>
 #include <vector>
 
+#include "ttf.h"
+
 class Network;
-class TTF;
 class ArcFour;
 
 struct FontProblem {
@@ -20,6 +21,29 @@ struct FontProblem {
 			 const std::vector<int> &row_max_points,
 			 float *buffer);
 
+  // The first part of FillVector. Normalizes contours to Beziers and
+  // puts their start point close to 0,0. Checks that the contours
+  // will fit, puts them in sorted order, and adds empty contours to
+  // match row_max_points. Does not pad contours, however.
+  // Returns true if successful.
+  static bool GetRows(const TTF *ttf, int codepoint,
+		      const std::vector<int> &row_max_points,
+		      std::vector<TTF::Contour> *contours);
+  
+  static void FillExpectedVector(
+      ArcFour *rc,
+      // Config; both the expected and predicted must match.
+      const std::vector<int> &row_max_points,
+      // The actual output from the training example (e.g. GetRows above).
+      const std::vector<TTF::Contour> &expected_contours,
+      // The flat predicted vectors. These are used to determine the
+      // best fit among equivalent representations of the expected_contours.
+      const std::vector<float> &predicted,
+      // Floats are written to the beginning of this vector, which
+      // must be large enough.
+      std::vector<float> *buffer);
+      
+  
   // Runs the given eval on the CPU, for a specific font.
   // Generates an image to the given filename.
   //
@@ -31,6 +55,8 @@ struct FontProblem {
 			   const std::vector<int> &row_max_points,
 			   const std::string &out_filename);    
 
+
+  
   // Code for computing the error between a predicted vector shape ("loop")
   // and the expected one.
   //

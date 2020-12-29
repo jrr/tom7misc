@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
   static constexpr int ROW0_MAX_PTS = 38;
   static constexpr int ROW1_MAX_PTS = 14;
   static constexpr int ROW2_MAX_PTS = 10;
-  vector<int> row_max_points = {
+  const vector<int> row_max_points = {
     ROW0_MAX_PTS,
     ROW1_MAX_PTS,
     ROW2_MAX_PTS,
