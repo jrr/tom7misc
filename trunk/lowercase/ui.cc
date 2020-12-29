@@ -29,10 +29,9 @@
 #include "opt/opt.h"
 
 #include "ttfops.h"
-
 #include "ttf.h"
-
 #include "fontdb.h"
+#include "font-problem.h"
 
 #define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" /* removed icons */
 #define FONTSTYLES 7
@@ -53,6 +52,7 @@ enum class Mode {
   BITMAP,
   SORTITION,
   SCALETEST,
+  LOOPTEST,
 };
 
 namespace {
@@ -79,6 +79,8 @@ struct UI {
   void Loop();
   void Draw();
 
+  void RecomputeLoop();
+  
   int DrawChar(TTF *ttf, int sx, int sy, float scale, char c, char nc);
   int DrawString(TTF *ttf, int sx, int sy, float scale, const string &str);
   int DrawAlphabet(TTF *ttf, int sx, int sy, float scale);
@@ -122,6 +124,10 @@ struct UI {
   float current_xscale = 1.0, current_yscale = 1.0;
   float current_xoff = 0.0, current_yoff = 0.0;
   TTF times{"times.ttf"};
+
+  vector<FontProblem::Point> looptest_expected;
+  vector<FontProblem::Point> looptest_actual;  
+  std::optional<FontProblem::LoopAssignment> looptest_assignment;
 };
 }  // namespace
 
@@ -415,6 +421,20 @@ void UI::SetFlag(Flag f, bool on) {
   ui_dirty = true;
 }
 
+void UI::RecomputeLoop() {
+  if (looptest_expected.size() > 0 &&
+      looptest_actual.size() >= looptest_expected.size()) {
+    Timer assn_timer;
+    looptest_assignment.emplace(
+	FontProblem::BestLoopAssignment(&rc,
+					looptest_expected,
+					looptest_actual));
+    printf("Computed assignment in %.5fms\n",
+	   assn_timer.MS());
+  } else {
+    looptest_assignment.reset();
+  }
+}
 
 void UI::Loop() {
 
@@ -439,6 +459,27 @@ void UI::Loop() {
 	break;
       }
 
+      case SDL_MOUSEBUTTONDOWN: {
+        // LMB/RMB, drag, etc.
+	SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
+        mousex = e->x;
+        mousey = e->y;
+
+	if (mode == Mode::LOOPTEST) {
+	  if (e->button == SDL_BUTTON_LEFT) {
+	    looptest_expected.emplace_back((float)mousex, (float)mousey);
+	  } else {
+	    looptest_actual.emplace_back((float)mousex, (float)mousey);
+	  }
+
+	  RecomputeLoop();
+
+	  ui_dirty = true;
+	}
+
+	break;
+      }
+	
       case SDL_KEYDOWN: {
 
 	// Need to press this consecutively in order
@@ -510,6 +551,9 @@ void UI::Loop() {
 	    mode = Mode::SCALETEST;
 	    break;
 	  case Mode::SCALETEST:
+	    mode = Mode::LOOPTEST;
+	    break;
+	  case Mode::LOOPTEST:
 	    mode = Mode::BITMAP;
 	    break;
 	  }
@@ -538,6 +582,9 @@ void UI::Loop() {
 	    0;
 
 	  switch (mode) {
+	  case Mode::LOOPTEST:
+	    break;
+	  
 	  case Mode::SORTITION:
 	    cur += dy;
 	    if (cur < 0) cur = 0;
@@ -667,14 +714,6 @@ void UI::Loop() {
 
 	default:;
 	}
-      }
-
-      case SDL_MOUSEBUTTONDOWN: {
-	// LMB/RMB, drag, etc.
-	if (mode == Mode::BITMAP) {
-	  // ...
-	}
-	break;
       }
 
       default:;
@@ -879,6 +918,88 @@ void UI::Draw() {
     DrawSortition();
     break;
 
+  case Mode::LOOPTEST: {
+
+    // ^5 = green = expected
+    // ^8 = blue = actual
+
+    auto DrawAssignment = [this](const FontProblem::LoopAssignment &assn) {
+	// here we have like
+	//        0       1 2
+	//        x       y z      <- expected
+	//    a b c d e f g h i j  <- actual
+	//    0 1 2 3 4 5 6 7 8 9 
+	// This would be represented with point0 = 2,
+	// and groups = {4, 1, 5}.
+
+	int a = assn.point0;
+	for (int e = 0; e < looptest_expected.size(); e++) {
+	  int num = assn.groups[e];
+	  for (int i = 0; i < num; i++) {
+	    FontProblem::Point apt = looptest_actual[a];
+	    FontProblem::Point ept = looptest_expected[e];
+
+	    sdlutil::drawclipline(screen,
+				  (int)apt.first, (int)apt.second,
+				  (int)ept.first, (int)ept.second,
+				  0xFF, 0x44, 0x44);
+	    
+	    a++;
+	    if (a == looptest_actual.size()) a = 0;
+	  }
+	}
+      };
+
+    if (looptest_assignment.has_value())
+      DrawAssignment(looptest_assignment.value());
+    
+    auto DrawLoop = [](const vector<FontProblem::Point> &pts,
+		       uint8 r, uint8 g, uint8 b) {
+	for (int i = 0; i < pts.size(); i++) {
+	  const int next_i = i < pts.size() - 1 ? i + 1 : 0;
+	  auto [sx, sy] = pts[i];
+	  auto [dx, dy] = pts[next_i];
+	  sdlutil::drawclipline(
+	      screen,
+	      sx, sy, dx, dy,
+	      r, g, b);
+
+	  sdlutil::drawbox(screen, sx - 2, sy - 2, 5, 5, r, g, b);
+	}
+      };
+
+    DrawLoop(looptest_expected, 0x00, 0xAA, 0x00);
+    DrawLoop(looptest_actual,   0x44, 0xFF, 0x44);
+    
+    const int LINE1 = SCREENH - 30 - font->height * 2;
+    const int LINE2 = LINE1 + font->height;
+    const int LINE3 = LINE2 + font->height;
+
+    auto MakePts = [](const vector<FontProblem::Point> &pts) {
+	string ret;
+	for (const auto &p : pts) {
+	  StringAppendF(&ret, "%d,%d  ", (int)p.first, (int)p.second);
+	}
+	return ret;
+      };
+    string epts = MakePts(looptest_expected);
+    string apts = MakePts(looptest_actual);
+
+    font->draw(12, LINE1, StringPrintf("^5Expected:^< %s", epts.c_str()));
+    font->draw(12, LINE2, StringPrintf("^8  Actual:^< %s", apts.c_str()));
+    if (looptest_assignment.has_value()) {
+      string assn = StringPrintf("Assignment: ^2Point0^< = %d ^3groups^< = ",
+				 looptest_assignment->point0);
+      for (int n : looptest_assignment->groups)
+	StringAppendF(&assn, "%d ", n);
+      font->draw(12, LINE3, assn);
+    } else {
+      font->draw(12, LINE3, "(No assignment)");
+    }
+    
+    break;
+  }
+    
   case Mode::BITMAP: {
 
     vector<TTF::Contour> contours = times.GetContours(current_char);
