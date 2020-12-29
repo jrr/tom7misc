@@ -72,9 +72,9 @@ struct FontProblem {
     // grouped into the expected point.
     std::vector<int> groups;
   };
-  LoopAssignment BestLoopAssignment(ArcFour *rc,
-				    const std::vector<Point> &expected,
-				    const std::vector<Point> &actual);
+  static LoopAssignment BestLoopAssignment(ArcFour *rc,
+					   const std::vector<Point> &expected,
+					   const std::vector<Point> &actual);
 };
 
 #endif

@@ -260,14 +260,14 @@ using Point = FontProblem::Point;
 static float SqDistance(const Point &a, const Point &b) {
   const float dx = a.first - b.first;
   const float dy = a.second - b.second;
-  return dx * dx + dy + dy;
+  return dx * dx + dy * dy;
 }
 
 
 FontProblem::LoopAssignment
 FontProblem::BestLoopAssignment(ArcFour *rc,
 				const vector<Point> &expected,
-					       const vector<Point> &actual) {
+				const vector<Point> &actual) {
   const int num_expected = expected.size();
   const int num_actual = actual.size();
 
@@ -279,23 +279,22 @@ FontProblem::BestLoopAssignment(ArcFour *rc,
       return distances[num_expected * a + e];
     };
 
-  int closest_a = -1;
-  int closest_e = -1;
-  float closest_dist = std::numeric_limits<float>::infinity();
-  for (int a = 0; a < num_actual; a++) {
-    for (int e = 0; e < num_expected; e++) {
+  // For each expected point, its single closest actual point.
+  vector<int> closest_a;
+  closest_a.reserve(num_expected);
+  for (int e = 0; e < num_expected; e++) {
+    int ca = -1;
+    float closest_dist = std::numeric_limits<float>::infinity();
+    for (int a = 0; a < num_actual; a++) {
       const float dist = sqrtf(SqDistance(expected[e], actual[a]));
       DistanceAt(e, a) = dist;
       if (dist < closest_dist) {
-	closest_a = a;
-	closest_e = e;
+	ca = a;
       }
     }
+    CHECK(ca >= 0) << ca;
+    closest_a.push_back(ca);
   }
-
-  // (PERF: Not actually using this)
-  CHECK(closest_a >= 0 && closest_e >= 0)
-    << closest_a << " " << closest_e;
 
   auto Score = [&actual, &expected, &DistanceAt](
       const LoopAssignment &assn) -> float {
@@ -308,7 +307,7 @@ FontProblem::BestLoopAssignment(ArcFour *rc,
       // and groups = {4, 1, 5}.
 
       // PERF sanity check
-      {
+      if (false) {
 	int total = 0;
 	for (int g : assn.groups) total += g;
 	CHECK(total == actual.size()) << total << " " << actual.size();
@@ -328,70 +327,83 @@ FontProblem::BestLoopAssignment(ArcFour *rc,
     };
   
   static constexpr int NUM_ATTEMPTS = 10;
-  
+
+  // Overall best seen.
   LoopAssignment best_assignment{(int)expected.size()};
   float best_error = std::numeric_limits<float>::infinity();
-  for (int attempt = 0; attempt < NUM_ATTEMPTS; attempt++) {
-    // Make a random assignment.
-    LoopAssignment assn{(int)expected.size()};
-    assn.point0 = RandTo32(rc, actual.size());
-    // The assignment is initialized to all ones. Distribute
-    // the extra so that the sum is the same size as expected.
-    int extra = actual.size() - expected.size();
-    while (extra--)
-      assn.groups[RandTo32(rc, assn.groups.size())]++;
 
-    float current_score = Score(assn);
-    bool improved = false;
-    do {
-      // Iteratively try to improve by moving points to neighbors.
-      for (int i = 0; i < assn.groups.size(); i++) {
-	int next_i = i < assn.groups.size() - 1 ? i + 1 : 0;
+  // (This might be overkill. It wasn't working well, but it was
+  // actually just a typo in the distance function.)
+  for (int anchor = 0; anchor < num_actual; anchor++) {
+    // Try each rotation of the actual loop NUM_ATTEMPTS times.
+    for (int attempt = 0; attempt < NUM_ATTEMPTS; attempt++) {
+      LoopAssignment assn{(int)expected.size()};
+      assn.point0 = anchor;
 
-	// Move point forward.
-	if (assn.groups[i] > 1) {
-	  assn.groups[i]--;
-	  assn.groups[next_i]++;
-	  float new_score = Score(assn);
-	  if (new_score < current_score) {
-	    improved = true;
-	    current_score = new_score;
-	    // No point in trying to move mass backward then, because
-	    // we just put it there.
-	    continue;
-	  } else {
-	    // Undo.
-	    assn.groups[i]++;
-	    assn.groups[next_i]--;
-	  }
-	}
+      // The assignment is initialized to all ones. Distribute
+      // the extra so that the sum is the same size as expected.
+      int extra = actual.size() - expected.size();
+      while (extra--)
+	assn.groups[RandTo32(rc, assn.groups.size())]++;
 
-	// And backward.
-	if (assn.groups[next_i] > 1) {
-	  assn.groups[i]++;
-	  assn.groups[next_i]--;
 
-	  float new_score = Score(assn);
-	  if (new_score < current_score) {
-	    improved = true;
-	    current_score = new_score;
-	  } else {
-	    // Undo.
+      float current_score = Score(assn);
+      bool improved = false;
+      do {
+	improved = false;
+	// Iteratively try to improve by moving points to neighbors.
+	for (int i = 0; i < assn.groups.size(); i++) {
+	  const int next_i = i < assn.groups.size() - 1 ? i + 1 : 0;
+
+	  // PERF: This inner loop could be much more efficient if
+	  // we updated the score incrementally (it should only affect
+	  // the two points), but it's fiddly.
+	  
+	  // Move point forward.
+	  if (assn.groups[i] > 1) {
 	    assn.groups[i]--;
 	    assn.groups[next_i]++;
+	    float new_score = Score(assn);
+	    if (new_score < current_score) {
+	      improved = true;
+	      current_score = new_score;
+	      // No point in trying to move mass backward then, because
+	      // we just put it there.
+	      continue;
+	    } else {
+	      // Undo.
+	      assn.groups[i]++;
+	      assn.groups[next_i]--;
+	    }
+	  }
+
+	  // And backward.
+	  if (assn.groups[next_i] > 1) {
+	    assn.groups[i]++;
+	    assn.groups[next_i]--;
+
+	    float new_score = Score(assn);
+	    if (new_score < current_score) {
+	      improved = true;
+	      current_score = new_score;
+	    } else {
+	      // Undo.
+	      assn.groups[i]--;
+	      assn.groups[next_i]++;
+	    }
 	  }
 	}
+
+      } while (improved);
+
+
+      // Local maximum.
+      if (current_score < best_error) {
+	best_assignment = assn;
+	best_error = current_score;
       }
-	
-    } while (improved);
-
-
-    // Local maximum.
-    if (current_score < best_error) {
-      best_assignment = assn;
-      best_error = current_score;
     }
   }
-
+    
   return best_assignment;
 }
