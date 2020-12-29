@@ -271,6 +271,9 @@ struct TTF {
   // clockwise is normative.
   //
   // XXX is this expected to be closed?
+  // (TODO: They are always closed. We can probably simplify some code
+  // by making StartX() and StartY() which just return the end point
+  // of the last path.)
   struct Contour {
     float startx = 0.0f, starty = 0.0f;
     std::vector<Path> paths;

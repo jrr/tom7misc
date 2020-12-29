@@ -251,6 +251,11 @@ static constexpr int ROW0_MAX_PTS = 38;
 static constexpr int ROW1_MAX_PTS = 14;
 static constexpr int ROW2_MAX_PTS = 10;
 
+// XXX constexpr c++20
+static const std::vector<int> ROW_MAX_POINTS = {
+  ROW0_MAX_PTS, ROW1_MAX_PTS, ROW2_MAX_PTS,
+};
+
 static constexpr int INPUT_LAYER_SIZE =
   // start point, then beziers as control point, end point.
   2 + ROW0_MAX_PTS * (2 + 2) +
@@ -272,7 +277,7 @@ enum UserRenderStyle : uint32_t {
 // Nominal pixel height of a character when rendering.
 // Character can exceed these bounds; it's even normal
 // for this to happen width-wise for wide characters.
-static constexpr int NOMINAL_CHAR_SIZE = 200;
+static constexpr int NOMINAL_CHAR_SIZE = 400;
 
 
 // Network that lives entirely on the GPU, but can be copied back to
@@ -403,6 +408,7 @@ struct TrainingRoundGPU {
     }
   }
 
+  // Copy (only) the final layer of the stimulation back to main memory.
   void ExportOutput(vector<float> *out) {
     CopyBufferFromGPUTo(cl->queue, stimulations.back(), out);
   }
@@ -465,7 +471,7 @@ struct ForwardLayerCL {
       const int indices_per_node = net.layers[layer].indices_per_node;
 
       const bool dense = net.layers[layer].type == LAYER_DENSE;
-      
+
       string kernel_src;
       switch (transfer_function) {
       case SIGMOID: kernel_src += SIGMOID_FN; break;
@@ -477,7 +483,7 @@ struct ForwardLayerCL {
 
       StringAppendF(&kernel_src, "\n#define INDICES_PER_NODE %d\n",
 		    indices_per_node);
-	
+
       kernel_src += base_src;
       auto [program, kernel] =
 	cl->BuildOneKernel(kernel_src,
@@ -515,7 +521,7 @@ struct ForwardLayerCL {
 
       auto [program, kernel, dense, kernel_ipn, kernel_tf] =
 	parent->layer_kernels[layer];
-      
+
       // Sanity check we have the right kernel
       CHECK(dense == (net->layers[layer].type == LAYER_DENSE));
       CHECK(kernel_ipn == net->layers[layer].indices_per_node);
@@ -547,7 +553,7 @@ struct ForwardLayerCL {
 	  CHECK_SUCCESS(clSetKernelArg(kernel, 4, sizeof (cl_mem),
 				       (void *)&dst_values));
 	}
-	
+
 	size_t global_work_offset[] = { 0 };
         size_t global_work_size[] = { (size_t)(net->num_nodes[layer + 1]) };
 	// Printf("Run FL Kernel.\n");
@@ -690,7 +696,7 @@ struct BackwardLayerCL {
       // The dest layer, but num_nodes offset by 1.
       const int dst_num_nodes = net.num_nodes[dst_layer + 1];
       const bool dst_dense = net.layers[dst_layer].type == LAYER_DENSE;
-      
+
       string kernel_src;
       switch (transfer_function) {
       case SIGMOID: kernel_src += SIGMOID_FN; break;
@@ -706,7 +712,7 @@ struct BackwardLayerCL {
 		    "#define DST_NUM_NODES %d\n",
 		    dst_indices_per_node,
 		    dst_num_nodes);
-	
+
       kernel_src += base_src;
       auto [program, kernel] =
 	cl->BuildOneKernel(kernel_src,
@@ -745,7 +751,7 @@ struct BackwardLayerCL {
       CHECK(dst_ipn == net->layers[dst_layer].indices_per_node);
       CHECK(tf == net->layers[src_layer].transfer_function);
       CHECK(dst_dense == (net->layers[dst_layer].type == LAYER_DENSE));
-      
+
       cl_mem src_output = train->stimulations[src_layer + 1];
       cl_mem dst_error = train->errors[dst_layer];
 
@@ -832,11 +838,11 @@ struct UpdateWeightsCL {
       const int indices_per_node = net.layers[layer].indices_per_node;
 
       const bool dense = net.layers[layer].type == LAYER_DENSE;
-      
+
       string kernel_src;
       StringAppendF(&kernel_src, "\n#define INDICES_PER_NODE %d\n",
 		    indices_per_node);
-	
+
       kernel_src += base_src;
       auto [program, kernel] =
 	cl->BuildOneKernel(kernel_src,
@@ -872,7 +878,7 @@ struct UpdateWeightsCL {
       // Sanity check that this was compiled with the right constants.
       CHECK(ipn == net_gpu->net->layers[layer].indices_per_node);
       CHECK(dense == (net_gpu->net->layers[layer].type == LAYER_DENSE));
-      
+
       const int num_nodes = net_gpu->net->num_nodes[layer + 1];
 
       if (dense) {
@@ -1103,11 +1109,11 @@ static void MakeIndices(ArcFour *rc, Network *net) {
 	    (*layer_indices)[n * prev_num_nodes + p] = p;
 	  }
 	}
-	
+
       } else {
 	// Assign sparse layers randomly.
 	CHECK(net->layers[layer].type == LAYER_SPARSE);
-	
+
 	const int indices_per_node = net->layers[layer].indices_per_node;
 	Printf("Intializing %d indices for layer %d...\n",
 	       indices_per_node, layer);
@@ -1161,8 +1167,8 @@ static void MakeIndices(ArcFour *rc, Network *net) {
       }
       Printf("... done with layer %d.\n", layer);
     };
-      
-    
+
+
   ParallelComp(net->num_layers, OneLayer, 12);
 
   Printf("DeleteElements:\n");
@@ -1241,7 +1247,7 @@ struct UI {
     take_screenshot = true;
     dirty = true;
   }
-  
+
   void ExportRound(int r) {
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
@@ -1445,10 +1451,15 @@ struct UI {
 
 	  CHECK(current_stimulations.size() == NUM_VIDEO_STIMULATIONS);
 	  CHECK(current_errors.size() == NUM_VIDEO_STIMULATIONS);
+	  CHECK(current_expected.size() == NUM_VIDEO_STIMULATIONS);
 	  for (int s = 0; s < NUM_VIDEO_STIMULATIONS; s++) {
 	    const Stimulation &stim = current_stimulations[s];
 	    const Errors &err = current_errors[s];
-
+	    const vector<float> &expected = current_expected[s];
+	    // These are not filled in atomically, so it's possible
+	    // that we have stimulations but not expected values yet.
+	    if (expected.empty()) continue;
+	    
 	    // Skip if not yet set. These get initialized to empty
 	    // sentinels and then updated by the training thread
 	    // periodically.
@@ -1459,7 +1470,8 @@ struct UI {
 	    CHECK(stim.values.size() == current_network->num_layers + 1);
 	    CHECK(stim.values.size() == current_network->renderstyle.size());
 	    CHECK(err.error.size() == current_network->num_layers);
-
+	    CHECK(expected.size() == current_network->num_nodes.back());
+	    
 	    const int xstart = 4 + s * max_width;
 	    if (xstart >= SCREENW)
 	      break;
@@ -1468,7 +1480,8 @@ struct UI {
 	    int ystart = 24;
 	    for (int l = 0; l < stim.values.size(); l++) {
 
-	      switch (current_network->renderstyle[l]) {
+	      const auto render_style = current_network->renderstyle[l];
+	      switch (render_style) {
 
 	      case RENDERSTYLE_OUTPUTXY: {
 		const vector<float> &outs = stim.values[l];
@@ -1499,16 +1512,20 @@ struct UI {
 
 		constexpr double sqerr = 1.0f / (NOMINAL_CHAR_SIZE *
 						 NOMINAL_CHAR_SIZE);
-		
-		auto DrawPath = [xstart, ystart, &values](
+
+		auto DrawPath = [xstart, ystart](
+		    const vector<float> *expected_values,
+		    const vector<float> &values,
 		    int idx, int num_pts,
 		    uint8 r, uint8 g, uint8 b) {
+
+		    // XXX no, use last point
 		    float x = values[idx + 0];
 		    float y = values[idx + 1];
 
-		    auto Line = [xstart, ystart,
-				 r, g, b](float x1, float y1,
-					  float x2, float y2) {
+		    auto Line = [xstart, ystart](float x1, float y1,
+						 float x2, float y2,
+						 uint8 r, uint8 g, uint8 b) {
 			sdlutil::drawclipline(
 			    screen,
 			    xstart + x1 * NOMINAL_CHAR_SIZE,
@@ -1517,30 +1534,63 @@ struct UI {
 			    ystart + y2 * NOMINAL_CHAR_SIZE,
 			    r, g, b);
 		      };
+
+
+		    // Error lines first, behind the actual shape.
+		    if (expected_values != nullptr) {
+		      for (int i = 0; i < num_pts; i++) {
+			// float cx = values[idx + 2 + i * 4 + 0];
+			// float cy = values[idx + 2 + i * 4 + 1];
+			float ax = values[idx + 2 + i * 4 + 2];
+			float ay = values[idx + 2 + i * 4 + 3];
+
+			float ex = (*expected_values)[idx + 2 + i * 4 + 2];
+			float ey = (*expected_values)[idx + 2 + i * 4 + 3];
+			Line(ax, ay, ex, ey, 0x7F, 40, 40);
+		      }
+		    }
 		    
 		    for (int i = 0; i < num_pts; i++) {
 		      float cx = values[idx + 2 + i * 4 + 0];
 		      float cy = values[idx + 2 + i * 4 + 1];
 		      float dx = values[idx + 2 + i * 4 + 2];
 		      float dy = values[idx + 2 + i * 4 + 3];
-
+		      
 		      for (const auto [xx, yy] :
 			     TesselateQuadraticBezier<double>(
 				 x, y, cx, cy, dx, dy, sqerr)) {
-			Line(x, y, xx, yy);
+			Line(x, y, xx, yy, r, g, b);
 			x = xx;
 			y = yy;
 		      }
 		    }
+
 		  };
 
-		DrawPath(0, ROW0_MAX_PTS, 0xFF, 0xFF, 0x00);
-		DrawPath(2 + ROW0_MAX_PTS * 4,
-			 ROW1_MAX_PTS, 0x00, 0xFF, 0x00);
-		DrawPath(2 + ROW0_MAX_PTS * 4 +
-			 2 + ROW1_MAX_PTS * 4,
-			 ROW2_MAX_PTS, 0x00, 0xFF, 0xFF);
+		if (render_style == RENDERSTYLE_OUTPUTXY) {
+		  DrawPath(nullptr, expected,
+			   0, ROW0_MAX_PTS, 40, 0x7F, 40);
+		  /*
+		  DrawPath(values, 2 + ROW0_MAX_PTS * 4,
+			   ROW1_MAX_PTS, 0x00, 0xFF, 0x00);
+		  DrawPath(values,
+			   2 + ROW0_MAX_PTS * 4 +
+			   2 + ROW1_MAX_PTS * 4,
+			   ROW2_MAX_PTS, 0x00, 0xFF, 0xFF);
+		  */
+		}
 		
+		DrawPath(
+		    render_style == RENDERSTYLE_OUTPUTXY ?
+		    &expected : nullptr,
+		    values, 0, ROW0_MAX_PTS, 0xFF, 0xFF, 0x00);
+		DrawPath(nullptr, values, 2 + ROW0_MAX_PTS * 4,
+			 ROW1_MAX_PTS, 0x00, 0xFF, 0xFF);
+		DrawPath(nullptr, values,
+			 2 + ROW0_MAX_PTS * 4 +
+			 2 + ROW1_MAX_PTS * 4,
+			 ROW2_MAX_PTS, 0x44, 0x44, 0xFF);
+
 		break;
 	      }
 	      case RENDERSTYLE_RGB:
@@ -1663,7 +1713,7 @@ struct UI {
 	    Printf("Wrote screenshot to %s\n", scfile.c_str());
 	    take_screenshot = false;
 	  }
-	  
+
 	  dirty = false;
 	}
       }
@@ -1811,17 +1861,17 @@ static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
       height.push_back(h);
     }
   }
-  
+
   // num_nodes = width * height * channels
   // //  indices_per_node = indices_per_channel * channels
   // //  vector<int> indices_per_node;
   vector<int> num_nodes;
   CHECK_EQ(width.size(), height.size());
-  CHECK_EQ(width.size(), channels.size());  
+  CHECK_EQ(width.size(), channels.size());
   CHECK_EQ(width.size(), renderstyle.size());
   CHECK_EQ(num_layers + 1, height.size());
   CHECK_EQ(num_layers, indices_per_node_config.size());
-  CHECK_EQ(num_layers, transfer_functions.size());  
+  CHECK_EQ(num_layers, transfer_functions.size());
   for (int i = 0; i < num_layers + 1; i++) {
     CHECK(width[i] >= 1);
     CHECK(height[i] >= 1);
@@ -1879,8 +1929,8 @@ static void TrainThread() {
   Timer setup_timer;
 
   CHECK(ui != nullptr) << "Must be created first.";
-  CHECK(load_fonts != nullptr) << "Must be created first.";  
-  
+  CHECK(load_fonts != nullptr) << "Must be created first.";
+
   // Number of training examples per round of training.
   static constexpr int EXAMPLES_PER_ROUND = 4096;
   // Try to keep twice that in the queue all the time.
@@ -1890,17 +1940,30 @@ static void TrainThread() {
   // Write a screenshot of the UI (to show training progress for
   // videos, etc.) every time the network does this many rounds.
   static constexpr int SCREENSHOT_ROUND_EVERY = 50;
-  
+
   // On a verbose round, we write a network checkpoint and maybe some
   // other stuff to disk. XXX: Do this based on time, since round
   // speed can vary a lot based on other parameters!
   static constexpr int VERBOSE_ROUND_EVERY = 250;
-  
+
   string start_seed = StringPrintf("%d  %lld", getpid(), (int64)time(nullptr));
   Printf("Start seed: [%s]\n", start_seed.c_str());
   ArcFour rc(start_seed);
   rc.Discard(2000);
 
+  // Random state that can be accessed in parallel for each example.
+  // Note, 256 * 4096 is kinda big (one megabyte). We could get away
+  // with capping this at the number of threads, if threadutil (really
+  // autoparallel) had a way of passing thread local data.
+  printf("Initialize example-local random streams...\n");
+  vector<ArcFour> example_rc;
+  for (int i = 0; i < EXAMPLES_PER_ROUND; i++) {
+    std::vector<uint8> init;
+    init.reserve(64);
+    for (int j = 0; j < 64; j++) init.push_back(rc.Byte());
+    example_rc.emplace_back(init);
+  }
+  
   // Load the existing network from disk or create the initial one.
   Timer initialize_network_timer;
   std::unique_ptr<Network> net;
@@ -1924,7 +1987,7 @@ static void TrainThread() {
   SetOutputErrorCL setoutputerror{global_cl};
   BackwardLayerCL backwardlayer{global_cl, *net};
   UpdateWeightsCL updateweights{global_cl, *net};
-  
+
   NetworkGPU net_gpu{global_cl, net.get()};
 
   if (ReadWithLock(&train_should_die_m, &train_should_die))
@@ -1974,47 +2037,48 @@ static void TrainThread() {
 
   struct TrainingExample {
     vector<float> input;
+    // Font-problem specific: We keep an intermediate form of the
+    // expected result so that we can use a permissive loss function.
+    vector<TTF::Contour> expected_contours;
+    // In the font problem, filled in late.
     vector<float> output;
   };
+
   // Training examples don't depend on the learning process, so are produced
   // in a separate thread. This mutex protects the deque (only).
   std::shared_mutex training_examples_m;
-  // XXX could just be vector, actually?
+  // (Note: This could just be a vector and use stack ordering, but
+  // we want to make sure that we get to every training example for cases
+  // that they are not randomly sampled (e.g. co-training).)
   deque<TrainingExample> training_examples;
 
   // Returns true if successful.
   auto PopulateExampleFromFont =
     [](ArcFour *rc, const TTF *ttf, TrainingExample *example) -> bool {
 
-      /*
-      static constexpr int INPUT_LAYER_SIZE =
-	// start point, then beziers as control point, end point.
-	2 + ROW0_MAX_PTS * (2 + 2) +
-	2 + ROW1_MAX_PTS * (2 + 2) +
-	2 + ROW2_MAX_PTS * (2 + 2);
-      */
-
       const int char_offset = RandTo(rc, 26);
       const int upper_char = 'A' + char_offset;
       const int lower_char = 'a' + char_offset;
 
-      vector<int> row_max_points = {
-	ROW0_MAX_PTS,
-	ROW1_MAX_PTS,
-	ROW2_MAX_PTS,
-      };
-
-      example->input.resize(INPUT_LAYER_SIZE);	
-      if (!FontProblem::FillVector(ttf, upper_char, row_max_points,
+      example->input.resize(INPUT_LAYER_SIZE);
+      if (!FontProblem::FillVector(ttf, upper_char, ROW_MAX_POINTS,
 				   example->input.data())) {
 	return false;
       }
 
-      example->output.resize(OUTPUT_LAYER_SIZE);	
-      if (!FontProblem::FillVector(ttf, lower_char, row_max_points,
+      example->output.resize(OUTPUT_LAYER_SIZE, 0.0f);
+      if (!FontProblem::GetRows(ttf, lower_char, ROW_MAX_POINTS,
+				&example->expected_contours)) {
+	return false;
+      }
+
+      #if 0
+      // filled later.
+      if (!FontProblem::FillVector(ttf, lower_char, ROW_MAX_POINTS,
 				   example->output.data())) {
 	return false;
       }
+      #endif
 
       // Output is same as input size, plus 26 letters. So use the
       // length of the input to know where to start putting letters.
@@ -2025,7 +2089,7 @@ static void TrainThread() {
 	next_idx++;
       }
       CHECK(next_idx == example->output.size());
-      
+
       if (CHECK_NANS) {
 	for (float f : example->input) { CHECK(!std::isnan(f)); }
 	for (float f : example->output) { CHECK(!std::isnan(f)); }
@@ -2052,7 +2116,7 @@ static void TrainThread() {
       if (training_examples.size() < EXAMPLE_QUEUE_TARGET) {
 	training_examples_m.unlock_shared();
 
-	TrainingExample example;	
+	TrainingExample example;
 	{
 	  load_fonts->fonts_m.lock_shared();
 
@@ -2076,7 +2140,7 @@ static void TrainThread() {
 
 	    // PERF: If not ok, we could mark this as a bad training
 	    // example so we don't keep trying (or just remove it from
-	    // the vector?)
+	    // the vector?) ... but these should have been pre-filtered.
 	  }
 	}
 
@@ -2107,6 +2171,10 @@ static void TrainThread() {
 				StringPrintf("autoparallel.%s.fwd.txt",
 					     experiment.c_str())};
 
+  AutoParallelComp prep_expected_comp{32, 50, true,
+				      StringPrintf("autoparallel.%s.exp.txt",
+						   experiment.c_str())};
+  
   AutoParallelComp error_comp{32, 50, false,
 			      StringPrintf("autoparallel.%s.err.txt",
 					   experiment.c_str())};
@@ -2114,12 +2182,12 @@ static void TrainThread() {
   AutoParallelComp backward_comp{32, 50, false,
 				 StringPrintf("autoparallel.%s.bwd.txt",
 					      experiment.c_str())};
-  
+
   // Training round: Loop over all images in random order.
   double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
     fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0,
-    output_error_ms = 0.0, update_ms = 0.0,
-    error_history_ms = 0.0, eval_ms = 0.0;
+    prep_expected_ms = 0.0, output_error_ms = 0.0, update_ms = 0.0,
+    eval_ms = 0.0;
   Timer total_timer;
   for (int rounds_executed = 0; ; rounds_executed++) {
     Timer round_timer;
@@ -2136,11 +2204,11 @@ static void TrainThread() {
       total_timer.Start();
       round_timer.Start();
     }
-    
+
     if (VERBOSE > 2) Printf("\n\n");
     Printf("** NET ROUND %d (%d in this process) **\n",
 	   net->rounds, rounds_executed);
-    
+
     // When starting from a fresh network, consider this:
 
     // XXX: I think the learning rate should maybe depend on the
@@ -2170,7 +2238,7 @@ static void TrainThread() {
       };
     // was 500000 rounds, 26 Dec 2020
     const float round_learning_rate =
-      Linear(0.10, 0.002, 50000.0, net->rounds);
+      Linear(0.10, 0.002, 500000.0, net->rounds);
 
     // const float round_learning_rate =
     //     std::min(0.125, std::max(0.002, 2 * exp(-0.2275 *
@@ -2215,16 +2283,13 @@ static void TrainThread() {
       ui->SetTakeScreenshot();
 
       // Stable eval screenshot on Helvetica (iterative).
-      vector<int> row_max_points = {
-	ROW0_MAX_PTS, ROW1_MAX_PTS, ROW2_MAX_PTS,
-      };
       FontProblem::RenderVector("helvetica.ttf",
 				*net,
-				row_max_points,
+				ROW_MAX_POINTS,
 				StringPrintf("eval/eval%lld.png",
 					     net->rounds));
     }
-    
+
     if (CHECK_NANS) {
       net_gpu.ReadFromGPU();
       net->NaNCheck("round start");
@@ -2250,15 +2315,7 @@ static void TrainThread() {
       }
     } while (examples.size() < EXAMPLES_PER_ROUND);
 
-    if (VERBOSE > 2) Printf("Setting up expected:\n");
-    vector<vector<float>> expected =
-      Map(examples, [](const TrainingExample &te) {
-      return te.output;
-    });
-
     setup_ms += setup_timer.MS();
-
-    CHECK_EQ(examples.size(), expected.size());
 
     if (false && CHECK_NANS /* && net->rounds == 3 */) {
       // Actually run the forward pass on CPU, trying to find the
@@ -2368,27 +2425,65 @@ static void TrainThread() {
     }
 
     const int num_examples = examples.size();
-    // But, don't need to keep this allocated.
-    examples.clear();
 
+    
+    
     if (ShouldDie()) return;
-    if (VERBOSE > 2) Printf("Error calc.\n");
-    Timer output_error_timer;
-    error_comp.ParallelComp(
+
+    // Compute expected.
+    if (VERBOSE > 2) Printf("Expected calc.\n");
+    Timer prep_expected_timer;
+    prep_expected_comp.ParallelComp(
 	num_examples,
 	[rounds_executed,
-	 &setoutputerror, &net_gpu, &training, &expected](int example_idx) {
+	 &example_rc, &training, &examples](int example_idx) {
+	  // Note: This is specific to the font problem, which is
+	  // flexible in its presentation of the error. For more
+	  // straightforward problems, we can just load the expected
+	  // results from the example, and in fact do this much
+	  // earlier.
+
+	  vector<float> predicted;
+	  predicted.resize(OUTPUT_LAYER_SIZE);
+	  training[example_idx]->ExportOutput(&predicted);
+
+	  // The expected vector has blank rows, but does have the
+	  // 26 letter slots filled. This function only modifies
+	  // the prefix of the vector.
+	  CHECK(example_idx >= 0 && example_idx < example_rc.size());
+	  CHECK(example_idx >= 0 && example_idx < examples.size());
+	  CHECK_EQ(ROW_MAX_POINTS.size(),
+		   examples[example_idx].expected_contours.size());
+	  CHECK_EQ(examples[example_idx].output.size(),
+		   OUTPUT_LAYER_SIZE);
+	  FontProblem::FillExpectedVector(
+	      &example_rc[example_idx],
+	      ROW_MAX_POINTS,
+	      examples[example_idx].expected_contours,
+	      predicted,
+	      &examples[example_idx].output);
+
+	  // (Do this after finalizing the expected vector above.)
 	  if (rounds_executed % EXPORT_EVERY == 0 &&
 	      example_idx < NUM_VIDEO_STIMULATIONS) {
 	    // Copy to screen.
-	    ui->ExportExpectedToVideo(example_idx, expected[example_idx]);
+	    ui->ExportExpectedToVideo(example_idx,
+				      examples[example_idx].output);
 	  }
-	  
-	  // PERF could pipeline this copy earlier
-	  training[example_idx]->LoadExpected(expected[example_idx]);
+	});
+    prep_expected_ms += prep_expected_timer.MS();
+    
+    if (VERBOSE > 2) Printf("Error calc.\n");
+    Timer output_error_timer;
+    error_comp.ParallelComp(
+    	num_examples,
+	[rounds_executed,
+	 &setoutputerror, &net_gpu, &training, &examples](int example_idx) {
+
+	  // Now copy back to GPU and compute output error.
+	  training[example_idx]->LoadExpected(examples[example_idx].output);
 	  SetOutputErrorCL::Context sc{&setoutputerror, &net_gpu};
 	  sc.SetOutputError(training[example_idx]);
-	  /* Printf("."); */
 	});
     output_error_ms += output_error_timer.MS();
     if (VERBOSE > 2) Printf("\n");
@@ -2448,7 +2543,7 @@ static void TrainThread() {
       // are ok?)
       uc.Finish();
       /*
-      Printf("[%d/%d] = (%.2f%%) ", layer, net->num_layers, 
+      Printf("[%d/%d] = (%.2f%%) ", layer, net->num_layers,
              layer * 100.0 / net->num_layers);
       */
     }
@@ -2482,10 +2577,10 @@ static void TrainThread() {
 	     "%.1fms in forward layer (%.1f%%),\n"
 	     "%.1fms in fc init (%.1f%%),\n"
 	     "%.1fms in forward layer kernel (at most; %.1f%%).\n"
+	     "%.1fms in prep expected (%.1f%%),\n"	     
+	     "%.1fms in error for output layer (%.1f%%),\n"
 	     "%.1fms in bc init (%.1f%%),\n"
 	     "%.1fms in backwards pass (%.1f%%),\n"
-	     "%.1fms in error for output layer (%.1f%%),\n"
-	     "%.1fms in error history diagnostics (%.1f%%),\n"
 	     "%.1fms in updating weights (%.1f%%),\n",
 	     total_ms / 1000.0,
 	     (total_ms / 1000.0) / denom,
@@ -2495,10 +2590,10 @@ static void TrainThread() {
 	     forward_ms / denom, Pct(forward_ms),
 	     fc_init_ms / denom, Pct(fc_init_ms),
 	     kernel_ms / denom, Pct(kernel_ms),
+	     prep_expected_ms / denom, Pct(prep_expected_ms),
+	     output_error_ms / denom, Pct(output_error_ms),
 	     bc_init_ms / denom, Pct(bc_init_ms),
 	     backward_ms / denom, Pct(backward_ms),
-	     output_error_ms / denom, Pct(output_error_ms),
-	     error_history_ms / denom, Pct(error_history_ms),
 	     update_ms / denom, Pct(update_ms));
   }
 
@@ -2566,11 +2661,11 @@ int SDL_main(int argc, char **argv) {
       MAX_FONTS);
 
   ui = new UI;
-  
+
   std::thread train_thread(&TrainThread);
 
   ui->Loop();
-  
+
   Printf("Killing train thread (might need to wait for round to finish)...\n");
   WriteWithLock(&train_should_die_m, &train_should_die, true);
   train_thread.join();

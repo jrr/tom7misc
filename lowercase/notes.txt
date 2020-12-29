@@ -6,3 +6,7 @@ on the second problem (smaller vector),
 switched to a normalized point order at round 24820.
 
 (this rapildy dropped the total err from like 17 to 12.79)
+
+switched to permissive loss function at round 70808
+
+(total error went up though... was like 18 and is now 51. seems wrong?)
