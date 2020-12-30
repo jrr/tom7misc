@@ -38,9 +38,12 @@ static void DrawFloats(const vector<int> &row_max_points,
   
   auto DrawPath = [nominal_char_size, img, startx, starty, &values](
       int idx, int num_pts, uint32 color) -> int {
-      // FIXME ignore these and use the end point
-      float x = values[idx + 0];
-      float y = values[idx + 1];
+      
+      // The startx/starty values (in the first two slots)
+      // are now ignored. We draw a closed loop starting
+      // with the last segment's endpoint.
+      float x = values[idx + 2 + (num_pts - 1) * 4 + 2];
+      float y = values[idx + 2 + (num_pts - 1) * 4 + 3];
 
       const double sqerr = 1.0f / (nominal_char_size *
 				   nominal_char_size);

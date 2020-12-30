@@ -1519,9 +1519,11 @@ struct UI {
 		    int idx, int num_pts,
 		    uint8 r, uint8 g, uint8 b) {
 
-		    // XXX no, use last point
-		    float x = values[idx + 0];
-		    float y = values[idx + 1];
+		    // The startx/starty values (in the first two slots)
+		    // are now ignored. We draw a closed loop starting
+		    // with the last segment's endpoint.
+		    float x = values[idx + 2 + (num_pts - 1) * 4 + 2];
+		    float y = values[idx + 2 + (num_pts - 1) * 4 + 3];
 
 		    auto Line = [xstart, ystart](float x1, float y1,
 						 float x2, float y2,
