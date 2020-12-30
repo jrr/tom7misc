@@ -20,7 +20,7 @@ using namespace std;
 using Contour = TTF::Contour;
 using uint32 = uint32_t;
 
-#define EXTRA_CHECKS true
+#define EXTRA_CHECKS false
 
 static constexpr int NUM_COLORS = 4;
 static uint32 COLORS[NUM_COLORS] = {
@@ -497,8 +497,7 @@ FontProblem::BestLoopAssignment(ArcFour *rc,
       // This would be represented with point0 = 2,
       // and groups = {4, 1, 5}.
 
-      // PERF sanity check
-      if (false) {
+      if (EXTRA_CHECKS) {
 	int total = 0;
 	for (int g : assn.groups) total += g;
 	CHECK(total == actual.size()) << total << " " << actual.size();
@@ -516,6 +515,7 @@ FontProblem::BestLoopAssignment(ArcFour *rc,
       }
       return err;
     };
+
   
   static constexpr int NUM_ATTEMPTS = 10;
 
@@ -554,6 +554,7 @@ FontProblem::BestLoopAssignment(ArcFour *rc,
 	  if (assn.groups[i] > 1) {
 	    assn.groups[i]--;
 	    assn.groups[next_i]++;
+	    // float new_score = ScorePlus(current_score, assn, i, next_i);
 	    float new_score = Score(assn);
 	    if (new_score < current_score) {
 	      improved = true;

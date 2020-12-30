@@ -1570,23 +1570,29 @@ struct UI {
 		if (render_style == RENDERSTYLE_OUTPUTXY) {
 		  DrawPath(nullptr, expected,
 			   0, ROW0_MAX_PTS, 40, 0x7F, 40);
-		  /*
-		  DrawPath(values, 2 + ROW0_MAX_PTS * 4,
-			   ROW1_MAX_PTS, 0x00, 0xFF, 0x00);
-		  DrawPath(values,
+		  
+		  DrawPath(nullptr, expected, 2 + ROW0_MAX_PTS * 4,
+			   ROW1_MAX_PTS, 0x00, 0x5F, 0x00);
+		  DrawPath(nullptr, expected,
 			   2 + ROW0_MAX_PTS * 4 +
 			   2 + ROW1_MAX_PTS * 4,
-			   ROW2_MAX_PTS, 0x00, 0xFF, 0xFF);
-		  */
+			   ROW2_MAX_PTS, 0x00, 0x5F, 0xFF);
+
 		}
 		
 		DrawPath(
 		    render_style == RENDERSTYLE_OUTPUTXY ?
 		    &expected : nullptr,
 		    values, 0, ROW0_MAX_PTS, 0xFF, 0xFF, 0x00);
-		DrawPath(nullptr, values, 2 + ROW0_MAX_PTS * 4,
+		DrawPath(
+		    render_style == RENDERSTYLE_OUTPUTXY ?
+		    &expected : nullptr,
+			 values, 2 + ROW0_MAX_PTS * 4,
 			 ROW1_MAX_PTS, 0x00, 0xFF, 0xFF);
-		DrawPath(nullptr, values,
+		DrawPath(
+		    render_style == RENDERSTYLE_OUTPUTXY ?
+		    &expected : nullptr,
+			 values,
 			 2 + ROW0_MAX_PTS * 4 +
 			 2 + ROW1_MAX_PTS * 4,
 			 ROW2_MAX_PTS, 0x44, 0x44, 0xFF);
@@ -2609,8 +2615,10 @@ static std::optional<string> GetExclusiveApp() {
 
   for (const string &proc : procs) {
     string match = Util::lcase(proc);
+    // Now you can see what games I'm playing in December 2020!
     if (match == "spel2.exe") return {proc};
     if (match == "disc room.exe") return {proc};
+    if (match == "superliminalsteam.exe") return {proc};
     // Can add more here, including regexes etc...
   }
 
