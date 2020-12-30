@@ -424,6 +424,15 @@ void UI::SetFlag(Flag f, bool on) {
 void UI::RecomputeLoop() {
   if (looptest_expected.size() > 0 &&
       looptest_actual.size() >= looptest_expected.size()) {
+    printf("Expected:\n");
+    for (const auto &[x, y] : looptest_expected) {
+      printf("  {%d,%d},\n", (int)x, (int)y);
+    }
+    printf("Actual:\n");
+    for (const auto &[x, y] : looptest_actual) {
+      printf("  {%d,%d},\n", (int)x, (int)y);
+    }
+    
     Timer assn_timer;
     looptest_assignment.emplace(
 	FontProblem::BestLoopAssignment(&rc,

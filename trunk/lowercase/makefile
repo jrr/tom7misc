@@ -86,5 +86,8 @@ eval.exe : $(OBJECTS) eval.o
 top_test.exe : top.o top_test.o $(OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+font-problem_test.exe : font-problem.o font-problem_test.o $(OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 clean :
 	rm -f *.o $(UTIL_OBJECTS) $(CHESS_OBJECTS) $(RE2_OBJECTS) *.exe
