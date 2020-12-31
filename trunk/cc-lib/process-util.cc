@@ -9,6 +9,8 @@ using namespace std;
 
 // TODO: Make it work on windows too? This is probably posix-only
 // because of popen().
+// (Actually it kinda works on windows, but some characters cannot
+// be piped through.)
 std::optional<string> ProcessUtil::GetOutput(const string &cmd) {
   string ret;
 

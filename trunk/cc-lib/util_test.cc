@@ -5,6 +5,7 @@
 #include "base/logging.h"
 #include "util.h"
 #include <stdio.h>
+#include <cmath>
 
 using namespace std;
 
@@ -99,6 +100,8 @@ static void TestSplit() {
 }
 
 static void TestCdup() {
+  // Note: Failures here could be because util_test.o and util.o have
+  // different values of DIRSEP. Probably should make this more sane!
   CHECK_EQ("abc" DIRSEP "de", Util::cdup("abc" DIRSEP "de" DIRSEP "f"));
   CHECK_EQ(".", Util::cdup("abc"));
 }
@@ -160,6 +163,37 @@ static void TestWriteFiles() {
   CHECK(lines == rlines);
 }
 
+static void TestParseDouble() {
+  CHECK(Util::ParseDouble(" +3 ") == 3.0);
+  CHECK(Util::ParseDouble("  -3.5   ") == -3.5);
+  CHECK(Util::ParseDouble("-3.5") == -3.5);
+  CHECK(Util::ParseDouble("000") == 0.0);
+  CHECK(Util::ParseDouble("000", 1.0) == 0.0);
+  CHECK(Util::ParseDouble("0", 1.0) == 0.0);
+  CHECK(Util::ParseDouble("-0", 1.0) == 0.0);
+  double nnn = Util::ParseDouble("nan", 1.0);
+  CHECK(std::isnan(nnn)) << "expected NaN";
+  CHECK(Util::ParseDouble("-2e3") == -2e3);
+  CHECK(Util::ParseDouble("asdf", 3.0) == 3.0);
+  CHECK(Util::ParseDouble("33asdf", 2.0) == 2.0);
+  CHECK(Util::ParseDouble("asdf33", 2.0) == 2.0);
+}
+
+static void TestFactorize() {
+  CHECK((vector<int>{2, 2, 2, 3}) == Util::Factorize(2 * 2 * 2 * 3));
+  CHECK((vector<int>{2, 2}) == Util::Factorize(4));
+  CHECK((vector<int>{2}) == Util::Factorize(2));
+  CHECK((vector<int>{5, 5}) == Util::Factorize(5 * 5));
+  CHECK((vector<int>{31337}) == Util::Factorize(31337));
+  CHECK((vector<int>{3, 5, 11, 13}) == Util::Factorize(3 * 5 * 11 * 13));
+  CHECK((vector<int>{3, 5, 5, 11, 13}) ==
+	Util::Factorize(3 * 5 * 5 * 11 * 13));  
+  CHECK((vector<int>{3, 5, 5, 11, 11, 11}) ==
+	Util::Factorize(3 * 5 * 5 * 11 * 11 * 11));  
+  CHECK((vector<int>{3, 5, 5, 11, 13, 31337}) ==
+	Util::Factorize(3 * 5 * 5 * 11 * 13 * 31337));  
+}
+
 int main(int argc, char **argv) {
   TestReadFiles();
   TestWriteFiles();
@@ -169,6 +203,8 @@ int main(int argc, char **argv) {
   TestSplit();
   TestCdup();
   TestPrefixSuffix();
+  TestParseDouble();
+  TestFactorize();
   return 0;
 }
 

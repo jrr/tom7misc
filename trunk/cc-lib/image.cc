@@ -171,7 +171,8 @@ ImageRGBA::ImageRGBA(int width, int height)
 
 bool ImageRGBA::Save(const std::string &filename) const {
   CHECK((int)rgba.size() == width * height * 4);
-  return !!stbi_write_png(filename.c_str(), width, height, 4, rgba.data(), 4 * width);
+  return !!stbi_write_png(filename.c_str(),
+			  width, height, 4, rgba.data(), 4 * width);
 }
 
 vector<uint8> ImageRGBA::SaveToVec() const {
@@ -191,11 +192,44 @@ string ImageRGBA::SaveToString() const {
 bool ImageRGBA::SaveJPG(const std::string &filename, int quality) const {
   CHECK((int)rgba.size() == width * height * 4);
   CHECK(quality >= 0 && quality <= 100) << quality;
-  return !!stbi_write_jpg(filename.c_str(), width, height, 4, rgba.data(), quality);
+  return !!stbi_write_jpg(filename.c_str(),
+			  width, height, 4, rgba.data(), quality);
 }
 
 ImageRGBA *ImageRGBA::Copy() const {
   return new ImageRGBA(rgba, width, height);
+}
+
+ImageRGBA ImageRGBA::Crop32(int x, int y, int w, int h,
+			    uint32 fill_color) const {
+  CHECK(w > 0 && h > 0) << w << " " << h;
+  const auto [r, g, b, a] = Unpack32(fill_color);
+  
+  ImageRGBA ret{w, h};
+  // xx,yy in new image's coordinates
+  for (int yy = 0; yy < h; yy++) {
+    const int sy = yy + y;
+    for (int xx = 0; xx < w; xx++) {
+      const int sx = xx + x;
+      // Fill color if not in bounds
+      uint8 sr = r, sg = g, sb = b, sa = a;
+      if (sx >= 0 && sx < width &&
+	  sy >= 0 && sy < height) {
+	const int sbase = (sy * width + sx) << 2;
+	sr = rgba[sbase + 0];
+	sg = rgba[sbase + 1];
+	sb = rgba[sbase + 2];
+	sa = rgba[sbase + 3];	
+      }
+
+      const int base = (yy * w + xx) << 2;
+      ret.rgba[base + 0] = sr;
+      ret.rgba[base + 1] = sg;
+      ret.rgba[base + 2] = sb;
+      ret.rgba[base + 3] = sa;      
+    }
+  }
+  return ret;
 }
 
 ImageRGBA::uint32 ImageRGBA::GetPixel(int x, int y) const {
@@ -421,4 +455,61 @@ ImageA *ImageA::Copy() const {
 
 void ImageA::Clear(uint8 value) {
   for (int i = 0; i < (int)alpha.size(); i++) alpha[i] = value;
+}
+
+float ImageA::SampleBilinear(float x, float y) const {
+  // Truncate to integer pixels.
+  int ix = x;
+  int iy = y;
+
+  // subpixel values give us the interpolants
+  float fx = x - ix;
+  float fy = y - iy;
+
+  // Get these four values.
+  //         
+  //  v00 ----- v10
+  //   |   :fy   |
+  //   |...*     | 1.0
+  //   | fx      |
+  //  v01 ----- v11
+  //       1.0
+
+  auto BClipPixel = [this](int x, int y) {
+      if (x < 0) x = 0;
+      if (y < 0) y = 0;
+      if (x >= width) x = width - 1;
+      if (y >= height) y = height - 1;
+      return GetPixel(x, y);
+    };
+  
+  uint8 v00 = BClipPixel(ix, iy);
+  uint8 v10 = BClipPixel(ix + 1, iy);
+  uint8 v01 = BClipPixel(ix, iy + 1);
+  uint8 v11 = BClipPixel(ix + 1, iy + 1);
+
+  // v0 interpolates between v00 and v10 at fx.
+  float v0 = (float)v00 + (float)(v10 - v00) * fx;
+  float v1 = (float)v01 + (float)(v11 - v01) * fx;
+
+  float v = v0 + (v1 - v0) * fy;
+  return v / 255.0f;
+}
+
+ImageA ImageA::ResizeBilinear(int nwidth, int nheight) const {
+  ImageA ret{nwidth, nheight};
+  // XXX Sampling is probably a little off wrt width-1 stuff?
+  for (int y = 0; y < nheight; y++) {
+    const float fy = y / (float)nheight;
+    const float sy = fy * height;
+    for (int x = 0; x < nwidth; x++) {
+      const float fx = x / (float)nwidth;
+      const float sx = fx * width;
+
+      float fv = SampleBilinear(sx, sy);
+      uint8 v = fv > 1.0f ? 255 : fv < 0.0f ? 0 : roundf(fv * 255.0f);
+      ret.SetPixel(x, y, v);
+    }
+  }
+  return ret;
 }

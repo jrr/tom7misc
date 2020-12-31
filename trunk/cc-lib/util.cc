@@ -780,6 +780,26 @@ string Util::chop(string &line) {
   return "";
 }
 
+double Util::ParseDouble(const string &s, double default_value) {
+  // To get rid of leading and trailing whitespace. strtod will skip
+  // it anyway, but we want to be able to check that the whole
+  // string was consumed in a simple way.
+  string ss = NormalizeWhitespace(s);
+  char *endptr = nullptr;
+  double d = strtod(ss.c_str(), &endptr);
+#if 0
+  printf("[%s] %p + %zu = %p vs %p\n",
+	 ss.c_str(),
+	 ss.c_str(), ss.size(), ss.c_str() + ss.size(),
+	 endptr);
+#endif
+  if (endptr == ss.c_str() + ss.size()) {
+    return d;
+  } else {
+    return default_value;
+  }
+}
+
 /* PERF same */
 string Util::chopto(char c, string &line) {
   string acc;
@@ -1240,6 +1260,38 @@ string Util::Replace(string src,
   return src;
 }
 
+vector<int> Util::Factorize(int n) {
+  // Bad input.
+  if (n <= 1) return {};
+  
+  vector<int> out;
+
+  // Reduce twos. Because the input is positive, we'll
+  // eventually get a one bit.
+  while (0 == (n & 1)) {
+    out.push_back(2);
+    n >>= 1;
+  }
+
+  // Factor to try. Once we eliminate a factor there's no
+  // reason to ever try it again, so 
+  int f = 3;
+  
+  while (f * f <= n) {
+    while (n % f == 0) {
+      out.push_back(f);
+      n /= f;
+    }
+    
+    f += 2;
+  }
+
+  // Last factor is prime.
+  if (n != 1) out.push_back(n);
+
+  std::sort(out.begin(), out.end());
+  return out;
+}
 
 #ifdef WIN32
 // for ShellExecute

@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 
       CHECK(reso.has_value());
       const string &res = reso.value();
-      CHECK_EQ(res.size(), 555) << res.size();
+      CHECK_EQ(res.size(), 555) << res.size() << "\n" << res;
       for (int i = 0; i < (int)res.size(); i++) {
 	CHECK_EQ(res[i], i & 255) << i;
       }

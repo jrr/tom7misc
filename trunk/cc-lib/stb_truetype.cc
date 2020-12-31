@@ -4,7 +4,12 @@
 
 #include "stb_truetype.h"
 
+// XXX
+#include <stdio.h>
+
 #define STB_TRUETYPE_IMPLEMENTATION
+
+#define STBTT_RASTERIZER_VERSION 1
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2080,7 +2085,8 @@ static void stbtt__fill_active_edges_new(float *scanline, float *scanline_fill, 
    float y_bottom = y_top+1;
 
    while (e) {
-      // brute force every pixel
+
+     // brute force every pixel
 
       // compute intersection points with top & bottom
       STBTT_assert(e->ey >= y_top);
@@ -2105,7 +2111,7 @@ static void stbtt__fill_active_edges_new(float *scanline, float *scanline_fill, 
          STBTT_assert(e->sy <= y_bottom && e->ey >= y_top);
 
          // compute endpoints of line segment clipped to this scanline (if the
-         // line segment starts on this scanline. x0 is the intersection of the
+         // line segment starts on this scanline). x0 is the intersection of the
          // line with y_top, but that may be off the line segment.
          if (e->sy > y_top) {
             x_top = x0 + dx * (e->sy - y_top);
@@ -2167,8 +2173,13 @@ static void stbtt__fill_active_edges_new(float *scanline, float *scanline_fill, 
                }
                y_crossing += dy * (x2 - (x1+1));
 
-               STBTT_assert(STBTT_fabs(area) <= 1.01f);
-
+	       if (!(STBTT_fabs(area) <= 1.01f)) {
+		 printf("area: %.5f * (%.5f - %.5f) = %.5f\n",
+			sign, y_crossing, sy0,
+			area);
+	       }
+	       STBTT_assert(STBTT_fabs(area) <= 1.01f);
+	       
                scanline[x2] += area + sign * (1-((x2-x2)+(x_bottom-x2))/2) * (sy1-y_crossing);
 
                scanline_fill[x2] += sign * (sy1-sy0);
@@ -2244,6 +2255,20 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
    int y,j=0, i;
    float scanline_data[129], *scanline, *scanline2;
 
+   #if 0
+   printf("rasterize: %dx%d(%d) bitmap  %d edges  %d subsample  %d offx  %d offy\n",
+	  result->w, result->h, result->stride,
+	  n, vsubsample, off_x, off_y);
+
+   for (i = 0; i < n; i++) {
+     const stbtt__edge &ee = e[i];
+     printf("  {%.8f,%.8f,  %.8f,%.8f,  %d,},\n",
+	    ee.x0, ee.y0,
+	    ee.x1, ee.y1,
+	    ee.invert);
+   }
+   #endif
+   
    STBTT__NOTUSED(vsubsample);
 
    if (result->w > 64)
@@ -2300,9 +2325,24 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
       }
 
       // now process all active edges
-      if (active)
-         stbtt__fill_active_edges_new(scanline, scanline2+1, result->w, active, scan_y_top);
-
+      if (active) {
+	#if 0
+	int num_active = 0;
+	for (stbtt__active_edge *tmp = active; tmp != nullptr; tmp = tmp->next)
+	  num_active++;
+	printf("    sl #%d, %d active\n", j, num_active);
+	for (stbtt__active_edge *tmp = active; tmp != nullptr; tmp = tmp->next) {
+	  printf("      fx %.5f fdx %.5f %.5f fdy   dir %.5f   sy %.5f ey %.5f\n",
+		 tmp->fx, tmp->fdx, tmp->fdy,
+		 tmp->direction,
+		 tmp->sy,
+		 tmp->ey);
+	}	
+	#endif
+	
+	stbtt__fill_active_edges_new(scanline, scanline2+1, result->w, active, scan_y_top);
+      }
+	 
       {
          float sum = 0;
          for (i=0; i < result->w; ++i) {

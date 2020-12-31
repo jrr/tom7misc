@@ -148,6 +148,9 @@ struct Util {
      and line becomes empty. */
   static string chop(string &line);
 
+  static double ParseDouble(const string &s,
+			    double default_value = 0.0);
+
   /* number of entries (not . or ..) in dir d */
   static int dirsize(string d);
 
@@ -248,6 +251,10 @@ struct Util {
   // Returns 0-15 for valid hex digits (0-9a-fA-F) and arbitrary (really,
   // it's weird) values for other chars.
   static int HexDigitValue(char c);
+
+  // Prime factorization with trial division (not fast). Input must be > 1.
+  // Output in sorted order.
+  static std::vector<int> Factorize(int n);
 };
 
 /* drawing lines with Bresenham's algorithm.
