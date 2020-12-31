@@ -1,5 +1,6 @@
 // Local changes for cc-lib:
 // In here are the two header files that make up BiteOpt (biternd.h and biteopt.h).
+// I made the destructors virtual to suppress warnings.
 // At the bottom are implementations of my wrapper in opt.h.
 
 
@@ -227,7 +228,7 @@ public:
 		PopSizeMult = 1.92909238;
 	}
 
-	~CBiteOpt()
+        virtual ~CBiteOpt()
 	{
 		deleteBuffers();
 	}
@@ -870,7 +871,7 @@ public:
 	{
 	}
 
-	~CBiteOptDeep()
+	virtual ~CBiteOptDeep()
 	{
 		deleteBuffers();
 	}

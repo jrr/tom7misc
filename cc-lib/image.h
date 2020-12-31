@@ -32,7 +32,12 @@ struct ImageRGBA {
   // TODO: jpg to vec, to string
 
   ImageRGBA *Copy() const;
-
+  // Crop (or pad), returning a new image of the given width and height.
+  // If this includes any area outside the input image, fill with
+  // fill_color.
+  ImageRGBA Crop32(int x, int y, int w, int h,
+		   uint32 fill_color = 0x00000000) const;
+  
   // In RGBA order, where R value is MSB. x/y must be in bounds.
   uint32 GetPixel(int x, int y) const;
   // Clear the image to a single value.
@@ -92,7 +97,9 @@ struct ImageA {
   ImageA(int width, int height);
   
   ImageA *Copy() const;
-
+  // Generally appropriate for enlarging, not shrinking.
+  ImageA ResizeBilinear(int new_width, int new_height) const;
+  
   // TODO: Text drawing is easy here!
 
   void Clear(uint8 value);
@@ -101,6 +108,11 @@ struct ImageA {
   inline void SetPixel(int x, int y, uint8 v);
   // x/y must be in bounds.
   inline uint8 GetPixel(int x, int y) const;
+
+  // Treats the input pixels as being "located" at their top-left
+  // corners (not their centers).
+  // x/y out of bounds will repeat edge pixels.
+  float SampleBilinear(float x, float y) const;
   
   const int width, height;
   // Size width * height.
