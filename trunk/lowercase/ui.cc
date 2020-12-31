@@ -32,6 +32,7 @@
 #include "ttf.h"
 #include "fontdb.h"
 #include "font-problem.h"
+#include "loadfonts.h"
 
 #define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" /* removed icons */
 #define FONTSTYLES 7
@@ -51,6 +52,7 @@ static SDL_Surface *screen = nullptr;
 enum class Mode {
   BITMAP,
   SORTITION,
+  SDFTEST,
   SCALETEST,
   LOOPTEST,
 };
@@ -87,6 +89,7 @@ struct UI {
 
   // Drawing for various modes
   void DrawSortition();
+  void DrawSDF();
   
   // current index (into cur_filenames, fonts, etc.) that we act
   // on with keypresses etc.
@@ -557,6 +560,9 @@ void UI::Loop() {
 	    mode = Mode::SORTITION;
 	    break;
 	  case Mode::SORTITION:
+	    mode = Mode::SDFTEST;
+	    break;
+	  case Mode::SDFTEST:
 	    mode = Mode::SCALETEST;
 	    break;
 	  case Mode::SCALETEST:
@@ -601,9 +607,15 @@ void UI::Loop() {
 	      cur = cur_filenames.size() - 1;
 	    ui_dirty = true;
 	    break;
+	    
 	  case Mode::BITMAP:
+	  case Mode::SDFTEST:
+	    cur += dy;
+	    if (cur < 0) cur = 0;
+	    if (cur >= cur_filenames.size()) cur = cur_filenames.size() - 1;
+	    
 	    current_char += dx;
-	    if (current_char > 'Z') current_char = 'Z';
+	    if (current_char > 'z') current_char = 'z';
 	    else if (current_char < 'A') current_char = 'A';
 	    ui_dirty = true;
 	    break;
@@ -920,6 +932,207 @@ void UI::DrawSortition() {
   }
 }
   
+void UI::DrawSDF() {
+
+  // Now through TTF wrapper
+#if 0
+  const int SDF_SIZE = 64;
+  const int PAD = 16;
+  const uint8 ONEDGE = 200;
+
+  const float falloff_min =
+    (float)ONEDGE / (sqrtf(2.0f) * SDF_SIZE * 0.5f);
+  const float falloff_max = (float)ONEDGE / PAD;
+  const float FALLOFF = 0.5f * (falloff_min + falloff_max);
+  
+  printf("Falloff %.4f - %.4f = %.4f\n",
+	 falloff_min, falloff_max, FALLOFF);
+#endif
+
+  static constexpr int SIZE = 64;
+  
+  using SDFConfig = SDFLoadFonts::SDFConfig;
+  SDFConfig config;
+  config.sdf_size = SIZE;
+  config.pad_top = 4;
+  config.pad_bot = 18;
+  config.pad_left = 18;
+  config.onedge_value = 200;
+
+  const float base_padding = (config.pad_top + config.pad_bot) * 0.5f;
+  
+  const float falloff_min =
+    (float)config.onedge_value / (sqrtf(2.0f) * config.sdf_size * 0.5f);
+  const float falloff_max = (float)config.onedge_value / base_padding;
+  CHECK(falloff_max > falloff_min);
+  // config.falloff_per_pixel = 0.5f * (falloff_min + falloff_max);
+  config.falloff_per_pixel = 0.25f * falloff_max + 0.75 * falloff_min;
+  
+  
+  const TTF *font = GetFont(cur);
+  std::optional<ImageA> sdf = font->GetSDF(current_char, config.sdf_size,
+					   config.pad_top, config.pad_bot, config.pad_left,
+					   config.onedge_value, config.falloff_per_pixel);
+  if (sdf.has_value()) {
+    constexpr int X1 = 10, Y1 = 200;
+    constexpr int X2 = 500, Y2 = 200;  
+    constexpr int X3 = 10, Y3 = 500;
+    constexpr int X4 = 500, Y4 = 500;
+    constexpr int X5 = 10, Y5 = 800;
+    constexpr int X6 = 500, Y6 = 800;
+
+    auto DrawBitmap = [](int startx, int starty, const ImageA &sdf) {
+	int idx = 0;
+	for (int y = 0; y < sdf.height; y++) {
+	  int yy = starty + y;
+	  for (int x = 0; x < sdf.width; x++) {
+	    uint8 v = sdf.GetPixel(x, y);
+	    int xx = startx + x;
+	    sdlutil::drawclippixel(screen, xx, yy, v, v, v);
+	    idx++;
+	  }
+	}
+      };
+
+    auto DrawBitmapThresh = [](uint8 thresh,
+				 int startx, int starty, const ImageA &sdf) {
+	int idx = 0;
+	for (int y = 0; y < sdf.height; y++) {
+	  int yy = starty + y;
+	  for (int x = 0; x < sdf.width; x++) {
+	    uint8 v = sdf.GetPixel(x, y);
+	    int xx = startx + x;
+	    
+	    uint8 vv = v >= thresh ? 0xFF : 0x00;
+	    sdlutil::drawclippixel(screen, xx, yy, vv, vv, vv);
+	    idx++;
+	  }
+	}
+      };
+
+    
+    auto DrawBitmap2x = [](int startx, int starty, const ImageA &sdf) {
+	int idx = 0;
+	for (int y = 0; y < sdf.height; y++) {
+	  int yy = starty + y * 2;
+	  for (int x = 0; x < sdf.width; x++) {
+	    uint8 v = sdf.GetPixel(x, y);
+	    int xx = startx + x * 2;
+	    sdlutil::drawclippixel(screen, xx, yy, v, v, v);
+	    sdlutil::drawclippixel(screen, xx + 1, yy, v, v, v);
+	    sdlutil::drawclippixel(screen, xx, yy + 1, v, v, v);
+	    sdlutil::drawclippixel(screen, xx + 1, yy + 1, v, v, v);	    
+	    idx++;
+	  }
+	}
+      };
+
+    auto DrawBitmapThresh2x = [](uint8 thresh,
+				 int startx, int starty, const ImageA &sdf) {
+	int idx = 0;
+	for (int y = 0; y < sdf.height; y++) {
+	  int yy = starty + y * 2;
+	  for (int x = 0; x < sdf.width; x++) {
+	    uint8 v = sdf.GetPixel(x, y);
+	    int xx = startx + x * 2;
+	    
+	    uint8 vv = v >= thresh ? 0xFF : 0x00;
+	    sdlutil::drawclippixel(screen, xx, yy, vv, vv, vv);
+	    sdlutil::drawclippixel(screen, xx + 1, yy, vv, vv, vv);
+	    sdlutil::drawclippixel(screen, xx, yy + 1, vv, vv, vv);
+	    sdlutil::drawclippixel(screen, xx + 1, yy + 1, vv, vv, vv);	    
+	    
+	    idx++;
+	  }
+	}
+      };
+
+  
+    DrawBitmap2x(X1, Y1, sdf.value());
+    DrawBitmapThresh2x(config.onedge_value, X2, Y2, sdf.value());
+
+    ImageA twox = sdf.value().ResizeBilinear(sdf.value().width * 2,
+					     sdf.value().height * 2);
+    DrawBitmap2x(X3, Y3, twox);
+    DrawBitmapThresh2x(config.onedge_value, X4, Y4, twox);
+
+    ImageA fourx = sdf.value().ResizeBilinear(sdf.value().width * 4,
+					      sdf.value().height * 4);
+    DrawBitmap(X5, Y5, fourx);
+    DrawBitmapThresh(config.onedge_value, X6, Y6, fourx);
+    
+  } else {
+    ::font->draw(100, 100, "No SDF");
+  }
+    
+  
+  #if 0
+  const auto *info = times.Font();
+  const int SIZE = 48;
+  const uint8 PADDING = 16;
+  
+  float stb_scale = stbtt_ScaleForPixelHeight(info, SIZE);
+
+  // Bias towards 1.0 because the interior distances tend to be
+  // much smaller than exterior. But we want some dynamic range
+  // there too.
+  const uint8 ONEDGE = 200;
+  
+  int width, height, xoff, yoff;
+  uint8 *bit = stbtt_GetCodepointSDF(info,
+				     stb_scale,
+				     current_char,
+				     // padding
+				     PADDING,
+				     // onedge value
+				     ONEDGE,
+				     // falloff per pixel
+				     2.0,
+				     &width, &height,
+				     &xoff, &yoff);
+  CHECK(bit != nullptr);
+
+  constexpr int X1 = 10, Y1 = 200;
+  constexpr int X2 = 400, Y2 = 200;  
+
+  auto DrawBitmap = [](int startx, int starty, uint8 *bm,
+		       int width, int height) {
+      int idx = 0;
+      for (int y = 0; y < height; y++) {
+	int yy = starty + y;
+	for (int x = 0; x < width; x++) {
+	  uint8 v = bm[idx];
+	  int xx = startx + x;
+	  sdlutil::drawclippixel(screen, xx, yy, v, v, v);
+	  idx++;
+	}
+      }
+    };
+
+  auto DrawBitmapThresh = [](uint8 thresh,
+			     int startx, int starty, uint8 *bm,
+			     int width, int height) {
+      int idx = 0;
+      for (int y = 0; y < height; y++) {
+	int yy = starty + y;
+	for (int x = 0; x < width; x++) {
+	  uint8 v = bm[idx];
+	  int xx = startx + x;
+
+	  uint8 vv = v >= thresh ? 0xFF : 0x00;
+	  sdlutil::drawclippixel(screen, xx, yy, vv, vv, vv);
+	  
+	  idx++;
+	}
+      }
+    };
+
+  
+  DrawBitmap(X1, Y1, bit, width, height);
+  DrawBitmapThresh(ONEDGE, X2, Y2, bit, width, height);
+#endif
+}
+
 void UI::Draw() {
 
   switch (mode) {
@@ -1008,6 +1221,10 @@ void UI::Draw() {
     
     break;
   }
+
+  case Mode::SDFTEST:
+    DrawSDF();
+    break;
     
   case Mode::BITMAP: {
 
