@@ -7,7 +7,13 @@
 #include <shared_mutex>
 #include <thread>
 
+#include "base/logging.h"
+#include "base/stringprintf.h"
+
 #include "threadutil.h"
+#include "arcfour.h"
+#include "randutil.h"
+
 #include "fontdb.h"
 #include "font-problem.h"
 #include "timer.h"
@@ -61,7 +67,7 @@ void VectorLoadFonts::Init() {
       }
     }
   }
-
+  
   printf("%lld eligible fonts\n", (int64)filenames_todo.size());
   ParallelApp(filenames_todo,
 	      [this](const string &filename) {
@@ -152,6 +158,12 @@ void SDFLoadFonts::Init() {
     }
   }
 
+  // Since this takes a long time (~25 minutes with 30 threads!) to
+  // load, do it in a random order so that training isn't biased
+  // towards early items in the list.
+  ArcFour rc(StringPrintf("%lld", time(nullptr)));
+  Shuffle(&rc, &filenames_todo);
+  
   printf("%lld eligible fonts\n", (int64)filenames_todo.size());
   Timer timer;
   ParallelApp(filenames_todo,
