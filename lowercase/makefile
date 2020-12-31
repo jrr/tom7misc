@@ -77,7 +77,10 @@ samecase.exe : samecase.o $(OBJECTS)
 area.exe : area.o $(OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-info.exe : info.o $(OBJECTS) loadfonts.o
+vector-info.exe : vector-info.o $(OBJECTS) loadfonts.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+sdf-info.exe : sdf-info.o $(OBJECTS) loadfonts.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 eval.exe : $(OBJECTS) eval.o

@@ -17,6 +17,8 @@
 // TODO: Only expose normalized coordinates...
 struct TTF {
   using string = std::string;
+
+  const stbtt_fontinfo *Font() const { return &font; }
   
   explicit TTF(const string &filename) {
     ttf_bytes = Util::ReadFileBytes(filename);
@@ -414,7 +416,151 @@ struct TTF {
     return Norm(advance, 1.0f).first;
   }
 
-  const stbtt_fontinfo *Font() const { return &font; }
+
+  // Get SDF for the character. This is tuned for ML applications, not
+  // graphics.
+  //
+  //         sdf_size
+  //  +---------------------+
+  //  |      |              |
+  //  |     pad top         | 
+  //  |      |              | s 
+  //  |     +---------+     | d
+  //  |     |         :     | f
+  //  |     |         : h   | _
+  //  |-pad-|         : t   | s
+  //  | left|         :     | i
+  //  |     +---------+     | z
+  //  |   origin   |        | e
+  //  |           pad bot   |
+  //  |            |        |  
+  //  +---------------------+
+  //
+  // The output image will be sdf_size * sdf_size if successful. The
+  // character is rendered at the nominal pixel height ht, which
+  // is sdf_size - pad * 2.
+  // The character is registered with its origin at (pad, pad + ht);
+  // this means that two SDFs drawn on top of one another have the
+  // character in the correct relative position. Padding allows the
+  // character to extend outside the box (this is normal: a
+  // character like w is wider than its nominal height; a character
+  // like j typically descends below the origin and to its left; even
+  // o typically drops slightly below the baseline and left edge.)
+  // However, if pixels that are inside the character (sdf value >=
+  // onedge_value) fall outside the bitmap, nullopt is returned.
+  // Internally we render the SDF with lots of padding so that the
+  // entire output should be filled with the actual distance function,
+  // but of course it must be cropped at the output's edges.
+  //
+  // onedge_value and falloff_per_pixel are the same as in the stb_truetype
+  // lib. A value ~200 seems good for onedge_value because exterior
+  // distances are typically much higher than interior (especially with padding).
+  // Unclear what a good falloff_per_pixel is, but it probably makes
+  // sense to use the full dynamic range. The longest edge is from the
+  // center to a corner (sqrt(2) * sdf_size / 2), which would be a
+  // falloff of (sqrt(2) * sdf_size / 2) / 200 = 0.0035 * sdf_size.
+  // Alternatively, we could take the center box (ht * ht) to be
+  // the nominal character's edge (or at least the closest we "normally"
+  // get to the sdf edge), and expect to get to zero along the
+  // shortest edge; this distance is "pad". So we'd have 200 / pad.
+  // So, suggestion is 0.0035 * sdf_size <= falloff <= 200 / pad
+  // for an onedge_value of 200.
+  //
+  // Padding can actually be specified separately for top, bottom, and left.
+  // (Pad right would not actually do anything.)
+  // left = bottom and 1:3 ratio of top:bottom seems to be generally efficient.
+  std::optional<ImageA> GetSDF(char c,
+			       int sdf_size,
+			       int pad_top, int pad_bot, int pad_left,
+			       uint8_t onedge_value,
+			       float falloff_per_pixel) const {
+    CHECK(sdf_size > 0);
+    CHECK(pad_top >= 0 && pad_top < sdf_size);
+    CHECK(pad_left >= 0 && pad_left < sdf_size);
+    CHECK(pad_bot >= 0 && pad_bot < sdf_size);
+    const int ht = sdf_size - (pad_top + pad_bot);
+    CHECK(ht > 0);
+
+    // Location of origin in output.
+    const int sdf_ox = pad_left;
+    const int sdf_oy = pad_top + ht;
+
+    // PERF: Internally, we pad with sdf_size on every side, which guarantees
+    // we'll have enough pixels as long as the origin is inside the
+    // bitmap. But this is probably overkill!
+    const int stb_pad = sdf_size;
+    const float stb_scale = stbtt_ScaleForPixelHeight(&font, ht);
+
+    int width, height, xoff, yoff;
+    uint8_t *bit = stbtt_GetCodepointSDF(&font,
+					 stb_scale,
+					 c,
+					 // padding
+					 stb_pad,
+					 // onedge value
+					 onedge_value,
+					 // falloff per pixel
+					 falloff_per_pixel,
+					 &width, &height,
+					 &xoff, &yoff);
+    // This just fails for some fonts?
+    if (bit == nullptr)
+      return {};
+      
+    // printf("stb stf: %dx%d, off %d %d\n", width, height, xoff, yoff);
+    
+    ImageA out{sdf_size, sdf_size};
+
+    // Now fill the whole sdf image.
+    // sx,sy are pixel coordinates in the output sdf.
+    // bx,by are pixel coordinates in the stb sdf bitmap.
+    // Note xoff/yoff are typically negative (whereas sdf_o(x,y) are positive;
+    // the coordinates of the origin within the bitmap.
+    for (int sy = 0; sy < sdf_size; sy++) {
+      const int by = (sy - sdf_oy) + (-yoff);
+      // output sdf isn't covered
+      if (by < 0 || by >= height) {
+	stbtt_FreeSDF(bit, nullptr);
+	return {};
+      }
+      
+      for (int sx = 0; sx < sdf_size; sx++) {
+	const int bx = (sx - sdf_ox) + (-xoff);
+
+	// output sdf isn't covered
+	if (bx < 0 || bx >= width) {
+	  stbtt_FreeSDF(bit, nullptr);
+	  return {};
+	}
+	out.SetPixel(sx, sy, bit[by * width + bx]);
+      }
+    }
+
+    // XXX check that there are not interior points that fall outside
+    // the output sdf.    
+    // here sx,sy,bx,by have the same meaning as above, but we loop
+    // over bitmap pixels and convert to sdf pixels.
+    for (int by = 0; by < height; by++) {
+      const int sy = by + yoff + sdf_oy;
+      for (int bx = 0; bx < width; bx++) {
+	const int sx = bx + xoff + sdf_ox;
+
+	uint8_t v = bit[by * width + bx];
+	if (v >= onedge_value) {
+	  if (sy < 0 || sy >= sdf_size ||
+	      sx < 0 || sx >= sdf_size) {
+	    // Some interior pixel was outside the output SDF.
+	    // Would need more padding (or something else is weird).
+	    stbtt_FreeSDF(bit, nullptr);
+	    return {};
+	  }
+	}
+      }
+    }
+    
+    stbtt_FreeSDF(bit, nullptr);
+    return {out};
+  }
   
 private:
 

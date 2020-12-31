@@ -1931,7 +1931,7 @@ static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
 }
 
 static UI *ui = nullptr;
-static LoadFonts *load_fonts = nullptr;
+static VectorLoadFonts *load_fonts = nullptr;
 
 static void TrainThread() {
   Timer setup_timer;
@@ -2664,7 +2664,7 @@ int SDL_main(int argc, char **argv) {
   global_cl = new CL;
 
   // Start loading fonts in background.
-  load_fonts = new LoadFonts(
+  load_fonts = new VectorLoadFonts(
       []() { return ReadWithLock(&train_should_die_m, &train_should_die); },
       {ROW0_MAX_PTS, ROW1_MAX_PTS, ROW2_MAX_PTS},
       12,
