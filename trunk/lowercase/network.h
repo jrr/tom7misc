@@ -82,7 +82,7 @@ struct Network {
   }
 
   // Check for NaN weights and abort if any are found.
-  void NaNCheck(const char *message) const;
+  void NaNCheck(const std::string &message) const;
 
   // Check for structural well-formedness (layers are the right size;
   // indices are in bounds; dense layers have the expected regular
@@ -237,7 +237,7 @@ struct Stimulation {
     this->values = other.values;
   }
 
-  void NaNCheck(const char *message) const;
+  void NaNCheck(const std::string &message) const;
 };
 
 

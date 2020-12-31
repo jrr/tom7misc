@@ -209,7 +209,7 @@ void Network::RunForwardVerbose(Stimulation *stim) const {
 }
 
 
-void Network::NaNCheck(const char *message) const {
+void Network::NaNCheck(const std::string &message) const {
   bool has_nans = false;
   vector<std::pair<int, int>> layer_nans;
   for (const Layer &layer : layers) {
@@ -583,7 +583,7 @@ int64 Stimulation::Bytes() const {
   return ret;
 }
 
-void Stimulation::NaNCheck(const char *message) const {
+void Stimulation::NaNCheck(const std::string &message) const {
   bool has_nans = false;
   vector<int> layer_nans;
   for (const vector<float> &layer : values) {

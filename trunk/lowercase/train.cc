@@ -1222,6 +1222,8 @@ static constexpr int EXPORT_EVERY = 4;
 
 static constexpr bool DRAW_ERRORS = false;
 
+// XXX this needs to support multiple models somehow.
+// right now it just overwrites with whatever the last call was !!
 struct UI {
   UI() {
     current_stimulations.resize(NUM_VIDEO_STIMULATIONS);
@@ -1242,13 +1244,13 @@ struct UI {
   double current_learning_rate = 0.0;
   double current_total_error = 0.0;
 
-  void SetTakeScreenshot() {
+  void SetTakeScreenshot(int model_idx) {
     WriteMutexLock ml(&video_export_m);
     take_screenshot = true;
     dirty = true;
   }
 
-  void ExportRound(int r) {
+  void ExportRound(int model_idx, int r) {
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       current_round = r;
@@ -1256,7 +1258,7 @@ struct UI {
     }
   }
 
-  void ExportExamplesPerSec(double eps) {
+  void ExportExamplesPerSec(int model_idx, double eps) {
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       examples_per_second = eps;
@@ -1264,7 +1266,7 @@ struct UI {
     }
   }
 
-  void ExportLearningRate(double rl) {
+  void ExportLearningRate(int model_idx, double rl) {
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       current_learning_rate = rl;
@@ -1272,7 +1274,7 @@ struct UI {
     }
   }
 
-  void ExportNetworkToVideo(const Network &net) {
+  void ExportNetworkToVideo(int model_idx, const Network &net) {
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       if (current_network == nullptr) {
@@ -1284,7 +1286,7 @@ struct UI {
     }
   }
 
-  void ExportStimulusToVideo(int example_id, const Stimulation &stim) {
+  void ExportStimulusToVideo(int model_idx, int example_id, const Stimulation &stim) {
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       CHECK_GE(example_id, 0);
@@ -1294,7 +1296,7 @@ struct UI {
     }
   }
 
-  void ExportExpectedToVideo(int example_id,
+  void ExportExpectedToVideo(int model_idx, int example_id,
 			     const vector<float> &expected) {
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
@@ -1305,7 +1307,7 @@ struct UI {
     }
   }
 
-  void ExportErrorsToVideo(int example_id, const Errors &err) {
+  void ExportErrorsToVideo(int model_idx, int example_id, const Errors &err) {
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       CHECK_GE(example_id, 0);
@@ -1315,7 +1317,7 @@ struct UI {
     }
   }
 
-  void ExportTotalErrorToVideo(double t) {
+  void ExportTotalErrorToVideo(int model_idx, double t) {
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       current_total_error = t;
@@ -1484,6 +1486,7 @@ struct UI {
 	      switch (render_style) {
 
 	      case RENDERSTYLE_OUTPUTXY: {
+		// XXX delete, but save this piece of character prediction code
 		const vector<float> &outs = stim.values[l];
 		for (int i = 0; i < 26; i++) {
 		  const uint8 v = FloatByte(outs[INPUT_LAYER_SIZE + i]);
@@ -1502,105 +1505,7 @@ struct UI {
 				     });
 		}
 	      }
-		// FALLTHROUGH
-	      case RENDERSTYLE_INPUTXY: {
-		const vector<float> &values = stim.values[l];
-		sdlutil::FillRectRGB(screen, xstart, ystart,
-				     NOMINAL_CHAR_SIZE,
-				     NOMINAL_CHAR_SIZE,
-				     40, 40, 40);
 
-		constexpr double sqerr = 1.0f / (NOMINAL_CHAR_SIZE *
-						 NOMINAL_CHAR_SIZE);
-
-		auto DrawPath = [xstart, ystart](
-		    const vector<float> *expected_values,
-		    const vector<float> &values,
-		    int idx, int num_pts,
-		    uint8 r, uint8 g, uint8 b) {
-
-		    // The startx/starty values (in the first two slots)
-		    // are now ignored. We draw a closed loop starting
-		    // with the last segment's endpoint.
-		    float x = values[idx + 2 + (num_pts - 1) * 4 + 2];
-		    float y = values[idx + 2 + (num_pts - 1) * 4 + 3];
-
-		    auto Line = [xstart, ystart](float x1, float y1,
-						 float x2, float y2,
-						 uint8 r, uint8 g, uint8 b) {
-			sdlutil::drawclipline(
-			    screen,
-			    xstart + x1 * NOMINAL_CHAR_SIZE,
-			    ystart + y1 * NOMINAL_CHAR_SIZE,
-			    xstart + x2 * NOMINAL_CHAR_SIZE,
-			    ystart + y2 * NOMINAL_CHAR_SIZE,
-			    r, g, b);
-		      };
-
-
-		    // Error lines first, behind the actual shape.
-		    if (expected_values != nullptr) {
-		      for (int i = 0; i < num_pts; i++) {
-			// float cx = values[idx + 2 + i * 4 + 0];
-			// float cy = values[idx + 2 + i * 4 + 1];
-			float ax = values[idx + 2 + i * 4 + 2];
-			float ay = values[idx + 2 + i * 4 + 3];
-
-			float ex = (*expected_values)[idx + 2 + i * 4 + 2];
-			float ey = (*expected_values)[idx + 2 + i * 4 + 3];
-			Line(ax, ay, ex, ey, 0x7F, 40, 40);
-		      }
-		    }
-		    
-		    for (int i = 0; i < num_pts; i++) {
-		      float cx = values[idx + 2 + i * 4 + 0];
-		      float cy = values[idx + 2 + i * 4 + 1];
-		      float dx = values[idx + 2 + i * 4 + 2];
-		      float dy = values[idx + 2 + i * 4 + 3];
-		      
-		      for (const auto [xx, yy] :
-			     TesselateQuadraticBezier<double>(
-				 x, y, cx, cy, dx, dy, sqerr)) {
-			Line(x, y, xx, yy, r, g, b);
-			x = xx;
-			y = yy;
-		      }
-		    }
-
-		  };
-
-		if (render_style == RENDERSTYLE_OUTPUTXY) {
-		  DrawPath(nullptr, expected,
-			   0, ROW0_MAX_PTS, 40, 0x7F, 40);
-		  
-		  DrawPath(nullptr, expected, 2 + ROW0_MAX_PTS * 4,
-			   ROW1_MAX_PTS, 0x00, 0x5F, 0x00);
-		  DrawPath(nullptr, expected,
-			   2 + ROW0_MAX_PTS * 4 +
-			   2 + ROW1_MAX_PTS * 4,
-			   ROW2_MAX_PTS, 0x00, 0x5F, 0xFF);
-
-		}
-		
-		DrawPath(
-		    render_style == RENDERSTYLE_OUTPUTXY ?
-		    &expected : nullptr,
-		    values, 0, ROW0_MAX_PTS, 0xFF, 0xFF, 0x00);
-		DrawPath(
-		    render_style == RENDERSTYLE_OUTPUTXY ?
-		    &expected : nullptr,
-			 values, 2 + ROW0_MAX_PTS * 4,
-			 ROW1_MAX_PTS, 0x00, 0xFF, 0xFF);
-		DrawPath(
-		    render_style == RENDERSTYLE_OUTPUTXY ?
-		    &expected : nullptr,
-			 values,
-			 2 + ROW0_MAX_PTS * 4 +
-			 2 + ROW1_MAX_PTS * 4,
-			 ROW2_MAX_PTS, 0x44, 0x44, 0xFF);
-
-		break;
-	      }
 	      case RENDERSTYLE_RGB:
 		for (int y = 0; y < current_network->height[l]; y++) {
 		  int yy = ystart + y;
@@ -1925,7 +1830,7 @@ static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
 
   // Should be well-formed now.
   net->StructuralCheck();
-  net->NaNCheck("load net.val");
+  net->NaNCheck("initial network");
 
   return net;
 }
@@ -1933,18 +1838,28 @@ static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
 static UI *ui = nullptr;
 static VectorLoadFonts *load_fonts = nullptr;
 
-static void TrainThread() {
-  Timer setup_timer;
+struct TrainingExample {
+  vector<float> input;
+  vector<float> output;
+};
 
-  CHECK(ui != nullptr) << "Must be created first.";
-  CHECK(load_fonts != nullptr) << "Must be created first.";
+// Encapsulates training of a single network. Allows for multiple
+// simultaneous instances, allowing networks to be cotrained.
+struct Training {
 
-  // Number of training examples per round of training.
-  static constexpr int EXAMPLES_PER_ROUND = 4096;
-  // Try to keep twice that in the queue all the time.
-  static constexpr int EXAMPLE_QUEUE_TARGET =
-    std::max(EXAMPLES_PER_ROUND * 2, 1024);
-
+  // Number of examples per round of training. Includes eval
+  // examples.
+  static constexpr int EXAMPLES_PER_ROUND = 1024;
+  // Number of examples that are eval inputs (not trained); the
+  // remainder are training examples.
+  static constexpr int EVAL_INPUTS_PER_ROUND = EXAMPLES_PER_ROUND / 4;
+  static constexpr int TRAINING_PER_ROUND = EXAMPLES_PER_ROUND - EVAL_INPUTS_PER_ROUND;
+  static_assert(TRAINING_PER_ROUND > 0);
+  static_assert(TRAINING_PER_ROUND <= EXAMPLES_PER_ROUND);
+  static_assert(EVAL_INPUTS_PER_ROUND < EXAMPLES_PER_ROUND);
+  static_assert(EVAL_INPUTS_PER_ROUND >= 0);
+  static_assert(EXAMPLES_PER_ROUND > 0);
+  
   // Write a screenshot of the UI (to show training progress for
   // videos, etc.) every time the network does this many rounds.
   static constexpr int SCREENSHOT_ROUND_EVERY = 50;
@@ -1953,114 +1868,564 @@ static void TrainThread() {
   // other stuff to disk. XXX: Do this based on time, since round
   // speed can vary a lot based on other parameters!
   static constexpr int VERBOSE_ROUND_EVERY = 250;
+  
+  
+  explicit Training(int model_index) :
+    model_index(model_index),
+    model_filename(StringPrintf("net%d.val", model_index)),
+    rc(GetRandomSeed(model_index)) {
+    Timer setup_timer;
 
-  string start_seed = StringPrintf("%d  %lld", getpid(), (int64)time(nullptr));
-  Printf("Start seed: [%s]\n", start_seed.c_str());
-  ArcFour rc(start_seed);
-  rc.Discard(2000);
+    CHECK(ui != nullptr) << "Must be created first.";
+    CHECK(load_fonts != nullptr) << "Must be created first.";
 
-  // Random state that can be accessed in parallel for each example.
-  // Note, 256 * 4096 is kinda big (one megabyte). We could get away
-  // with capping this at the number of threads, if threadutil (really
-  // autoparallel) had a way of passing thread local data.
-  printf("Initialize example-local random streams...\n");
-  vector<ArcFour> example_rc;
-  for (int i = 0; i < EXAMPLES_PER_ROUND; i++) {
-    std::vector<uint8> init;
-    init.reserve(64);
-    for (int j = 0; j < 64; j++) init.push_back(rc.Byte());
-    example_rc.emplace_back(init);
+    rc.Discard(2000);
+
+    // Random state that can be accessed in parallel for each example.
+    // Note, 256 * 4096 is kinda big (one megabyte). We could get away
+    // with capping this at the number of threads, if threadutil (really
+    // autoparallel) had a way of passing thread local data.
+    printf("Initialize example-local random streams...\n");
+    vector<ArcFour> example_rc;
+    for (int i = 0; i < EXAMPLES_PER_ROUND; i++) {
+      std::vector<uint8> init;
+      init.reserve(64);
+      for (int j = 0; j < 64; j++) init.push_back(rc.Byte());
+      example_rc.emplace_back(init);
+    }
+
+    // Load the existing network from disk or create the initial one.
+    Timer initialize_network_timer;
+    // Try loading from disk; null on failure.
+    net.reset(Network::ReadNetworkBinary(model_filename));
+
+    if (net.get() == nullptr) {
+      Printf("Initializing new network...\n");
+      net = CreateInitialNetwork(&rc);
+      CHECK(net.get() != nullptr);
+
+      Printf("Writing network so we don't have to do that again...\n");
+      Network::SaveNetworkBinary(*net, model_filename);
+    }
+
+    Printf("Initialized network in %.1fms.\n", initialize_network_timer.MS());
+
+    // Create kernels right away so that we get any compilation errors early.
+    forwardlayer = make_unique<ForwardLayerCL>(global_cl, *net);
+    setoutputerror = make_unique<SetOutputErrorCL>(global_cl);
+    backwardlayer = make_unique<BackwardLayerCL>(global_cl, *net);
+    updateweights = make_unique<UpdateWeightsCL>(global_cl, *net);
+    
+    net_gpu = make_unique<NetworkGPU>(global_cl, net.get());
+
+    Printf("Network uses %.2fMB of storage (without overhead).\n",
+	   net->Bytes() / (1024.0 * 1024.0));
+    {
+      Stimulation tmp(*net);
+      int64 stim_bytes = tmp.Bytes();
+      Printf("A stimulation is %.2fMB, so for %d examples we need %.2fMB\n",
+	     stim_bytes / (1024.0 * 1024.0), EXAMPLES_PER_ROUND,
+	     (stim_bytes * EXAMPLES_PER_ROUND) / (1024.0 * 1024.0));
+    }
+
+    for (int i = 0; i < EXAMPLES_PER_ROUND; i++) {
+      training.push_back(new TrainingRoundGPU{global_cl, *net});
+    }
+
+    // Automatically tune parallelism for some loops, caching the results
+    // on disk. The experiment string should change (or cache files deleted)
+    // when significant parameters change (not just these!).
+    // Ideally these should be shared between the two models since they should
+    // have the same performance, but it's not that wasteful to duplicate
+    // the sampling and maybe would be worse to have lock contention.
+    const string experiment =
+      StringPrintf("sdf-%d.%d", EXAMPLES_PER_ROUND, model_index);
+
+    stim_init_comp = std::make_unique<AutoParallelComp>(32, 50, false,
+							StringPrintf("autoparallel.%s.stim.txt",
+								     experiment.c_str()));
+
+    forward_comp = std::make_unique<AutoParallelComp>(32, 50, false,
+						      StringPrintf("autoparallel.%s.fwd.txt",
+								   experiment.c_str()));
+    
+    error_comp = std::make_unique<AutoParallelComp>(32, 50, false,
+						    StringPrintf("autoparallel.%s.err.txt",
+								 experiment.c_str()));
+    
+    backward_comp = std::make_unique<AutoParallelComp>(32, 50, false,
+						       StringPrintf("autoparallel.%s.bwd.txt",
+								    experiment.c_str()));
+    
+  }
+
+  std::unique_ptr<AutoParallelComp> stim_init_comp, forward_comp,
+    error_comp, backward_comp;
+  
+  // Run one training round. Might stall if starved for examples.
+  // Will exit early if global train_should_die becomes true.
+  void RunRound() {
+
+    // XXX members?
+    double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
+      fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0,
+      output_error_ms = 0.0, update_ms = 0.0,
+      eval_ms = 0.0;
+
+    Timer round_timer;
+
+    if (VERBOSE > 2) Printf("\n\n");
+    Printf("[%d] ** NET ROUND %d (%d in this process) **\n",
+	   model_index, net->rounds, rounds_executed);
+
+    // The learning rate should maybe depend on the number of examples
+    // per round, since we integrate over lots of them. We could end
+    // up having a total error for a single node of like
+    // +EXAMPLES_PER_ROUND or -EXAMPLES_PER_ROUND, which could yield
+    // an unrecoverable-sized update. We now divide the round learning rate
+    // to an example learning rate, below. UpdateWeights also caps the
+    // maximum increment to +/- 1.0f, which is not particularly principled
+    // but does seem to robustly prevent runaway.
+
+    constexpr int TARGET_ROUNDS = 50000;
+    auto Linear =
+      [](double start, double end, double round_target, double input) {
+	if (input < 0.0) return start;
+	if (input > round_target) return end;
+	double height = end - start;
+	double f = input / round_target;
+	return start + f * height;
+      };
+    const float round_learning_rate =
+      Linear(0.10, 0.002, TARGET_ROUNDS, net->rounds);
+
+    CHECK(!std::isnan(round_learning_rate));
+    if (VERBOSE > 2) Printf("Learning rate: %.4f\n", round_learning_rate);
+
+    const float example_learning_rate =
+      round_learning_rate / (double)TRAINING_PER_ROUND;
+
+    const bool is_verbose_round =
+      0 == ((rounds_executed /* + 1 */) % VERBOSE_ROUND_EVERY);
+    if (is_verbose_round) {
+      Printf("Writing network:\n");
+      net_gpu->ReadFromGPU();
+      Network::SaveNetworkBinary(*net,
+				 StringPrintf("network-%d-checkpoint.bin",
+					      model_index));
+    }
+
+    if (ShouldDie()) return;
+    
+    if (VERBOSE > 2) Printf("Export network:\n");
+    ui->ExportRound(model_index, net->rounds);
+    ui->ExportLearningRate(model_index, round_learning_rate);
+
+    // XXX do this in video?
+    const bool take_screenshot =
+      net->rounds % SCREENSHOT_ROUND_EVERY == 0;
+    if (rounds_executed % EXPORT_EVERY == 0 ||
+	take_screenshot) {
+      net_gpu->ReadFromGPU();
+      ui->ExportNetworkToVideo(model_index, *net);
+    }
+
+    if (take_screenshot) {
+      // Training screenshot.
+      ui->SetTakeScreenshot(model_index);
+
+      // Stable eval screenshot on Helvetica (iterative).
+      FontProblem::RenderVector("helvetica.ttf",
+				*net,
+				ROW_MAX_POINTS,
+				StringPrintf("eval%d/eval%lld.png",
+					     model_index,
+					     net->rounds));
+    }
+
+    if (CHECK_NANS) {
+      net_gpu->ReadFromGPU();
+      net->NaNCheck(StringPrintf("round start model %d", model_index));
+    }
+
+    Timer setup_timer;
+    if (VERBOSE > 2) Printf("Setting up batch:\n");
+
+    // examples include training examples and "eval" examples
+    vector<TrainingExample> examples;
+    examples.reserve(EXAMPLES_PER_ROUND);
+
+    auto GetExamples = [&examples](std::shared_mutex *mut,
+				   deque<TrainingExample> *queue,
+				   int target_num,
+				   const char *type) {
+	for (;;) {
+	  {
+	    WriteMutexLock ml{mut};
+	    while (examples.size() < target_num &&
+		   !queue->empty()) {
+	      examples.push_back(std::move(queue->front()));
+	      queue->pop_front();
+	    }
+	  }
+
+	  if (examples.size() >= target_num)
+	    return;
+	  
+	  if (VERBOSE > 0)
+	    Printf("Blocked grabbing %s examples (still need %d)...\n",
+		   type,
+		   target_num - examples.size());
+	  std::this_thread::sleep_for(100ms);
+	}
+      };
+
+    GetExamples(&example_queue_m, &example_queue,
+		TRAINING_PER_ROUND, "training");
+    GetExamples(&eval_queue_m, &eval_queue,
+		EXAMPLES_PER_ROUND, "eval");
+
+    CHECK(examples.size() == EXAMPLES_PER_ROUND);
+    
+    setup_ms += setup_timer.MS();
+
+    if (false && CHECK_NANS /* && net->rounds == 3 */) {
+      // Actually run the forward pass on CPU, trying to find the
+      // computation that results in nan...
+      net_gpu->ReadFromGPU(); // should already be here, but...
+      CHECK(!examples.empty());
+      const TrainingExample &example = examples[0];
+      Stimulation stim{*net};
+      CHECK_EQ(stim.values[0].size(), example.input.size());
+      for (int i = 0; i < example.input.size(); i++)
+	stim.values[0][i] = example.input[i];
+      net->RunForwardVerbose(&stim);
+    }
+
+    // TODO: may make sense to pipeline this loop somehow, so that we
+    // can parallelize CPU/GPU duties?
+
+    // Run a batch of images all the way through. (Each layer requires
+    // significant setup.)
+    Timer stimulation_init_timer;
+
+    if (VERBOSE > 2) Printf("Setting input layer of Stimulations...\n");
+    // These are just memory copies; easy to do in parallel.
+    CHECK_EQ(examples.size(), training.size());
+    stim_init_comp->ParallelComp(
+	examples.size(),
+	[this, &examples](int i) {
+	  training[i]->LoadInput(examples[i].input);
+	});
+    stimulation_init_ms += stimulation_init_timer.MS();
+
+    if (ShouldDie()) return;
+
+    // We run the forward pass for both training and eval examples.
+    // The loop over layers must be in serial.
+    for (int src = 0; src < net->num_layers; src++) {
+      if (VERBOSE > 2) Printf("FWD Layer %d: ", src);
+      Timer fc_init_timer;
+      ForwardLayerCL::ForwardContext fc(forwardlayer.get(), net_gpu.get(), src);
+      fc_init_ms += fc_init_timer.MS();
+
+      // Can be parallel, but watch out about loading the GPU with
+      // too many simultaneous value src/dst buffers.
+      Timer forward_timer;
+      if (VERBOSE > 3) Printf("Parallelcomp...\n");
+      forward_comp->ParallelComp(
+	  examples.size(),
+	  [this, num_examples = examples.size(), &fc](int example_idx) {
+	    fc.Forward(training[example_idx]);
+
+	    if (rounds_executed % EXPORT_EVERY == 0 &&
+		example_idx < NUM_VIDEO_STIMULATIONS) {
+	      // XXX this uses unintialized/stale memory btw
+	      Stimulation stim{*net};
+	      training[example_idx]->ExportStimulation(&stim);
+	      // Copy to screen.
+	      ui->ExportStimulusToVideo(model_index, example_idx, stim);
+	    }
+	  });
+      forward_ms += forward_timer.MS();
+      kernel_ms += fc.kernel_ms;
+      if (VERBOSE > 2) Printf("\n");
+    }
+
+    if (CHECK_NANS) {
+      for (int example_idx = 0; example_idx < training.size(); example_idx++) {
+	Stimulation stim{*net};
+	training[example_idx]->ExportStimulation(&stim);
+	stim.NaNCheck(StringPrintf("forward pass model %d", model_index));
+      }
+    }
+
+    // TODO HERE: Publish the eval results (or return them from the function call?)
+
+    // Compute total error (average per training example).
+    if (rounds_executed % EXPORT_EVERY == 0) {
+      CHECK_EQ(examples.size(), training.size());
+      // We don't use the stimulus, because we want the total over all
+      // examples (but we only export enough for the video above), and
+      // only need the final output values, not internal layers.
+      double total_error = 0.0;
+      vector<float> values;
+      values.resize(net->num_nodes[net->num_layers]);
+      CHECK(TRAINING_PER_ROUND <= examples.size());
+      for (int i = 0; i < TRAINING_PER_ROUND; i++) {
+	training[i]->ExportOutput(&values);
+	CHECK(examples[i].output.size() == values.size());
+	for (int j = 0; j < values.size(); j++) {
+	  float d = values[j] - examples[i].output[j];
+	  total_error += fabs(d);
+	}
+      }
+      ui->ExportTotalErrorToVideo(model_index, total_error / (double)TRAINING_PER_ROUND);
+    }
+
+    if (ShouldDie()) return;
+
+    // For error computation (etc.) we only use the training examples.
+    // Compute expected.
+    if (VERBOSE > 2) Printf("Error calc.\n");
+    CHECK(TRAINING_PER_ROUND <= examples.size());
+    Timer output_error_timer;
+    error_comp->ParallelComp(
+	TRAINING_PER_ROUND,
+	[this, &examples](int example_idx) {
+	  // (Do this after finalizing the expected vector above.)
+	  if (rounds_executed % EXPORT_EVERY == 0 &&
+	      example_idx < NUM_VIDEO_STIMULATIONS) {
+	    // Copy to screen.
+	    ui->ExportExpectedToVideo(model_index,
+				      example_idx,
+				      examples[example_idx].output);
+	  }
+	  
+	  // PERF we could have loaded this a lot earlier
+	  training[example_idx]->LoadExpected(examples[example_idx].output);
+	  SetOutputErrorCL::Context sc{setoutputerror.get(), net_gpu.get()};
+	  sc.SetOutputError(training[example_idx]);
+	});
+    output_error_ms += output_error_timer.MS();
+    if (VERBOSE > 2) Printf("\n");
+
+    if (ShouldDie()) return;
+    if (VERBOSE > 2) Printf("Backwards:\n");
+    // Also serial, but in reverse.
+    Timer backward_timer;
+    // We do NOT propagate errors to the input layer, so dst is
+    // strictly greater than 0.
+    for (int dst = net->num_layers - 1; dst > 0; dst--) {
+      if (VERBOSE > 2) Printf("BWD Layer %d: ", dst);
+
+      Timer bc_init_timer;
+      BackwardLayerCL::Context bc{backwardlayer.get(), net_gpu.get(), dst};
+      bc_init_ms += bc_init_timer.MS();
+
+      backward_comp->ParallelComp(
+	  TRAINING_PER_ROUND,
+	  [this, &bc](int example) {
+	    bc.Backward(training[example]);
+	  });
+      if (VERBOSE > 2) Printf("\n");
+    }
+    backward_ms += backward_timer.MS();
+
+    if (rounds_executed % EXPORT_EVERY == 0) {
+      for (int example_idx = 0;
+	   example_idx < NUM_VIDEO_STIMULATIONS;
+	   example_idx++) {
+	Errors err{*net};
+	training[example_idx]->ExportErrors(&err);
+	ui->ExportErrorsToVideo(model_index, example_idx, err);
+      }
+    }
+
+    if (ShouldDie()) return;
+    if (VERBOSE > 2) Printf("Update weights:\n");
+    Timer update_timer;
+
+    // Don't parallelize! These are all writing to the same network
+    // weights. Each call is parallelized, though.
+    for (int layer = 0; layer < net->num_layers; layer++) {
+      UpdateWeightsCL::Context uc{updateweights.get(), net_gpu.get(), layer};
+
+      // PERF Faster to try to run these in parallel (maybe
+      // parallelizing memory traffic with kernel execution -- but we
+      // can't run the kernels at the same time).
+      for (int example = 0; example < TRAINING_PER_ROUND; example++) {
+	uc.Update(example_learning_rate, training[example], layer);
+      }
+
+      // Now we leave the network on the GPU, and the version in the
+      // Network object will be out of date. But flush the command
+      // queue. (why? I guess make sure that we're totally done
+      // writing since other parts of the code assume concurrent reads
+      // are ok?)
+      uc.Finish();
+      /*
+	Printf("[%d/%d] = (%.2f%%) ", layer, net->num_layers,
+	layer * 100.0 / net->num_layers);
+      */
+    }
+    update_ms += update_timer.MS();
+    if (VERBOSE > 2) Printf("\n");
+
+    if (CHECK_NANS) {
+      net_gpu->ReadFromGPU();
+      net->NaNCheck(StringPrintf("updated weights model %d", model_index));
+    }
+
+    if (ShouldDie()) return;
+
+    net->rounds++;
+    net->examples += TRAINING_PER_ROUND;
+
+    double round_ms = round_timer.MS();
+    auto Pct = [round_ms](double d) { return (100.0 * d) / round_ms; };
+    double denom = rounds_executed + 1;
+
+    // TODO: Would be nice to average this over the last few rounds.
+    const double round_eps = EXAMPLES_PER_ROUND / (round_ms / 1000.0);
+    // (EXAMPLES_PER_ROUND * denom) / (total_ms / 1000.0)
+    ui->ExportExamplesPerSec(model_index, round_eps);
+    if (VERBOSE > 1)
+      Printf("Round time: %.1fs. (%.1f eps)\n"
+	     "We spent %.1fms in setup (%.1f%%),\n"
+	     "%.1fms in stimulation init (%.1f%%),\n"
+	     "%.1fms in eval (main thread; amortized) (%.1f%%),\n"
+	     "%.1fms in forward layer (%.1f%%),\n"
+	     "%.1fms in fc init (%.1f%%),\n"
+	     "%.1fms in forward layer kernel (at most; %.1f%%).\n"
+	     "%.1fms in error for output layer (%.1f%%),\n"
+	     "%.1fms in bc init (%.1f%%),\n"
+	     "%.1fms in backwards pass (%.1f%%),\n"
+	     "%.1fms in updating weights (%.1f%%),\n",
+	     round_ms / 1000.0, round_eps,
+	     setup_ms / denom, Pct(setup_ms),
+	     stimulation_init_ms / denom, Pct(stimulation_init_ms),
+	     eval_ms / denom, Pct(eval_ms),
+	     forward_ms / denom, Pct(forward_ms),
+	     fc_init_ms / denom, Pct(fc_init_ms),
+	     kernel_ms / denom, Pct(kernel_ms),
+	     output_error_ms / denom, Pct(output_error_ms),
+	     bc_init_ms / denom, Pct(bc_init_ms),
+	     backward_ms / denom, Pct(backward_ms),
+	     update_ms / denom, Pct(update_ms));
+    
   }
   
-  // Load the existing network from disk or create the initial one.
-  Timer initialize_network_timer;
-  std::unique_ptr<Network> net;
-
-  // Try loading from disk; null on failure.
-  net.reset(Network::ReadNetworkBinary("net.val"));
-
-  if (net.get() == nullptr) {
-    Printf("Initializing new network...\n");
-    net = CreateInitialNetwork(&rc);
-    CHECK(net.get() != nullptr);
-
-    Printf("Writing network so we don't have to do that again...\n");
-    Network::SaveNetworkBinary(*net, "net.val");
+  // Generate training examples in another thread and feed them to AddExampleToQueue.
+  // To avoid overloading, throttle while WantsExamples is false.
+  bool WantsExamples() {
+    ReadMutexLock ml(&example_queue_m);
+    return example_queue.size() < EXAMPLE_QUEUE_TARGET;
+  }
+  void AddExampleToQueue(TrainingExample example) {
+    WriteMutexLock ml(&example_queue_m);
+    example_queue.emplace_back(std::move(example));
+    // PERF start moving it to GPU?
   }
 
-  Printf("Initialized network in %.1fms.\n", initialize_network_timer.MS());
-
-  // Create kernels right away so that we get any compilation errors early.
-  ForwardLayerCL forwardlayer{global_cl, *net};
-  SetOutputErrorCL setoutputerror{global_cl};
-  BackwardLayerCL backwardlayer{global_cl, *net};
-  UpdateWeightsCL updateweights{global_cl, *net};
-
-  NetworkGPU net_gpu{global_cl, net.get()};
-
-  if (ReadWithLock(&train_should_die_m, &train_should_die))
-    return;
-
-  Printf("Network uses %.2fMB of storage (without overhead).\n",
-	 net->Bytes() / (1024.0 * 1024.0));
-  {
-    Stimulation tmp(*net);
-    int64 stim_bytes = tmp.Bytes();
-    Printf("A stimulation is %.2fMB, so for %d examples we need %.2fMB\n",
-	   stim_bytes / (1024.0 * 1024.0), EXAMPLES_PER_ROUND,
-	   (stim_bytes * EXAMPLES_PER_ROUND) / (1024.0 * 1024.0));
+  // Like the above, but for "eval" inputs, which do not have expected
+  // outputs and are not used for training. This is particular to the
+  // SDF font problem where we generate inverse examples for cotraining.
+  bool WantsEvalInputs() {
+    ReadMutexLock ml(&eval_queue_m);
+    return eval_queue.size() < EVAL_QUEUE_TARGET;
+  }
+  // XXX use trainingexample or just vector<float>?
+  void AddEvalInputToQueue(TrainingExample example) {
+    WriteMutexLock ml(&eval_queue_m);
+    eval_queue.emplace_back(std::move(example));
   }
 
-  // We use the same structures to hold all the stimulations and errors
-  // now, on the GPU.
-  vector<TrainingRoundGPU *> training;
-  for (int i = 0; i < EXAMPLES_PER_ROUND; i++)
-    training.push_back(new TrainingRoundGPU{global_cl, *net});
+  ~Training() {
+    for (TrainingRoundGPU *trg : training)
+      delete trg;
+    training.clear();
+  }
+  
+private:
+  // Try to keep twice that in the queue all the time.
+  static constexpr int EXAMPLE_QUEUE_TARGET =
+    std::max(TRAINING_PER_ROUND * 3, 256);
+  static constexpr int EVAL_QUEUE_TARGET =
+    EVAL_INPUTS_PER_ROUND * 3;
+  
+  static string GetRandomSeed(int idx) {
+    const string start_seed = StringPrintf("%d  %lld  %d",
+					   getpid(),
+					   (int64)time(nullptr),
+					   idx);
+    Printf("Start seed: [%s]\n", start_seed.c_str());
+    return start_seed;
+  }
 
-  auto ShouldDie = [&net]() {
-    bool should_die = ReadWithLock(&train_should_die_m, &train_should_die);
+  bool ShouldDie() {
+    CHECK(net.get()) << "Only call this after the network has been loaded";
+    const bool should_die = ReadWithLock(&train_should_die_m, &train_should_die);
     if (should_die) {
       Printf("Train thread signaled death.\n");
-      Printf("Saving to net.val...\n");
-      Network::SaveNetworkBinary(*net, "net.val");
-      // Util::WriteFile("eval/nextframe.txt", StringPrintf("%d\n", eval_frame_num));
+      Printf("Saving to %s...\n", model_filename.c_str());
+      Network::SaveNetworkBinary(*net, model_filename);
     }
     return should_die;
-  };
+  }
 
-  // Number of threads to allow for simultaneous writing of frames.
-  // Asynchronously write_frames{EVAL_ONLY ? 2 : 8};
+  
+  const int model_index = 0;
+  const string model_filename;
+  ArcFour rc;
+  vector<ArcFour> example_rc;
+  std::unique_ptr<Network> net;
+  int64 rounds_executed = 0;
+  
+  // Separate kernels per training instance, since they can be specialized
+  // to the network's parameters.
+  std::unique_ptr<ForwardLayerCL> forwardlayer;
+  std::unique_ptr<SetOutputErrorCL> setoutputerror;
+  std::unique_ptr<BackwardLayerCL> backwardlayer;
+  std::unique_ptr<UpdateWeightsCL> updateweights;
 
-  if (ShouldDie()) return;
+  // The network's presence on the GPU. It can be out of date with the
+  // CPU copy in the net variable.
+  std::unique_ptr<NetworkGPU> net_gpu;
 
+  // We use the same structures to hold all the stimulations and errors
+  // on the GPU. Size EXAMPLES_PER_ROUND.
+  vector<TrainingRoundGPU *> training;
 
-  // (Note that the below actually works while the examples are still
-  // being loaded, but maybe overkill since this dataset should load
-  // pretty fast? So syncing here.)
-  Printf("Waiting for fonts...\n");
-  CHECK(load_fonts != nullptr);
-  load_fonts->Sync();
-  Printf("Fonts all loaded.\n");
-
-
-  struct TrainingExample {
-    vector<float> input;
-    // Font-problem specific: We keep an intermediate form of the
-    // expected result so that we can use a permissive loss function.
-    vector<TTF::Contour> expected_contours;
-    // In the font problem, filled in late.
-    vector<float> output;
-  };
-
-  // Training examples don't depend on the learning process, so are produced
-  // in a separate thread. This mutex protects the deque (only).
-  std::shared_mutex training_examples_m;
+  // Protects example_queue.
+  std::shared_mutex example_queue_m;
   // (Note: This could just be a vector and use stack ordering, but
   // we want to make sure that we get to every training example for cases
   // that they are not randomly sampled (e.g. co-training).)
-  deque<TrainingExample> training_examples;
+  // (Actually since these are separate, it probably could just be a vector now.)
+  deque<TrainingExample> example_queue;
 
+  // Same idea but eval examples, for which we don't have an "expected output".
+  // Used for co-training.
+  std::shared_mutex eval_queue_m;
+  deque<TrainingExample> eval_queue;
+};
+
+// Inserts examples into the Training objects, and reads their eval outputs
+// to generate examples for the co-trained pair.
+// FIXME this function is fuct
+static void MakeTrainingExamplesThread(
+    Training *make_lowercase,
+    Training *make_uppercase) {
+
+  Printf("Training example thread startup.\n");
+  string seed = StringPrintf("make ex %lld", (int64)time(nullptr));
+  ArcFour rc(seed);
+  rc.Discard(2000);
+
+  #if 0
   // Returns true if successful.
+  // XXXX olde
   auto PopulateExampleFromFont =
     [](ArcFour *rc, const TTF *ttf, TrainingExample *example) -> bool {
 
@@ -2109,10 +2474,6 @@ static void TrainThread() {
   auto MakeTrainingExamplesThread = [&training_examples_m,
 				     &training_examples,
 				     &PopulateExampleFromFont]() {
-    Printf("Training example thread startup.\n");
-    string seed = StringPrintf("make ex %lld", (int64)time(nullptr));
-    ArcFour rc(seed);
-    rc.Discard(2000);
 
     for (;;) {
       if (ReadWithLock(&train_should_die_m, &train_should_die)) {
@@ -2159,456 +2520,40 @@ static void TrainThread() {
     }
     Printf("Training example generator exiting.\n");
   };
+  #endif
+  
+}
 
-  std::thread examples_thread{MakeTrainingExamplesThread};
-  ThreadJoiner join_examples_thread{&examples_thread};
+// XXX it ded
+#if 0
+static void TrainThread() {
+
+  if (ReadWithLock(&train_should_die_m, &train_should_die))
+    return;
+
 
   if (ShouldDie()) return;
 
-  // Automatically tune parallelism for some loops, caching the results
-  // on disk. The experiment string should change (or cache files deleted)
-  // when significant parameters change (not just these!).
-  const string experiment =
-    StringPrintf("vec-%d-%d", EXAMPLES_PER_ROUND, ROW0_MAX_PTS);
-
-  AutoParallelComp stim_init_comp{32, 50, false,
-				  StringPrintf("autoparallel.%s.stim.txt",
-					       experiment.c_str())};
-
-  AutoParallelComp forward_comp{32, 50, false,
-				StringPrintf("autoparallel.%s.fwd.txt",
-					     experiment.c_str())};
-
-  AutoParallelComp prep_expected_comp{32, 50, true,
-				      StringPrintf("autoparallel.%s.exp.txt",
-						   experiment.c_str())};
-  
-  AutoParallelComp error_comp{32, 50, false,
-			      StringPrintf("autoparallel.%s.err.txt",
-					   experiment.c_str())};
-
-  AutoParallelComp backward_comp{32, 50, false,
-				 StringPrintf("autoparallel.%s.bwd.txt",
-					      experiment.c_str())};
-
-  // Training round: Loop over all images in random order.
-  double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
-    fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0,
-    prep_expected_ms = 0.0, output_error_ms = 0.0, update_ms = 0.0,
-    eval_ms = 0.0;
-  Timer total_timer;
-  for (int rounds_executed = 0; ; rounds_executed++) {
-    Timer round_timer;
-
-    if (ShouldDie()) return;
-
-    while (std::optional<string> excl = GetExclusiveApp()) {
-      // Don't keep time while deliberately stopped.
-      total_timer.Stop();
-      round_timer.Stop();
-      Printf("(Sleeping because of exclusive app %s)\n",
-	     excl.value().c_str());
-      std::this_thread::sleep_for(5000ms);
-      total_timer.Start();
-      round_timer.Start();
-    }
-
-    if (VERBOSE > 2) Printf("\n\n");
-    Printf("** NET ROUND %d (%d in this process) **\n",
-	   net->rounds, rounds_executed);
-
-    // When starting from a fresh network, consider this:
-
-    // XXX: I think the learning rate should maybe depend on the
-    // number of examples per round, since we integrate over lots of
-    // them. We could end up having a total error for a single node of
-    // like +EXAMPLES_PER_ROUND or -EXAMPLES_PER_ROUND, which could
-    // yield an unrecoverable-sized update. (Alternatively, we could
-    // cap or norm the error values.) We now divide the round learning
-    // rate to an example learning rate, below.
-
-    //    const float round_learning_rate =
-    //      std::min(0.95, std::max(0.10, 4 * exp(-0.2275 *
-    //                         (net->rounds / 100.0 + 1)/3.0)));
-
-    // This one worked well to get chess started, but drops off too
-    // soon I think.
-    // const float round_learning_rate =
-    // std::min(0.10, std::max(0.002, 4 * exp(-0.2275 *
-    //     (net->rounds / 100.0 + 1)/3.0)));
-    auto Linear =
-      [](double start, double end, double round_target, double input) {
-	if (input < 0.0) return start;
-	if (input > round_target) return end;
-	double height = end - start;
-	double f = input / round_target;
-	return start + f * height;
-      };
-    // was 500000 rounds, 26 Dec 2020
-    const float round_learning_rate =
-      Linear(0.10, 0.002, 500000.0, net->rounds);
-
-    // const float round_learning_rate =
-    //     std::min(0.125, std::max(0.002, 2 * exp(-0.2275 *
-    //                         (net->rounds + 1)/3.0)));
-
-    // const float round_learning_rate =
-    // std::min(0.125, std::max(0.002, 2 * exp(-0.2275 *
-    //         (net->rounds / 1000.0 + 1)/3.0)));
-
-    // const float round_learning_rate = 0.0025;
-
-    CHECK(!std::isnan(round_learning_rate));
-    if (VERBOSE > 2) Printf("Learning rate: %.4f\n", round_learning_rate);
-
-    const float example_learning_rate =
-      round_learning_rate / (double)EXAMPLES_PER_ROUND;
-
-    if (ShouldDie()) return;
-
-    bool is_verbose_round =
-      0 == ((rounds_executed /* + 1 */) % VERBOSE_ROUND_EVERY);
-    if (is_verbose_round) {
-      Printf("Writing network:\n");
-      net_gpu.ReadFromGPU();
-      Network::SaveNetworkBinary(*net, "network-checkpoint.bin");
-    }
-
-    if (VERBOSE > 2) Printf("Export network:\n");
-    ui->ExportRound(net->rounds);
-    ui->ExportLearningRate(round_learning_rate);
-
-    const bool take_screenshot =
-      net->rounds % SCREENSHOT_ROUND_EVERY == 0;
-    if (rounds_executed % EXPORT_EVERY == 0 ||
-	take_screenshot) {
-      net_gpu.ReadFromGPU();
-      ui->ExportNetworkToVideo(*net);
-    }
-
-    if (take_screenshot) {
-      // Training screenshot.
-      ui->SetTakeScreenshot();
-
-      // Stable eval screenshot on Helvetica (iterative).
-      FontProblem::RenderVector("helvetica.ttf",
-				*net,
-				ROW_MAX_POINTS,
-				StringPrintf("eval/eval%lld.png",
-					     net->rounds));
-    }
-
-    if (CHECK_NANS) {
-      net_gpu.ReadFromGPU();
-      net->NaNCheck("round start");
-    }
-
-    Timer setup_timer;
-    if (VERBOSE > 2) Printf("Setting up batch:\n");
-
-    vector<TrainingExample> examples;
-    examples.reserve(EXAMPLES_PER_ROUND);
-    do {
-      if (!examples.empty()) {
-	if (VERBOSE > 0)
-	  Printf("Blocked grabbing examples (still need %d)...\n",
-		 EXAMPLES_PER_ROUND - examples.size());
-	std::this_thread::sleep_for(100ms);
-      }
-      WriteMutexLock ml{&training_examples_m};
-      while (examples.size() < EXAMPLES_PER_ROUND &&
-	     !training_examples.empty()) {
-	examples.push_back(std::move(training_examples.front()));
-	training_examples.pop_front();
-      }
-    } while (examples.size() < EXAMPLES_PER_ROUND);
-
-    setup_ms += setup_timer.MS();
-
-    if (false && CHECK_NANS /* && net->rounds == 3 */) {
-      // Actually run the forward pass on CPU, trying to find the
-      // computation that results in nan...
-      net_gpu.ReadFromGPU(); // should already be here, but...
-      CHECK(!examples.empty());
-      const TrainingExample &example = examples[0];
-      Stimulation stim{*net};
-      CHECK_EQ(stim.values[0].size(), example.input.size());
-      for (int i = 0; i < example.input.size(); i++)
-	stim.values[0][i] = example.input[i];
-      net->RunForwardVerbose(&stim);
-    }
-
-    // TODO: may make sense to pipeline this loop somehow, so that we
-    // can parallelize CPU/GPU duties?
-
-    // Run a batch of images all the way through. (Each layer requires
-    // significant setup.)
-    if (VERBOSE > 2) Printf("Creating stimulations...\n");
-    Timer stimulation_init_timer;
-
-    if (VERBOSE > 2) Printf("Setting input layer of Stimulations...\n");
-    // These are just memory copies; easy to do in parallel.
-    // PERF: Perhaps do serially if the total amount of data is very
-    // small (this is like 4.3% of the loop on the font problem, but
-    // it's only a few hundred kb per example??)
-    CHECK_EQ(examples.size(), training.size());
-    stim_init_comp.ParallelComp(
-	examples.size(),
-	[&examples, &training](int i) {
-	  training[i]->LoadInput(examples[i].input);
-	});
-    stimulation_init_ms += stimulation_init_timer.MS();
-
-    if (ShouldDie()) return;
-    // The loop over layers must be in serial.
-    for (int src = 0; src < net->num_layers; src++) {
-      if (VERBOSE > 2) Printf("FWD Layer %d: ", src);
-      Timer fc_init_timer;
-      ForwardLayerCL::ForwardContext fc(&forwardlayer, &net_gpu, src);
-      fc_init_ms += fc_init_timer.MS();
-
-      // PERF could be parallel, but watch out about loading the GPU with
-      // too many simultaneous value src/dst buffers.
-      Timer forward_timer;
-      if (VERBOSE > 3) Printf("Parallelcomp...\n");
-      forward_comp.ParallelComp(
-	  examples.size(),
-	  [&net, rounds_executed, num_examples = examples.size(),
-	   &fc, &training](int example_idx) {
-	    fc.Forward(training[example_idx]);
-	    /*
-	      if (example_idx % 10 == 0) {
-	      Printf("[%d/%d] (%.2f%%) ", example_idx, num_examples,
-	      100.0 * example_idx / num_examples);
-	      }
-	    */
-
-	    if (rounds_executed % EXPORT_EVERY == 0 &&
-		example_idx < NUM_VIDEO_STIMULATIONS) {
-	      // XXX this uses unintialized/stale memory btw
-	      Stimulation stim{*net};
-	      training[example_idx]->ExportStimulation(&stim);
-	      // Copy to screen.
-	      ui->ExportStimulusToVideo(example_idx, stim);
-	    }
-	  });
-      forward_ms += forward_timer.MS();
-      kernel_ms += fc.kernel_ms;
-      if (VERBOSE > 2) Printf("\n");
-    }
-
-    if (CHECK_NANS) {
-      for (int example_idx = 0; example_idx < training.size(); example_idx++) {
-	Stimulation stim{*net};
-	training[example_idx]->ExportStimulation(&stim);
-	stim.NaNCheck("forward pass");
-      }
-    }
+  // (Note that the below actually works while the examples are still
+  // being loaded, but maybe overkill since this dataset should load
+  // pretty fast? So syncing here.)
+  Printf("Waiting for fonts...\n");
+  CHECK(load_fonts != nullptr);
+  load_fonts->Sync();
+  Printf("Fonts all loaded.\n");
 
 
-    // Compute total error.
-    if (rounds_executed % EXPORT_EVERY == 0) {
-      CHECK_EQ(examples.size(), training.size());
-      // We don't use the stimulus, because we want the total over all
-      // examples (but we only export enough for the video above), and
-      // only need the final output values, not internal layers.
-      double total_error = 0.0;
-      vector<float> values;
-      values.resize(net->num_nodes[net->num_layers]);
-      CHECK(values.size() == OUTPUT_LAYER_SIZE) <<
-	"Chess-specific check; ok to delete";
-      for (int i = 0; i < examples.size(); i++) {
-	training[i]->ExportOutput(&values);
-	CHECK(examples[i].output.size() == values.size());
-	for (int j = 0; j < values.size(); j++) {
-	  float d = values[j] - examples[i].output[j];
-	  /*
-	  if (i == 0) printf("%d. %f want %f = %f\n",
-			     j, values[j], examples[i].output[j], d);
-	  */
-	  total_error += fabs(d);
-	}
-      }
-      ui->ExportTotalErrorToVideo(total_error / (double)examples.size());
-    }
 
-    const int num_examples = examples.size();
 
-    
-    
-    if (ShouldDie()) return;
+  if (ShouldDie()) return;
 
-    // Compute expected.
-    if (VERBOSE > 2) Printf("Expected calc.\n");
-    Timer prep_expected_timer;
-    prep_expected_comp.ParallelComp(
-	num_examples,
-	[rounds_executed,
-	 &example_rc, &training, &examples](int example_idx) {
-	  // Note: This is specific to the font problem, which is
-	  // flexible in its presentation of the error. For more
-	  // straightforward problems, we can just load the expected
-	  // results from the example, and in fact do this much
-	  // earlier.
 
-	  vector<float> predicted;
-	  predicted.resize(OUTPUT_LAYER_SIZE);
-	  training[example_idx]->ExportOutput(&predicted);
-
-	  // The expected vector has blank rows, but does have the
-	  // 26 letter slots filled. This function only modifies
-	  // the prefix of the vector.
-	  CHECK(example_idx >= 0 && example_idx < example_rc.size());
-	  CHECK(example_idx >= 0 && example_idx < examples.size());
-	  CHECK_EQ(ROW_MAX_POINTS.size(),
-		   examples[example_idx].expected_contours.size());
-	  CHECK_EQ(examples[example_idx].output.size(),
-		   OUTPUT_LAYER_SIZE);
-	  FontProblem::FillExpectedVector(
-	      &example_rc[example_idx],
-	      ROW_MAX_POINTS,
-	      examples[example_idx].expected_contours,
-	      predicted,
-	      &examples[example_idx].output);
-
-	  // (Do this after finalizing the expected vector above.)
-	  if (rounds_executed % EXPORT_EVERY == 0 &&
-	      example_idx < NUM_VIDEO_STIMULATIONS) {
-	    // Copy to screen.
-	    ui->ExportExpectedToVideo(example_idx,
-				      examples[example_idx].output);
-	  }
-	});
-    prep_expected_ms += prep_expected_timer.MS();
-    
-    if (VERBOSE > 2) Printf("Error calc.\n");
-    Timer output_error_timer;
-    error_comp.ParallelComp(
-    	num_examples,
-	[rounds_executed,
-	 &setoutputerror, &net_gpu, &training, &examples](int example_idx) {
-
-	  // Now copy back to GPU and compute output error.
-	  training[example_idx]->LoadExpected(examples[example_idx].output);
-	  SetOutputErrorCL::Context sc{&setoutputerror, &net_gpu};
-	  sc.SetOutputError(training[example_idx]);
-	});
-    output_error_ms += output_error_timer.MS();
-    if (VERBOSE > 2) Printf("\n");
-
-    if (ShouldDie()) return;
-    if (VERBOSE > 2) Printf("Backwards:\n");
-    // Also serial, but in reverse.
-    Timer backward_timer;
-    // We do NOT propagate errors to the input layer, so dst is
-    // strictly greater than 0.
-    for (int dst = net->num_layers - 1; dst > 0; dst--) {
-      if (VERBOSE > 2) Printf("BWD Layer %d: ", dst);
-
-      Timer bc_init_timer;
-      BackwardLayerCL::Context bc{&backwardlayer, &net_gpu, dst};
-      bc_init_ms += bc_init_timer.MS();
-
-      backward_comp.ParallelComp(
-	  num_examples,
-	  [num_examples, &training, &bc](int example) {
-	    bc.Backward(training[example]);
-	  });
-      if (VERBOSE > 2) Printf("\n");
-    }
-    backward_ms += backward_timer.MS();
-
-    if (rounds_executed % EXPORT_EVERY == 0) {
-      for (int example_idx = 0;
-	   example_idx < NUM_VIDEO_STIMULATIONS;
-	   example_idx++) {
-	Errors err{*net};
-	training[example_idx]->ExportErrors(&err);
-	ui->ExportErrorsToVideo(example_idx, err);
-      }
-    }
-
-    if (ShouldDie()) return;
-    if (VERBOSE > 2) Printf("Update weights:\n");
-    Timer update_timer;
-
-    // Don't parallelize! These are all writing to the same network
-    // weights. Each call is parallelized, though.
-    for (int layer = 0; layer < net->num_layers; layer++) {
-      UpdateWeightsCL::Context uc{&updateweights, &net_gpu, layer};
-
-      // PERF Faster to try to run these in parallel (maybe
-      // parallelizing memory traffic with kernel execution -- but we
-      // can't run the kernels at the same time).
-      for (int example = 0; example < num_examples; example++) {
-	uc.Update(example_learning_rate, training[example], layer);
-      }
-
-      // Now we leave the network on the GPU, and the version in the
-      // Network object will be out of date. But flush the command
-      // queue. (why? I guess make sure that we're totally done
-      // writing since other parts of the code assume concurrent reads
-      // are ok?)
-      uc.Finish();
-      /*
-      Printf("[%d/%d] = (%.2f%%) ", layer, net->num_layers,
-             layer * 100.0 / net->num_layers);
-      */
-    }
-    update_ms += update_timer.MS();
-    if (VERBOSE > 2) Printf("\n");
-
-    if (CHECK_NANS) {
-      net_gpu.ReadFromGPU();
-      net->NaNCheck("updated weights");
-    }
-
-    if (ShouldDie()) return;
-
-    net->rounds++;
-    net->examples += EXAMPLES_PER_ROUND;
-
-    double total_ms = total_timer.MS();
-    auto Pct = [total_ms](double d) { return (100.0 * d) / total_ms; };
-    double denom = rounds_executed + 1;
-
-    // TODO: Would be nice to average this over the last few rounds.
-    double round_eps = EXAMPLES_PER_ROUND / (round_timer.MS() / 1000.0);
-    // (EXAMPLES_PER_ROUND * denom) / (total_ms / 1000.0)
-    ui->ExportExamplesPerSec(round_eps);
-    if (VERBOSE > 1)
-      Printf("Total so far %.1fs.\n"
-	     "Time per round: %.1fs.\n"
-	     "We spent %.1fms in setup (%.1f%%),\n"
-	     "%.1fms in stimulation init (%.1f%%),\n"
-	     "%.1fms in eval (main thread; amortized) (%.1f%%),\n"
-	     "%.1fms in forward layer (%.1f%%),\n"
-	     "%.1fms in fc init (%.1f%%),\n"
-	     "%.1fms in forward layer kernel (at most; %.1f%%).\n"
-	     "%.1fms in prep expected (%.1f%%),\n"	     
-	     "%.1fms in error for output layer (%.1f%%),\n"
-	     "%.1fms in bc init (%.1f%%),\n"
-	     "%.1fms in backwards pass (%.1f%%),\n"
-	     "%.1fms in updating weights (%.1f%%),\n",
-	     total_ms / 1000.0,
-	     (total_ms / 1000.0) / denom,
-	     setup_ms / denom, Pct(setup_ms),
-	     stimulation_init_ms / denom, Pct(stimulation_init_ms),
-	     eval_ms / denom, Pct(eval_ms),
-	     forward_ms / denom, Pct(forward_ms),
-	     fc_init_ms / denom, Pct(fc_init_ms),
-	     kernel_ms / denom, Pct(kernel_ms),
-	     prep_expected_ms / denom, Pct(prep_expected_ms),
-	     output_error_ms / denom, Pct(output_error_ms),
-	     bc_init_ms / denom, Pct(bc_init_ms),
-	     backward_ms / denom, Pct(backward_ms),
-	     update_ms / denom, Pct(update_ms));
-  }
 
   Printf(" ** Done. **");
 
   WriteWithLock(&train_done_m, &train_done, true);
 }
+#endif
 
 // Periodically we check to see if any process name matches something
 // in this function. If so, we pause training.
@@ -2630,7 +2575,7 @@ static std::optional<string> GetExclusiveApp() {
 int SDL_main(int argc, char **argv) {
   // XXX This is specific to my machine. You probably want to remove it.
   // Assumes that processors 0-16 are available.
-  CHECK(SetProcessAffinityMask(GetCurrentProcess(), 0xF));
+  // CHECK(SetProcessAffinityMask(GetCurrentProcess(), 0xF));
 
   if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
     LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
@@ -2672,14 +2617,46 @@ int SDL_main(int argc, char **argv) {
 
   ui = new UI;
 
-  std::thread train_thread(&TrainThread);
+  vector<Training *> training = {nullptr, nullptr};
+  ParallelComp(2, [&training](int idx) { training[idx] = new Training(idx); }, 2);
+  // Aliases for convenience.
+  Training *make_lowercase = training[0];
+  Training *make_uppercase = training[1];
+  
+  // Start generating examples in another thread and feeding them to
+  // the two training instances.
+  std::thread examples_thread{
+    [make_lowercase, make_uppercase]() {
+      MakeTrainingExamplesThread(make_lowercase, make_uppercase);
+    }};
 
+  // FIXME call RunRound, but throttle if necessary
+  std::thread train_thread{
+    [make_lowercase, make_uppercase]() {
+
+      while (!ReadWithLock(&train_should_die_m, &train_should_die)) {
+
+	// Pause if exclusive app is running.
+	while (std::optional<string> excl = GetExclusiveApp()) {
+	  Printf("(Sleeping because of exclusive app %s)\n",
+		 excl.value().c_str());
+	  std::this_thread::sleep_for(5000ms);
+	}
+
+	// XXX in parallel!
+	make_lowercase->RunRound();
+	make_uppercase->RunRound();	
+	
+      }
+    }};
+  
   ui->Loop();
 
   Printf("Killing train thread (might need to wait for round to finish)...\n");
   WriteWithLock(&train_should_die_m, &train_should_die, true);
-  train_thread.join();
-
+  for (Training *t : training) delete t;
+  examples_thread.join();
+  
   Printf("Train is dead; now UI exiting.\n");
 
   SDL_Quit();
