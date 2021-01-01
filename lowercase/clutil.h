@@ -15,7 +15,9 @@ using uint64 = uint64_t;
 #define CHECK_SUCCESS(e) do {						\
     const int ret = (e);						\
     if (ret != CL_SUCCESS) {						\
-      fprintf(stderr, "Not successful with code %d (%s).\n",		\
+      fprintf(stderr, __FILE__ ":%d in %s:\n"				\
+	      "Not successful with code %d (%s).\n",			\
+	      __LINE__, __func__,					\
 	      ret, CL::ErrorString(ret));				\
       abort();								\
     }									\
@@ -127,6 +129,9 @@ static std::vector<T> CopyBufferFromGPU(cl_command_queue cmd,
 template<class T>
 static void CopyBufferFromGPUTo(cl_command_queue cmd,
 				cl_mem buf, std::vector<T> *vec) {
+  // This would yield an error. We could support empty buffers
+  // by just succeeding, I guess?
+  CHECK(!vec->empty());
   CHECK_SUCCESS(
       clEnqueueReadBuffer(cmd, buf, CL_TRUE, 0, sizeof (T) * vec->size(),
 			  vec->data(),

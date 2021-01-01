@@ -227,6 +227,9 @@ static constexpr int NEIGHBORHOOD = 1;
 enum UserRenderStyle : uint32_t {
   RENDERSTYLE_INPUTXY = RENDERSTYLE_USER + 1000,
   RENDERSTYLE_OUTPUTXY = RENDERSTYLE_USER + 1001,
+
+  RENDERSTYLE_SDF = RENDERSTYLE_USER + 2000,
+  RENDERSTYLE_SDF26 = RENDERSTYLE_USER + 2001,
 };
 
 // XXX ded
@@ -1187,26 +1190,17 @@ struct UI {
     current_expected.resize(NUM_VIDEO_STIMULATIONS);
   }
 
-  std::shared_mutex video_export_m;
-  int current_round = 0;
-  double examples_per_second = 0.0;
-  vector<Stimulation> current_stimulations;
-  vector<Errors> current_errors;
-  vector<vector<float>> current_expected;
-  Network *current_network = nullptr;
-  bool allow_updates = true;
-  bool dirty = true;
-  bool take_screenshot = false;
-  double current_learning_rate = 0.0;
-  double current_total_error = 0.0;
-
   void SetTakeScreenshot(int model_idx) {
+    if (model_idx != 0) return;
+    
     WriteMutexLock ml(&video_export_m);
     take_screenshot = true;
     dirty = true;
   }
 
   void ExportRound(int model_idx, int r) {
+    if (model_idx != 0) return;
+    
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       current_round = r;
@@ -1215,6 +1209,8 @@ struct UI {
   }
 
   void ExportExamplesPerSec(int model_idx, double eps) {
+    if (model_idx != 0) return;
+    
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       examples_per_second = eps;
@@ -1223,6 +1219,8 @@ struct UI {
   }
 
   void ExportLearningRate(int model_idx, double rl) {
+    if (model_idx != 0) return;
+    
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       current_learning_rate = rl;
@@ -1231,6 +1229,8 @@ struct UI {
   }
 
   void ExportNetworkToVideo(int model_idx, const Network &net) {
+    if (model_idx != 0) return;
+    
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       if (current_network == nullptr) {
@@ -1243,6 +1243,8 @@ struct UI {
   }
 
   void ExportStimulusToVideo(int model_idx, int example_id, const Stimulation &stim) {
+    if (model_idx != 0) return;
+    
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       CHECK_GE(example_id, 0);
@@ -1254,6 +1256,8 @@ struct UI {
 
   void ExportExpectedToVideo(int model_idx, int example_id,
 			     const vector<float> &expected) {
+    if (model_idx != 0) return;
+    
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       CHECK_GE(example_id, 0);
@@ -1264,6 +1268,8 @@ struct UI {
   }
 
   void ExportErrorsToVideo(int model_idx, int example_id, const Errors &err) {
+    if (model_idx != 0) return;
+    
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       CHECK_GE(example_id, 0);
@@ -1274,6 +1280,8 @@ struct UI {
   }
 
   void ExportTotalErrorToVideo(int model_idx, double t) {
+    if (model_idx != 0) return;
+    
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       current_total_error = t;
@@ -1314,6 +1322,13 @@ struct UI {
     case RENDERSTYLE_OUTPUTXY:
       return {std::max(NOMINAL_CHAR_SIZE, EmbeddedFont::CHAR_WIDTH * 26),
 	      NOMINAL_CHAR_SIZE + 1 + EmbeddedFont::CHAR_HEIGHT,
+	      1};
+
+    case RENDERSTYLE_SDF:
+      return {SDF_SIZE * 2, SDF_SIZE * 2, 1};
+    case RENDERSTYLE_SDF26:
+      return {std::max(SDF_SIZE * 2, EmbeddedFont::CHAR_WIDTH * 26),
+	      SDF_SIZE * 2 + 1 + EmbeddedFont::CHAR_HEIGHT,
 	      1};
     }
   }
@@ -1438,17 +1453,36 @@ struct UI {
 	    int ystart = 24;
 	    for (int l = 0; l < stim.values.size(); l++) {
 
+	      auto DrawSDF = [](const vector<float> &values, int startx, int starty) {
+		  for (int y = 0; y < SDF_SIZE; y++) {
+		    int yy = starty + y * 2;
+		    for (int x = 0; x < SDF_SIZE; x++) {
+		      int xx = startx + x * 2;
+		      uint8 v = FloatByte(values[y * SDF_SIZE + x]);
+
+		      sdlutil::drawclippixel(screen, xx, yy, v, v, v);
+		      sdlutil::drawclippixel(screen, xx + 1, yy, v, v, v);
+		      sdlutil::drawclippixel(screen, xx, yy + 1, v, v, v);
+		      sdlutil::drawclippixel(screen, xx + 1, yy + 1, v, v, v);		    
+		    }
+		  }
+		};
+	      
 	      const auto render_style = current_network->renderstyle[l];
 	      switch (render_style) {
 
-	      case RENDERSTYLE_OUTPUTXY: {
-		// XXX delete, but save this piece of character prediction code
+	      case RENDERSTYLE_SDF:
+		DrawSDF(stim.values[l], xstart, ystart);
+		break;
+
+	      case RENDERSTYLE_SDF26: {
 		const vector<float> &outs = stim.values[l];
+		DrawSDF(outs, xstart, ystart);
 		for (int i = 0; i < 26; i++) {
-		  const uint8 v = FloatByte(outs[INPUT_LAYER_SIZE + i]);
+		  const uint8 v = FloatByte(outs[SDF_SIZE * SDF_SIZE + i]);
 		  EmbeddedFont::Blit('A' + i,
 				     xstart + EmbeddedFont::CHAR_HEIGHT * i,
-				     ystart + NOMINAL_CHAR_SIZE + 1,
+				     ystart + SDF_SIZE * 2 + 1,
 				     [this, v](int x, int y) {
 				       sdlutil::drawclippixel(
 					   screen, x, y,
@@ -1460,6 +1494,7 @@ struct UI {
 					   0, 0, 0);
 				     });
 		}
+		break;
 	      }
 
 	      case RENDERSTYLE_RGB:
@@ -1639,46 +1674,66 @@ struct UI {
     }
   }
 
+
+private:
+  std::shared_mutex video_export_m;
+  int current_round = 0;
+  double examples_per_second = 0.0;
+  vector<Stimulation> current_stimulations;
+  vector<Errors> current_errors;
+  vector<vector<float>> current_expected;
+  Network *current_network = nullptr;
+  bool allow_updates = true;
+  bool dirty = true;
+  bool take_screenshot = false;
+  double current_learning_rate = 0.0;
+  double current_total_error = 0.0;
 };
 
 
 static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
 
+  constexpr int SDF_THREE_QUARTERS = SDF_SIZE * 0.75;
+  
   const int num_layers = 4;
   const vector<int> width_config =
-    { INPUT_LAYER_SIZE,
-      INPUT_LAYER_SIZE * 2,
-      INPUT_LAYER_SIZE * 2,
-      OUTPUT_LAYER_SIZE * 2,
+    { SDF_SIZE,
+      // Lots of redundant info; first make it a
+      // little smaller.
+      SDF_THREE_QUARTERS,
+      SDF_THREE_QUARTERS,
+      OUTPUT_LAYER_SIZE,
       OUTPUT_LAYER_SIZE, };
 
   // If zero, automatically factor to make square-ish.
   const vector<int> height_config =
-    { 0, 0, 0, 0, 0, };
+    { SDF_SIZE,
+      SDF_THREE_QUARTERS,
+      SDF_THREE_QUARTERS,
+      0,
+      // output layer
+      0, };
 
-  // input layer could maybe be thought of as two-channel (x,y),
-  // but output has extra stuff (predicted character). Instead
-  // we just think of these as flat and do custom rendering and
-  // index assignment.
+  // Everything is single-channel here.
   const vector<int> channels = { 1, 1, 1, 1, 1, };
 
   // When zero, create a dense layer.
   const vector<int> indices_per_node_config =
     {
-      // Start dense
       0,
       0,
-      // Then half of the points
-      INPUT_LAYER_SIZE,
-      OUTPUT_LAYER_SIZE,
+      // half of the nodes
+      (SDF_THREE_QUARTERS * SDF_THREE_QUARTERS) >> 1,
+      // dense
+      0,
     };
 
   const vector<uint32_t> renderstyle = {
-    RENDERSTYLE_INPUTXY,
+    RENDERSTYLE_SDF,
     RENDERSTYLE_FLAT,
     RENDERSTYLE_FLAT,
     RENDERSTYLE_FLAT,
-    RENDERSTYLE_OUTPUTXY,
+    RENDERSTYLE_SDF26,
   };
 
   const vector<TransferFunction> transfer_functions = {
@@ -2030,7 +2085,7 @@ struct Training {
 	    Printf("Blocked grabbing %s examples (still need %d)...\n",
 		   type,
 		   target_num - examples.size());
-	  std::this_thread::sleep_for(100ms);
+	  std::this_thread::sleep_for(1s);
 	}
       };
 
@@ -2114,8 +2169,32 @@ struct Training {
       }
     }
 
-    // TODO HERE: Publish the eval results (or return them from the function call?)
+    // Publish the eval results. Note this could be in parallel with work below.
+    // PERF autoparallel
+    ParallelComp(EVAL_INPUTS_PER_ROUND,
+		 [this, &examples](int offset) {
+		   int idx = TRAINING_PER_ROUND + offset;
+		   CHECK(idx >= 0 && idx < training.size());
+		   examples[idx].output.resize(OUTPUT_LAYER_SIZE);
+		   training[idx]->ExportOutput(&examples[idx].output);
 
+		   // Now put in eval output queue.
+		   {
+		     WriteMutexLock ml(&eval_output_queue_m);
+		     // Fresher is considered better for the eval data.
+		     // If we have too much, remove the oldest entries.
+		     while (eval_output_queue.size() > EVAL_OUTPUT_TARGET) {
+		       eval_output_queue.pop_front();
+		       eval_outputs_wasted++;
+		     }
+		     eval_output_queue.emplace_back(std::move(examples[idx]));
+		   }
+		   // These should not be used, but leave them in a known
+		   // state (not std::moved).
+		   examples[idx].input.clear();
+		   examples[idx].output.clear();
+		 }, 2);
+    
     // Compute total error (average per training example).
     if (rounds_executed % EXPORT_EVERY == 0) {
       CHECK_EQ(examples.size(), training.size());
@@ -2149,7 +2228,8 @@ struct Training {
 	[this, &examples](int example_idx) {
 	  // (Do this after finalizing the expected vector above.)
 	  if (rounds_executed % EXPORT_EVERY == 0 &&
-	      example_idx < NUM_VIDEO_STIMULATIONS) {
+	      example_idx < NUM_VIDEO_STIMULATIONS &&
+	      example_idx < TRAINING_PER_ROUND) {
 	    // Copy to screen.
 	    ui->ExportExpectedToVideo(model_index,
 				      example_idx,
@@ -2188,7 +2268,7 @@ struct Training {
 
     if (rounds_executed % EXPORT_EVERY == 0) {
       for (int example_idx = 0;
-	   example_idx < NUM_VIDEO_STIMULATIONS;
+	   example_idx < NUM_VIDEO_STIMULATIONS && example_idx < TRAINING_PER_ROUND;
 	   example_idx++) {
 	Errors err{*net};
 	training[example_idx]->ExportErrors(&err);
@@ -2295,6 +2375,22 @@ struct Training {
     eval_queue.emplace_back(std::move(example));
   }
 
+  // Get a recent eval result, if we have one.
+  std::optional<TrainingExample> GetEvalResult() {
+    WriteMutexLock ml(&eval_output_queue_m);
+    if (eval_output_queue.empty()) return {};
+
+    std::optional<TrainingExample> ret{std::move(eval_output_queue.front())};
+    eval_output_queue.pop_front();
+    return ret;
+  }
+
+  // Not thread safe -- only call this when RunRound is not
+  // running.
+  int64 NumberOfRounds() {
+    return net->rounds;
+  }
+  
   ~Training() {
     for (TrainingRoundGPU *trg : training)
       delete trg;
@@ -2307,6 +2403,11 @@ private:
     std::max(TRAINING_PER_ROUND * 3, 256);
   static constexpr int EVAL_QUEUE_TARGET =
     EVAL_INPUTS_PER_ROUND * 3;
+
+  // Here, freshness is useful, so we don't want to get
+  // too ahead of ourselves.
+  static constexpr int EVAL_OUTPUT_TARGET =
+    EVAL_INPUTS_PER_ROUND + (EVAL_INPUTS_PER_ROUND >> 1);
   
   static string GetRandomSeed(int idx) {
     const string start_seed = StringPrintf("%d  %lld  %d",
@@ -2363,11 +2464,18 @@ private:
   // Used for co-training.
   std::shared_mutex eval_queue_m;
   deque<TrainingExample> eval_queue;
+
+  // Results of the eval process (as a "TrainingExample", pairing the input
+  // with the computed output), capped at EVAL_OUTPUT_TARGET.
+  std::shared_mutex eval_output_queue_m;
+  deque<TrainingExample> eval_output_queue;
+  // Also protected by the mutex: The number of eval outputs that were
+  // computed but discarded because the queue got too big.
+  int64 eval_outputs_wasted = 0LL;
 };
 
 // Inserts examples into the Training objects, and reads their eval outputs
 // to generate examples for the co-trained pair.
-// FIXME this function is fuct
 static void MakeTrainingExamplesThread(
     Training *make_lowercase,
     Training *make_uppercase) {
@@ -2396,7 +2504,6 @@ static void MakeTrainingExamplesThread(
 				       const SDFLoadFonts::Font &f,
 				       TrainingExample *example) -> bool {
       auto FillSDF = [](float *buffer, const ImageA &img) {
-	  // XXX also output
 	  CHECK(img.width == SDF_SIZE);
 	  CHECK(img.height == SDF_SIZE);
 	  for (int y = 0; y < SDF_SIZE; y++) {
@@ -2424,6 +2531,11 @@ static void MakeTrainingExamplesThread(
 	}
       }
 
+      if (CHECK_NANS) {
+	for (float f : example->input) { CHECK(!std::isnan(f)); }
+	for (float f : example->output) { CHECK(!std::isnan(f)); }
+      }
+      
       return true;
     };
   
@@ -2431,12 +2543,12 @@ static void MakeTrainingExamplesThread(
   auto GenExample = [&rc, make_lowercase, make_uppercase, &PopulateExampleFromFont](
       bool lowercasing) -> bool {
       Training *me = lowercasing ? make_lowercase : make_uppercase;
-      [[maybe_unused]]
       Training *other = lowercasing ? make_uppercase : make_lowercase;
 
       bool did_something = false;
 
       if (me->WantsExamples()) {
+	
 	// Generate regular example from training data.
 	{
 	  TrainingExample example;
@@ -2449,9 +2561,32 @@ static void MakeTrainingExamplesThread(
 	  }
 	  if (ok) me->AddExampleToQueue(std::move(example));
 	}
-	
-	// XXX: Also generate inversion examples from other model,
-	// if possible.
+
+	// About half the time, also add an inversion example.
+	if (rc.Byte() & 1) {
+	  auto fwd = other->GetEvalResult();
+	  if (fwd.has_value()) {
+	    TrainingExample example = std::move(fwd.value());
+	    // To create an inversion example, we basically just want to swap the input
+	    // and output. But we also want to keep the "hints" that are in the output.
+	    // (Probably it would be better if we kept the actual letter this represents,
+	    // but that would mean keeping some metadata along with the eval example.)
+	    vector<float> new_input(example.output.begin(),
+				    example.output.begin() + SDF_SIZE * SDF_SIZE);
+	    CHECK(new_input.size() == SDF_SIZE * SDF_SIZE);
+	    // Copy old input over SDF portion of output now.
+	    for (int i = 0; i < SDF_SIZE * SDF_SIZE; i++) {
+	      example.output[i] = example.input[i];
+	    }
+
+	    // And replace the input with the new input.
+	    example.input = std::move(new_input);
+
+	    CHECK(example.input.size() == SDF_SIZE * SDF_SIZE);
+	    CHECK(example.output.size() == SDF_SIZE * SDF_SIZE + 26);
+	    me->AddExampleToQueue(std::move(example));
+	  }
+	}
 
 	did_something = true;	
       }
@@ -2487,107 +2622,11 @@ static void MakeTrainingExamplesThread(
       // If we're not doing anything useful (because we are training bound
       // or waiting for an exclusive app, both of which are normal), sleep so
       // we don't hog CPU/locks.
-      std::this_thread::sleep_for(500ms);
+      std::this_thread::sleep_for(100ms);
     }
   }
 
   Printf("Training example thread shutdown.\n");
-  
-    
-  #if 0
-  // Returns true if successful.
-  // XXXX olde
-  auto PopulateExampleFromFont =
-    [](ArcFour *rc, const TTF *ttf, TrainingExample *example) -> bool {
-
-      const int char_offset = RandTo(rc, 26);
-      const int upper_char = 'A' + char_offset;
-      const int lower_char = 'a' + char_offset;
-
-      example->input.resize(INPUT_LAYER_SIZE);
-      if (!FontProblem::FillVector(ttf, upper_char, ROW_MAX_POINTS,
-				   example->input.data())) {
-	return false;
-      }
-
-      example->output.resize(OUTPUT_LAYER_SIZE, 0.0f);
-      if (!FontProblem::GetRows(ttf, lower_char, ROW_MAX_POINTS,
-				&example->expected_contours)) {
-	return false;
-      }
-
-      #if 0
-      // filled later.
-      if (!FontProblem::FillVector(ttf, lower_char, ROW_MAX_POINTS,
-				   example->output.data())) {
-	return false;
-      }
-      #endif
-
-      // Output is same as input size, plus 26 letters. So use the
-      // length of the input to know where to start putting letters.
-      int next_idx = example->input.size();
-      for (int i = 0; i < 26; i++) {
-	CHECK(next_idx < example->output.size());
-	example->output[next_idx] = i == char_offset ? 1.0f : 0.0f;
-	next_idx++;
-      }
-      CHECK(next_idx == example->output.size());
-
-      if (CHECK_NANS) {
-	for (float f : example->input) { CHECK(!std::isnan(f)); }
-	for (float f : example->output) { CHECK(!std::isnan(f)); }
-      }
-
-      return true;
-    };
-
-  auto MakeTrainingExamplesThread = [&training_examples_m,
-				     &training_examples,
-				     &PopulateExampleFromFont]() {
-
-      training_examples_m.lock_shared();
-      // Make sure we have plenty of examples so that learning doesn't stall.
-      if (training_examples.size() < EXAMPLE_QUEUE_TARGET) {
-	training_examples_m.unlock_shared();
-
-	TrainingExample example;
-	{
-	  load_fonts->fonts_m.lock_shared();
-
-	  if (load_fonts->fonts.size() < ENOUGH_FONTS) {
-	    load_fonts->fonts_m.unlock_shared();
-	    Printf("Not enough training data loaded yet!\n");
-	    std::this_thread::sleep_for(1s);
-	    continue;
-	  } else {
-	    const int idx = RandTo(&rc, load_fonts->fonts.size());
-
-	    bool ok = PopulateExampleFromFont(&rc,
-					      load_fonts->fonts[idx],
-					      &example);
-	    load_fonts->fonts_m.unlock_shared();
-
-	    if (ok) {
-	      WriteMutexLock ml(&training_examples_m);
-	      training_examples.push_back(std::move(example));
-	    }
-
-	    // PERF: If not ok, we could mark this as a bad training
-	    // example so we don't keep trying (or just remove it from
-	    // the vector?) ... but these should have been pre-filtered.
-	  }
-	}
-
-      } else {
-	training_examples_m.unlock_shared();
-	std::this_thread::sleep_for(10ms);
-      }
-    }
-    Printf("Training example generator exiting.\n");
-  };
-  #endif
-  
 }
 
 // Periodically we check to see if any process name matches something
@@ -2678,10 +2717,29 @@ int SDL_main(int argc, char **argv) {
 	  std::this_thread::sleep_for(5000ms);
 	}
 
-	// XXX in parallel!
-	make_lowercase->RunRound();
-	make_uppercase->RunRound();	
-	
+	int lrounds = make_lowercase->NumberOfRounds();
+	int urounds = make_uppercase->NumberOfRounds();
+	static constexpr int ALLOWED_GAP = 2;
+
+	Printf("lowercase rounds %lld, uppercase %lld\n",
+	       lrounds, urounds);
+	if (lrounds + ALLOWED_GAP < urounds) {
+	  Printf("Only running lowercase because it is behind.\n");
+	  make_lowercase->RunRound();
+	} else if (urounds + ALLOWED_GAP < lrounds) {
+	  Printf("Only running uppercase because it is behind.\n");
+	  make_uppercase->RunRound();
+	} else {
+	  Printf("Running both in parallel.\n");
+
+	  std::thread lthread{
+	    [make_lowercase]() {
+	      make_lowercase->RunRound();
+	    }};
+	  // Can just use this existing thread though.
+	  make_uppercase->RunRound();
+	  lthread.join();
+	}
       }
     }};
   
@@ -2689,6 +2747,9 @@ int SDL_main(int argc, char **argv) {
 
   Printf("Killing train thread (might need to wait for round to finish)...\n");
   WriteWithLock(&train_should_die_m, &train_should_die, true);
+  // Finish training round before deleting the objects.
+  train_thread.join();
+
   for (Training *t : training) delete t;
   examples_thread.join();
   

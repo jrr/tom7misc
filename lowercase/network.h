@@ -67,7 +67,9 @@ struct Network {
 	  vector<int> indices_per_node,
 	  vector<TransferFunction> transfer_functions);
 
-  // Size of network in RAM.
+  // Size of network in RAM. Note that this includes the indices
+  // and inverted indices for dense layers (which are indeed still stored)
+  // even though they are not used or represented on disk.
   int64_t Bytes() const;
 
   void CopyFrom(const Network &other) {
