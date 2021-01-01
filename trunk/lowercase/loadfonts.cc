@@ -134,8 +134,6 @@ SDFLoadFonts::SDFLoadFonts(
 		       max_fonts(max_fonts),
 		       ExitEarly(ExitEarly),
 		       config(config) {
-  fonts.reserve(max_fonts);
-
   init_thread.reset(new std::thread([this]() {
       this->Init();
     }));
@@ -163,6 +161,11 @@ void SDFLoadFonts::Init() {
   // towards early items in the list.
   ArcFour rc(StringPrintf("%lld", time(nullptr)));
   Shuffle(&rc, &filenames_todo);
+  
+  {
+    WriteMutexLock ml(&fonts_m);
+    fonts.reserve(std::min((int64)max_fonts, (int64)filenames_todo.size()));
+  }
   
   printf("%lld eligible fonts\n", (int64)filenames_todo.size());
   Timer timer;

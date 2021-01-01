@@ -188,8 +188,6 @@ static void DeleteElements(C *cont) {
 // Communication between threads.
 static bool train_should_die = false;
 std::shared_mutex train_should_die_m;
-static bool train_done = false;
-std::shared_mutex train_done_m;
 
 static uint8 FloatByte(float f) {
   if (f <= 0.0f) return 0;
@@ -201,79 +199,37 @@ static constexpr float ByteFloat(uint8 b) {
   return b * (1.0 / 255.0f);
 }
 
-// The input is the coordinates of each contour.
-//  - We normalize these so that they are nominally in [0,1].
-//    (See ttf.h).
-//  - To keep a regular structure, a contour starts with
-//    the start coordinates, then consists only of cubic Bezier
-//    splines. Each one is given as its control point, then as
-//    the end point.
-//  - Since a letter shape can have multiple contours, we need
-//    some way to delimit them. Simplest way is to fix a maximum
-//    number of contours, and points per contour, so that it's
-//    representable in a matrix.
-
-// Almost all the fonts (9100 out of 9135 in the first data set)
-// have at most 3 contours per letter (and 3 is by far the most
-// common maximum value, presumably for letters like B). So it
-// seems like a good choice for this experiment.
-//
-// The three contours don't have to be the same length. If sorted
-// by length, the 8795/9135 have 100 or fewer points in their
-// longest path, 8770 have 25 or fewer in the second longest,
-// and 8930 have 16 or fewer in the third.
-//
-// Each contour/row has:
-//   2 floats for start pos
-//   2*2 floats for each bezier curve
-//   so (100 * 4 + 2) + (25 * 4 + 2) + (16 * 4 + 2) =
-//      402 + 102 + 66 = 570
-//
-// Note that 0,0 is a valid coordinate and not that weird. What do
-// we do when the path is shorter than the row allows? Note we
-// also need to be able to recognize such a thing to render the
-// output.
-// Couple options:
-//   - Just pad with zeroes or -1 or whatever.
-//   - Duplicate points (making zero-length beziers) so that the
-//     row is filled.
-//       - could just duplicate the last point, but maybe better
-//         to spread it out.
-//   - Make the path longer by splitting beziers into multiple
-//     segments.
-
+// SDF is square with an edge this length.
+static constexpr int SDF_SIZE = 64;
+static constexpr int INPUT_LAYER_SIZE = SDF_SIZE * SDF_SIZE;
 // The output is the same shape.
 // Additionally, consider adding a one-hot prediction of the letter
 // being lowercased, to coax the network to distinguish between
 // letters.
-
-static constexpr int ROW0_MAX_PTS = 38;
-static constexpr int ROW1_MAX_PTS = 14;
-static constexpr int ROW2_MAX_PTS = 10;
-
-// XXX constexpr c++20
-static const std::vector<int> ROW_MAX_POINTS = {
-  ROW0_MAX_PTS, ROW1_MAX_PTS, ROW2_MAX_PTS,
-};
-
-static constexpr int INPUT_LAYER_SIZE =
-  // start point, then beziers as control point, end point.
-  2 + ROW0_MAX_PTS * (2 + 2) +
-  2 + ROW1_MAX_PTS * (2 + 2) +
-  2 + ROW2_MAX_PTS * (2 + 2);
-
 static constexpr int OUTPUT_LAYER_SIZE =
   INPUT_LAYER_SIZE +
-  // one-hot hint for what letter is this?
+  // one-hot hint for what letter this is
   26;
+
+static constexpr SDFLoadFonts::SDFConfig SDF_CONFIG = {
+  .sdf_size = 64,
+  .pad_top = 4,
+  .pad_bot = 18,
+  .pad_left = 18,
+  .onedge_value = 200U,
+  .falloff_per_pixel = 7.860f,
+};
 
 static constexpr int NEIGHBORHOOD = 1;
 
+
+// XXX custom renderstyles for SDF
 enum UserRenderStyle : uint32_t {
   RENDERSTYLE_INPUTXY = RENDERSTYLE_USER + 1000,
   RENDERSTYLE_OUTPUTXY = RENDERSTYLE_USER + 1001,
 };
 
+// XXX ded
 // Nominal pixel height of a character when rendering.
 // Character can exceed these bounds; it's even normal
 // for this to happen width-wise for wide characters.
@@ -1631,11 +1587,6 @@ struct UI {
 	}
       }
 
-      if (ReadWithLock(&train_done_m, &train_done)) {
-	Printf("UI thread saw that training finished.\n");
-	return;
-      }
-
       SDL_Event event;
       if (SDL_PollEvent(&event)) {
 	if (event.type == SDL_QUIT) {
@@ -1836,7 +1787,7 @@ static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
 }
 
 static UI *ui = nullptr;
-static VectorLoadFonts *load_fonts = nullptr;
+static SDFLoadFonts *load_fonts = nullptr;
 
 struct TrainingExample {
   vector<float> input;
@@ -2035,12 +1986,15 @@ struct Training {
       ui->SetTakeScreenshot(model_index);
 
       // Stable eval screenshot on Helvetica (iterative).
+      // XXX need a version for SDF
+      #if 0
       FontProblem::RenderVector("helvetica.ttf",
 				*net,
 				ROW_MAX_POINTS,
 				StringPrintf("eval%d/eval%lld.png",
 					     model_index,
 					     net->rounds));
+      #endif
     }
 
     if (CHECK_NANS) {
@@ -2423,6 +2377,123 @@ static void MakeTrainingExamplesThread(
   ArcFour rc(seed);
   rc.Discard(2000);
 
+  CHECK(load_fonts != nullptr) << "LoadFonts must be created first.";
+  // First, pause until we have enough fonts.
+  for (;;) {
+    {
+      ReadMutexLock ml(&load_fonts->fonts_m);
+      if (load_fonts->fonts.size() >= ENOUGH_FONTS)
+	break;
+    }
+
+    Printf("Not enough training data loaded yet!\n");
+    std::this_thread::sleep_for(1s);
+  }
+  Printf("Training thread has enough fonts to start creating examples.\n");
+
+  auto PopulateExampleFromFont = [&rc](bool lowercase_input,
+				       bool include_output,
+				       const SDFLoadFonts::Font &f,
+				       TrainingExample *example) -> bool {
+      auto FillSDF = [](float *buffer, const ImageA &img) {
+	  // XXX also output
+	  CHECK(img.width == SDF_SIZE);
+	  CHECK(img.height == SDF_SIZE);
+	  for (int y = 0; y < SDF_SIZE; y++) {
+	    for (int x = 0; x < SDF_SIZE; x++) {
+	      int idx = y * SDF_SIZE + x;
+	      buffer[idx] = ByteFloat(img.GetPixel(x, y));
+	    }
+	  }
+	};
+
+      const int letter = RandTo(&rc, 26);
+      // indices into Font::sdfs, which is a-z then A-Z.
+      const int input_idx = lowercase_input ? letter : 26 + letter;
+      const int output_idx = lowercase_input ? 26 + letter : letter;
+      
+      example->input.resize(SDF_SIZE * SDF_SIZE);      
+      FillSDF(example->input.data(), f.sdfs[input_idx]);
+
+      if (include_output) {
+	example->output.resize(SDF_SIZE * SDF_SIZE + 26);
+	FillSDF(example->output.data(), f.sdfs[output_idx]);
+	for (int i = 0; i < 26; i++) {
+	  example->output[SDF_SIZE * SDF_SIZE + i] =
+	    (i == letter) ? 1.0f : 0.0f;
+	}
+      }
+
+      return true;
+    };
+  
+  // These are symmetric, so call this function twice.
+  auto GenExample = [&rc, make_lowercase, make_uppercase, &PopulateExampleFromFont](
+      bool lowercasing) -> bool {
+      Training *me = lowercasing ? make_lowercase : make_uppercase;
+      [[maybe_unused]]
+      Training *other = lowercasing ? make_uppercase : make_lowercase;
+
+      bool did_something = false;
+
+      if (me->WantsExamples()) {
+	// Generate regular example from training data.
+	{
+	  TrainingExample example;
+	  bool ok;
+	  {
+	    ReadMutexLock ml(&load_fonts->fonts_m);
+	    const int idx = RandTo(&rc, load_fonts->fonts.size());
+	    // Here if we are lowercasing, the input should be uppercase.
+	    ok = PopulateExampleFromFont(!lowercasing, true, load_fonts->fonts[idx], &example);
+	  }
+	  if (ok) me->AddExampleToQueue(std::move(example));
+	}
+	
+	// XXX: Also generate inversion examples from other model,
+	// if possible.
+
+	did_something = true;	
+      }
+
+      if (me->WantsEvalInputs()) {
+	// Generate eval inputs.
+	TrainingExample example;
+	bool ok;
+	{
+	  ReadMutexLock ml(&load_fonts->fonts_m);
+	  const int idx = RandTo(&rc, load_fonts->fonts.size());
+	  // Here if we are lowercasing, the input should be lowercase (we want letter-like
+	  // shapes that don't have known lowercase shapes). XXX it would be okay/good to
+	  // include uppercase examples as well?
+	  ok = PopulateExampleFromFont(lowercasing, false, load_fonts->fonts[idx], &example);
+	}
+	CHECK(example.output.empty());
+	if (ok) me->AddEvalInputToQueue(std::move(example));
+
+	did_something = true;
+      }
+
+      return did_something;
+    };
+  
+  while (!ReadWithLock(&train_should_die_m, &train_should_die)) {
+    // These two are symmetric.
+    bool did_something = false;
+    did_something = GenExample(false) || did_something;
+    did_something = GenExample(true) || did_something;
+
+    if (!did_something) {
+      // If we're not doing anything useful (because we are training bound
+      // or waiting for an exclusive app, both of which are normal), sleep so
+      // we don't hog CPU/locks.
+      std::this_thread::sleep_for(500ms);
+    }
+  }
+
+  Printf("Training example thread shutdown.\n");
+  
+    
   #if 0
   // Returns true if successful.
   // XXXX olde
@@ -2475,11 +2546,6 @@ static void MakeTrainingExamplesThread(
 				     &training_examples,
 				     &PopulateExampleFromFont]() {
 
-    for (;;) {
-      if (ReadWithLock(&train_should_die_m, &train_should_die)) {
-	return;
-      }
-
       training_examples_m.lock_shared();
       // Make sure we have plenty of examples so that learning doesn't stall.
       if (training_examples.size() < EXAMPLE_QUEUE_TARGET) {
@@ -2523,37 +2589,6 @@ static void MakeTrainingExamplesThread(
   #endif
   
 }
-
-// XXX it ded
-#if 0
-static void TrainThread() {
-
-  if (ReadWithLock(&train_should_die_m, &train_should_die))
-    return;
-
-
-  if (ShouldDie()) return;
-
-  // (Note that the below actually works while the examples are still
-  // being loaded, but maybe overkill since this dataset should load
-  // pretty fast? So syncing here.)
-  Printf("Waiting for fonts...\n");
-  CHECK(load_fonts != nullptr);
-  load_fonts->Sync();
-  Printf("Fonts all loaded.\n");
-
-
-
-
-  if (ShouldDie()) return;
-
-
-
-  Printf(" ** Done. **");
-
-  WriteWithLock(&train_done_m, &train_done, true);
-}
-#endif
 
 // Periodically we check to see if any process name matches something
 // in this function. If so, we pause training.
@@ -2609,9 +2644,9 @@ int SDL_main(int argc, char **argv) {
   global_cl = new CL;
 
   // Start loading fonts in background.
-  load_fonts = new VectorLoadFonts(
+  load_fonts = new SDFLoadFonts(
       []() { return ReadWithLock(&train_should_die_m, &train_should_die); },
-      {ROW0_MAX_PTS, ROW1_MAX_PTS, ROW2_MAX_PTS},
+      SDF_CONFIG,
       12,
       MAX_FONTS);
 
