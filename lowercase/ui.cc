@@ -967,7 +967,7 @@ void UI::DrawSDF() {
   CHECK(falloff_max > falloff_min);
   // config.falloff_per_pixel = 0.5f * (falloff_min + falloff_max);
   config.falloff_per_pixel = 0.25f * falloff_max + 0.75 * falloff_min;
-  
+  printf("Falloff per pixel: %.3f\n", config.falloff_per_pixel);
   
   const TTF *font = GetFont(cur);
   std::optional<ImageA> sdf = font->GetSDF(current_char, config.sdf_size,
