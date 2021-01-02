@@ -10,3 +10,86 @@ switched to a normalized point order at round 24820.
 switched to permissive loss function at round 70808
 
 (total error went up though... was like 18 and is now 51. seems wrong?)
+
+
+
+-- sdf training started 1 Jan 2021  13:01:36 --
+
+Got nans after about 40 rounds. Shrink to 1/4 of the examples per round
+and halve the learning rate.
+
+(23.6 eps per model with these new settings. I think it was like 40 before?)
+
+
+nanned out again after 158 rounds each.
+tried actually rejecting nan updates in updateweights.
+
+22.29 eps, so the nan checks aren't THAT expensive...
+
+made it to round 242 so far without any issues (just predicts "average" shape though)
+
+since updateweights has protection now, putting the learning rate back up
+
+... but then it immediately blew up (round 268)!
+
+
+didn't touch it for a while but came back to about round 640.
+I hit 'v' to look at some of the stimulations/errors and watched it diverge in front
+of my eyes! Maybe the divergence is actually a bug caused by the UI??
+
+Wow I'm stumped... the behavior of vlayer (which is the only key that does anything)
+is really straightforward. Due to another bug it was exporting and saving on every
+round, so I guess that increases the possibility of race conditions here. Added some checks
+for in-boundsness. I guess technically, writing to 'dirty' with a Read lock held on
+the shared-mutex is wrong, because the ExportBlahToVideo also writes to dirty, and
+it's plausible that this actually has an effect since it's just a bool (conflicting
+writes are probably touching other nearby values). No idea how that could lead to
+the network's weights getting corrupted, though, except via general "undefined behavior".
+Switched to writemutexlock to see if this ever happens again.
+
+(Also saves a lot of time... 42 eps now)
+
+ok nevermind, it just happened on its own after 547 rounds (each)
+while unattended (and with those fixes). (It must have just been a coincidence??)
+
+
+--------------------------------------------------
+trying again!
+New mode in updateweights (can be performance tuned) caps not the update but the
+final weight value. Also not very principled. But this should make it quite hard
+for it to ever produce nans, right?
+
+
+even with a max weight of 8192 it quickly gets off the rails
+trying again with 128!
+
+Note that the output pedictions can be pretty big (especially early on) and that
+these can then be inverted examples for the other model. This may actually be
+the cause of crazy results.. so maybe we should normalize those SDFs before
+inverting them (or reject them as training examples if they are too far out
+of range)
+
+
+even with updateweights capped to 128, we get divergence.
+maybe the problem is really in the error step, so I tried clipping there
+as well.
+
+(also fixed another bug where network would not save unless you got lucky
+when you stopped it, oops!)
+
+
+even with a max weight of 8.0f (!) the stimulations get huge
+
+
+ok then I tried again with initial weights using "He initialization". These
+are bigger than what I was using before. It immediately diverged.
+
+
+ran 6000 rounds over night.
+these are under control at least, but making really conservative
+prediction (just "average") and the error doesn't seem to be improving.
+put them in sdfmodels as a good starting point?
+
+"just predicts the average" could be what happens if we only update biases
+and never weights, by the way
+

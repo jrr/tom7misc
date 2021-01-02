@@ -220,7 +220,7 @@ void SDFLoadFonts::Init() {
 		  if (fonts.size() % 100 == 0) {
 		    double ms = timer.MS();
 		    double s_per_item = (ms / 1000.0) / fonts.size();
-		    printf("Loaded %d, %lld failed in %.2fs (%.2fs/sec; %.2fs remain)..\n",
+		    printf("Loaded %d, %lld failed in %.2fs (%.2fs/font; %.2fs remain)..\n",
 			   (int)fonts.size(),
 			   num_failed,
 			   ms / 1000.0,

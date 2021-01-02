@@ -12,6 +12,10 @@
 // DERIVATIVE, the derivative of the transfer function, given in
 //   terms of the function's output.
 
+// If true, prevent the final source error from being more than +/- LARGE_ERROR.
+#define NOCLIP false
+#define LARGE_ERROR 1000000.0f
+
 // For when the destination layer is sparse.
 __kernel void BackwardLayerSparse(
                   // Size src_num_nodes.
@@ -48,7 +52,14 @@ __kernel void BackwardLayerSparse(
                              weighted_error_sum);
   }
 
-  src_error[h] = DERIVATIVE(out_h) * weighted_error_sum;
+  #if NOCLIP
+  const float final_error = DERIVATIVE(out_h) * weighted_error_sum;
+  #else
+  const float final_error =
+    fmax(-LARGE_ERROR, fmin(LARGE_ERROR, DERIVATIVE(out_h) * weighted_error_sum));
+  #endif
+
+  src_error[h] = final_error;
 }
 
 // For when the destination layer is dense.
@@ -95,5 +106,12 @@ __kernel void BackwardLayerDense(
                              weighted_error_sum);
   }
 
-  src_error[h] = DERIVATIVE(out_h) * weighted_error_sum;
+  #if NOCLIP
+  const float final_error = DERIVATIVE(out_h) * weighted_error_sum;
+  #else
+  const float final_error =
+    fmax(-LARGE_ERROR, fmin(LARGE_ERROR, DERIVATIVE(out_h) * weighted_error_sum));
+  #endif
+
+  src_error[h] = final_error;
 }

@@ -463,6 +463,8 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   
   net->rounds = round;
   net->examples = examples;
+
+  int64 large_weights = 0, large_biases = 0;
   
   // Read Layer structs.
   for (int i = 0; i < file_num_layers; i++) {
@@ -498,6 +500,24 @@ Network *Network::ReadNetworkBinary(const string &filename) {
     }
     ReadFloats(&net->layers[i].weights);
     ReadFloats(&net->layers[i].biases);
+
+    static constexpr float LARGE_WEIGHT = 8.0f;
+    static constexpr float LARGE_BIAS = 128.0f;    
+    for (float f : net->layers[i].weights) {
+      if (f > LARGE_WEIGHT || f < -LARGE_WEIGHT) {
+	large_weights++;
+      }
+    }
+    for (float f : net->layers[i].biases) {
+      if (f > LARGE_BIAS || f < -LARGE_BIAS) {
+	large_biases++;
+      }
+    }
+  }
+
+  if (large_weights > 0 || large_biases > 0) {
+    printf("Warning: %lld large weights and %lld large biases\n",
+	   large_weights, large_biases);
   }
 
   fclose(file);
