@@ -91,7 +91,7 @@ static constexpr int VERBOSE = 2;
 // Perform somewhat expensive sanity checking for NaNs.
 // (Beware: Also enables some other really expensive diagnostics.)
 // XXX PERF turn off once it's working!
-static constexpr bool CHECK_NANS = false;
+static constexpr bool CHECK_NANS = true;
 
 using namespace std;
 
@@ -211,6 +211,12 @@ static constexpr int OUTPUT_LAYER_SIZE =
   // one-hot hint for what letter this is
   26;
 
+// Weight decay; should be a number less than, but close to, 1.
+// This is like L2 regularization (I think just modulo a constant
+// factor of 2), but less principled.
+static constexpr bool DECAY = true;
+static constexpr float DECAY_FACTOR = 0.9995;
+
 static constexpr SDFLoadFonts::SDFConfig SDF_CONFIG = {
   .sdf_size = 64,
   .pad_top = 4,
@@ -223,7 +229,7 @@ static constexpr SDFLoadFonts::SDFConfig SDF_CONFIG = {
 static constexpr int NEIGHBORHOOD = 1;
 
 
-// XXX custom renderstyles for SDF
+// custom renderstyles for font problem
 enum UserRenderStyle : uint32_t {
   RENDERSTYLE_INPUTXY = RENDERSTYLE_USER + 1000,
   RENDERSTYLE_OUTPUTXY = RENDERSTYLE_USER + 1001,
@@ -231,12 +237,6 @@ enum UserRenderStyle : uint32_t {
   RENDERSTYLE_SDF = RENDERSTYLE_USER + 2000,
   RENDERSTYLE_SDF26 = RENDERSTYLE_USER + 2001,
 };
-
-// XXX ded
-// Nominal pixel height of a character when rendering.
-// Character can exceed these bounds; it's even normal
-// for this to happen width-wise for wide characters.
-static constexpr int NOMINAL_CHAR_SIZE = 400;
 
 
 // Network that lives entirely on the GPU, but can be copied back to
@@ -422,7 +422,7 @@ MakeTransferKernels(CL *cl, const char *base_file, const char *function_name) {
 }
 
 struct ForwardLayerCL {
-  explicit ForwardLayerCL(CL *cl, const Network &net) : cl(cl) {
+  ForwardLayerCL(CL *cl, const Network &net) : cl(cl) {
     string base_src = Util::ReadFile("forwardlayer.cl");
     for (int layer = 0; layer < net.layers.size(); layer++) {
       const TransferFunction transfer_function =
@@ -645,7 +645,7 @@ struct SetOutputErrorCL {
 
 // Propagate errors backwards. Note that errors flow from "dst" to "src".
 struct BackwardLayerCL {
-  explicit BackwardLayerCL(CL *cl, const Network &net) : cl(cl) {
+  BackwardLayerCL(CL *cl, const Network &net) : cl(cl) {
     string base_src = Util::ReadFile("backwardlayer.cl");
     for (int src_layer = 0; src_layer < net.layers.size() - 1; src_layer++) {
       int dst_layer = src_layer + 1;
@@ -788,8 +788,80 @@ struct BackwardLayerCL {
   std::shared_mutex m;
 };
 
+// Optional and unprincipled L2-like regularization.
+// Decays every weight by a constant multiplicative factor.
+struct DecayWeightsCL {
+  DecayWeightsCL(CL *cl, const Network &net) : cl(cl) {
+    string base_src = Util::ReadFile("decayweights.cl");
+    
+    string kernel_src;
+    StringAppendF(&kernel_src, "\n#define DECAY_FACTOR %.9ff\n", DECAY_FACTOR);
+    kernel_src += base_src;
+    auto p = cl->BuildOneKernel(kernel_src, "DecayWeights");
+    program = p.first;
+    kernel = p.second;
+  }
+
+  ~DecayWeightsCL() {
+    CHECK_SUCCESS(clReleaseKernel(kernel));
+    CHECK_SUCCESS(clReleaseProgram(program));
+  }
+
+  struct Context {
+    Context(DecayWeightsCL *parent, NetworkGPU *net_gpu, int layer) :
+      parent(parent), net_gpu(net_gpu), layer(layer) {
+      layer_weights = net_gpu->layers[layer].weights;
+    }
+
+    void Decay(int layer) {
+      CL *cl = parent->cl;
+
+      // PERF: Should actually be able to run in parallel across the entire
+      // network if we weren't sharing a single kernel. Every weight
+      // just scaled independently.
+      WriteMutexLock ml(&parent->m);
+
+      const int num_nodes = net_gpu->net->num_nodes[layer + 1];
+      const int ipn = net_gpu->net->layers[layer].indices_per_node;
+
+      auto kernel = parent->kernel;
+      CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_mem),
+				   (void *)&layer_weights));
+
+      size_t global_work_offset[] = { 0 };
+      // Total number of weights (could use 2D but why bother?)
+      size_t global_work_size[] = { (size_t)(num_nodes * ipn) };
+      CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, kernel,
+					   // work dimensions
+					   1,
+					   // global work offset
+					   global_work_offset,
+					   // global work size
+					   global_work_size,
+					   // local work size
+					   nullptr,
+					   // no wait list
+					   0, nullptr,
+					   // no event
+					   nullptr));
+      clFinish(cl->queue);
+    }
+
+    cl_mem layer_weights;
+    DecayWeightsCL *parent = nullptr;
+    NetworkGPU *net_gpu;
+    const int layer;
+  };
+
+  
+  CL *cl = nullptr;
+  cl_program program;
+  cl_kernel kernel;
+  std::shared_mutex m;
+};
+
 struct UpdateWeightsCL {
-  explicit UpdateWeightsCL(CL *cl, const Network &net) : cl(cl) {
+  UpdateWeightsCL(CL *cl, const Network &net) : cl(cl) {
     // Note that this one doesn't depend on the transfer function/derivative.
 
     string base_src = Util::ReadFile("updateweights.cl");
@@ -894,7 +966,6 @@ struct UpdateWeightsCL {
     UpdateWeightsCL *parent = nullptr;
     NetworkGPU *net_gpu;
     const int layer;
-    double kernel_ms = 0.0;
   };
 
 
@@ -1137,20 +1208,33 @@ static void MakeIndices(ArcFour *rc, Network *net) {
 
 // Randomize the weights in a network. Doesn't do anything to indices.
 static void RandomizeNetwork(ArcFour *rc, Network *net) {
-  auto RandomizeFloats = [](float mag, ArcFour *rc, vector<float> *vec) {
+  [[maybe_unused]]
+  auto RandomizeFloatsGaussian = [](float mag, ArcFour *rc, vector<float> *vec) {
     RandomGaussian gauss{rc};
     for (int i = 0; i < vec->size(); i++) {
       (*vec)[i] = mag * gauss.Next();
     }
   };
 
+  [[maybe_unused]]
+  auto RandomizeFloatsUniform = [](float mag, ArcFour *rc, vector<float> *vec) {
+      // Uniform from -mag to mag.
+      const float width = 2.0f * mag;
+      for (int i = 0; i < vec->size(); i++) {
+	// Uniform in [0,1]
+	double d = (double)Rand32(rc) / (double)0xFFFFFFFF;
+	float f = (width * d) - mag;
+	(*vec)[i] = f;
+      }
+    };
+  
   // This must access rc serially.
   vector<ArcFour *> rcs;
   for (int i = 0; i < net->num_layers; i++) rcs.push_back(Substream(rc, i));
 
   // But now we can do all layers in parallel.
   CHECK_EQ(net->num_layers, net->layers.size());
-  ParallelComp(net->num_layers, [rcs, &RandomizeFloats, &net](int layer) {
+  ParallelComp(net->num_layers, [rcs, &RandomizeFloatsUniform, &net](int layer) {
     // XXX such hacks. How to best initialize?
 
     /*
@@ -1165,10 +1249,13 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 
     // The more indices we have, the smaller initial weights we should
     // use.
-    float base_weight = 1.0f;
-    float gaussian_width = base_weight /
-      (float)net->layers[layer].indices_per_node;
-    RandomizeFloats(gaussian_width, rcs[layer], &net->layers[layer].weights);
+    // "Xavier initialization"
+    // const float mag = 1.0f / sqrtf(net->layers[layer].indices_per_node);
+    // "He initialization"
+    // const float mag = sqrtf(2.0 / net->layers[layer].indices_per_node);
+    // Tom initialization
+    const float mag = (0.0125f / net->layers[layer].indices_per_node);
+    RandomizeFloatsUniform(mag, rcs[layer], &net->layers[layer].weights);
   }, 12);
 
   DeleteElements(&rcs);
@@ -1182,7 +1269,7 @@ static constexpr int EXPORT_EVERY = 4;
 static constexpr bool DRAW_ERRORS = false;
 
 // XXX this needs to support multiple models somehow.
-// right now it just overwrites with whatever the last call was !!
+// right now it only accepts stuff from model index 0.
 struct UI {
   UI() {
     current_stimulations.resize(NUM_VIDEO_STIMULATIONS);
@@ -1316,13 +1403,6 @@ struct UI {
       int h = net.height[layer];
       return {w, h, MakeScale(w, h)};
     }
-
-    case RENDERSTYLE_INPUTXY:
-      return {NOMINAL_CHAR_SIZE, NOMINAL_CHAR_SIZE, 1};
-    case RENDERSTYLE_OUTPUTXY:
-      return {std::max(NOMINAL_CHAR_SIZE, EmbeddedFont::CHAR_WIDTH * 26),
-	      NOMINAL_CHAR_SIZE + 1 + EmbeddedFont::CHAR_HEIGHT,
-	      1};
 
     case RENDERSTYLE_SDF:
       return {SDF_SIZE * 2, SDF_SIZE * 2, 1};
@@ -1584,20 +1664,27 @@ struct UI {
 	    if (vlayer >= 0) {
 	      double tot = 0.0;
 	      int yz = ystart + 4;
+	      CHECK(vlayer >= 0 && vlayer < stim.values.size());
 	      const vector<float> &vals = stim.values[vlayer];
 	      for (int i = 0; i < vals.size(); i++) {
 		tot += vals[i];
 		if (i < 32) {
 		  // Font color.
+		  CHECK(i >= 0 && i < vals.size());
 		  const int c = vals[i] > 0.5f ? 0 : 1;
 		  if (vlayer > 0) {
-		    const float e = vlayer > 0 ? err.error[vlayer - 1][i] : 0.0;
+		    const int prev_layer = vlayer - 1;
+		    CHECK(prev_layer >= 0 && prev_layer < err.error.size());
+		    CHECK(i >= 0 && i < err.error[prev_layer].size());
+		    const float e = err.error[prev_layer][i];
 		    // Font color.
 		    const int sign = (e == 0.0) ? 4 : (e < 0.0f) ? 2 : 5;
+		    CHECK(i >= 0 && i < vals.size());
 		    font->draw(xstart, yz,
 			       StringPrintf("^%d%.9f ^%d%.12f",
 					    c, vals[i], sign, e));
 		  } else {
+		    CHECK(i >= 0 && i < vals.size());		    
 		    font->draw(xstart, yz,
 			       StringPrintf("^%d%.9f", c, vals[i]));
 		  }
@@ -1649,7 +1736,7 @@ struct UI {
 
 	  case SDLK_v:
 	    {
-	      ReadMutexLock ml(&video_export_m);
+	      WriteMutexLock ml(&video_export_m);
 	      // Allow vlayer to go to -1 (off), but wrap around
 	      // below that.
 
@@ -1661,6 +1748,7 @@ struct UI {
 		} else if (vlayer > current_network->num_layers) {
 		  vlayer = -1;
 		}
+		Printf("vlayer now %d\n", vlayer);
 		dirty = true;
 	      }
 	    }
@@ -1855,7 +1943,7 @@ struct Training {
 
   // Number of examples per round of training. Includes eval
   // examples.
-  static constexpr int EXAMPLES_PER_ROUND = 1024;
+  static constexpr int EXAMPLES_PER_ROUND = 256;
   // Number of examples that are eval inputs (not trained); the
   // remainder are training examples.
   static constexpr int EVAL_INPUTS_PER_ROUND = EXAMPLES_PER_ROUND / 4;
@@ -1920,6 +2008,7 @@ struct Training {
     forwardlayer = make_unique<ForwardLayerCL>(global_cl, *net);
     setoutputerror = make_unique<SetOutputErrorCL>(global_cl);
     backwardlayer = make_unique<BackwardLayerCL>(global_cl, *net);
+    decayweights = make_unique<DecayWeightsCL>(global_cl, *net);
     updateweights = make_unique<UpdateWeightsCL>(global_cl, *net);
     
     net_gpu = make_unique<NetworkGPU>(global_cl, net.get());
@@ -1954,7 +2043,7 @@ struct Training {
     forward_comp = std::make_unique<AutoParallelComp>(32, 50, false,
 						      StringPrintf("autoparallel.%s.fwd.txt",
 								   experiment.c_str()));
-    
+        
     error_comp = std::make_unique<AutoParallelComp>(32, 50, false,
 						    StringPrintf("autoparallel.%s.err.txt",
 								 experiment.c_str()));
@@ -1962,11 +2051,14 @@ struct Training {
     backward_comp = std::make_unique<AutoParallelComp>(32, 50, false,
 						       StringPrintf("autoparallel.%s.bwd.txt",
 								    experiment.c_str()));
-    
+
+    decay_comp = std::make_unique<AutoParallelComp>(8, 50, false,
+						    StringPrintf("autoparallel.%s.dec.txt",
+								 experiment.c_str()));
   }
 
   std::unique_ptr<AutoParallelComp> stim_init_comp, forward_comp,
-    error_comp, backward_comp;
+    error_comp, decay_comp, backward_comp;
   
   // Run one training round. Might stall if starved for examples.
   // Will exit early if global train_should_die becomes true.
@@ -1975,7 +2067,7 @@ struct Training {
     // XXX members?
     double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
       fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0,
-      output_error_ms = 0.0, update_ms = 0.0,
+      output_error_ms = 0.0, decay_ms = 0.0, update_ms = 0.0,
       eval_ms = 0.0;
 
     Timer round_timer;
@@ -1991,7 +2083,7 @@ struct Training {
     // an unrecoverable-sized update. We now divide the round learning rate
     // to an example learning rate, below. UpdateWeights also caps the
     // maximum increment to +/- 1.0f, which is not particularly principled
-    // but does seem to robustly prevent runaway.
+    // but does seem to help prevent runaway.
 
     constexpr int TARGET_ROUNDS = 50000;
     auto Linear =
@@ -2002,8 +2094,10 @@ struct Training {
 	double f = input / round_target;
 	return start + f * height;
       };
+    constexpr float LEARNING_RATE_HIGH = 0.10f;
+    constexpr float LEARNING_RATE_LOW = 0.002;
     const float round_learning_rate =
-      Linear(0.10, 0.002, TARGET_ROUNDS, net->rounds);
+      Linear(LEARNING_RATE_HIGH, LEARNING_RATE_LOW, TARGET_ROUNDS, net->rounds);
 
     CHECK(!std::isnan(round_learning_rate));
     if (VERBOSE > 2) Printf("Learning rate: %.4f\n", round_learning_rate);
@@ -2064,10 +2158,10 @@ struct Training {
     vector<TrainingExample> examples;
     examples.reserve(EXAMPLES_PER_ROUND);
 
-    auto GetExamples = [&examples](std::shared_mutex *mut,
-				   deque<TrainingExample> *queue,
-				   int target_num,
-				   const char *type) {
+    auto GetExamples = [this, &examples](std::shared_mutex *mut,
+					 deque<TrainingExample> *queue,
+					 int target_num,
+					 const char *type) {
 	for (;;) {
 	  {
 	    WriteMutexLock ml{mut};
@@ -2086,14 +2180,17 @@ struct Training {
 		   type,
 		   target_num - examples.size());
 	  std::this_thread::sleep_for(1s);
+	  if (ShouldDie()) return;
 	}
       };
 
     GetExamples(&example_queue_m, &example_queue,
 		TRAINING_PER_ROUND, "training");
+    if (ShouldDie()) return;
     GetExamples(&eval_queue_m, &eval_queue,
 		EXAMPLES_PER_ROUND, "eval");
-
+    if (ShouldDie()) return;
+    
     CHECK(examples.size() == EXAMPLES_PER_ROUND);
     
     setup_ms += setup_timer.MS();
@@ -2165,7 +2262,9 @@ struct Training {
       for (int example_idx = 0; example_idx < training.size(); example_idx++) {
 	Stimulation stim{*net};
 	training[example_idx]->ExportStimulation(&stim);
-	stim.NaNCheck(StringPrintf("forward pass model %d", model_index));
+	stim.NaNCheck(StringPrintf("%d/%d forward pass model %d",
+				   example_idx, (int)training.size(),
+				   model_index));
       }
     }
 
@@ -2277,6 +2376,22 @@ struct Training {
     }
 
     if (ShouldDie()) return;
+
+    if (VERBOSE > 2) Printf("Decay weights:\n");
+    
+    if (DECAY) {
+      // PERF: This doesn't depend on training and so it could happen any time
+      // after the forward pass, in parallel with other work.
+      Timer decay_timer;
+      decay_comp->ParallelComp(
+	  net->num_layers,
+	  [this](int layer) {
+	    DecayWeightsCL::Context dc{decayweights.get(), net_gpu.get(), layer};
+	    dc.Decay(layer);
+	  });
+      decay_ms += decay_timer.MS();
+    }
+    
     if (VERBOSE > 2) Printf("Update weights:\n");
     Timer update_timer;
 
@@ -2335,6 +2450,7 @@ struct Training {
 	     "%.1fms in error for output layer (%.1f%%),\n"
 	     "%.1fms in bc init (%.1f%%),\n"
 	     "%.1fms in backwards pass (%.1f%%),\n"
+	     "%.1fms in decay weights (%.1f%%),\n"	     
 	     "%.1fms in updating weights (%.1f%%),\n",
 	     round_ms / 1000.0, round_eps,
 	     setup_ms / denom, Pct(setup_ms),
@@ -2346,8 +2462,11 @@ struct Training {
 	     output_error_ms / denom, Pct(output_error_ms),
 	     bc_init_ms / denom, Pct(bc_init_ms),
 	     backward_ms / denom, Pct(backward_ms),
+	     decay_ms / denom, Pct(decay_ms),
 	     update_ms / denom, Pct(update_ms));
     
+
+    rounds_executed++;
   }
   
   // Generate training examples in another thread and feed them to AddExampleToQueue.
@@ -2396,6 +2515,13 @@ struct Training {
       delete trg;
     training.clear();
   }
+
+  void Save() {
+    CHECK(net_gpu.get() != nullptr && net.get() != nullptr)  << "Never initialized!";
+    net_gpu->ReadFromGPU();
+    Printf("Saving to %s...\n", model_filename.c_str());
+    Network::SaveNetworkBinary(*net, model_filename);
+  }
   
 private:
   // Try to keep twice that in the queue all the time.
@@ -2418,17 +2544,9 @@ private:
     return start_seed;
   }
 
-  bool ShouldDie() {
-    CHECK(net.get()) << "Only call this after the network has been loaded";
-    const bool should_die = ReadWithLock(&train_should_die_m, &train_should_die);
-    if (should_die) {
-      Printf("Train thread signaled death.\n");
-      Printf("Saving to %s...\n", model_filename.c_str());
-      Network::SaveNetworkBinary(*net, model_filename);
-    }
-    return should_die;
+  inline bool ShouldDie() {
+    return ReadWithLock(&train_should_die_m, &train_should_die);
   }
-
   
   const int model_index = 0;
   const string model_filename;
@@ -2442,6 +2560,7 @@ private:
   std::unique_ptr<ForwardLayerCL> forwardlayer;
   std::unique_ptr<SetOutputErrorCL> setoutputerror;
   std::unique_ptr<BackwardLayerCL> backwardlayer;
+  std::unique_ptr<DecayWeightsCL> decayweights;
   std::unique_ptr<UpdateWeightsCL> updateweights;
 
   // The network's presence on the GPU. It can be out of date with the
@@ -2574,6 +2693,16 @@ static void MakeTrainingExamplesThread(
 	    vector<float> new_input(example.output.begin(),
 				    example.output.begin() + SDF_SIZE * SDF_SIZE);
 	    CHECK(new_input.size() == SDF_SIZE * SDF_SIZE);
+	    // The prediction could have all sorts of wild values, which can
+	    // lead to feedback loops and divergent training. Put it in the
+	    // range [0,1]. (Alternatively, we could consider normalizing it, but
+	    // this may not actually be faithful?)
+	    for (int i = 0; i < SDF_SIZE * SDF_SIZE; i++) {
+	      if (new_input[i] < 0.0f) new_input[i] = 0.0f;
+	      if (new_input[i] > 1.0f) new_input[i] = 1.0f;
+	      if (std::isnan(new_input[i])) new_input[i] = 0.0f;
+	    }
+	    
 	    // Copy old input over SDF portion of output now.
 	    for (int i = 0; i < SDF_SIZE * SDF_SIZE; i++) {
 	      example.output[i] = example.input[i];
@@ -2749,7 +2878,8 @@ int SDL_main(int argc, char **argv) {
   WriteWithLock(&train_should_die_m, &train_should_die, true);
   // Finish training round before deleting the objects.
   train_thread.join();
-
+  for (Training *t : training) t->Save();
+  
   for (Training *t : training) delete t;
   examples_thread.join();
   

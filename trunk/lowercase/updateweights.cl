@@ -5,6 +5,12 @@
 // networks (with infinite weights, etc.). Recommend NOCLIP=false.
 #define NOCLIP false
 
+// Alternative (with NOCLIP=true) you can require the weights
+// and biases to stay within -MAX to MAX.
+#define CONSTRAIN true
+#define CONSTRAIN_WEIGHT_MAX 16.0f
+#define CONSTRAIN_BIAS_MAX 16384.0f
+
 // Defines:
 // INDICES_PER_NODE, an int, the number of input indices
 // per node on this layer.
@@ -35,22 +41,46 @@ __kernel void UpdateWeightsSparse(
     #if NOCLIP
     // PERF: fma()?
     layer_weights[gidx] += learning_rate_times_delta_j * x_ji;
+
+    #elif CONSTRAIN
+    // PERF fma()
+    const float new_value = layer_weights[gidx] + learning_rate_times_delta_j * x_ji;
+    // PERF fmin/fmax
+    // if (new_value <= CONSTRAIN_MAX && new_value >= -CONSTRAIN_MAX)
+    //      layer_weights[gidx] = new_value;
+
+    const float constrained_value =
+      fmax(-CONSTRAIN_WEIGHT_MAX, fmin(CONSTRAIN_WEIGHT_MAX, new_value));
+    layer_weights[gidx] = constrained_value;
+
     #else
+
     // Clipping
     const float update =
       fmax(-1.0f,
            fmin(1.0f, learning_rate_times_delta_j * x_ji));
-    layer_weights[gidx] += update;
+    if (!isnan(update))
+      layer_weights[gidx] += update;
     #endif
   }
 
   #if NOCLIP
   layer_biases[node_idx] += learning_rate_times_delta_j;
+  #elif CONSTRAIN
+  const float new_bias = layer_biases[node_idx] + learning_rate_times_delta_j;
+  // if (new_bias <= CONSTRAIN_MAX && new_bias >= -CONSTRAIN_MAX)
+  // layer_biases[node_idx] = new_bias;
+
+  const float constrained_value =
+    fmax(-CONSTRAIN_BIAS_MAX, fmin(CONSTRAIN_BIAS_MAX, new_bias));
+  layer_biases[node_idx] = constrained_value;
+
   #else
   const float bupdate =
     fmax(-1.0f,
          fmin(1.0f, learning_rate_times_delta_j));
-  layer_biases[node_idx] += bupdate;
+  if (!isnan(bupdate))
+    layer_biases[node_idx] += bupdate;
   #endif
 }
 
@@ -81,21 +111,43 @@ __kernel void UpdateWeightsDense(
     #if NOCLIP
     // PERF: fma()?
     layer_weights[gidx] += learning_rate_times_delta_j * x_ji;
+
+    #elif CONSTRAIN
+    // PERF fma()
+    const float new_value = layer_weights[gidx] + learning_rate_times_delta_j * x_ji;
+    // PERF fmin/fmax
+    const float constrained_value =
+      fmax(-CONSTRAIN_WEIGHT_MAX, fmin(CONSTRAIN_WEIGHT_MAX, new_value));
+    layer_weights[gidx] = constrained_value;
+
     #else
     // Clipping
     const float update =
       fmax(-1.0f,
            fmin(1.0f, learning_rate_times_delta_j * x_ji));
-    layer_weights[gidx] += update;
+    if (!isnan(update))
+      layer_weights[gidx] += update;
     #endif
   }
 
   #if NOCLIP
   layer_biases[node_idx] += learning_rate_times_delta_j;
+  #elif CONSTRAIN
+  const float new_bias = layer_biases[node_idx] + learning_rate_times_delta_j;
+  // if (new_bias <= CONSTRAIN_MAX && new_bias >= -CONSTRAIN_MAX)
+  //    layer_biases[node_idx] = new_bias;
+
+  const float constrained_value =
+    fmax(-CONSTRAIN_BIAS_MAX, fmin(CONSTRAIN_BIAS_MAX, new_bias));
+  layer_biases[node_idx] = constrained_value;
+
+
+
   #else
   const float bupdate =
     fmax(-1.0f,
          fmin(1.0f, learning_rate_times_delta_j));
-  layer_biases[node_idx] += bupdate;
+  if (!isnan(bupdate))
+    layer_biases[node_idx] += bupdate;
   #endif
 }
