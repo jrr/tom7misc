@@ -79,6 +79,12 @@ struct FontProblem {
   // (as floats 0-1), build the SDF image.
   static ImageA SDFGetImage(const SDFConfig &config,
 			    const std::vector<float> &buffer);
+
+  // Render tresholded image at high resolution, then downsample
+  // to get an anti-aliased image.
+  static ImageA SDFThresholdAA(uint8_t onedge_value,
+			       const ImageA &sdf,
+			       int scale = 2);
   
   // Code for computing the error between a predicted vector shape ("loop")
   // and the expected one.

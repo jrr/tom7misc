@@ -1541,6 +1541,9 @@ struct UI {
 
 	      auto DrawSDF = [](const vector<float> &values, int startx, int starty) {
 		  ImageA img = FontProblem::SDFGetImage(SDF_CONFIG, values);
+		  ImageA twox = img.ResizeBilinear(SDF_SIZE * 2, SDF_SIZE * 2);
+		  ImageA aa = FontProblem::SDFThresholdAA(SDF_CONFIG.onedge_value,
+							  twox, 3);
 		  
 		  for (int y = 0; y < SDF_SIZE; y++) {
 		    int yy = starty + y * 2;
@@ -1555,10 +1558,9 @@ struct UI {
 		    }
 		  }
 
-		  ImageA twox = img.ResizeBilinear(SDF_SIZE * 2, SDF_SIZE * 2);
-
 		  // second image immediately to the right of the 2x image above
 		  const int X_MARGIN = SDF_SIZE * 2;
+		  #if 0
 		  for (int y = 0; y < SDF_SIZE * 2; y++) {
 		    int yy = starty + y;
 		    for (int x = 0; x < SDF_SIZE * 2; x++) {
@@ -1567,6 +1569,15 @@ struct UI {
 
 		      uint8 vv = v >= SDF_CONFIG.onedge_value ? 0xFF : 0x00;
 		      sdlutil::drawclippixel(screen, xx, yy, vv, vv, vv);
+		    }
+		  }
+		  #endif
+		  for (int y = 0; y < aa.Height(); y++) {
+		    int yy = starty + y;
+		    for (int x = 0; x < aa.Width(); x++) {
+		      int xx = startx + X_MARGIN + x;
+		      uint8 v = aa.GetPixel(x, y);
+		      sdlutil::drawclippixel(screen, xx, yy, v, v, v);
 		    }
 		  }
 		};

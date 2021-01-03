@@ -194,6 +194,41 @@ ImageA FontProblem::SDFGetImage(const SDFConfig &config,
   return img;
 }
 
+ImageA FontProblem::SDFThresholdAA(uint8 onedge_value,
+				   const ImageA &sdf,
+				   int scale) {
+  if (scale == 1) {
+    // No need for resampling step.
+    ImageA ret(sdf.Height(), sdf.Width());
+    for (int y = 0; y < ret.Height(); y++) {
+      for (int x = 0; x < ret.Width(); x++) {
+	uint8 v = sdf.GetPixel(x, y);
+	ret.SetPixel(x, y, v >= onedge_value ? 0xFF : 0x00);
+      }
+    }
+    return ret;
+  } else {
+    // Resample to scaled size.
+    ImageA big = sdf.ResizeBilinear(sdf.Height() * scale, sdf.Width() * scale);
+    ImageA ret(sdf.Height(), sdf.Width());
+    for (int y = 0; y < sdf.Height(); y++) {
+      for (int x = 0; x < sdf.Width(); x++) {
+	uint32 count = 0;
+	for (int xo = 0; xo < scale; xo++) {
+	  for (int yo = 0; yo < scale; yo++) {
+	    uint8 v = big.GetPixel(x * scale + xo, y * scale + yo);
+	    if (v >= onedge_value) count += 0xFF;
+	  }
+	}
+
+	count /= (scale * scale);
+	ret.SetPixel(x, y, count);
+      }
+    }
+    return ret;
+  }
+}
+
 void FontProblem::RenderSDF(
     const std::string &font_filename,
     const Network &make_lowercase,
@@ -248,7 +283,7 @@ void FontProblem::RenderSDF(
 
 	[[maybe_unused]]
 	const int codepoint = (lowercasing ? 'A' : 'z') + letter;
-	const int letter_idx = (lowercasing ? 0 : 26) + letter;
+	const int letter_idx = (lowercasing ? 26 : 0) + letter;
 	Stimulation stim{net};
 	SDFFillVector(config, letters[letter_idx], &stim.values[0]);
 
@@ -261,9 +296,13 @@ void FontProblem::RenderSDF(
 	    0x222222FF);
 	  */
 
-	  ImageRGBA sdf = SDFGetImage(config, stim.values[0]).GreyscaleRGBA();
+	  ImageA sdf = SDFGetImage(config, stim.values[0]);
 
-	  img.BlendImage(startx, starty, sdf);
+	  // img.BlendImage(startx, starty, sdf.GreyscaleRGBA());
+	  ImageA thresh = SDFThresholdAA(config.onedge_value,
+					 sdf,
+					 4);
+	  img.BlendImage(startx, starty, thresh.GreyscaleRGBA());
 	  
 	  // (XXX Don't bother if this is the last round)
 	  if (iter == NUM_ITERS - 1)
@@ -280,9 +319,10 @@ void FontProblem::RenderSDF(
 	}
       }
 
-      img.BlendText2x32(LEFT_MARGIN, 4, 0xCCCCCCFF,
-			StringPrintf("Round %lld   Examples %lld   Bytes %lld",
-				     net.rounds, net.examples, net.Bytes()));
+      img.BlendText2x32(LEFT_MARGIN, 4, 0xAAAACCFF,
+			StringPrintf("Round %lld   Examples %lld   Bytes %lld  (Make %s)",
+				     net.rounds, net.examples, net.Bytes(),
+				     lowercasing ? "lowercase" : "uppercase"));
 
       img.Save(outfile);
     };
