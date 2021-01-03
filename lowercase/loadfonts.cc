@@ -20,6 +20,8 @@
 
 using namespace std;
 
+using SDFConfig = FontProblem::SDFConfig;
+
 VectorLoadFonts::VectorLoadFonts(
     std::function<bool()> ExitEarly,
     const vector<int> &row_max_points,

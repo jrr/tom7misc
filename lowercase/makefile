@@ -52,10 +52,6 @@ OBJECTS=$(UTIL_OBJECTS) $(RE2_OBJECTS) ttfops.o fontdb.o network.o font-problem.
 # without static, can't find lz or lstdcxx maybe?
 LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -lpsapi -static
 
-eval-unblinder.exe : $(OBJECTS) eval-unblinder.o
-	@$(CXX) $^ -o $@ $(LFLAGS)
-	@echo -n "!"
-
 ui.exe : $(OBJECTS) $(SDLOBJECTS) ui.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
@@ -83,7 +79,10 @@ vector-info.exe : vector-info.o $(OBJECTS) loadfonts.o
 sdf-info.exe : sdf-info.o $(OBJECTS) loadfonts.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-eval.exe : $(OBJECTS) eval.o
+vector-eval.exe : $(OBJECTS) vector-eval.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+sdf-eval.exe : $(OBJECTS) sdf-eval.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 top_test.exe : top.o top_test.o $(OBJECTS)

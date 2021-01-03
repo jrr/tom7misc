@@ -12,6 +12,16 @@ class ArcFour;
 
 struct FontProblem {
 
+  // Config for generating SDFs. See ttf.h.
+  struct SDFConfig {
+    int sdf_size = 64;
+    int pad_top = 4;
+    int pad_bot = 18;
+    int pad_left = 18;
+    uint8_t onedge_value = 200u;
+    float falloff_per_pixel = 7.860f;
+  };
+
   // Size of e.g. the input feature vector.
   static int BufferSizeForPoints(const std::vector<int> &row_max_points);
   
@@ -55,7 +65,20 @@ struct FontProblem {
 			   const std::vector<int> &row_max_points,
 			   const std::string &out_filename);    
 
+  // Because this generates SDFs and runs two large networks, it's
+  // significantly slower than the above.
+  static void RenderSDF(const std::string &font_filename,
+			const Network &make_lowercase,
+			const Network &make_uppercase,
+			const SDFConfig &config,
+			// writes several files.
+			// "-uppercase.png" etc. is added.
+			const std::string &base_out_filename);
 
+  // For a buffer beginning with an SDF of the appropriate size
+  // (as floats 0-1), build the SDF image.
+  static ImageA SDFGetImage(const SDFConfig &config,
+			    const std::vector<float> &buffer);
   
   // Code for computing the error between a predicted vector shape ("loop")
   // and the expected one.

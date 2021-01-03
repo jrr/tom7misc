@@ -91,7 +91,7 @@ static constexpr int VERBOSE = 2;
 // Perform somewhat expensive sanity checking for NaNs.
 // (Beware: Also enables some other really expensive diagnostics.)
 // XXX PERF turn off once it's working!
-static constexpr bool CHECK_NANS = true;
+static constexpr bool CHECK_NANS = false;
 
 using namespace std;
 
@@ -115,11 +115,16 @@ using Contour = TTF::Contour;
 // terms of the *output* of the transfer function, because
 // this is the most natural/efficient for the sigmoid, and
 // can be done (a bit less naturally) for ReLU.
+//
+// PERF: native_recip? native_exp? It's likely that we can tolerate
+// inaccuracy of certain sorts.
 static const char *SIGMOID_FN =
   "#define FORWARD(potential) (1.0f / (1.0f + exp(-potential)))\n"
   // This wants to be given the actual output value f(potential).
   "#define DERIVATIVE(fx) (fx * (1.0f - fx))\n";
 
+// PERF: I think LEAKY_ is generally better, but this could be
+// implemented with fmax.
 static const char *RELU_FN =
   "#define FORWARD(potential) ((potential < 0.0f) ? 0.0f : potential)\n"
   // This is normally given as x < 0 ? 0 : 1, but note that f(x)
@@ -189,6 +194,7 @@ static void DeleteElements(C *cont) {
 static bool train_should_die = false;
 std::shared_mutex train_should_die_m;
 
+// XXX roundf, right?
 static uint8 FloatByte(float f) {
   if (f <= 0.0f) return 0;
   if (f >= 1.0f) return 255;
@@ -217,7 +223,7 @@ static constexpr int OUTPUT_LAYER_SIZE =
 static constexpr bool DECAY = true;
 static constexpr float DECAY_FACTOR = 0.9995;
 
-static constexpr SDFLoadFonts::SDFConfig SDF_CONFIG = {
+static constexpr FontProblem::SDFConfig SDF_CONFIG = {
   .sdf_size = 64,
   .pad_top = 4,
   .pad_bot = 18,
@@ -1466,7 +1472,7 @@ struct UI {
   void Loop() {
     [[maybe_unused]]
     int mousex = 0, mousey = 0;
-    int vlayer = 0;
+    int vlayer = 0, voffset = 0;
 
     for (;;) {
       // int round = ReadWithLock(&video_export_m, &current_round);
@@ -1534,16 +1540,33 @@ struct UI {
 	    for (int l = 0; l < stim.values.size(); l++) {
 
 	      auto DrawSDF = [](const vector<float> &values, int startx, int starty) {
+		  ImageA img = FontProblem::SDFGetImage(SDF_CONFIG, values);
+		  
 		  for (int y = 0; y < SDF_SIZE; y++) {
 		    int yy = starty + y * 2;
 		    for (int x = 0; x < SDF_SIZE; x++) {
 		      int xx = startx + x * 2;
-		      uint8 v = FloatByte(values[y * SDF_SIZE + x]);
+		      uint8 v = img.GetPixel(x, y);
 
 		      sdlutil::drawclippixel(screen, xx, yy, v, v, v);
 		      sdlutil::drawclippixel(screen, xx + 1, yy, v, v, v);
 		      sdlutil::drawclippixel(screen, xx, yy + 1, v, v, v);
 		      sdlutil::drawclippixel(screen, xx + 1, yy + 1, v, v, v);		    
+		    }
+		  }
+
+		  ImageA twox = img.ResizeBilinear(SDF_SIZE * 2, SDF_SIZE * 2);
+
+		  // second image immediately to the right of the 2x image above
+		  const int X_MARGIN = SDF_SIZE * 2;
+		  for (int y = 0; y < SDF_SIZE * 2; y++) {
+		    int yy = starty + y;
+		    for (int x = 0; x < SDF_SIZE * 2; x++) {
+		      int xx = startx + X_MARGIN + x;
+		      uint8 v = twox.GetPixel(x, y);
+
+		      uint8 vv = v >= SDF_CONFIG.onedge_value ? 0xFF : 0x00;
+		      sdlutil::drawclippixel(screen, xx, yy, vv, vv, vv);
 		    }
 		  }
 		};
@@ -1664,11 +1687,24 @@ struct UI {
 	    if (vlayer >= 0) {
 	      double tot = 0.0;
 	      int yz = ystart + 4;
-	      CHECK(vlayer >= 0 && vlayer < stim.values.size());
+	      CHECK(vlayer >= 0 && vlayer < stim.values.size())
+		<< vlayer << " " << stim.values.size() << " "
+		<< current_network->num_layers;
 	      const vector<float> &vals = stim.values[vlayer];
+	      font->draw(xstart, yz, StringPrintf("Layer %d/%d, stim #%d-%d..\n",
+						  vlayer, stim.values.size(),
+						  voffset, voffset + VIEW_STIM_SIZE - 1));
+	      yz += FONTHEIGHT;
+	      float minv = std::numeric_limits<float>::infinity();
+	      float maxv = -std::numeric_limits<float>::infinity();
+	      int nans = 0;
 	      for (int i = 0; i < vals.size(); i++) {
-		tot += vals[i];
-		if (i < 32) {
+		const float v = vals[i];
+		minv = std::min(v, minv);
+		maxv = std::max(v, maxv);
+		if (std::isnan(v)) nans++;
+		tot += v;
+		if (voffset < i && i < voffset + VIEW_STIM_SIZE) {
 		  // Font color.
 		  CHECK(i >= 0 && i < vals.size());
 		  const int c = vals[i] > 0.5f ? 0 : 1;
@@ -1678,21 +1714,27 @@ struct UI {
 		    CHECK(i >= 0 && i < err.error[prev_layer].size());
 		    const float e = err.error[prev_layer][i];
 		    // Font color.
-		    const int sign = (e == 0.0) ? 4 : (e < 0.0f) ? 2 : 5;
+		    const int signcolor = (e == 0.0) ? 4 : (e < 0.0f) ? 2 : 5;
+		    const char signchar = e < 0.0 ? '-' : ' ';
+		    const float mag = e < 0.0 ? -e : e;
 		    CHECK(i >= 0 && i < vals.size());
 		    font->draw(xstart, yz,
-			       StringPrintf("^%d%.9f ^%d%.12f",
-					    c, vals[i], sign, e));
+			       StringPrintf("^%d%.9f ^%d%c%.10f",
+					    c, v, signcolor, signchar, mag));
 		  } else {
 		    CHECK(i >= 0 && i < vals.size());		    
 		    font->draw(xstart, yz,
-			       StringPrintf("^%d%.9f", c, vals[i]));
+			       StringPrintf("^%d%.9f", c, v));
 		  }
 		  yz += FONTHEIGHT;
 		}
 	      }
 	      font->draw(xstart, yz,
-			 StringPrintf("[%d] tot: %.9f", vlayer, tot));
+			 StringPrintf("stim tot: %.3f nans: %d", tot, nans));
+	      yz += FONTHEIGHT;
+	      font->draw(xstart, yz,
+			 StringPrintf("min/max: %.6f %.6f", minv, maxv));
+	      yz += FONTHEIGHT;
 	    }
 	  }
 
@@ -1710,6 +1752,26 @@ struct UI {
       }
 
       SDL_Event event;
+
+      // Must hold video_export_m.
+      auto FixupV = [this, &vlayer, &voffset]() {
+	  if (vlayer < -1) {
+	    // There are actually num_layers + 1 stimulations.
+	    vlayer = current_network->num_layers;
+	  } else if (vlayer > current_network->num_layers) {
+	    vlayer = -1;
+	  }
+
+	  if (vlayer >= 0) {
+	    if (voffset < 0) voffset = 0;
+	    if (voffset >= current_network->num_nodes[vlayer] - VIEW_STIM_SIZE) {
+	      voffset = current_network->num_nodes[vlayer] - VIEW_STIM_SIZE;
+	    }
+	  }
+	    
+	  dirty = true;
+	};
+
       if (SDL_PollEvent(&event)) {
 	if (event.type == SDL_QUIT) {
 	  Printf("QUIT.\n");
@@ -1734,6 +1796,34 @@ struct UI {
 	    }
 	    break;
 
+	  case SDLK_HOME: {
+	    WriteMutexLock ml(&video_export_m);
+	    voffset = 0;
+	    FixupV();
+	    break;
+	  }
+
+	  case SDLK_END: {
+	    WriteMutexLock ml(&video_export_m);
+	    voffset = 99999;
+	    FixupV();
+	    break;
+	  }
+	    
+	  case SDLK_DOWN: {
+	    WriteMutexLock ml(&video_export_m);
+	    voffset += VIEW_STIM_SIZE;
+	    FixupV();
+	    break;
+	  }
+
+	  case SDLK_UP: {
+	    WriteMutexLock ml(&video_export_m);
+	    voffset -= VIEW_STIM_SIZE;
+	    FixupV();
+	    break;
+	  }
+	    
 	  case SDLK_v:
 	    {
 	      WriteMutexLock ml(&video_export_m);
@@ -1742,12 +1832,7 @@ struct UI {
 
 	      if (current_network != nullptr) {
 		vlayer++;
-		if (vlayer < -1) {
-		  // There are actually num_layers + 1 stimulations.
-		  vlayer = current_network->num_layers;
-		} else if (vlayer > current_network->num_layers) {
-		  vlayer = -1;
-		}
+		FixupV();
 		Printf("vlayer now %d\n", vlayer);
 		dirty = true;
 	      }
@@ -1764,6 +1849,8 @@ struct UI {
 
 
 private:
+  static constexpr int VIEW_STIM_SIZE = 32;
+
   std::shared_mutex video_export_m;
   int current_round = 0;
   double examples_per_second = 0.0;
@@ -1780,56 +1867,51 @@ private:
 
 
 static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
-
+  [[maybe_unused]]
   constexpr int SDF_THREE_QUARTERS = SDF_SIZE * 0.75;
-  
-  const int num_layers = 4;
+  [[maybe_unused]]
+  constexpr int SDF_THREE_HALVES = SDF_SIZE + (SDF_SIZE >> 1);  
+
   const vector<int> width_config =
     { SDF_SIZE,
-      // Lots of redundant info; first make it a
-      // little smaller.
-      SDF_THREE_QUARTERS,
-      SDF_THREE_QUARTERS,
-      OUTPUT_LAYER_SIZE,
+      SDF_SIZE,
+      SDF_THREE_HALVES,
       OUTPUT_LAYER_SIZE, };
-
+ 
   // If zero, automatically factor to make square-ish.
   const vector<int> height_config =
     { SDF_SIZE,
-      SDF_THREE_QUARTERS,
-      SDF_THREE_QUARTERS,
-      0,
+      SDF_SIZE,
+      SDF_THREE_HALVES,
       // output layer
       0, };
 
-  // Everything is single-channel here.
-  const vector<int> channels = { 1, 1, 1, 1, 1, };
-
   // When zero, create a dense layer.
-  const vector<int> indices_per_node_config =
-    {
-      0,
-      0,
-      // half of the nodes
-      (SDF_THREE_QUARTERS * SDF_THREE_QUARTERS) >> 1,
-      // dense
-      0,
-    };
+  const vector<int> indices_per_node_config = {
+    0,
+    0,
+    0,
+  };
 
+  const int num_layers = indices_per_node_config.size();
+
+  // Everything is single-channel here.  
+  const vector<int> channels(num_layers + 1, 1);
+
+  // All use leaky relu
+  const vector<TransferFunction> transfer_functions = {
+    LEAKY_RELU,
+    LEAKY_RELU,
+    SIGMOID,
+  };
+  
   const vector<uint32_t> renderstyle = {
     RENDERSTYLE_SDF,
-    RENDERSTYLE_FLAT,
     RENDERSTYLE_FLAT,
     RENDERSTYLE_FLAT,
     RENDERSTYLE_SDF26,
   };
 
-  const vector<TransferFunction> transfer_functions = {
-    LEAKY_RELU,
-    LEAKY_RELU,
-    LEAKY_RELU,
-    LEAKY_RELU,
-  };
 
   vector<int> height, width;
   CHECK(height_config.size() == width_config.size());
@@ -2133,17 +2215,6 @@ struct Training {
     if (take_screenshot) {
       // Training screenshot.
       ui->SetTakeScreenshot(model_index);
-
-      // Stable eval screenshot on Helvetica (iterative).
-      // XXX need a version for SDF
-      #if 0
-      FontProblem::RenderVector("helvetica.ttf",
-				*net,
-				ROW_MAX_POINTS,
-				StringPrintf("eval%d/eval%lld.png",
-					     model_index,
-					     net->rounds));
-      #endif
     }
 
     if (CHECK_NANS) {
@@ -2516,11 +2587,19 @@ struct Training {
     training.clear();
   }
 
+  // Not thread safe.  
   void Save() {
-    CHECK(net_gpu.get() != nullptr && net.get() != nullptr)  << "Never initialized!";
+    CHECK(net_gpu.get() != nullptr && net.get() != nullptr) << "Never initialized!";
     net_gpu->ReadFromGPU();
     Printf("Saving to %s...\n", model_filename.c_str());
     Network::SaveNetworkBinary(*net, model_filename);
+  }
+
+  // Not thread safe.
+  const Network &Net() {
+    CHECK(net_gpu.get() != nullptr && net.get() != nullptr) << "Never initialized!";
+    net_gpu->ReadFromGPU();
+    return *net;
   }
   
 private:
@@ -2615,6 +2694,8 @@ static void MakeTrainingExamplesThread(
 
     Printf("Not enough training data loaded yet!\n");
     std::this_thread::sleep_for(1s);
+    if (ReadWithLock(&train_should_die_m, &train_should_die))
+      return;
   }
   Printf("Training thread has enough fonts to start creating examples.\n");
 
@@ -2623,8 +2704,8 @@ static void MakeTrainingExamplesThread(
 				       const SDFLoadFonts::Font &f,
 				       TrainingExample *example) -> bool {
       auto FillSDF = [](float *buffer, const ImageA &img) {
-	  CHECK(img.width == SDF_SIZE);
-	  CHECK(img.height == SDF_SIZE);
+	  CHECK(img.Width() == SDF_SIZE);
+	  CHECK(img.Height() == SDF_SIZE);
 	  for (int y = 0; y < SDF_SIZE; y++) {
 	    for (int x = 0; x < SDF_SIZE; x++) {
 	      int idx = y * SDF_SIZE + x;
@@ -2868,7 +2949,18 @@ int SDL_main(int argc, char **argv) {
 	  // Can just use this existing thread though.
 	  make_uppercase->RunRound();
 	  lthread.join();
+
+	  int total_rounds = lrounds + urounds + 2;
+	  if ((total_rounds / 2) % 100 == 0) {
+	    Printf("Eval...\n");
+	    FontProblem::RenderSDF("helvetica.ttf",
+				   make_lowercase->Net(),
+				   make_uppercase->Net(),
+				   SDF_CONFIG,
+				   StringPrintf("eval/eval%d", total_rounds / 2));
+	  }
 	}
+
       }
     }};
   

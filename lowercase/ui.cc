@@ -951,7 +951,7 @@ void UI::DrawSDF() {
 
   static constexpr int SIZE = 64;
   
-  using SDFConfig = SDFLoadFonts::SDFConfig;
+  using SDFConfig = FontProblem::SDFConfig;
   SDFConfig config;
   config.sdf_size = SIZE;
   config.pad_top = 4;
@@ -983,9 +983,9 @@ void UI::DrawSDF() {
 
     auto DrawBitmap = [](int startx, int starty, const ImageA &sdf) {
 	int idx = 0;
-	for (int y = 0; y < sdf.height; y++) {
+	for (int y = 0; y < sdf.Height(); y++) {
 	  int yy = starty + y;
-	  for (int x = 0; x < sdf.width; x++) {
+	  for (int x = 0; x < sdf.Width(); x++) {
 	    uint8 v = sdf.GetPixel(x, y);
 	    int xx = startx + x;
 	    sdlutil::drawclippixel(screen, xx, yy, v, v, v);
@@ -997,9 +997,9 @@ void UI::DrawSDF() {
     auto DrawBitmapThresh = [](uint8 thresh,
 				 int startx, int starty, const ImageA &sdf) {
 	int idx = 0;
-	for (int y = 0; y < sdf.height; y++) {
+	for (int y = 0; y < sdf.Height(); y++) {
 	  int yy = starty + y;
-	  for (int x = 0; x < sdf.width; x++) {
+	  for (int x = 0; x < sdf.Width(); x++) {
 	    uint8 v = sdf.GetPixel(x, y);
 	    int xx = startx + x;
 	    
@@ -1013,9 +1013,9 @@ void UI::DrawSDF() {
     
     auto DrawBitmap2x = [](int startx, int starty, const ImageA &sdf) {
 	int idx = 0;
-	for (int y = 0; y < sdf.height; y++) {
+	for (int y = 0; y < sdf.Height(); y++) {
 	  int yy = starty + y * 2;
-	  for (int x = 0; x < sdf.width; x++) {
+	  for (int x = 0; x < sdf.Width(); x++) {
 	    uint8 v = sdf.GetPixel(x, y);
 	    int xx = startx + x * 2;
 	    sdlutil::drawclippixel(screen, xx, yy, v, v, v);
@@ -1030,9 +1030,9 @@ void UI::DrawSDF() {
     auto DrawBitmapThresh2x = [](uint8 thresh,
 				 int startx, int starty, const ImageA &sdf) {
 	int idx = 0;
-	for (int y = 0; y < sdf.height; y++) {
+	for (int y = 0; y < sdf.Height(); y++) {
 	  int yy = starty + y * 2;
-	  for (int x = 0; x < sdf.width; x++) {
+	  for (int x = 0; x < sdf.Width(); x++) {
 	    uint8 v = sdf.GetPixel(x, y);
 	    int xx = startx + x * 2;
 	    
@@ -1051,13 +1051,13 @@ void UI::DrawSDF() {
     DrawBitmap2x(X1, Y1, sdf.value());
     DrawBitmapThresh2x(config.onedge_value, X2, Y2, sdf.value());
 
-    ImageA twox = sdf.value().ResizeBilinear(sdf.value().width * 2,
-					     sdf.value().height * 2);
+    ImageA twox = sdf.value().ResizeBilinear(sdf.value().Width() * 2,
+					     sdf.value().Height() * 2);
     DrawBitmap2x(X3, Y3, twox);
     DrawBitmapThresh2x(config.onedge_value, X4, Y4, twox);
 
-    ImageA fourx = sdf.value().ResizeBilinear(sdf.value().width * 4,
-					      sdf.value().height * 4);
+    ImageA fourx = sdf.value().ResizeBilinear(sdf.value().Width() * 4,
+					      sdf.value().Height() * 4);
     DrawBitmap(X5, Y5, fourx);
     DrawBitmapThresh(config.onedge_value, X6, Y6, fourx);
     
