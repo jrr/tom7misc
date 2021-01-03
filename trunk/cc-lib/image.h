@@ -18,6 +18,12 @@ struct ImageRGBA {
   using uint32 = uint32_t;
   ImageRGBA(const std::vector<uint8> &rgba, int width, int height);
   ImageRGBA(int width, int height);
+
+  // TODO: copy/assignment
+  
+  int Width() const { return width; }
+  int Height() const { return height; }
+
   
   static ImageRGBA *Load(const std::string &filename);
   static ImageRGBA *LoadFromMemory(const std::vector<uint8> &bytes);
@@ -84,8 +90,9 @@ struct ImageRGBA {
 
   // Clipped, alpha blending.
   void BlendImage(int x, int y, const ImageRGBA &other);
-  
-  const int width, height;
+
+private:
+  int width, height;
   // Size width * height * 4.
   std::vector<uint8> rgba;
 };
@@ -95,10 +102,23 @@ struct ImageA {
   using uint8 = uint8_t;
   ImageA(const std::vector<uint8> &alpha, int width, int height);
   ImageA(int width, int height);
+  // Empty image sometimes useful for filling vectors, etc.
+  ImageA() : ImageA(0, 0) {}
+  // Value semantics.
+  ImageA(const ImageA &other) = default;
+  ImageA(ImageA &&other) = default;
+  ImageA &operator =(const ImageA &other) = default;
+  ImageA &operator =(ImageA &&other) = default;
+
+  int Width() const { return width; }
+  int Height() const { return height; }
   
   ImageA *Copy() const;
   // Generally appropriate for enlarging, not shrinking.
   ImageA ResizeBilinear(int new_width, int new_height) const;
+  // Make a four-channel image of the same size, R=v, G=v, B=v, A=0xFF.
+  ImageRGBA GreyscaleRGBA() const;
+
   
   // TODO: Text drawing is easy here!
 
@@ -113,8 +133,9 @@ struct ImageA {
   // corners (not their centers).
   // x/y out of bounds will repeat edge pixels.
   float SampleBilinear(float x, float y) const;
-  
-  const int width, height;
+
+private:
+  int width, height;
   // Size width * height.
   std::vector<uint8> alpha;
 };

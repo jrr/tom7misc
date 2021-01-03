@@ -513,3 +513,16 @@ ImageA ImageA::ResizeBilinear(int nwidth, int nheight) const {
   }
   return ret;
 }
+
+ImageRGBA ImageA::GreyscaleRGBA() const {
+  ImageRGBA rgba(width, height);
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      uint8 v = GetPixel(x, y);
+      // PERF if compiler can't optimize out the bounds checks here,
+      // we can do it
+      rgba.SetPixel(x, y, v, v, v, 0xFF);
+    }
+  }
+  return rgba;
+}
