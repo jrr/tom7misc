@@ -4,13 +4,14 @@
 
 #include "loadfonts.h"
 #include "timer.h"
+#include "font-problem.h"
 
 using namespace std;
 
 int main(int argc, char **argv) {
   static constexpr int SIZE = 64;
   
-  using SDFConfig = SDFLoadFonts::SDFConfig;
+  using SDFConfig = FontProblem::SDFConfig;
   SDFConfig config;
   config.sdf_size = SIZE;
   config.pad_top = 4;

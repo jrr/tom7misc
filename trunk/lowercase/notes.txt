@@ -93,3 +93,28 @@ put them in sdfmodels as a good starting point?
 "just predicts the average" could be what happens if we only update biases
 and never weights, by the way
 
+
+well, with those settings was still stalled with super low activations
+
+
+okaaaaaay, trying again with fewer layers, all dense
+(these have twice as many total weights though!)
+
+31 eps, but, actually maxing out the GPU now
+... aaand it blows up in 16 rounds
+
+
+3 Jan 2021
+Changed a few things again and now it's making progress (overnight, 7042 rounds)
+I think I partly just got lucky because the lowercase model blew up,
+but the uppercase one was still generating some nice average blobs, so I copied
+the uppercase model oevr the lowercase one... in early stages it's fine for
+them to have the same cold start (this could even be an explicit strategy in
+the future to save some time training?)
+
+ - used two hidden layers, but bigger ones (1x square, then 1.5x square, then output)
+ - all dense layers
+ - use sigmoid in output layer
+ - "Tom initialization"
+ - decay weights 0.9995f
+ - 

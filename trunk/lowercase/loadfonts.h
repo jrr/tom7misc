@@ -12,6 +12,7 @@
 #include "fontdb.h"
 #include "ttf.h"
 #include "image.h"
+#include "font-problem.h"
 
 // Load fonts in the background.
 struct VectorLoadFonts {
@@ -55,22 +56,13 @@ private:
 
 struct SDFLoadFonts {
   using int64 = int64_t;
-  
-  // See ttf.h.
-  // The SDFs are somewhat expensive to compute, so they are kept in memory.
+
+  // The SDFs are somewhat expensive to compute, so they are generated up front
+  // and kept in memory according to the SDFConfig.
   // At 64x64, 10,000 fonts take about 2 GB.
-  struct SDFConfig {
-    int sdf_size = 64;
-    int pad_top = 8;
-    int pad_bot = 24;
-    int pad_left = 24;
-    uint8_t onedge_value = 128;
-    float falloff_per_pixel = 8.0f;
-  };
-  
   SDFLoadFonts(
       std::function<bool()> ExitEarly,
-      SDFConfig config,
+      FontProblem::SDFConfig config,
       int max_parallelism,
       int64 max_fonts);
 
@@ -100,7 +92,7 @@ private:
   const int max_parallelism;
   const int64 max_fonts;
   const std::function<bool()> ExitEarly;
-  const SDFConfig config;
+  const FontProblem::SDFConfig config;
 
   int64 num_failed = 0;
   

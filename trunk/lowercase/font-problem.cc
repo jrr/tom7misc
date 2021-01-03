@@ -14,6 +14,7 @@
 #include "lines.h"
 #include "arcfour.h"
 #include "randutil.h"
+#include "timer.h"
 
 using namespace std;
 
@@ -155,6 +156,147 @@ void FontProblem::RenderVector(const string &font_filename,
 				 net.rounds, net.examples, net.Bytes()));
   img.Save(out_filename);
 }
+
+// XXX maybe should share this code with training?
+static void SDFFillVector(
+    // Actually, could drop this param, which is just used for sanity checking
+    const FontProblem::SDFConfig &config,
+    const ImageA &sdf,
+    vector<float> *buffer) {
+  CHECK(sdf.Width() == config.sdf_size);
+  CHECK(sdf.Height() == config.sdf_size); 
+  CHECK(buffer->size() >= config.sdf_size * config.sdf_size);
+
+  int idx = 0;
+  for (int y = 0; y < sdf.Height(); y++) {
+    for (int x = 0; x < sdf.Width(); x++) {
+      (*buffer)[idx++] = sdf.GetPixel(x, y) / 255.0f;
+    }
+  }
+}
+
+// XXX this should roundf, right?
+static uint8 FloatByte(float f) {
+  if (f <= 0.0f) return 0;
+  if (f >= 1.0f) return 255;
+  else return f * 255.0;
+}
+
+ImageA FontProblem::SDFGetImage(const SDFConfig &config,
+				const vector<float> &buffer) {
+  CHECK(buffer.size() >= config.sdf_size * config.sdf_size);
+  ImageA img(config.sdf_size, config.sdf_size);
+  for (int y = 0; y < config.sdf_size; y++) {
+    for (int x = 0; x < config.sdf_size; x++) {
+      img.SetPixel(x, y, FloatByte(buffer[y * config.sdf_size + x]));
+    }
+  }
+  return img;
+}
+
+void FontProblem::RenderSDF(
+    const std::string &font_filename,
+    const Network &make_lowercase,
+    const Network &make_uppercase,
+    const SDFConfig &config,
+    const std::string &base_out_filename) {
+  Timer timer;
+  
+  static constexpr int WIDTH = 1920;
+  static constexpr int HEIGHT = 1080;
+
+  static constexpr int LETTER_WIDTH = 64;
+  static constexpr int LETTER_X_MARGIN = 2;
+  static constexpr int LETTER_HEIGHT = 64;
+  static constexpr int LETTER_Y_MARGIN = 2;  
+  static constexpr int LEFT_MARGIN = 12;
+  static constexpr int TOP_MARGIN = 28;
+  
+  static constexpr int NUM_ITERS = 12;
+  
+  TTF ttf{font_filename};
+
+  static constexpr char CHARS[] =
+    "abcdefghijklmnopqrstuvwxyz"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  
+  vector<ImageA> letters;
+  letters.resize(26 * 2);
+  ParallelComp(26 * 2,
+	       [&config, &font_filename, &ttf, &letters](int idx) {
+		 int c = CHARS[idx];
+		 CHECK(c != 0);
+		 std::optional<ImageA> sdf =
+		   ttf.GetSDF(c, config.sdf_size,
+			      config.pad_top, config.pad_bot, config.pad_left,
+			      config.onedge_value, config.falloff_per_pixel);
+		 CHECK(sdf.has_value()) << font_filename << "char " << (char)c;
+		 letters[idx] = std::move(sdf.value());
+	       }, 13);
+
+  printf("Generated SDFs for %s in %.2fs\n", font_filename.c_str(), timer.MS() / 1000.0);
+
+  auto Iterative = [&config, &letters](const Network &net, bool lowercasing,
+				       const string &outfile) {
+      ImageRGBA img{WIDTH, HEIGHT};
+      img.Clear32(0x000000FF);
+
+      // Also threaded?
+      for (int letter = 0; letter < 26; letter++) {
+	const int startx =
+	  LEFT_MARGIN + (LETTER_WIDTH + LETTER_X_MARGIN) * letter;
+
+	[[maybe_unused]]
+	const int codepoint = (lowercasing ? 'A' : 'z') + letter;
+	const int letter_idx = (lowercasing ? 0 : 26) + letter;
+	Stimulation stim{net};
+	SDFFillVector(config, letters[letter_idx], &stim.values[0]);
+
+	
+	for (int iter = 0; iter < NUM_ITERS; iter++) {
+	  const int starty =
+	    TOP_MARGIN + iter * (LETTER_HEIGHT + LETTER_Y_MARGIN);
+	  /*
+	    img.BlendRect32(startx, starty, LETTER_WIDTH, LETTER_HEIGHT,
+	    0x222222FF);
+	  */
+
+	  ImageRGBA sdf = SDFGetImage(config, stim.values[0]).GreyscaleRGBA();
+
+	  img.BlendImage(startx, starty, sdf);
+	  
+	  // (XXX Don't bother if this is the last round)
+	  if (iter == NUM_ITERS - 1)
+	    break;
+	  
+	  net.RunForward(&stim);
+      
+	  vector<float> *input = &stim.values[0];
+	  const vector<float> &output = stim.values[stim.values.size() - 1];
+	  
+	  for (int i = 0; i < input->size(); i++) {
+	    (*input)[i] = output[i];
+	  }
+	}
+      }
+
+      img.BlendText2x32(LEFT_MARGIN, 4, 0xCCCCCCFF,
+			StringPrintf("Round %lld   Examples %lld   Bytes %lld",
+				     net.rounds, net.examples, net.Bytes()));
+
+      img.Save(outfile);
+    };
+  
+  // These are slow so do them in parallel.
+  std::thread lthread(
+      [&]() {
+	Iterative(make_lowercase, true, base_out_filename + ".lower.png");
+      });
+  Iterative(make_uppercase, false, base_out_filename + ".upper.png");
+  lthread.join();
+  printf("Evaluated in %.2fs\n", timer.MS() / 1000.0);
+}
+
 
 bool FontProblem::GetRows(const TTF *ttf, int codepoint,
 			  const std::vector<int> &row_max_points,
