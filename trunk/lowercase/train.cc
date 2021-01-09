@@ -11,11 +11,6 @@
 // it may be funny/interesting.
 
 
-
-// TODO: Output error history during training. Could just concatenate
-// it to a file. Would be nice to get it over a large number of examples
-// (more than the batch size) to reduce variance.
-
 // TODO: Fix error display.
 
 // TODO: 2x/3x for RGB/FLAT.
@@ -81,6 +76,7 @@
 #include "top.h"
 #include "font-problem.h"
 #include "autoparallel.h"
+#include "error-history.h"
 
 #include "../bit7/embed9x9.h"
 
@@ -199,6 +195,16 @@ static uint8 FloatByte(float f) {
   if (f <= 0.0f) return 0;
   if (f >= 1.0f) return 255;
   else return f * 255.0;
+}
+
+static std::tuple<uint8, uint8, uint8> FloatColor(float f) {
+  if (f > 0.0f) {
+    uint8 v = FloatByte(f);
+    return {v, v, v};
+  } else {
+    uint8 v = FloatByte(-f);
+    return {v, 20, 0};
+  }
 }
 
 static constexpr float ByteFloat(uint8 b) {
@@ -1666,8 +1672,9 @@ struct UI {
 		    const int cidx =
 		      y * current_network->width[l] *
 		      current_network->channels[l] + x;
-		    const uint8 v = FloatByte(stim.values[l][cidx]);
-		    sdlutil::drawpixel(screen, xx, yy, v, v, v);
+		    const auto [r, g, b] = FloatColor(stim.values[l][cidx]);
+		    // const uint8 v = FloatByte();
+		    sdlutil::drawpixel(screen, xx, yy, r, g, b);
 		  }
 		}
 		break;
@@ -2394,7 +2401,9 @@ struct Training {
 	  total_error += fabs(d);
 	}
       }
-      ui->ExportTotalErrorToVideo(model_index, total_error / (double)TRAINING_PER_ROUND);
+      const double error_per_example = total_error / (double)TRAINING_PER_ROUND;
+      ui->ExportTotalErrorToVideo(model_index, error_per_example);
+      recent_error = make_pair(net->rounds, error_per_example);
     }
 
     if (ShouldDie()) return;
@@ -2612,6 +2621,9 @@ struct Training {
     net_gpu->ReadFromGPU();
     return *net;
   }
+
+  // Not thread safe.
+  std::pair<int64, double> GetRecentError() const { return recent_error; }
   
 private:
   // Try to keep twice that in the queue all the time.
@@ -2681,6 +2693,10 @@ private:
   // Also protected by the mutex: The number of eval outputs that were
   // computed but discarded because the queue got too big.
   int64 eval_outputs_wasted = 0LL;
+
+  // (if non-zero) round at which we last computed the total training error,
+  // and that error (expressed as error-per-example).
+  std::pair<int64, double> recent_error = {0, 0.0};
 };
 
 // Inserts examples into the Training objects, and reads their eval outputs
@@ -2693,7 +2709,7 @@ static void MakeTrainingExamplesThread(
   string seed = StringPrintf("make ex %lld", (int64)time(nullptr));
   ArcFour rc(seed);
   rc.Discard(2000);
-
+  
   CHECK(load_fonts != nullptr) << "LoadFonts must be created first.";
   // First, pause until we have enough fonts.
   for (;;) {
@@ -2925,10 +2941,14 @@ int SDL_main(int argc, char **argv) {
       MakeTrainingExamplesThread(make_lowercase, make_uppercase);
     }};
 
+  ErrorHistory error_history("sdf-error.tsv", 2);
+  
   // FIXME call RunRound, but throttle if necessary
   std::thread train_thread{
-    [make_lowercase, make_uppercase]() {
+    [&training, make_lowercase, make_uppercase, &error_history]() {
 
+      int64 last_error_round[2] = {0, 0};
+      
       while (!ReadWithLock(&train_should_die_m, &train_should_die)) {
 
 	// Pause if exclusive app is running.
@@ -2972,6 +2992,20 @@ int SDL_main(int argc, char **argv) {
 	  }
 	}
 
+	auto RecordError = [&training, &error_history, &last_error_round](int idx) {
+	    const auto [round, err] = training[idx]->GetRecentError();
+	    if (round > 0) {
+	      // We don't compute error on every round. Make sure it's a new reading.
+	      if (round > last_error_round[idx]) {
+		last_error_round[idx] = round;
+		// is_eval = false because this is always training error.
+		error_history.Add(round, err, false, idx);
+	      }
+	    }
+	  };
+	
+	RecordError(0);
+	RecordError(1);	
       }
     }};
   
@@ -2985,6 +3019,8 @@ int SDL_main(int argc, char **argv) {
   
   for (Training *t : training) delete t;
   examples_thread.join();
+
+  error_history.Save();
   
   Printf("Train is dead; now UI exiting.\n");
 

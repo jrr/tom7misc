@@ -276,52 +276,82 @@ void FontProblem::RenderSDF(
       ImageRGBA img{WIDTH, HEIGHT};
       img.Clear32(0x000000FF);
 
-      // Also threaded?
-      for (int letter = 0; letter < 26; letter++) {
-	const int startx =
-	  LEFT_MARGIN + (LETTER_WIDTH + LETTER_X_MARGIN) * letter;
-
-	[[maybe_unused]]
-	const int codepoint = (lowercasing ? 'A' : 'z') + letter;
-	const int letter_idx = (lowercasing ? 26 : 0) + letter;
-	Stimulation stim{net};
-	SDFFillVector(config, letters[letter_idx], &stim.values[0]);
-
-	
-	for (int iter = 0; iter < NUM_ITERS; iter++) {
-	  const int starty =
-	    TOP_MARGIN + iter * (LETTER_HEIGHT + LETTER_Y_MARGIN);
-	  /*
-	    img.BlendRect32(startx, starty, LETTER_WIDTH, LETTER_HEIGHT,
-	    0x222222FF);
-	  */
-
-	  ImageA sdf = SDFGetImage(config, stim.values[0]);
-
-	  // img.BlendImage(startx, starty, sdf.GreyscaleRGBA());
-	  ImageA thresh = SDFThresholdAA(config.onedge_value,
-					 sdf,
-					 4);
-	  img.BlendImage(startx, starty, thresh.GreyscaleRGBA());
-	  
-	  // (XXX Don't bother if this is the last round)
-	  if (iter == NUM_ITERS - 1)
-	    break;
-	  
-	  net.RunForward(&stim);
+      std::mutex loss_m;
+      double total_loss = 0.0;
       
-	  vector<float> *input = &stim.values[0];
-	  const vector<float> &output = stim.values[stim.values.size() - 1];
-	  
-	  for (int i = 0; i < input->size(); i++) {
-	    (*input)[i] = output[i];
-	  }
-	}
-      }
+      // This runs in parallel, so be careful that drawing accesses disjoint
+      // pixels per letter.
+      ParallelComp
+	(26,
+	 [&config, &letters, &net, lowercasing,
+	  &img, &loss_m, &total_loss](int letter) {
+	   double letter_loss = 0.0;
+	   const int startx =
+	     LEFT_MARGIN + (LETTER_WIDTH + LETTER_X_MARGIN) * letter;
+
+	   [[maybe_unused]]
+	     const int codepoint = (lowercasing ? 'A' : 'z') + letter;
+	   const int letter_idx = (lowercasing ? 26 : 0) + letter;
+	   const int expected_idx = (lowercasing ? 0 : 26) + letter;
+	   Stimulation stim{net};
+	   SDFFillVector(config, letters[letter_idx], &stim.values[0]);
+
+	   // fill just the input portion; don't worry about the 26 letter predictors
+	   vector<float> expected;
+	   expected.resize(stim.values[0].size());
+	   SDFFillVector(config, letters[expected_idx], &expected);
+	
+	   for (int iter = 0; iter < NUM_ITERS; iter++) {
+	     const int starty =
+	       TOP_MARGIN + iter * (LETTER_HEIGHT + LETTER_Y_MARGIN);
+	     /*
+	       img.BlendRect32(startx, starty, LETTER_WIDTH, LETTER_HEIGHT,
+	       0x222222FF);
+	     */
+
+	     ImageA sdf = SDFGetImage(config, stim.values[0]);
+
+	     // img.BlendImage(startx, starty, sdf.GreyscaleRGBA());
+	     ImageA thresh_lowest = SDFThresholdAA(config.onedge_value * 0.95, sdf, 4);
+	     ImageA thresh_low = SDFThresholdAA(config.onedge_value * 0.975, sdf, 4);
+	     ImageA thresh_hi = SDFThresholdAA(config.onedge_value, sdf, 4);
+	     img.BlendImage(startx, starty, thresh_lowest.AlphaMaskRGBA(0x44, 0x00, 0x00));
+	     img.BlendImage(startx, starty, thresh_low.AlphaMaskRGBA(0x66, 0x22, 0x9F));
+	     img.BlendImage(startx, starty, thresh_hi.AlphaMaskRGBA(0xFF, 0xFF, 0xFF));
+
+	     // (XXX Don't bother if this is the last round)
+	     if (iter == NUM_ITERS - 1)
+	       break;
+	     
+	     net.RunForward(&stim);
+	     
+	     vector<float> *input = &stim.values[0];
+	     const vector<float> &output = stim.values[stim.values.size() - 1];
+
+	     // We only have expected results (from the original font) for the
+	     // first iteration.
+	     if (iter == 0) {
+	       CHECK(output.size() >= expected.size());
+	       for (int i = 0; i < expected.size(); i++) {
+		 letter_loss += fabs(output[i] - expected[i]);
+	       }
+	     }
+	     
+	     for (int i = 0; i < input->size(); i++) {
+	       (*input)[i] = output[i];
+	     }
+	   }
+
+	   {
+	     MutexLock ml(&loss_m);
+	     total_loss += letter_loss;
+	   }
+	 }, 4);
 
       img.BlendText2x32(LEFT_MARGIN, 4, 0xAAAACCFF,
-			StringPrintf("Round %lld   Examples %lld   Bytes %lld  (Make %s)",
+			StringPrintf("Round %lld   Examples %lld   Bytes %lld  Loss %.4f  (Make %s)",
 				     net.rounds, net.examples, net.Bytes(),
+				     total_loss,
 				     lowercasing ? "lowercase" : "uppercase"));
 
       img.Save(outfile);
