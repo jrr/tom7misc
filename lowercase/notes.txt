@@ -118,3 +118,4 @@ the future to save some time training?)
  - "Tom initialization"
  - decay weights 0.9995f
  - 
+
