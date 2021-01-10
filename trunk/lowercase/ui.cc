@@ -949,16 +949,18 @@ void UI::DrawSDF() {
 	 falloff_min, falloff_max, FALLOFF);
 #endif
 
-  static constexpr int SIZE = 64;
+  static constexpr int SIZE = 32;
   
   using SDFConfig = FontProblem::SDFConfig;
   SDFConfig config;
   config.sdf_size = SIZE;
-  config.pad_top = 4;
-  config.pad_bot = 18;
-  config.pad_left = 18;
+  config.pad_top = 1;
+  config.pad_bot = 4;
+  config.pad_left = 4;
   config.onedge_value = 200;
+  config.falloff_per_pixel = 18.0f;
 
+  /*
   const float base_padding = (config.pad_top + config.pad_bot) * 0.5f;
   
   const float falloff_min =
@@ -967,6 +969,7 @@ void UI::DrawSDF() {
   CHECK(falloff_max > falloff_min);
   // config.falloff_per_pixel = 0.5f * (falloff_min + falloff_max);
   config.falloff_per_pixel = 0.25f * falloff_max + 0.75 * falloff_min;
+  */
   printf("Falloff per pixel: %.3f\n", config.falloff_per_pixel);
   
   const TTF *font = GetFont(cur);

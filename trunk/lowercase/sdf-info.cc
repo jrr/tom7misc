@@ -9,16 +9,12 @@
 using namespace std;
 
 int main(int argc, char **argv) {
-  static constexpr int SIZE = 64;
   
   using SDFConfig = FontProblem::SDFConfig;
+  static constexpr int SIZE = SDFConfig().sdf_size;
   SDFConfig config;
-  config.sdf_size = SIZE;
-  config.pad_top = 4;
-  config.pad_bot = 18;
-  config.pad_left = 18;
-  config.onedge_value = 200;
 
+  /*
   const float base_padding = (config.pad_top + config.pad_bot) * 0.5f;
   
   const float falloff_min =
@@ -27,13 +23,15 @@ int main(int argc, char **argv) {
   CHECK(falloff_max > falloff_min);
   // config.falloff_per_pixel = 0.5f * (falloff_min + falloff_max);
   config.falloff_per_pixel = 0.25f * falloff_max + 0.75 * falloff_min;
+  */
   
   SDFLoadFonts loadfonts(
       []() { return false; },
       config,
       30,
       // (Don't use a huge number... the code reserves space!)
-      20'000LL);
+      1000);
+      // 20'000LL);
 
 
 

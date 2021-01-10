@@ -7,8 +7,8 @@
 
 // Alternative (with NOCLIP=true) you can require the weights
 // and biases to stay within -MAX to MAX.
-#define CONSTRAIN false
-#define CONSTRAIN_WEIGHT_MAX 128.0f
+#define CONSTRAIN true
+#define CONSTRAIN_WEIGHT_MAX 16.0f
 #define CONSTRAIN_BIAS_MAX 16384.0f
 
 // Defines:

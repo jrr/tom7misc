@@ -177,4 +177,10 @@ bad (and looks basically constant) on both.
 --------------------------------------------------
 
 
+sparse model... weights go to the max (+/- clamped) by 7 rounds (maybe immediately)!
+maybe we should put these histos in the training ui
 
+
+
+after all the futzing, the thing that seemed to get it on track was to
+set the learning rate (high end) to 0.01f.

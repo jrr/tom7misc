@@ -1,17 +1,21 @@
 
+#include "modelinfo.h"
+
 #include <memory>
 #include <string>
 #include <cstdint>
 #include <cmath>
 
+#include "image.h"
 #include "network.h"
-#include "font-problem.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
 
 using namespace std;
 using int64 = int64_t;
 
+namespace {
+// XXX could make sense as a standalone utility?
 struct Histogram {
   void Add(float f) { values.push_back(f); }
 
@@ -51,10 +55,22 @@ struct Histogram {
     
     // Finally, fill in the image.
     for (int bucket = 0; bucket < width; bucket++) {
-      double fh = count[bucket] / (double)max_count;
-      int h = roundf(fh * (height - 1));
-      if (h == 0 && count[bucket] > 0) h = 1;
+      double hfrac = count[bucket] / (double)max_count;
+      float fh = hfrac * (height - 1);
+      int h = fh;
+      float fpart = fh - h;
+      // don't allow zero pixels.
+      // this is not accurate but I want to be able to see
+      // non-empty buckets clearly
+      if (h == 0 && count[bucket] > 0) {
+	h = 1;
+	fpart = 0.0f;
+      }
       int nh = height - h;
+      if (nh > 0) {
+	uint8 v = roundf(fpart * 255);
+	img.SetPixel(bucket, nh - 1, v);
+      }
       for (int y = nh; y < height; y++) {
 	CHECK(bucket < img.Width() && bucket >= 0 &&
 	      y < img.Height() && y >= 0) << bucket << " " << y;
@@ -74,37 +90,26 @@ struct Histogram {
   
   vector<float> values;
 };
+}  // namespace
 
-int main(int argc, char **argv) {
-
-  string modelfile = argc > 1 ? (string)argv[1] : "net0.val";
-  
-  // Try loading from disk; null on failure.
-  printf("Load networks...\n");
-  std::unique_ptr<Network> net(Network::ReadNetworkBinary(modelfile));
-  
-  CHECK(net.get() != nullptr) << modelfile;
-
+ImageRGBA ModelInfo(const Network &net, int width, int height) {
+  static constexpr int MARGIN = 4;  
   // Get histogram of weights per layer.
   // Only layers with inputs (i.e. not the input layer) have weights.
-  const int num_histos = net->num_layers;
-    
-  static constexpr int HISTOW = 800;
-  static constexpr int HISTOH = 256;
-  static constexpr int MARGIN = 4;
+  const int num_histos = net.num_layers;
+
+  const int HISTOW = width / 2 - MARGIN;
+  const int HISTOH = height / num_histos;
   
-  const int WIDTH = HISTOW * 2 + MARGIN;
-  const int HEIGHT = HISTOH * num_histos;
-  
-  ImageRGBA img(WIDTH, HEIGHT);
+  ImageRGBA img{width, height};
   img.Clear32(0x000000FF);
   
-  for (int layer = 0; layer < net->num_layers; layer++) {
+  for (int layer = 0; layer < net.num_layers; layer++) {
     Histogram bias_histo;
-    for (float f : net->layers[layer].biases) bias_histo.Add(f);
+    for (float f : net.layers[layer].biases) bias_histo.Add(f);
 
     Histogram weight_histo;
-    for (float f : net->layers[layer].weights) weight_histo.Add(f);    
+    for (float f : net.layers[layer].weights) weight_histo.Add(f);    
     
     auto DrawHisto = [&img](const Histogram &histo, int x, int y, int w, int h,
 			    const string &label) {
@@ -133,9 +138,6 @@ int main(int argc, char **argv) {
     DrawHisto(weight_histo, HISTOW + MARGIN, HISTOH * layer, HISTOW, HISTOH,
 	      StringPrintf("^ Weights layer %d ^", layer));
   }
-    
-  img.Save("modelinfo.png");
-  
-  printf("Done.\n");
-  return 0;
+
+  return img;
 }
