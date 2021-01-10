@@ -77,6 +77,7 @@
 #include "font-problem.h"
 #include "autoparallel.h"
 #include "error-history.h"
+#include "modelinfo.h"
 
 #include "../bit7/embed9x9.h"
 
@@ -192,9 +193,8 @@ std::shared_mutex train_should_die_m;
 
 // XXX roundf, right?
 static uint8 FloatByte(float f) {
-  if (f <= 0.0f) return 0;
-  if (f >= 1.0f) return 255;
-  else return f * 255.0;
+  int x = roundf(f * 255.0);
+  return std::clamp(x, 0, 255);
 }
 
 static std::tuple<uint8, uint8, uint8> FloatColor(float f) {
@@ -211,8 +211,10 @@ static constexpr float ByteFloat(uint8 b) {
   return b * (1.0 / 255.0f);
 }
 
+static constexpr FontProblem::SDFConfig SDF_CONFIG;
+static constexpr int SDF_SIZE = SDF_CONFIG.sdf_size;
+
 // SDF is square with an edge this length.
-static constexpr int SDF_SIZE = 64;
 static constexpr int INPUT_LAYER_SIZE = SDF_SIZE * SDF_SIZE;
 // The output is the same shape.
 // Additionally, consider adding a one-hot prediction of the letter
@@ -229,16 +231,7 @@ static constexpr int OUTPUT_LAYER_SIZE =
 static constexpr bool DECAY = true;
 static constexpr float DECAY_FACTOR = 0.9995;
 
-static constexpr FontProblem::SDFConfig SDF_CONFIG = {
-  .sdf_size = 64,
-  .pad_top = 4,
-  .pad_bot = 18,
-  .pad_left = 18,
-  .onedge_value = 200U,
-  .falloff_per_pixel = 7.860f,
-};
-
-static constexpr int NEIGHBORHOOD = 1;
+static constexpr int NEIGHBORHOOD = 3;
 
 
 // custom renderstyles for font problem
@@ -1262,11 +1255,11 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
     // The more indices we have, the smaller initial weights we should
     // use.
     // "Xavier initialization"
-    // const float mag = 1.0f / sqrtf(net->layers[layer].indices_per_node);
+    const float mag = 1.0f / sqrtf(net->layers[layer].indices_per_node);
     // "He initialization"
     // const float mag = sqrtf(2.0 / net->layers[layer].indices_per_node);
     // Tom initialization
-    const float mag = (0.0125f / net->layers[layer].indices_per_node);
+    // const float mag = (0.0125f / net->layers[layer].indices_per_node);
     RandomizeFloatsUniform(mag, rcs[layer], &net->layers[layer].weights);
   }, 12);
 
@@ -1276,7 +1269,9 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 
 // These must be initialized before starting the UI thread!
 static constexpr int NUM_VIDEO_STIMULATIONS = 6;
-static constexpr int EXPORT_EVERY = 4;
+static constexpr int EXPORT_EVERY = 10;
+
+static constexpr int EVAL_SCREENSHOT_EVERY = 1000;
 
 static constexpr bool DRAW_ERRORS = false;
 
@@ -1479,9 +1474,9 @@ struct UI {
     [[maybe_unused]]
     int mousex = 0, mousey = 0;
     int vlayer = 0, voffset = 0;
-
-    for (;;) {
-      // int round = ReadWithLock(&video_export_m, &current_round);
+    bool histo_mode = true;
+    
+    while (!ReadWithLock(&train_should_die_m, &train_should_die)) {
       {
 	ReadMutexLock ml(&video_export_m);
 	if (dirty) {
@@ -1701,58 +1696,71 @@ struct UI {
 	      ystart += std::get<1>(PixelSize(*current_network, l)) + 4;
 	    }
 
-
-	    if (vlayer >= 0) {
-	      double tot = 0.0;
-	      int yz = ystart + 4;
-	      CHECK(vlayer >= 0 && vlayer < stim.values.size())
-		<< vlayer << " " << stim.values.size() << " "
-		<< current_network->num_layers;
-	      const vector<float> &vals = stim.values[vlayer];
-	      font->draw(xstart, yz, StringPrintf("Layer %d/%d, stim #%d-%d..\n",
-						  vlayer, stim.values.size(),
-						  voffset, voffset + VIEW_STIM_SIZE - 1));
-	      yz += FONTHEIGHT;
-	      float minv = std::numeric_limits<float>::infinity();
-	      float maxv = -std::numeric_limits<float>::infinity();
-	      int nans = 0;
-	      for (int i = 0; i < vals.size(); i++) {
-		const float v = vals[i];
-		minv = std::min(v, minv);
-		maxv = std::max(v, maxv);
-		if (std::isnan(v)) nans++;
-		tot += v;
-		if (voffset < i && i < voffset + VIEW_STIM_SIZE) {
-		  // Font color.
-		  CHECK(i >= 0 && i < vals.size());
-		  const int c = vals[i] > 0.5f ? 0 : 1;
-		  if (vlayer > 0) {
-		    const int prev_layer = vlayer - 1;
-		    CHECK(prev_layer >= 0 && prev_layer < err.error.size());
-		    CHECK(i >= 0 && i < err.error[prev_layer].size());
-		    const float e = err.error[prev_layer][i];
-		    // Font color.
-		    const int signcolor = (e == 0.0) ? 4 : (e < 0.0f) ? 2 : 5;
-		    const char signchar = e < 0.0 ? '-' : ' ';
-		    const float mag = e < 0.0 ? -e : e;
-		    CHECK(i >= 0 && i < vals.size());
-		    font->draw(xstart, yz,
-			       StringPrintf("^%d%.9f ^%d%c%.10f",
-					    c, v, signcolor, signchar, mag));
-		  } else {
-		    CHECK(i >= 0 && i < vals.size());		    
-		    font->draw(xstart, yz,
-			       StringPrintf("^%d%.9f", c, v));
+	    if (histo_mode) {
+	      if (current_network != nullptr) {
+		const ImageRGBA img = ModelInfo(*current_network, 1920, 600);
+		// PERF should invest in fast blit of ImageRGBA to SDL screen
+		for (int y = 0; y < img.Height(); y++) {
+		  for (int x = 0; x < img.Width(); x++) {
+		    auto [r, g, b, _] = img.GetPixel(x, y);
+		    sdlutil::drawpixel(screen, x, y + SCREENH - 600, r, g, b);
 		  }
-		  yz += FONTHEIGHT;
 		}
 	      }
-	      font->draw(xstart, yz,
-			 StringPrintf("stim tot: %.3f nans: %d", tot, nans));
-	      yz += FONTHEIGHT;
-	      font->draw(xstart, yz,
-			 StringPrintf("min/max: %.6f %.6f", minv, maxv));
-	      yz += FONTHEIGHT;
+	    } else {
+	      if (vlayer >= 0) {
+		double tot = 0.0;
+		int yz = ystart + 4;
+		CHECK(vlayer >= 0 && vlayer < stim.values.size())
+		  << vlayer << " " << stim.values.size() << " "
+		  << current_network->num_layers;
+		const vector<float> &vals = stim.values[vlayer];
+		font->draw(xstart, yz,
+			   StringPrintf("Layer %d/%d, stim #%d-%d..\n",
+					vlayer, stim.values.size(),
+					voffset, voffset + VIEW_STIM_SIZE - 1));
+		yz += FONTHEIGHT;
+		float minv = std::numeric_limits<float>::infinity();
+		float maxv = -std::numeric_limits<float>::infinity();
+		int nans = 0;
+		for (int i = 0; i < vals.size(); i++) {
+		  const float v = vals[i];
+		  minv = std::min(v, minv);
+		  maxv = std::max(v, maxv);
+		  if (std::isnan(v)) nans++;
+		  tot += v;
+		  if (voffset < i && i < voffset + VIEW_STIM_SIZE) {
+		    // Font color.
+		    CHECK(i >= 0 && i < vals.size());
+		    const int c = vals[i] > 0.5f ? 0 : 1;
+		    if (vlayer > 0) {
+		      const int prev_layer = vlayer - 1;
+		      CHECK(prev_layer >= 0 && prev_layer < err.error.size());
+		      CHECK(i >= 0 && i < err.error[prev_layer].size());
+		      const float e = err.error[prev_layer][i];
+		      // Font color.
+		      const int signcolor = (e == 0.0) ? 4 : (e < 0.0f) ? 2 : 5;
+		      const char signchar = e < 0.0 ? '-' : ' ';
+		      const float mag = e < 0.0 ? -e : e;
+		      CHECK(i >= 0 && i < vals.size());
+		      font->draw(xstart, yz,
+				 StringPrintf("^%d%.9f ^%d%c%.10f",
+					      c, v, signcolor, signchar, mag));
+		    } else {
+		      CHECK(i >= 0 && i < vals.size());		    
+		      font->draw(xstart, yz,
+				 StringPrintf("^%d%.9f", c, v));
+		    }
+		    yz += FONTHEIGHT;
+		  }
+		}
+		font->draw(xstart, yz,
+			   StringPrintf("stim tot: %.3f nans: %d", tot, nans));
+		yz += FONTHEIGHT;
+		font->draw(xstart, yz,
+			   StringPrintf("min/max: %.6f %.6f", minv, maxv));
+		yz += FONTHEIGHT;
+	      }
 	    }
 	  }
 
@@ -1841,22 +1849,28 @@ struct UI {
 	    FixupV();
 	    break;
 	  }
-	    
-	  case SDLK_v:
-	    {
-	      WriteMutexLock ml(&video_export_m);
-	      // Allow vlayer to go to -1 (off), but wrap around
-	      // below that.
 
-	      if (current_network != nullptr) {
-		vlayer++;
-		FixupV();
-		Printf("vlayer now %d\n", vlayer);
-		dirty = true;
-	      }
+	  case SDLK_h: {
+	    histo_mode = !histo_mode;
+	    dirty = true;
+	    break;
+	  }
+	    
+	  case SDLK_v: {
+	    WriteMutexLock ml(&video_export_m);
+	    // Allow vlayer to go to -1 (off), but wrap around
+	    // below that.
+	    
+	    if (current_network != nullptr) {
+	      vlayer++;
+	      FixupV();
+	      Printf("vlayer now %d\n", vlayer);
+	      dirty = true;
 	    }
 	    break;
-	  default:;
+	  }
+	  default:
+	    break;
 	  }
 	}
       } else {
@@ -1893,6 +1907,7 @@ static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
   const vector<int> width_config =
     { SDF_SIZE,
       SDF_SIZE,
+      SDF_SIZE,
       SDF_THREE_HALVES,
       OUTPUT_LAYER_SIZE, };
  
@@ -1900,15 +1915,17 @@ static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
   const vector<int> height_config =
     { SDF_SIZE,
       SDF_SIZE,
+      SDF_SIZE,
       SDF_THREE_HALVES,
       // output layer
       0, };
 
   // When zero, create a dense layer.
   const vector<int> indices_per_node_config = {
-    0,
-    0,
-    0,
+    (int)(SDF_SIZE * SDF_SIZE * 0.20),
+    (int)(SDF_SIZE * SDF_SIZE * 0.20),
+    (int)(SDF_SIZE * SDF_SIZE * 0.20),
+    (int)(SDF_SIZE * SDF_SIZE * 0.20),
   };
 
   const int num_layers = indices_per_node_config.size();
@@ -1920,13 +1937,15 @@ static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
   const vector<TransferFunction> transfer_functions = {
     LEAKY_RELU,
     LEAKY_RELU,
-    SIGMOID,
+    LEAKY_RELU,
+    LEAKY_RELU,
   };
   
   const vector<uint32_t> renderstyle = {
     RENDERSTYLE_SDF,
     RENDERSTYLE_FLAT,
     RENDERSTYLE_FLAT,
+    RENDERSTYLE_FLAT,    
     RENDERSTYLE_SDF26,
   };
 
@@ -2056,12 +2075,12 @@ struct Training {
   
   // Write a screenshot of the UI (to show training progress for
   // videos, etc.) every time the network does this many rounds.
-  static constexpr int SCREENSHOT_ROUND_EVERY = 50;
+  static constexpr int SCREENSHOT_ROUND_EVERY = 250;
 
   // On a verbose round, we write a network checkpoint and maybe some
   // other stuff to disk. XXX: Do this based on time, since round
   // speed can vary a lot based on other parameters!
-  static constexpr int VERBOSE_ROUND_EVERY = 250;
+  static constexpr int VERBOSE_ROUND_EVERY = 500;
   
   
   explicit Training(int model_index) :
@@ -2185,7 +2204,7 @@ struct Training {
     // maximum increment to +/- 1.0f, which is not particularly principled
     // but does seem to help prevent runaway.
 
-    constexpr int TARGET_ROUNDS = 75000;
+    constexpr int TARGET_ROUNDS = 750000;
     auto Linear =
       [](double start, double end, double round_target, double input) {
 	if (input < 0.0) return start;
@@ -2193,8 +2212,9 @@ struct Training {
 	double f = input / round_target;
 	return (end * f) + start * (1.0 - f);
       };
-    constexpr float LEARNING_RATE_HIGH = 0.10f;
-    constexpr float LEARNING_RATE_LOW = 0.02f;
+    // constexpr float LEARNING_RATE_HIGH = 0.10f;
+    constexpr float LEARNING_RATE_HIGH = 0.01f;
+    constexpr float LEARNING_RATE_LOW = 0.002f;
     const float round_learning_rate =
       Linear(LEARNING_RATE_HIGH, LEARNING_RATE_LOW, TARGET_ROUNDS, net->rounds);
     Printf("%.2f%% of target rounds\n", (100.0 * net->rounds) / TARGET_ROUNDS);
@@ -2226,6 +2246,7 @@ struct Training {
       net->rounds % SCREENSHOT_ROUND_EVERY == 0;
     if (rounds_executed % EXPORT_EVERY == 0 ||
 	take_screenshot) {
+      Printf("Export this round.\n");
       net_gpu->ReadFromGPU();
       ui->ExportNetworkToVideo(model_index, *net);
     }
@@ -2942,8 +2963,10 @@ int SDL_main(int argc, char **argv) {
     }};
 
   ErrorHistory error_history("sdf-error.tsv", 2);
+
+  // XXX
+  constexpr int MAX_ROUNDS = 999'999'999;
   
-  // FIXME call RunRound, but throttle if necessary
   std::thread train_thread{
     [&training, make_lowercase, make_uppercase, &error_history]() {
 
@@ -2960,14 +2983,21 @@ int SDL_main(int argc, char **argv) {
 
 	int lrounds = make_lowercase->NumberOfRounds();
 	int urounds = make_uppercase->NumberOfRounds();
+
+	if (lrounds >= MAX_ROUNDS && urounds >= MAX_ROUNDS) {
+	  Printf("Ending because both models have reached MAX_ROUNDS\n");
+	  WriteWithLock(&train_should_die_m, &train_should_die, true);
+	  break;
+	}
+	
 	static constexpr int ALLOWED_GAP = 2;
 
 	Printf("lowercase rounds %lld, uppercase %lld\n",
 	       lrounds, urounds);
-	if (lrounds + ALLOWED_GAP < urounds) {
+	if (lrounds + ALLOWED_GAP < urounds || urounds >= MAX_ROUNDS) {
 	  Printf("Only running lowercase because it is behind.\n");
 	  make_lowercase->RunRound();
-	} else if (urounds + ALLOWED_GAP < lrounds) {
+	} else if (urounds + ALLOWED_GAP < lrounds || lrounds >= MAX_ROUNDS) {
 	  Printf("Only running uppercase because it is behind.\n");
 	  make_uppercase->RunRound();
 	} else {
@@ -2982,7 +3012,7 @@ int SDL_main(int argc, char **argv) {
 	  lthread.join();
 
 	  int total_rounds = lrounds + urounds + 2;
-	  if ((total_rounds / 2) % 100 == 0) {
+	  if ((total_rounds / 2) % EVAL_SCREENSHOT_EVERY == 0) {
 	    Printf("Eval...\n");
 	    FontProblem::RenderSDF("helvetica.ttf",
 				   make_lowercase->Net(),
@@ -3006,6 +3036,9 @@ int SDL_main(int argc, char **argv) {
 	
 	RecordError(0);
 	RecordError(1);	
+
+	// XXXXXXX slow-mo for debugging
+	// std::this_thread::sleep_for(5000ms);	
       }
     }};
   

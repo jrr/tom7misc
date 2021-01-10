@@ -12,6 +12,7 @@ class ArcFour;
 
 struct FontProblem {
 
+#if 0
   // Config for generating SDFs. See ttf.h.
   struct SDFConfig {
     int sdf_size = 64;
@@ -21,7 +22,16 @@ struct FontProblem {
     uint8_t onedge_value = 200u;
     float falloff_per_pixel = 7.860f;
   };
-
+#endif
+  struct SDFConfig {
+    int sdf_size = 36;
+    int pad_top = 2;
+    int pad_bot = 9;
+    int pad_left = 9;
+    uint8_t onedge_value = 220u;
+    float falloff_per_pixel = 15.0f;
+  };
+  
   // Size of e.g. the input feature vector.
   static int BufferSizeForPoints(const std::vector<int> &row_max_points);
   

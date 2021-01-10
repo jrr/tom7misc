@@ -3,6 +3,7 @@ default: ui.exe cleandb.exe samecase.exe train.exe
 
 all: eval-unblinder.exe vacuum.exe
 
+modelinfos: modelinfo0.png modelinfo1.png 
 
 CC_LIB=../cc-lib
 
@@ -47,7 +48,7 @@ CPPFLAGS= -DDISABLE_SOUND=1 -DPSS_STYLE=1 -DDUMMY_UI -DHAVE_ASPRINTF -Wno-write-
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 	@echo -n "."
 
-OBJECTS=$(UTIL_OBJECTS) $(RE2_OBJECTS) ttfops.o fontdb.o network.o font-problem.o error-history.o
+OBJECTS=$(UTIL_OBJECTS) $(RE2_OBJECTS) ttfops.o fontdb.o network.o font-problem.o error-history.o modelinfo.o
 
 # without static, can't find lz or lstdcxx maybe?
 LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -lpsapi -static
@@ -85,7 +86,7 @@ vector-eval.exe : $(OBJECTS) vector-eval.o
 sdf-eval.exe : $(OBJECTS) sdf-eval.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-modelinfo.exe : $(OBJECTS) modelinfo.o
+get-modelinfo.exe : $(OBJECTS) get-modelinfo.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 top_test.exe : top.o top_test.o $(OBJECTS)
@@ -93,6 +94,9 @@ top_test.exe : top.o top_test.o $(OBJECTS)
 
 font-problem_test.exe : font-problem.o font-problem_test.o $(OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
+
+modelinfo%.png : net%.val get-modelinfo.exe
+	./get-modelinfo.exe $< $@
 
 clean :
 	rm -f *.o $(UTIL_OBJECTS) $(CHESS_OBJECTS) $(RE2_OBJECTS) *.exe
