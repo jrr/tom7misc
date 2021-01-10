@@ -2185,22 +2185,22 @@ struct Training {
     // maximum increment to +/- 1.0f, which is not particularly principled
     // but does seem to help prevent runaway.
 
-    constexpr int TARGET_ROUNDS = 50000;
+    constexpr int TARGET_ROUNDS = 75000;
     auto Linear =
       [](double start, double end, double round_target, double input) {
 	if (input < 0.0) return start;
 	if (input > round_target) return end;
-	double height = end - start;
 	double f = input / round_target;
-	return start + f * height;
+	return (end * f) + start * (1.0 - f);
       };
     constexpr float LEARNING_RATE_HIGH = 0.10f;
-    constexpr float LEARNING_RATE_LOW = 0.002;
+    constexpr float LEARNING_RATE_LOW = 0.02f;
     const float round_learning_rate =
       Linear(LEARNING_RATE_HIGH, LEARNING_RATE_LOW, TARGET_ROUNDS, net->rounds);
-
+    Printf("%.2f%% of target rounds\n", (100.0 * net->rounds) / TARGET_ROUNDS);
+    
     CHECK(!std::isnan(round_learning_rate));
-    if (VERBOSE > 2) Printf("Learning rate: %.4f\n", round_learning_rate);
+    if (true || VERBOSE > 2) Printf("Learning rate: %.4f\n", round_learning_rate);
 
     const float example_learning_rate =
       round_learning_rate / (double)TRAINING_PER_ROUND;
