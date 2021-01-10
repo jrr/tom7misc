@@ -10,9 +10,6 @@
 #include "../../cc-lib/arcfour.h"
 #include "../../cc-lib/base/logging.h"
 
-#include "../chess.h"
-#include "../pgn.h"
-#include "../bigchess.h"
 #include "timer.h"
 
 #include "network.h"
@@ -21,25 +18,38 @@ using namespace std;
 
 using int64 = int64_t;
 
-// Using an absolute threshold doesn't make that much
-// sense, since downstream weights could be huge!
-// Probably we should be doing some kind of flow to
-// see how much it could be contributing. Or just
+// TODO PERF: After vacuuming, there can be nodes with no references
+// whatsoever; these will never do anything again. We should remove them.
+
+// You can get some sense of the weight distribution by using
+// modelinfo.exe, which generates histograms of weights and biases per
+// layer.
+
+// Really, using an absolute threshold doesn't make that much sense,
+// since downstream weights could be huge! Probably we should be doing
+// some kind of flow to see how much it could be contributing. Or just
 // throw away a constant fraction of each layer?
 
-// NOTE: 0.1 is VERY aggressive!
-// 0.01f worked fine for my network, btw
-static constexpr float THRESHOLD = 0.05f;
+// 0.01f worked fine for my chess unblinder. With weight decay, weights
+// may be really small (.0001 may be a better starting point, for example).
+static constexpr float THRESHOLD = 0.0001f;
 
-static const std::set<int> VACUUM_LAYERS{3};
+// Configure the set of layers (as indices into layers[]) to vacuum.
+// It's probably safest to vacuum one at a time, followed by some
+// training to tune.
+//
+// It may be counterproductive to vacuum DENSE layers, since these
+// have a more efficient representation and training/inference code.
+// If you're not throwing out half the layer or more, you'd probably
+// be better off just zeroing weights for the same effect (but then
+// why bother?)
+static const std::set<int> VACUUM_LAYERS{2};
 
 static void VacuumLayer(Network *net, int layer_idx) {
   CHECK(layer_idx >= 0);
   CHECK(layer_idx < net->num_layers);
   const int num_nodes = net->num_nodes[layer_idx + 1];
   Network::Layer *layer = &net->layers[layer_idx];
-  CHECK(layer->type != LAYER_DENSE) << "XXX Need to support "
-    "(or skip) DENSE layers!";
   const int ipn = layer->indices_per_node;
 
   // The indices are hard to work with in their flat representation;
@@ -124,6 +134,12 @@ static void VacuumLayer(Network *net, int layer_idx) {
     std::sort(indices.begin(), indices.end(), CompareByIndex);
   }
 
+  if (layer->indices_per_node != trunc_to &&
+      layer->type == LAYER_DENSE) {
+    printf("Layer %d is no longer DENSE.\n", layer_idx);
+    layer->type = LAYER_SPARSE;
+  }
+    
   layer->indices_per_node = trunc_to;
 
   // Now re-pack!
@@ -150,7 +166,7 @@ static void VacuumNetwork(Network *net) {
   // all nodes, such that we drop (only) indices whose weights are
   // very small (below the threshold).
 
-  Network::CheckInvertedIndices(*net);
+  net->StructuralCheck();
 
   for (int i = 0; i < net->layers.size(); i++) {
     const int num_nodes = net->num_nodes[i + 1];
@@ -193,16 +209,16 @@ static void VacuumNetwork(Network *net) {
   printf("Recompute inverted indices...\n");
   fflush(stdout);
   Network::ComputeInvertedIndices(net, 24);
-  printf("Check inverted indices...\n");
+  printf("Structural check...\n");
   fflush(stdout);
-  Network::CheckInvertedIndices(*net);
+  net->StructuralCheck();
   printf("Done.\n");
   fflush(stdout);
 }
 
 int main(int argc, char **argv) {
 
-  CHECK(argc == 2) << "\n\nUsage:\nvacuum.exe net.val";
+  CHECK(argc >= 2) << "\n\nUsage:\nvacuum.exe net.val [output.val]";
   
   Timer model_timer;
   std::unique_ptr<Network> net{Network::ReadNetworkBinary(argv[1])};
@@ -216,7 +232,8 @@ int main(int argc, char **argv) {
 	  vacuum_timer.MS() / 1000.0);
   fflush(stderr);
 
-  Network::SaveNetworkBinary(*net, "net-vacuumed.val");  
+  string outfile = argc > 2 ? argv[2] : "net-vacuumed.val";
+  Network::SaveNetworkBinary(*net, outfile);
   
   return 0;
 }

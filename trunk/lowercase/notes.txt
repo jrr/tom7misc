@@ -119,3 +119,62 @@ the future to save some time training?)
  - decay weights 0.9995f
  - 
 
+9 Jan 2021
+
+looking at the histograms on biases and weights, most weights are really close to zero,
+on all of the layers. Both models evolved similar distributions.
+Layer 0: -.05 to .069
+Layer 1: -.29 to .53
+Layer 2: -.04 to .025
+
+this does suggest that the weight capping is unnecessary, at least in this epoch.
+
+biases are also very spiky; layer 0 is close to zero, with some falloff towards the
+negative side (kinda makes sense, this would be a feature that's looking for a
+sum of input nodes above some threshold)
+On layer 1, almost all biases are 0.0051
+Layer 2 (sigmoid) has a nice histogram with lots of activity across the spectrum
+from -1 to 0.5. Probably this is encoding the "average output".
+
+At 63831 rounds, train error seems to be quite flat (around 230/example) so I'm
+going to try spicing it up.
+
+before vacuuming, we were getting around 37 eps (for each model).
+on disk the model was 370,127,092 (note that dense models are more efficiently
+stored)
+
+I also increased the learning rate (it ended up at about .05). The result was
+that the lowercase model seemed to diverge... it performed fine right after
+vacuuming but then got bad after a few rounds of training? Again the lowercase
+model is the one that exploded.
+(Also, eps was similar at about 35.)
+
+
+Did it again, same settings but effective training rate of .085; blew up right away.
+Again with effective learning rate of 0.0319. Also blows up, at least at first?
+This one looks like
+
+A few hypotheses about this then:
+ - maybe learning rates are way too high? It doesn't seem like we'd want this
+   to jump around a lot once we get this deep into training.
+ - Something about the inversion training examples encourages this behavior.
+   A feedback loop, etc. But the sigmoid should prevent the output from
+   being outside [0,1] and we think that the predictions were actually good
+   in the first few rounds here.
+ - Just some kind of actual bug in training?? We have seen it work
+   (for example the vector version is clearly doing *something*), but there
+   could still be bugs.
+ - (maybe vaccuming messes up the network? but we check the inverted indices...)
+
+It's really weird that the network actually performs well at first, but then
+gets much worse error after a few rounds of training. How is that possible?
+
+well, the lowercase side seemed to smooth out (error = 339) but the
+uppercase side has a burned-in superbright region, and the eval is
+bad (and looks basically constant) on both.
+
+
+--------------------------------------------------
+
+
+

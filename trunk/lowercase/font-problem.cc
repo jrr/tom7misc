@@ -364,7 +364,8 @@ void FontProblem::RenderSDF(
       });
   Iterative(make_uppercase, false, base_out_filename + ".upper.png");
   lthread.join();
-  printf("Evaluated in %.2fs\n", timer.MS() / 1000.0);
+  printf("Evaluated (to %s.(upp,low)er.png) in %.2fs\n",
+	 base_out_filename.c_str(), timer.MS() / 1000.0);
 }
 
 
