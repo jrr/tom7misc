@@ -85,6 +85,9 @@ vector-eval.exe : $(OBJECTS) vector-eval.o
 sdf-eval.exe : $(OBJECTS) sdf-eval.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+modelinfo.exe : $(OBJECTS) modelinfo.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 top_test.exe : top.o top_test.o $(OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
