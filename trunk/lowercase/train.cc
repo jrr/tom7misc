@@ -229,7 +229,7 @@ static constexpr int OUTPUT_LAYER_SIZE =
 // This is like L2 regularization (I think just modulo a constant
 // factor of 2), but less principled.
 static constexpr bool DECAY = true;
-static constexpr float DECAY_FACTOR = 0.9995;
+static constexpr float DECAY_FACTOR = 0.999995;
 
 static constexpr int NEIGHBORHOOD = 3;
 
@@ -2545,14 +2545,24 @@ struct Training {
 
     double round_ms = round_timer.MS();
     auto Pct = [round_ms](double d) { return (100.0 * d) / round_ms; };
-    double denom = rounds_executed + 1;
+    // These are per-round values now, not cumulative.
+    double denom = 1.0; // rounds_executed + 1;
 
     // TODO: Would be nice to average this over the last few rounds.
     const double round_eps = EXAMPLES_PER_ROUND / (round_ms / 1000.0);
     // (EXAMPLES_PER_ROUND * denom) / (total_ms / 1000.0)
     ui->ExportExamplesPerSec(model_index, round_eps);
+    double measured_ms =
+      setup_ms + stimulation_init_ms + eval_ms +
+      forward_ms + /* fc init and kernel should be part of that */
+      output_error_ms +
+      backward_ms + /* bc init should be part of that */
+      decay_ms +
+      update_ms;
+    
     if (VERBOSE > 1)
       Printf("Round time: %.1fs. (%.1f eps)\n"
+	     "%.1fms total measured (%.1f%%),\n"
 	     "We spent %.1fms in setup (%.1f%%),\n"
 	     "%.1fms in stimulation init (%.1f%%),\n"
 	     "%.1fms in eval (main thread; amortized) (%.1f%%),\n"
@@ -2565,6 +2575,7 @@ struct Training {
 	     "%.1fms in decay weights (%.1f%%),\n"	     
 	     "%.1fms in updating weights (%.1f%%),\n",
 	     round_ms / 1000.0, round_eps,
+	     measured_ms / denom, Pct(measured_ms),
 	     setup_ms / denom, Pct(setup_ms),
 	     stimulation_init_ms / denom, Pct(stimulation_init_ms),
 	     eval_ms / denom, Pct(eval_ms),
