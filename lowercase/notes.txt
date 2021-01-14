@@ -183,4 +183,19 @@ maybe we should put these histos in the training ui
 
 
 after all the futzing, the thing that seemed to get it on track was to
-set the learning rate (high end) to 0.01f.
+set the learning rate (high end) to 0.01f.>
+
+
+
+at 196961, changed decay to .999995 (from .9995) since so many weights
+were almost zero.
+
+(total error started dropping really quickly after that!)
+... seems like a very worthy change. Error dropped from ~70 to ~50 after a day,
+even though the learning rate has nearly bottomed out. The eval results
+are almost interesting now! It's really obvious from the error history that
+this got it out of the plateau.
+
+I see a lot of weights with values at, or nearly at zero though. Seems
+like we may be wasting our parameter budget then. Should think about some
+kind of vacuuming + expansion?

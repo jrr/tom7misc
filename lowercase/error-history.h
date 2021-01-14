@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <optional>
 
 // Stores error history (train, test) over time. Multiple models are
 // supported. Since we typically train a model over O(100k) rounds, we
@@ -25,6 +26,9 @@ struct ErrorHistory {
 
   void Save();
 
+  void WriteMergedTSV(const std::string &outfile,
+		      std::optional<int> max_points = {}) const;
+  
 private:
   void Load();
   

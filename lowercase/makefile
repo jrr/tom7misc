@@ -98,5 +98,8 @@ font-problem_test.exe : font-problem.o font-problem_test.o $(OBJECTS)
 modelinfo%.png : net%.val get-modelinfo.exe
 	./get-modelinfo.exe $< $@
 
+collate-errors.exe : collate-errors.o $(OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 clean :
 	rm -f *.o $(UTIL_OBJECTS) $(CHESS_OBJECTS) $(RE2_OBJECTS) *.exe
