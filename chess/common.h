@@ -31,7 +31,7 @@ struct CommonSet {
 // Positions with move distributions.
 struct CommonMap {
   CommonMap() {}
-  explicit CommonMap(const string &filename);
+  explicit CommonMap(const std::string &filename);
   
   // Create map with empty move counts from set.
   explicit CommonMap(const CommonSet &cs) {
@@ -52,7 +52,7 @@ struct CommonMap {
     }
   }
 
-  void WriteFile(const string &filename);
+  void WriteFile(const std::string &filename);
   
   // Packed move to count.
   // PERF: This can be represented a lot more efficiently.

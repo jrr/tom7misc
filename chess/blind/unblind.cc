@@ -2358,7 +2358,7 @@ int SDL_main(int argc, char **argv) {
 			   "chessfont.png",
 			   " PNBRQKpnbrqk",
 			   32, 32, 1, 0, 1);
-  CHECK(font != nullptr) << "Couldn't load font.";
+  CHECK(chessfont != nullptr) << "Couldn't load font.";
 
   global_cl = new CL;
 
