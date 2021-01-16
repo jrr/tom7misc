@@ -194,7 +194,21 @@ static void TestFactorize() {
 	Util::Factorize(3 * 5 * 5 * 11 * 13 * 31337));  
 }
 
+static void TestItos() {
+  CHECK_EQ(Util::itos(1234), "1234");
+  CHECK_EQ(Util::itos(-1234), "-1234");
+}
+
+static void TestStoi() {
+  CHECK_EQ(Util::stoi("1234"), 1234);
+  CHECK_EQ(Util::stoi("-1234"), -1234);
+  CHECK_EQ(Util::stoi(""), 0);
+  CHECK_EQ(Util::stoi("a"), 0);
+}
+
 int main(int argc, char **argv) {
+  TestItos();
+  TestStoi();
   TestReadFiles();
   TestWriteFiles();
   TestWhitespace();

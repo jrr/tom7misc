@@ -232,14 +232,6 @@ ImageRGBA ImageRGBA::Crop32(int x, int y, int w, int h,
   return ret;
 }
 
-ImageRGBA::uint32 ImageRGBA::GetPixel(int x, int y) const {
-  // Treat out-of-bounds reads as containing 00,00,00,00.
-  if (x < 0 || x >= width ||
-      y < 0 || y >= height) return 0;
-  const int base = (y * width + x) << 2;
-  return Pack32(rgba[base], rgba[base + 1], rgba[base + 2], rgba[base + 3]);
-}
-
 void ImageRGBA::Clear32(uint32 color) {
   // PERF: This can be optimized by writing 32 bits at a time,
   // but beware endianness, etc.
@@ -258,27 +250,7 @@ void ImageRGBA::Clear(uint8 r, uint8 g, uint8 b, uint8 a) {
   }
 }
 
-void ImageRGBA::SetPixel(int x, int y,
-			 uint8 r, uint8 g, uint8 b, uint8 a) {
-  if (x < 0 || x >= width ||
-      y < 0 || y >= height) return;
-  int i = (y * width + x) * 4;
-  rgba[i + 0] = r;
-  rgba[i + 1] = g;
-  rgba[i + 2] = b;
-  rgba[i + 3] = a;
-}
-
-void ImageRGBA::SetPixel32(int x, int y, uint32 color) {
-  if (x < 0 || x >= width ||
-      y < 0 || y >= height) return;
-  int i = (y * width + x) * 4;
-  rgba[i + 0] = (color >> 24) & 255;
-  rgba[i + 1] = (color >> 16) & 255;
-  rgba[i + 2] = (color >>  8) & 255;
-  rgba[i + 3] = (color      ) & 255;
-}
-
+// PERF: Make inline?
 void ImageRGBA::BlendPixel(int x, int y,
 			   uint8 r, uint8 g, uint8 b, uint8 a) {
   if (x < 0 || x >= width ||
@@ -435,7 +407,7 @@ void ImageRGBA::BlendImage(int x, int y, const ImageRGBA &other) {
     int yyy = y + yy;
     for (int xx = 0; xx < other.width; xx++) {
       int xxx = x + xx;
-      BlendPixel32(xxx, yyy, other.GetPixel(xx, yy));
+      BlendPixel32(xxx, yyy, other.GetPixel32(xx, yy));
     }
   }
 }
@@ -514,14 +486,42 @@ ImageA ImageA::ResizeBilinear(int nwidth, int nheight) const {
   return ret;
 }
 
+void ImageA::BlendText(int x, int y, uint8 v, const string &s) {
+  auto SetPixel = [this, v](int xx, int yy) {
+      this->BlendPixel(xx, yy, v);
+    };
+  // SetPixel will clip, but exit early if we are totally off-screen.
+  if (y >= height || y < -EmbeddedFont::CHAR_HEIGHT) return;
+  for (int i = 0; i < (int)s.size(); i++) {
+    uint8 c = s[i];
+    int xx = x + i * EmbeddedFont::CHAR_WIDTH;
+    if (xx >= width) return;
+    EmbeddedFont::Blit(c, xx, y, SetPixel, [](int x, int y) {});
+  }
+}
+
+
 ImageRGBA ImageA::GreyscaleRGBA() const {
   ImageRGBA rgba(width, height);
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
-      uint8 v = GetPixel(x, y);
+      const uint8 v = GetPixel(x, y);
       // PERF if compiler can't optimize out the bounds checks here,
       // we can do it
       rgba.SetPixel(x, y, v, v, v, 0xFF);
+    }
+  }
+  return rgba;
+}
+
+ImageRGBA ImageA::AlphaMaskRGBA(uint8 r, uint8 g, uint8 b) const {
+  ImageRGBA rgba(width, height);
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      const uint8 v = GetPixel(x, y);
+      // PERF if compiler can't optimize out the bounds checks here,
+      // we can do it
+      rgba.SetPixel(x, y, r, g, b, v);
     }
   }
   return rgba;

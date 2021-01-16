@@ -22,14 +22,14 @@
 
 #define UTIL_PI 3.141592653589f
 
-// Move stuff like this to Util struct or remove
-std::string itos(int i);
-int stoi(const std::string &s);
-std::string dtos(double d);
-
 struct Util {
   using string = std::string;
   using string_view = std::string_view;
+
+  static std::string itos(int i);
+  static int stoi(const std::string &s);
+  // Hard-coded to two decimal places. Avoid.
+  static std::string dtos(double d);
   
   // No error handling; it just returns "".
   static string ReadFile(const string &filename);
@@ -256,6 +256,11 @@ struct Util {
   // Output in sorted order.
   static std::vector<int> Factorize(int n);
 };
+
+// Deprecated: Call the ones in the Util class please!
+inline std::string itos(int i) { return Util::itos(i); }
+inline int stoi(const std::string &s) { return Util::stoi(s); }
+inline std::string dtos(double d) { return Util::dtos(d); }
 
 /* drawing lines with Bresenham's algorithm.
    deprecated; please use lines.h
