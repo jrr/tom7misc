@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <tuple>
 
 #include "base/logging.h"
 
@@ -45,13 +46,15 @@ struct ImageRGBA {
 		   uint32 fill_color = 0x00000000) const;
   
   // In RGBA order, where R value is MSB. x/y must be in bounds.
-  uint32 GetPixel(int x, int y) const;
+  inline uint32 GetPixel32(int x, int y) const;
+  inline std::tuple<uint8, uint8, uint8, uint8> GetPixel(int x, int y) const;
+  
   // Clear the image to a single value.
   void Clear(uint8 r, uint8 g, uint8 b, uint8 a);
   void Clear32(uint32 rgba);
 
-  void SetPixel(int x, int y, uint8 r, uint8 g, uint8 b, uint8 a);
-  void SetPixel32(int x, int y, uint32 rgba);
+  inline void SetPixel(int x, int y, uint8 r, uint8 g, uint8 b, uint8 a);
+  inline void SetPixel32(int x, int y, uint32 rgba);
 
   // Blend pixel with existing data.
   // Note: Currently assumes existing alpha is 0xFF.
@@ -118,17 +121,20 @@ struct ImageA {
   ImageA ResizeBilinear(int new_width, int new_height) const;
   // Make a four-channel image of the same size, R=v, G=v, B=v, A=0xFF.
   ImageRGBA GreyscaleRGBA() const;
+  // Make a four-channel alpha mask of the same size, RGB=rgb, A=v
+  ImageRGBA AlphaMaskRGBA(uint8 r, uint8 g, uint8 b) const;
 
+  // Only increases values.
+  void BlendText(int x, int y, uint8 v, const std::string &s);
   
-  // TODO: Text drawing is easy here!
-
   void Clear(uint8 value);
   
   // Clipped.
   inline void SetPixel(int x, int y, uint8 v);
   // x/y must be in bounds.
   inline uint8 GetPixel(int x, int y) const;
-
+  inline void BlendPixel(int x, int y, uint8 v);
+  
   // Treats the input pixels as being "located" at their top-left
   // corners (not their centers).
   // x/y out of bounds will repeat edge pixels.
@@ -143,6 +149,51 @@ private:
 
 // Implementations follow.
 
+
+ImageRGBA::uint32 ImageRGBA::GetPixel32(int x, int y) const {
+  // Treat out-of-bounds reads as containing 00,00,00,00.
+  if (x < 0 || x >= width ||
+      y < 0 || y >= height) return 0;
+  const int base = (y * width + x) << 2;
+  const uint8_t r = rgba[base + 0];
+  const uint8_t g = rgba[base + 1];
+  const uint8_t b = rgba[base + 2];
+  const uint8_t a = rgba[base + 3];  
+  return ((uint32)r << 24) | ((uint32)g << 16) | ((uint32)b << 8) | (uint32)a;
+}
+
+std::tuple<uint8_t, uint8_t, uint8_t, uint8_t>
+ImageRGBA::GetPixel(int x, int y) const {
+  // Treat out-of-bounds reads as containing 00,00,00,00.
+  if (x < 0 || x >= width ||
+      y < 0 || y >= height) return std::make_tuple(0, 0, 0, 0);
+  const int base = (y * width + x) << 2;
+  return std::make_tuple(
+      rgba[base], rgba[base + 1], rgba[base + 2], rgba[base + 3]);
+}
+
+void ImageRGBA::SetPixel(int x, int y,
+			 uint8 r, uint8 g, uint8 b, uint8 a) {
+  if (x < 0 || x >= width ||
+      y < 0 || y >= height) return;
+  int i = (y * width + x) * 4;
+  rgba[i + 0] = r;
+  rgba[i + 1] = g;
+  rgba[i + 2] = b;
+  rgba[i + 3] = a;
+}
+
+void ImageRGBA::SetPixel32(int x, int y, uint32 color) {
+  if (x < 0 || x >= width ||
+      y < 0 || y >= height) return;
+  int i = (y * width + x) * 4;
+  rgba[i + 0] = (color >> 24) & 255;
+  rgba[i + 1] = (color >> 16) & 255;
+  rgba[i + 2] = (color >>  8) & 255;
+  rgba[i + 3] = (color      ) & 255;
+}
+
+
 uint8_t ImageA::GetPixel(int x, int y) const {
   return alpha[y * width + x];
 }
@@ -153,5 +204,14 @@ void ImageA::SetPixel(int x, int y, uint8_t value) {
   alpha[y * width + x] = value;
 }
 
+void ImageA::BlendPixel(int x, int y, uint8_t v) {
+  if (x < 0 || y < 0) return;
+  if (x >= width || y >= height) return;
+  // XXX test this blending math
+  uint8_t old = alpha[y * width + x];
+  uint16_t opaque_part = 255 * v;
+  uint16_t transparent_part = (255 - v) * old;
+  alpha[y * width + x] = 0xFF & ((opaque_part + transparent_part) / (uint16_t)255);
+}
 
 #endif

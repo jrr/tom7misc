@@ -54,13 +54,17 @@ using uint8 = uint8_t;
 using int64 = int64_t;
 using uint64 = uint64_t;
 
-string itos(int i) {
+string Util::itos(int i) {
   char s[64];
   sprintf(s, "%d", i);
   return (string)s;
 }
 
-string dtos(double d) {
+int Util::stoi(const string &s) {
+  return atoi(s.c_str());
+}
+
+string Util::dtos(double d) {
   char s[64];
   sprintf(s, "%.2f", d);
   return (string)s;
@@ -719,10 +723,6 @@ int Util::getpid() {
   return ::getpid();
 }
 
-int stoi(const string &s) {
-  return atoi(s.c_str());
-}
-
 /* XXX race. should use creat
    with O_EXCL on unix, at least. */
 FILE *Util::open_new(string fname) {
@@ -760,6 +760,8 @@ string Util::fgetline(FILE *f) {
 
 /* PERF use substr instead of accumulating: this is used
    frequently in the net stuff */
+// FIXME: this is documented as "whitespace" but only looks
+// for spaces.
 /* return first token in line, removing it from 'line' */
 string Util::chop(string &line) {
   for (unsigned int i = 0; i < line.length(); i ++) {
