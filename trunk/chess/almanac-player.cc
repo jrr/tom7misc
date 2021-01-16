@@ -10,6 +10,7 @@
 #include "packedgame.h"
 
 using Move = Position::Move;
+using namespace std;
 
 namespace {
 

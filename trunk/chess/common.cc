@@ -5,6 +5,8 @@
 #include "base/logging.h"
 #include "packedgame.h"
 
+using namespace std;
+
 using uint64 = uint64_t;
 using uint32 = uint32_t;
 using uint16 = uint16_t;
