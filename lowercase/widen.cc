@@ -33,9 +33,7 @@ enum class Dimension {
   // TODO: Channels also makes sense
 };
 
-static constexpr Dimension DIMENSION = Dimension::HEIGHT;
-static_assert(DIMENSION != Dimension::WIDTH,
-	      "pls fix the bug with indices before using width");
+static constexpr Dimension DIMENSION = Dimension::WIDTH;
 
 // On the next layer, we'll add some indices (increasing
 // indices_per_node) to reference only these new added
@@ -78,12 +76,15 @@ static float NewInputWeight(ArcFour *rc) {
 // safest to do some tuning after each widen operation.
 // Not clear if widening from top to bottom or bottom to top is
 // better, or whether that matters?
-static constexpr int WIDEN_LAYER = 0;
+static constexpr int WIDEN_LAYER = 2;
 
-// Modifies the network in place. Returns the vector of node indices
-// that were added, which then should be used to expand the next
-// layer's inputs so that they're not dead.
-static vector<int> WidenLayer(ArcFour *rc, Network *net, int layer_idx) {
+// Modifies the network in place. May remap node indices, and adds new
+// ones. Returns mapping from old idx to new (first vector), and
+// returns the vector of node indices that were added (second vector).
+// These should be used to remap the next layer's input indices, and
+// expand them so that the newly added nodes are not dead.
+static std::pair<vector<int>, vector<int>>
+WidenLayer(ArcFour *rc, Network *net, int layer_idx) {
   CHECK(layer_idx >= 0);
   CHECK(layer_idx < net->num_layers);
   const int num_nodes = net->num_nodes[layer_idx + 1];
@@ -251,6 +252,7 @@ static vector<int> WidenLayer(ArcFour *rc, Network *net, int layer_idx) {
   net->num_nodes[layer_idx + 1] = new_num_nodes;
 
   vector<int> added_indices;
+  vector<int> rewritten_indices(num_nodes, -1);
   
   // Now re-pack!
   layer->indices.clear();
@@ -264,7 +266,12 @@ static vector<int> WidenLayer(ArcFour *rc, Network *net, int layer_idx) {
       for (int c = 0; c < new_channels; c++) {
 	const int node_idx = y * new_width * new_channels + x * new_channels + c;
 
-	if (y >= height || x >= width || c >= channels) {
+	if (y < height && x < width && c < channels) {
+	  // Map old idx to new idx.
+	  const int old_idx = y * width * channels + x * channels + c;
+	  rewritten_indices[old_idx] = node_idx;
+	} else {
+	  // Node is newly added.
 	  added_indices.push_back(node_idx);
 	}
 
@@ -282,15 +289,19 @@ static vector<int> WidenLayer(ArcFour *rc, Network *net, int layer_idx) {
     }
   }
   CHECK(layer->biases.size() == new_num_nodes);
-  
-  return added_indices;
+
+  for (int i : rewritten_indices) {
+    CHECK(i >= 0);
+  }
+  return {rewritten_indices, added_indices};
 }
 
-// given some new indices we created in the previous layer, add
-// references to them on the indicated layer, increasing its
-// indices_per_node.
-static void AddIndices(ArcFour *rc, Network *net, int layer_idx,
-		       const vector<int> &added_indices) {
+// given a remapping and some new indices we created in the previous
+// layer, update all the indices, and add references to the new ones
+// on the indicated layer, increasing its indices_per_node.
+static void RemapAndAdd(ArcFour *rc, Network *net, int layer_idx,
+			const vector<int> &remapped_indices,
+			const vector<int> &added_indices) {
   CHECK(layer_idx >= 0);
   CHECK(layer_idx < net->num_layers);
   const int num_nodes = net->num_nodes[layer_idx + 1];
@@ -311,6 +322,8 @@ static void AddIndices(ArcFour *rc, Network *net, int layer_idx,
     float weight = 0.0f;
   };
 
+  // We keep shuffling this array so that it's a random permutation of
+  // the added indices.
   vector<int> shuffled_indices = added_indices;
   
   CHECK(layer->indices.size() == layer->weights.size());
@@ -321,7 +334,10 @@ static void AddIndices(ArcFour *rc, Network *net, int layer_idx,
     node_indices[node_idx].reserve(ipn + add_ipn);
     for (int idx = 0; idx < ipn; idx++) {
       OneIndex oi;
-      oi.index = layer->indices[node_idx * ipn + idx];
+      const int old_idx = layer->indices[node_idx * ipn + idx];
+      CHECK(old_idx >= 0 && old_idx < remapped_indices.size());
+      const int new_idx = remapped_indices[old_idx];
+      oi.index = new_idx;
       oi.weight = layer->weights[node_idx * ipn + idx];
       node_indices[node_idx].push_back(oi);
     }
@@ -409,12 +425,13 @@ static void WidenNetwork(Network *net) {
     "layer because it's probably a mistake; the structure of the problem "
     "being trained would have to change. But you can try it by removing "
     "this check if you want.";
-  
-  const vector<int> added_indices = WidenLayer(&rc, net, WIDEN_LAYER);
+
+  const auto [rewritten_indices, added_indices] =
+    WidenLayer(&rc, net, WIDEN_LAYER);
   // And refer to them on the next layer (unless there is none; see
   // above CHECK).
   if (WIDEN_LAYER + 1 < net->layers.size())
-    AddIndices(&rc, net, WIDEN_LAYER + 1, added_indices);
+    RemapAndAdd(&rc, net, WIDEN_LAYER + 1, rewritten_indices, added_indices);
 
   // We changed the number of indices per node, so we need to resize
   // the inverted indices (and recompute them).
