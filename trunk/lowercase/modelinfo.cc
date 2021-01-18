@@ -17,7 +17,18 @@ using int64 = int64_t;
 namespace {
 // XXX could make sense as a standalone utility?
 struct Histogram {
-  void Add(float f) { values.push_back(f); }
+  void Add(float f) {
+    if (bound_low.has_value() && f < bound_low.value())
+      f = bound_low.value();
+    if (bound_high.has_value() && f > bound_high.value())
+      f = bound_high.value();
+
+    values.push_back(f);
+  }
+
+  Histogram() {}
+  Histogram(optional<float> bound_low, optional<float> bound_high) :
+    bound_low(bound_low), bound_high(bound_high) {}
 
   // Assumes width is the number of buckets you want.
   std::tuple<float, float, ImageA> MakeImage(int width, int height) const {
@@ -30,7 +41,7 @@ struct Histogram {
       lo = std::min(v, lo);
       hi = std::max(v, hi);
     }
-    
+
     const float ival = hi - lo;
     const float bucket_width = ival / width;
     const float oval = 1.0f / ival;
@@ -52,7 +63,7 @@ struct Histogram {
 	maxi = i;
       }
     }
-    
+
     // Finally, fill in the image.
     for (int bucket = 0; bucket < width; bucket++) {
       double hfrac = count[bucket] / (double)max_count;
@@ -84,33 +95,39 @@ struct Histogram {
     int lw = label.size() * 9;
     int x = maxi > (width / 2) ? maxi - (lw + 1) : maxi + 1;
     img.BlendText(x, 0, 0xFF, label);
-    
+
     return make_tuple(lo, hi, img);
   }
-  
+
+  optional<float> bound_low = nullopt, bound_high = nullopt;
+
   vector<float> values;
 };
 }  // namespace
 
-ImageRGBA ModelInfo(const Network &net, int width, int height) {
-  static constexpr int MARGIN = 4;  
+ImageRGBA ModelInfo(const Network &net, int width, int height,
+		    std::optional<float> weight_bound_low,
+		    std::optional<float> weight_bound_high,
+		    std::optional<float> bias_bound_low,
+		    std::optional<float> bias_bound_high) {
+  static constexpr int MARGIN = 8;
   // Get histogram of weights per layer.
   // Only layers with inputs (i.e. not the input layer) have weights.
   const int num_histos = net.num_layers;
 
   const int HISTOW = width / 2 - MARGIN;
   const int HISTOH = height / num_histos;
-  
+
   ImageRGBA img{width, height};
   img.Clear32(0x000000FF);
-  
+
   for (int layer = 0; layer < net.num_layers; layer++) {
-    Histogram bias_histo;
+    Histogram bias_histo{bias_bound_low, bias_bound_high};
     for (float f : net.layers[layer].biases) bias_histo.Add(f);
 
-    Histogram weight_histo;
-    for (float f : net.layers[layer].weights) weight_histo.Add(f);    
-    
+    Histogram weight_histo{weight_bound_low, weight_bound_high};
+    for (float f : net.layers[layer].weights) weight_histo.Add(f);
+
     auto DrawHisto = [&img](const Histogram &histo, int x, int y, int w, int h,
 			    const string &label) {
 	const int hmargin = 10;

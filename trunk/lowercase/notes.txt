@@ -199,3 +199,70 @@ this got it out of the plateau.
 I see a lot of weights with values at, or nearly at zero though. Seems
 like we may be wasting our parameter budget then. Should think about some
 kind of vacuuming + expansion?
+
+vacuumed at round 599041, all layers with a threshold of 0.0000001.
+(I got this threshold from inspecting histos and intended to set it really
+conservatively. One way we could think about setting this is that weights
+are always in -8,8 (when clipping is on), so if you have indices_per_node = ipn,
+then the max value a relu node could take on is ipn * 8. So something like
+1 / (ipn * 8) is something like the threshold in which any node is meaningful,
+because if all nodes were outputting the same signal at that magnitude, it would
+register a '1' in that case. Also would need to take into account biases.)
+
+This only reduced ipn by 7 and 13 for the two models, though.
+So try again with 0.00001f. Now more significant:
+
+model 0: 259 ipn to 259, 218, 201, 208.
+model 1: 259 ipn to 259, 204, 183, 218.
+
+The most common weight value seems to be zero or almost zero, still. I guess
+the rectangularity constraint causes a lot of slack in this regard. It definitely
+adds to the simplicity of the code, but maybe we'd benefit in performance from
+relaxing that?
+
+maybe should be exporting eps too, but looks like it went from about 300 to about 350.
+we'd expect a linear speedup here so it makes sense. how will the error fare?
+Seems like it continues the trend... not even any obvious jump at the moment of
+vacuuming (which then suggests we could be more aggressive?)
+
+At round 614486, tried turning off error decay completely.
+Around this time, also increased the target rounds to 1M, which increases the
+effective learning rate a little.
+
+Did a really conservative widening at 639714 rounds.
+Error shot way up... 200+, then dropping quickly to ~84.
+I guess this is a pretty disruptive operation.
+
+tried again with the next layer weights being 0.
+this still caused the error to shoot way up (surprising?) but I'll
+let it run over night anyway...
+well, it starts converging at least, but error is back up to ~50,
+so what is the point of that?
+
+
+OK, tried again with input weights being 0.0 and next layer weights also 0.0.
+But this also has an instant bump in error.
+As I understand it, this should be the same network, so it should not have ...
+OHHH, the indices on the next layer actually need to be permuted if I add
+width, so that's just a bug.
+Tried adding height which should not be affected by this bug. The first round
+does indeed look the same, then error jumps up briefly, but it's quickly down
+to around 40. I thought that nodes that always output zero (which these should,
+with input weights of zero and bias of zero) will always stay zero? So this
+should not have effect even after some training? It's possible I'm just
+attributing variance to this change, but it's the same as it always was.
+Looking at the activations themselves (just from screenshots in ui) these two
+new rows look totally dead, as expected. There are also a lot of other nodes
+that appear dead. Probably worth trying to do a "vacuum"-like process to
+remove these dead nodes. Have to be careful about useful features that are
+just rarely-activated, though.
+  - Nodes whose input weights are all very low, and which have low bias, are
+    heuristically dead. (Could also look at the weights by which the node
+    is used, which tells you something about its downstream significance.)
+  - Also can just run on lots of data. Could be random input data, or could
+    be training examples. If the node's maximum activation is very low, it
+    is empirically dead.
+
+How to remove nodes when there is width/height etc.? We could immediately
+replace them with new nodes (keeps geometry). Or we could just ditch the
+dimensions and use Factorize to make a rectangle. 
