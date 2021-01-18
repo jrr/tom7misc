@@ -2,14 +2,18 @@
 #ifndef _LOWERCASE_MODELINFO_H
 #define _LOWERCASE_MODELINFO_H
 
-#include <memory>
-#include <string>
-#include <cstdint>
-#include <cmath>
+#include <optional>
 
 #include "image.h"
 #include "network.h"
 
-ImageRGBA ModelInfo(const Network &net, int width, int height);
+// If bounds are present, values are clipped. This can be helpful for
+// inspecting the many weights that are very close to zero.
+ImageRGBA ModelInfo(
+    const Network &net, int width, int height,
+    std::optional<float> weight_bound_low = std::nullopt,
+    std::optional<float> weight_bound_high = std::nullopt,
+    std::optional<float> bias_bound_low = std::nullopt,
+    std::optional<float> bias_bound_high = std::nullopt);
 
 #endif

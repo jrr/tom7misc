@@ -5,10 +5,10 @@
 #include <cstdint>
 #include <set>
 
-#include "../../cc-lib/threadutil.h"
-#include "../../cc-lib/randutil.h"
-#include "../../cc-lib/arcfour.h"
-#include "../../cc-lib/base/logging.h"
+#include "threadutil.h"
+#include "randutil.h"
+#include "arcfour.h"
+#include "base/logging.h"
 
 #include "timer.h"
 
@@ -21,6 +21,13 @@ using int64 = int64_t;
 // TODO PERF: After vacuuming, there can be nodes with no references
 // whatsoever; these will never do anything again. We should remove them.
 
+// TODO: We can't always remove 0 weights because of the rectangularity
+// constraint, but we could have an option "remix" which points them at
+// other (not-currently-referenced) nodes, in the hopes that those nodes
+// will be correlated.
+
+// TODO: Operations for adding layers or widening layers.
+
 // You can get some sense of the weight distribution by using
 // modelinfo.exe, which generates histograms of weights and biases per
 // layer.
@@ -32,7 +39,8 @@ using int64 = int64_t;
 
 // 0.01f worked fine for my chess unblinder. With weight decay, weights
 // may be really small (.0001 may be a better starting point, for example).
-static constexpr float THRESHOLD = 0.0001f;
+// static constexpr float THRESHOLD = 0.0001f;
+static constexpr float THRESHOLD = 0.00001f;
 
 // Configure the set of layers (as indices into layers[]) to vacuum.
 // It's probably safest to vacuum one at a time, followed by some
@@ -43,7 +51,7 @@ static constexpr float THRESHOLD = 0.0001f;
 // If you're not throwing out half the layer or more, you'd probably
 // be better off just zeroing weights for the same effect (but then
 // why bother?)
-static const std::set<int> VACUUM_LAYERS{2};
+static const std::set<int> VACUUM_LAYERS{0, 1, 2, 3};
 
 static void VacuumLayer(Network *net, int layer_idx) {
   CHECK(layer_idx >= 0);
@@ -96,8 +104,8 @@ static void VacuumLayer(Network *net, int layer_idx) {
       "layer (" << layer_idx << ") are below the threshold (" <<
       THRESHOLD << ")!?";
 
+    // Can we reduce it?    
     // PERF this could actually be done with binary search.
-    // Can we reduce it?
     bool ok = true;
     for (int node_idx = 0; node_idx < num_nodes; node_idx++) {
       float w = node_indices[node_idx][trunc_to - 1].weight;

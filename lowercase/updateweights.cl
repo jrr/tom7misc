@@ -45,10 +45,6 @@ __kernel void UpdateWeightsSparse(
     #elif CONSTRAIN
     // PERF fma()
     const float new_value = layer_weights[gidx] + learning_rate_times_delta_j * x_ji;
-    // PERF fmin/fmax
-    // if (new_value <= CONSTRAIN_MAX && new_value >= -CONSTRAIN_MAX)
-    //      layer_weights[gidx] = new_value;
-
     const float constrained_value =
       fmax(-CONSTRAIN_WEIGHT_MAX, fmin(CONSTRAIN_WEIGHT_MAX, new_value));
     layer_weights[gidx] = constrained_value;

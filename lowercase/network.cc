@@ -429,6 +429,10 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   CHECK(num_nodes.size() == height.size());
   CHECK(num_nodes.size() == channels.size());
   CHECK(num_nodes.size() == renderstyle.size());
+
+  for (int w : width) CHECK(w > 0);
+  for (int h : height) CHECK(h > 0);
+  for (int c : channels) CHECK(c > 0);
   
   for (int i = 0; i < file_num_layers + 1; i++) {
     printf("Layer %d: %d x %d x %d (as %08x)\n",

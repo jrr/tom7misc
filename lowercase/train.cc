@@ -191,19 +191,18 @@ static void DeleteElements(C *cont) {
 static bool train_should_die = false;
 std::shared_mutex train_should_die_m;
 
-// XXX roundf, right?
 static uint8 FloatByte(float f) {
-  int x = roundf(f * 255.0);
+  int x = roundf(f * 255.0f);
   return std::clamp(x, 0, 255);
 }
 
 static std::tuple<uint8, uint8, uint8> FloatColor(float f) {
   if (f > 0.0f) {
     uint8 v = FloatByte(f);
-    return {v, v, v};
+    return {0, v, 20};
   } else {
     uint8 v = FloatByte(-f);
-    return {v, 20, 0};
+    return {v, 0, 20};
   }
 }
 
@@ -228,7 +227,7 @@ static constexpr int OUTPUT_LAYER_SIZE =
 // Weight decay; should be a number less than, but close to, 1.
 // This is like L2 regularization (I think just modulo a constant
 // factor of 2), but less principled.
-static constexpr bool DECAY = true;
+static constexpr bool DECAY = false;
 static constexpr float DECAY_FACTOR = 0.999995;
 
 static constexpr int NEIGHBORHOOD = 3;
@@ -2204,7 +2203,7 @@ struct Training {
     // maximum increment to +/- 1.0f, which is not particularly principled
     // but does seem to help prevent runaway.
 
-    constexpr int TARGET_ROUNDS = 750000;
+    constexpr int TARGET_ROUNDS = 1000000;
     auto Linear =
       [](double start, double end, double round_target, double input) {
 	if (input < 0.0) return start;

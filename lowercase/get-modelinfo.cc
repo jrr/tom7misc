@@ -32,7 +32,13 @@ int main(int argc, char **argv) {
   const int WIDTH = HISTOW * 2 + MARGIN;
   const int HEIGHT = HISTOH * num_histos;
 
-  const ImageRGBA img = ModelInfo(*net, WIDTH, HEIGHT);
+  const ImageRGBA img = ModelInfo(*net, WIDTH, HEIGHT,
+				  // {-0.0000001f},
+				  // {+0.0000001f},
+				  nullopt,
+				  nullopt,
+				  nullopt,
+				  nullopt);
   
   const string outfile = argc > 2 ? (string)argv[2] : "modelinfo.png";
   img.Save(outfile);
