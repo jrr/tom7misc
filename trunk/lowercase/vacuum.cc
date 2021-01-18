@@ -26,8 +26,6 @@ using int64 = int64_t;
 // other (not-currently-referenced) nodes, in the hopes that those nodes
 // will be correlated.
 
-// TODO: Operations for adding layers or widening layers.
-
 // You can get some sense of the weight distribution by using
 // modelinfo.exe, which generates histograms of weights and biases per
 // layer.

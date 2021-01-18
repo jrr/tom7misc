@@ -251,6 +251,8 @@ to around 40. I thought that nodes that always output zero (which these should,
 with input weights of zero and bias of zero) will always stay zero? So this
 should not have effect even after some training? It's possible I'm just
 attributing variance to this change, but it's the same as it always was.
+Kinda looks like a visible bump at this time, but a small one at least.
+
 Looking at the activations themselves (just from screenshots in ui) these two
 new rows look totally dead, as expected. There are also a lot of other nodes
 that appear dead. Probably worth trying to do a "vacuum"-like process to
@@ -265,4 +267,5 @@ just rarely-activated, though.
 
 How to remove nodes when there is width/height etc.? We could immediately
 replace them with new nodes (keeps geometry). Or we could just ditch the
-dimensions and use Factorize to make a rectangle. 
+dimensions and use Factorize to make a rectangle.
+
