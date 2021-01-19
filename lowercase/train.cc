@@ -1405,6 +1405,14 @@ struct UI {
       return {w, h, MakeScale(w, h)};
     }
     case RENDERSTYLE_FLAT: {
+      #if 0
+      if (h == 1 && w > 100) {
+	// XXX hax for extreme "rectangles"
+	int ww = 100;
+	int hh = (w / 1000) + 1;
+	return {ww, hh, MakeScale(ww, hh)};
+      }
+      #endif
       int w = net.width[layer] * net.channels[layer];
       int h = net.height[layer];
       return {w, h, MakeScale(w, h)};

@@ -300,3 +300,15 @@ the next layer has a chance to refer to nodes it wasn't depending on before.
 
 eps is a little higher, at 350. would be nice to have a running average here...
 
+
+at 687269, culled layer 1 with new rerandomize option turned on.
+error is quickly sub-40.
+at 687510, same for layer 2.
+error looks fine. Kind of surprised to see that training rate is not
+much higher after doing this, since the models are nearly half the size
+they used to be...? Maybe this is actually good news though... it probably
+means that there is some overhead in the training process that we can get rid of.
+
+
+at 760857, use new 1d widen to add 5% nodes to first layer, add_index_rate = 0.15,
+INITIAL_WEIGHT = 0.00000001f.
