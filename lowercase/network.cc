@@ -55,12 +55,16 @@ Network::Network(vector<int> num_nodes,
     layer.biases.resize(num_nodes[i + 1], 0.0);
   }
 
+  ReallocateInvertedIndices();
+}
+
+void Network::ReallocateInvertedIndices() {  
   inverted_indices.resize(num_layers);
   for (int i = 0; i < num_layers; i++) {
     InvertedIndices &ii = inverted_indices[i];
     ii.start.resize(num_nodes[i], 0);
     ii.length.resize(num_nodes[i], 0);
-    ii.output_indices.resize(indices_per_node[i] * num_nodes[i + 1], 0);
+    ii.output_indices.resize(layers[i].indices_per_node * num_nodes[i + 1], 0);
   }
 }
 

@@ -5,6 +5,7 @@
 #include <string>
 #include <cstdint>
 #include <cmath>
+#include <time.h>
 
 #include "network.h"
 #include "base/logging.h"
@@ -32,13 +33,51 @@ int main(int argc, char **argv) {
   const int WIDTH = HISTOW * 2 + MARGIN;
   const int HEIGHT = HISTOH * num_histos;
 
-  const ImageRGBA img = ModelInfo(*net, WIDTH, HEIGHT,
-				  // {-0.0000001f},
-				  // {+0.0000001f},
-				  nullopt,
-				  nullopt,
-				  nullopt,
-				  nullopt);
+  const ImageRGBA histos = ModelInfo(*net, WIDTH, HEIGHT,
+				     // {-0.0000001f},
+				     // {+0.0000001f},
+				     nullopt,
+				     nullopt,
+				     nullopt,
+				     nullopt);
+
+  char dates[128] = {};
+  time_t tt = time(nullptr);
+  // XXX even though TZ is set and 'date +"%H:%M"' works as expected
+  // in mingw, this reports UTC time?
+  tt -= 3600 * 5;
+  
+  strftime(dates, 127, "%d %b %Y  %H:%M", localtime(&tt));
+  vector<string> lines = {
+    StringPrintf("%s  round %lld   examples %lld   bytes %lld   real layers %d",
+		 dates,
+		 net->rounds, net->examples, net->Bytes(), net->num_layers),
+    StringPrintf("  Input: %dx%dx%d = %d",
+		 net->width[0], net->height[0], net->channels[0], net->num_nodes[0]),
+  };
+
+  for (int layer_idx = 0; layer_idx < net->num_layers; layer_idx++) {
+    const Network::Layer &layer = net->layers[layer_idx];
+    const int width = net->width[layer_idx + 1];
+    const int height = net->height[layer_idx + 1];
+    const int channels = net->channels[layer_idx + 1];
+    const int num_nodes = net->num_nodes[layer_idx + 1];
+    const int ipn = layer.indices_per_node;
+    const char *types = layer.type == LAYER_DENSE ? "DENSE" :
+      layer.type == LAYER_SPARSE ? "SPARSE" : "???";
+    lines.push_back(
+	StringPrintf("Layer %d: %dx%dx%d = %d (%s). ipn %d",
+		     layer_idx, width, height, channels, num_nodes,
+		     types, ipn));
+  }
+
+  const int TOP = 20 * lines.size();
+  ImageRGBA img(histos.Width(), histos.Height() + TOP);
+  img.Clear32(0x00000000);
+  img.BlendImage(0, TOP, histos);
+  for (int i = 0; i < lines.size(); i++) {
+    img.BlendText2x32(0, i * 20, 0xCCCCCCFF, lines[i]);
+  }
   
   const string outfile = argc > 2 ? (string)argv[2] : "modelinfo.png";
   img.Save(outfile);
