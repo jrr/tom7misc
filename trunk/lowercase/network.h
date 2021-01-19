@@ -102,9 +102,11 @@ struct Network {
   static Network *ReadNetworkBinary(const string &filename);
   static void SaveNetworkBinary(const Network &net, const string &filename);
 
+  // If the number of nodes or indices per node change, this can be
+  // used to reallocate the inverted index buffers; then you must call
+  // ComputeInvertedIndices to put the network in a valid state.
+  void ReallocateInvertedIndices();
   static void ComputeInvertedIndices(Network *net, int max_parallelism = 8);
-
-  // TODO: Add CPU inference, at least.
 
   // Run the network to fill out the stimulation. The Stimulation
   // must be the right size (i.e. created from this Network) and

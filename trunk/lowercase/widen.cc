@@ -435,17 +435,7 @@ static void WidenNetwork(Network *net) {
 
   // We changed the number of indices per node, so we need to resize
   // the inverted indices (and recompute them).
-  
-  // Maybe this could be a helper in Network. It's taken from
-  // the constructor.
-  net->inverted_indices.resize(net->num_layers);
-  for (int i = 0; i < net->num_layers; i++) {
-    Network::InvertedIndices &ii = net->inverted_indices[i];
-    ii.start.resize(net->num_nodes[i], 0xBEEF);
-    ii.length.resize(net->num_nodes[i], 0xDEAD);
-    ii.output_indices.resize(
-	net->layers[i].indices_per_node * net->num_nodes[i + 1], 0xCAFE);
-  }
+  net->ReallocateInvertedIndices();  
 
   printf("Recompute inverted indices...\n");
   fflush(stdout);

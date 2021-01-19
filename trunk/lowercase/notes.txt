@@ -269,3 +269,34 @@ How to remove nodes when there is width/height etc.? We could immediately
 replace them with new nodes (keeps geometry). Or we could just ditch the
 dimensions and use Factorize to make a rectangle.
 
+
+====== Random activations ======
+
+Looking at maximum activations on random inputs. Both upper- and
+lowercase networks have similar shapes. It makes sense that we would
+see activations towards the center and not towards the edges on early
+layers, given what typical inputs look like. I don't really understand
+why the third layer has a dead stripe through the middle on both
+networks, though. Is there some bug with the random index assignment
+during intialization? That code is crazy, so it's possible.
+Maybe it's because the output layer is like 661x2 plus some off-by-one error?
+
+Also interesting to see that there are some letters that are never (strongly)
+predicted. These differ between the two networks.
+
+ACTUALLY, adding the checkerboard patterns both noticeably increased the brightness
+of activations throughout, and made the letter activations in the output all light
+up (but one). So perhaps the random stimulation approach is not a good one, because
+it might have had us conclude that these features are dead. (OTOH the checkerboard
+did seem to work!) It really is the checkerboards, too... I tried just all-on and
+all-off and those do not produce the effect.
+
+
+at 667777, culled the first layer with an activation threshold of 0.00001.
+This deleted about 500 nodes and around 30 ipn.
+... doesn't seem to hurt error instantaneously. great!
+note that we might see a bump in error (but then hopefully improvement) since
+the next layer has a chance to refer to nodes it wasn't depending on before.
+
+eps is a little higher, at 350. would be nice to have a running average here...
+

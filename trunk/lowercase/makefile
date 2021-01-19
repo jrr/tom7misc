@@ -1,5 +1,5 @@
 
-default: train.exe collate-errors.exe vacuum.exe widen.exe
+default: train.exe collate-errors.exe vacuum.exe cull.exe widen.exe
 
 all: ui.exe cleandb.exe samecase.exe train.exe collate-errors.exe vacuum.exe widen.exe get-modelinfo.exe font-problem_test.exe top_test.exe vector-eval.exe sdf-eval.exe vector-info.exe sdf-info.exe area.exe
 
@@ -62,6 +62,10 @@ train.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o train.o loadfonts.o top.o
 	@echo -n "!"
 
 vacuum.exe : $(OBJECTS) vacuum.o
+	@$(CXX) $^ -o $@ $(LFLAGS)
+	@echo -n "!"
+
+cull.exe : $(OBJECTS) cull.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
