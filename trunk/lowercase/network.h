@@ -112,6 +112,8 @@ struct Network {
   // must be the right size (i.e. created from this Network) and
   // the input layer should be filled.
   void RunForward(Stimulation *stim) const;
+  // Same, but only one layer. src_layer is the input layer.
+  void RunForwardLayer(Stimulation *stim, int src_layer) const;  
   // Same, but print lots of garbage and abort if a NaN is encountered
   // at any point.
   void RunForwardVerbose(Stimulation *stim) const;

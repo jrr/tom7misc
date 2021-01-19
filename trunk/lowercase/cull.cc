@@ -20,16 +20,17 @@
 
 #include "timer.h"
 #include "network.h"
+#include "network-util.h"
 
 using namespace std;
 
 using int64 = int64_t;
 
 // If activation never exceeds this amount, remove the node.
-static constexpr float THRESHOLD = 0.0001f;
+static constexpr float THRESHOLD = 0.00001f;
 
 // Layer to cull.
-static constexpr int CULL_LAYER = 0;
+static constexpr int CULL_LAYER = 2;
 
 // How many random inputs to try. Approximate since we do the same number
 // per thread.
@@ -39,18 +40,24 @@ static constexpr int NUM_SAMPLES = 327680;
 // PERF: We won't use the accumulated input layer; just computing it for
 // regularity here...
 // Not thread safe.
-static void Accumulate(const Stimulation &actual, Stimulation *maxes) {
-  CHECK(actual.values.size() == maxes->values.size());
-  for (int i = 0; i < actual.values.size(); i++) {
-    const vector<float> &vs = actual.values[i];
-    vector<float> *ms = &maxes->values[i];
-    CHECK(vs.size() == ms->size());
-    for (int j = 0; j < vs.size(); j++) {
-      float v = fabs(vs[j]);
-      (*ms)[j] = std::max((*ms)[j], v);
-    }
+static void AccumulateLayer(const Stimulation &actual, Stimulation *maxes,
+			    int layer_idx) {
+  const vector<float> &vs = actual.values[layer_idx];
+  vector<float> *ms = &maxes->values[layer_idx];
+  CHECK(vs.size() == ms->size());
+  for (int j = 0; j < vs.size(); j++) {
+    float v = fabs(vs[j]);
+    (*ms)[j] = std::max((*ms)[j], v);
   }
 }
+
+static void Accumulate(const Stimulation &actual, Stimulation *maxes) {
+  CHECK(actual.values.size() == maxes->values.size());
+  for (int layer_idx = 0; layer_idx < actual.values.size(); layer_idx++) {
+    AccumulateLayer(actual, maxes, layer_idx);
+  }
+}
+
 
 // TODO: Here we only randomize the input layer and check what gets
 // stimulated downstream. This may be a little dangerous because we
@@ -59,6 +66,13 @@ static void Accumulate(const Stimulation &actual, Stimulation *maxes) {
 // in random inputs. Perhaps it would make more sense to randomize
 // each layer just to check how the next layer gets activated.
 static Stimulation RandomlyStimulate(ArcFour *rc, const Network &net) {
+  // If true, sometimes replace a hidden layer's activations with
+  // random noise. Don't accumulate that of course, but use it to
+  // stimulate the next layer. This is more conservative. Without
+  // this, rare features can sometimes be incorrectly detected as dead
+  // because we never found an input that activates them.
+  static constexpr bool RERANDOMIZE = true;
+  
   static constexpr int THREADS = 17;
   static_assert(THREADS > 1, "thread 0 is used for special patterns");
   static constexpr int SAMPLES_PER_THREAD = NUM_SAMPLES / THREADS;
@@ -125,6 +139,23 @@ static Stimulation RandomlyStimulate(ArcFour *rc, const Network &net) {
 	    Stimulation r(net);
 	    for (float &v : r.values[0])
 	      v = RandDouble(rc);
+
+	    // (no reason to accumulate the input layer)
+	    
+	    for (int src_layer = 0; src_layer < r.values.size() - 1; src_layer++) {
+	      net.RunForwardLayer(&r, src_layer);
+	      AccumulateLayer(r, &m, src_layer + 1);
+
+	      // If rerandomization is on, just replace the destination layer with
+	      // random noise.
+	      if (RERANDOMIZE && rc->Byte() < 64) {
+		for (float &v : r.values[src_layer + 1]) {
+		  // Here, activation ranges from -1 to 1?
+		  v = (RandDouble(rc) * 2.0) - 1.0;
+		}
+	      }
+	    }
+				  
 	    Acc(&r);
 	  }
 	}
@@ -137,124 +168,6 @@ static Stimulation RandomlyStimulate(ArcFour *rc, const Network &net) {
   for (const Stimulation &m : maxes) Accumulate(m, &total);
   return total;
 }
-
-// TODO: Use this for vacuum, and maybe in widen too.
-struct EZLayer {
-  int width = 0;
-  int height = 0;
-  int ipn = 0;
-
-  void MakeWidthHeight() {
-    int num_nodes = nodes.size();
-    vector<int> factors = Util::Factorize(num_nodes);
-    CHECK(!factors.empty()) << num_nodes << " has no factors??";
-
-    // XXX Does this greedy approach produce good results?
-    int ww = factors.back(), hh = 1;
-    factors.pop_back();
-
-    for (int f : factors) {
-      if (ww < hh)
-	ww *= f;
-      else
-	hh *= f;
-    }
-
-    CHECK(ww * hh == num_nodes);
-    width = ww;
-    height = hh;
-  }
-  
-  // The indices are hard to work with in their flat representation;
-  // make a vector of weighted indices per node.
-  struct OneIndex {
-    uint32_t index = 0u;
-    float weight = 0.0f;
-  };
-
-  struct Node {
-    float bias = 0.0f;
-    vector<OneIndex> inputs;
-  };
-
-  vector<Node> nodes;
-  
-  EZLayer(const Network &net, int layer_idx) {
-    CHECK(layer_idx >= 0);
-    CHECK(layer_idx < net.num_layers);
-    const int num_nodes = net.num_nodes[layer_idx + 1];
-    const Network::Layer *layer = &net.layers[layer_idx];
-    ipn = layer->indices_per_node;
-
-    width = net.width[layer_idx + 1];
-    height = net.height[layer_idx + 1];
-    CHECK(net.channels[layer_idx + 1]) << "Flatten channels first";
-    CHECK(width * height == num_nodes);
-    
-    CHECK(layer->indices.size() == layer->weights.size());
-    CHECK(layer->indices.size() == ipn * num_nodes);
-    nodes.resize(num_nodes);
-
-    for (int node_idx = 0; node_idx < num_nodes; node_idx++) {
-      Node &node = nodes[node_idx];
-      node.bias = layer->biases[node_idx];
-      node.inputs.reserve(ipn);
-      for (int idx = 0; idx < ipn; idx++) {
-	OneIndex oi;
-	oi.index = layer->indices[node_idx * ipn + idx];
-	oi.weight = layer->weights[node_idx * ipn + idx];
-	node.inputs.push_back(oi);
-      }
-    }
-  }
-  
-  // Packs inputs and biases back into the layer. Does not update
-  // the inverted indices!
-  void Repack(Network *net, int layer_idx) {
-    const int num_nodes = nodes.size();
-    CHECK(num_nodes == width * height);
-
-    Network::Layer *layer = &net->layers[layer_idx];
-    net->width[layer_idx + 1] = width;
-    net->height[layer_idx + 1] = height;
-    net->num_nodes[layer_idx + 1] = num_nodes;
-    layer->indices_per_node = ipn;
-    
-    if (ipn == net->num_nodes[layer_idx]) {
-      layer->type = LAYER_DENSE;
-    } else {
-      layer->type = LAYER_SPARSE;
-    }
-    
-    // Sort all index lists, and check that they're the right
-    // size.
-    auto CompareByIndex =
-      [](const OneIndex &a, const OneIndex &b) {
-	return a.index < b.index;
-      };
-
-    for (Node &node : nodes) {
-      CHECK(node.inputs.size() == ipn);
-      std::sort(node.inputs.begin(), node.inputs.end(), CompareByIndex);
-    }
-
-    // Copy nodes back into layer.
-    layer->indices.clear();
-    layer->weights.clear();
-    layer->biases.clear();
-    layer->indices.reserve(num_nodes * ipn);
-    layer->weights.reserve(num_nodes * ipn);
-    for (int node_idx = 0; node_idx < num_nodes; node_idx++) {
-      const Node &node = nodes[node_idx];
-      layer->biases.push_back(node.bias);
-      for (int i = 0; i < ipn; i++) {
-	layer->indices.push_back(node.inputs[i].index);
-	layer->weights.push_back(node.inputs[i].weight);
-      }
-    }
-  }
-
-};
 
 // Returns remapping of node ids on this layer, so that the next layer
 // can be patched up. If an index is missing from the map, it was
@@ -461,8 +374,6 @@ int main(int argc, char **argv) {
 
     img.Save("random-stimulation.png");
   }
-  
-  // XXX use that to cull
 
   Timer cull_timer;
   CullNetwork(&rc, net.get(), max_stim);

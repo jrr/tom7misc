@@ -14,6 +14,7 @@
 #include "timer.h"
 
 #include "network.h"
+#include "network-util.h"
 
 using namespace std;
 
@@ -30,10 +31,17 @@ static_assert(ADD_NODE_FRAC > 0.0f);
 enum class Dimension {
   WIDTH,
   HEIGHT,
+  ONE_DIMENSIONAL,
   // TODO: Channels also makes sense
 };
 
-static constexpr Dimension DIMENSION = Dimension::WIDTH;
+static constexpr Dimension DIMENSION = Dimension::ONE_DIMENSIONAL;
+
+// The layer (as an index into layers[]) to widen. It's probably
+// safest to do some tuning after each widen operation.
+// Not clear if widening from top to bottom or bottom to top is
+// better, or whether that matters?
+static constexpr int WIDEN_LAYER = 0;
 
 // On the next layer, we'll add some indices (increasing
 // indices_per_node) to reference only these new added
@@ -41,7 +49,7 @@ static constexpr Dimension DIMENSION = Dimension::WIDTH;
 // by each node in the next layer.
 
 // FIXME: Need to handle DENSE layers!
-static constexpr float ADD_INDEX_RATE = 0.25f;
+static constexpr float ADD_INDEX_RATE = 0.15f;
 static_assert(ADD_INDEX_RATE > 0.0f,
 	      "no point to add nodes if not references");
 static_assert(ADD_INDEX_RATE <= 1.0f,
@@ -51,40 +59,41 @@ static_assert(ADD_INDEX_RATE <= 1.0f,
 // [-INITIAL_WEIGHT, INITIAL_WEIGHT]. Assuming the network
 // already has significant training, this should probably
 // be very small.
-static constexpr float INITIAL_WEIGHT = 0.0001f;
+static constexpr double INITIAL_WEIGHT = 0.00000001;
 
 [[maybe_unused]]
 static float Uniform(ArcFour *rc) {
-  constexpr float IVAL_WIDTH = 2.0f * INITIAL_WEIGHT;
+  constexpr double IVAL_WIDTH = 2.0 * INITIAL_WEIGHT;
   // Uniform in [0,1]
   const double d = (double)Rand32(rc) / (double)0xFFFFFFFF;
   return (float)((IVAL_WIDTH * d) - (double)INITIAL_WEIGHT);
 }
 
+// Input weights for a newly created node. These should be
+// nonzero (so that the node isn't born dead), but very
+// small (so that it is minimally disruptive to the current
+// behavior).
+static float NewNodeInputWeight(ArcFour *rc) {
+  return Uniform(rc);
+}
 
-static float NewNodeWeight(ArcFour *rc) {
+// Use of a new node on the subsequent layer.
+static float NewUseWeight(ArcFour *rc) {
   // return Uniform(rc);
   return 0.0f;
 }
 
-static float NewInputWeight(ArcFour *rc) {
-  // return Uniform(rc);
-  return 0.0f;
-}
-
-// The layer (as an index into layers[]) to widen. It's probably
-// safest to do some tuning after each widen operation.
-// Not clear if widening from top to bottom or bottom to top is
-// better, or whether that matters?
-static constexpr int WIDEN_LAYER = 2;
 
 // Modifies the network in place. May remap node indices, and adds new
 // ones. Returns mapping from old idx to new (first vector), and
 // returns the vector of node indices that were added (second vector).
 // These should be used to remap the next layer's input indices, and
 // expand them so that the newly added nodes are not dead.
+//
+// TODO: Lots of fiddly code, redundant with EZLayer. Can we perhaps
+// work from the EZLayer node structure?
 static std::pair<vector<int>, vector<int>>
-WidenLayer(ArcFour *rc, Network *net, int layer_idx) {
+WidenLayer3D(ArcFour *rc, Network *net, int layer_idx) {
   CHECK(layer_idx >= 0);
   CHECK(layer_idx < net->num_layers);
   const int num_nodes = net->num_nodes[layer_idx + 1];
@@ -146,7 +155,7 @@ WidenLayer(ArcFour *rc, Network *net, int layer_idx) {
     }
   }
 
-  // HERE: Resize the layer, adding nodes along the dimension requested.
+  // Resize the layer, adding nodes along the dimension requested.
   // Save the new indices since we need to add them in the next layer.
 
   const int previous_layer_size = net->num_nodes[layer_idx];
@@ -172,7 +181,7 @@ WidenLayer(ArcFour *rc, Network *net, int layer_idx) {
       for (int i = 0; i < ipn; i++) {
 	OneIndex oi;
 	oi.index = indices[i];
-	oi.weight = NewNodeWeight(rc);
+	oi.weight = NewNodeInputWeight(rc);
 	node.inputs.push_back(oi);
       }
 
@@ -296,6 +305,81 @@ WidenLayer(ArcFour *rc, Network *net, int layer_idx) {
   return {rewritten_indices, added_indices};
 }
 
+// Same as above, but does not try to preserve the geometry of the
+// existing network; it just adds nodes on the end and refactors
+// the width and height to match. Used for ONE_DIMENSIONAL expansion.
+static std::pair<vector<int>, vector<int>>
+WidenLayer1D(ArcFour *rc, Network *net, int layer_idx) {
+  EZLayer ez(*net, layer_idx);
+
+  // Add nodes to the end.
+
+  const int previous_layer_size = net->num_nodes[layer_idx];
+  CHECK(ez.ipn <= previous_layer_size);
+  // XXX share with 3D version?
+  auto NewNode = [&rc, &ez, previous_layer_size]() {
+      EZLayer::Node node;
+      node.bias = 0.0f;
+      node.inputs.reserve(ez.ipn);
+      
+      vector<int> indices;
+      indices.reserve(previous_layer_size);
+      for (int i = 0; i < previous_layer_size; i++)
+	indices.push_back(i);
+      Shuffle(rc, &indices);
+      indices.resize(ez.ipn);
+      
+      for (int i = 0; i < ez.ipn; i++) {
+	EZLayer::OneIndex oi;
+	oi.index = indices[i];
+	oi.weight = NewNodeInputWeight(rc);
+	node.inputs.push_back(oi);
+      }
+
+      return node;
+    };
+
+  CHECK(DIMENSION == Dimension::ONE_DIMENSIONAL);
+
+  const int old_num_nodes = ez.nodes.size();
+
+  // Existing nodes keep the same indices.
+  vector<int> rewritten_indices;
+  rewritten_indices.reserve(old_num_nodes);
+  for (int i = 0; i < old_num_nodes; i++)
+    rewritten_indices.push_back(i);
+  
+  vector<int> added_indices;
+  const int add_nodes = std::max((int)roundf(old_num_nodes * ADD_NODE_FRAC), 1);
+  printf("1D: %d + %d becomes %d nodes\n", old_num_nodes, add_nodes,
+	 old_num_nodes + add_nodes);
+  for (int i = 0; i < add_nodes; i++) {
+    added_indices.push_back(ez.nodes.size());
+    ez.nodes.push_back(NewNode());
+  }
+
+  ez.MakeWidthHeight();
+  
+  ez.Repack(net, layer_idx);
+  
+  return {rewritten_indices, added_indices};
+}
+
+// Dispatch to the appropriate method.
+static std::pair<vector<int>, vector<int>>
+WidenLayer(ArcFour *rc, Network *net, int layer_idx) {
+  switch (DIMENSION) {
+  case Dimension::WIDTH:
+  case Dimension::HEIGHT:
+    return WidenLayer3D(rc, net, layer_idx);    
+  case Dimension::ONE_DIMENSIONAL:
+    return WidenLayer1D(rc, net, layer_idx);
+  default:
+    LOG(FATAL) << "Unknown dimension?";
+    // return {{}, {}};
+  }
+}
+
 // given a remapping and some new indices we created in the previous
 // layer, update all the indices, and add references to the new ones
 // on the indicated layer, increasing its indices_per_node.
@@ -349,7 +433,7 @@ static void RemapAndAdd(ArcFour *rc, Network *net, int layer_idx,
       // Idea is that these nodes start with no downstream effect,
       // but can get picked up if they would have produced
       // a useful nudge.
-      oi.weight = NewInputWeight(rc);
+      oi.weight = NewUseWeight(rc);
       node_indices[node_idx].push_back(oi);
     }
   }
@@ -384,6 +468,8 @@ static void RemapAndAdd(ArcFour *rc, Network *net, int layer_idx,
     }
   }
 }
+
+
 
 static void WidenNetwork(Network *net) {
   ArcFour rc(StringPrintf("%lld,%lld,%lld",
