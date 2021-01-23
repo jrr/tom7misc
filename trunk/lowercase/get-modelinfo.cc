@@ -33,13 +33,13 @@ int main(int argc, char **argv) {
   const int WIDTH = HISTOW * 2 + MARGIN;
   const int HEIGHT = HISTOH * num_histos;
 
-  const ImageRGBA histos = ModelInfo(*net, WIDTH, HEIGHT,
-				     // {-0.0000001f},
-				     // {+0.0000001f},
-				     nullopt,
-				     nullopt,
-				     nullopt,
-				     nullopt);
+  const ImageRGBA histos = ModelInfo::Histogram(*net, WIDTH, HEIGHT,
+						// {-0.0000001f},
+						// {+0.0000001f},
+						nullopt,
+						nullopt,
+						nullopt,
+						nullopt);
 
   char dates[128] = {};
   time_t tt = time(nullptr);
@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
 
   const int TOP = 20 * lines.size();
   ImageRGBA img(histos.Width(), histos.Height() + TOP);
-  img.Clear32(0x00000000);
+  img.Clear32(0x000000FF);
   img.BlendImage(0, TOP, histos);
   for (int i = 0; i < lines.size(); i++) {
     img.BlendText2x32(0, i * 20, 0xCCCCCCFF, lines[i]);

@@ -1,4 +1,20 @@
 
+// Tool that increases sparsity of the network, by reducing IPN on
+// layers where we can do so without removing an input weight that
+// exceeds the threshold. This can change the behavior of the network,
+// but usually just reduces its size (and thus training time).
+// Sparser networks are less prone to overfitting in general, although
+// your mileage may vary!
+//
+// You can get some sense of the weight distribution by using
+// get-modelinfo.exe, which generates histograms of weights and biases
+// per layer. Might help intuitions to use get-layerweights.exe to
+// visualize the weights.
+//
+// cull.exe will remove nodes that never seem to be activated, or that
+// have no references. It often makes sense to run this (especially the
+// latter option) after vacuuming.
+
 #include <string>
 #include <vector>
 #include <shared_mutex>
@@ -18,17 +34,10 @@ using namespace std;
 
 using int64 = int64_t;
 
-// TODO PERF: After vacuuming, there can be nodes with no references
-// whatsoever; these will never do anything again. We should remove them.
-
 // TODO: We can't always remove 0 weights because of the rectangularity
 // constraint, but we could have an option "remix" which points them at
 // other (not-currently-referenced) nodes, in the hopes that those nodes
 // will be correlated.
-
-// You can get some sense of the weight distribution by using
-// modelinfo.exe, which generates histograms of weights and biases per
-// layer.
 
 // Really, using an absolute threshold doesn't make that much sense,
 // since downstream weights could be huge! Probably we should be doing
@@ -51,6 +60,8 @@ static constexpr float THRESHOLD = 0.00001f;
 // why bother?)
 static const std::set<int> VACUUM_LAYERS{0, 1, 2, 3};
 
+
+// XXX use EzLayer for this
 static void VacuumLayer(Network *net, int layer_idx) {
   CHECK(layer_idx >= 0);
   CHECK(layer_idx < net->num_layers);

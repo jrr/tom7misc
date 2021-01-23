@@ -25,7 +25,7 @@ using int64 = int64_t;
 // Note that this is applied to the dimension being widened (width or
 // height) and in extreme cases could result in a lot of roundoff
 // error.
-static constexpr float ADD_NODE_FRAC = 0.05f;
+static constexpr float ADD_NODE_FRAC = 0.10f;
 static_assert(ADD_NODE_FRAC > 0.0f);
 
 enum class Dimension {
@@ -41,7 +41,7 @@ static constexpr Dimension DIMENSION = Dimension::ONE_DIMENSIONAL;
 // safest to do some tuning after each widen operation.
 // Not clear if widening from top to bottom or bottom to top is
 // better, or whether that matters?
-static constexpr int WIDEN_LAYER = 0;
+static constexpr int WIDEN_LAYER = 2;
 
 // On the next layer, we'll add some indices (increasing
 // indices_per_node) to reference only these new added
@@ -58,8 +58,8 @@ static_assert(ADD_INDEX_RATE <= 1.0f,
 // Initial weights are uniformly generated in
 // [-INITIAL_WEIGHT, INITIAL_WEIGHT]. Assuming the network
 // already has significant training, this should probably
-// be very small.
-static constexpr double INITIAL_WEIGHT = 0.00000001;
+// be very small. (Should experiment with this?)
+static constexpr double INITIAL_WEIGHT = 0.1; // 00001;
 
 [[maybe_unused]]
 static float Uniform(ArcFour *rc) {
@@ -317,6 +317,11 @@ WidenLayer1D(ArcFour *rc, Network *net, int layer_idx) {
   const int previous_layer_size = net->num_nodes[layer_idx];
   CHECK(ez.ipn <= previous_layer_size);
   // XXX share with 3D version?
+  // XXX Here we've abandoned the spatial meaning of hidden layers
+  // because of the resizing. But for the first hidden layer, it
+  // definitely still makes sense to reference nearby pixels if the
+  // input is an image! Should make this an option when generating
+  // node indices.
   auto NewNode = [&rc, &ez, previous_layer_size]() {
       EZLayer::Node node;
       node.bias = 0.0f;
