@@ -280,8 +280,10 @@ why the third layer has a dead stripe through the middle on both
 networks, though. Is there some bug with the random index assignment
 during intialization? That code is crazy, so it's possible.
 Maybe it's because the output layer is like 661x2 plus some off-by-one error?
+(I think there is indeed something wrong here .. look at the weights for
+the last layer in before-vacuum).
 
-Also interesting to see that there are some letters that are never (strongly)
+also interesting to see that there are some letters that are never (strongly)
 predicted. These differ between the two networks.
 
 ACTUALLY, adding the checkerboard patterns both noticeably increased the brightness
@@ -312,3 +314,66 @@ means that there is some overhead in the training process that we can get rid of
 
 at 760857, use new 1d widen to add 5% nodes to first layer, add_index_rate = 0.15,
 INITIAL_WEIGHT = 0.00000001f.
+
+instantaneous error seems within the normal variance, which is expected because
+the weights on the new nodes start at 0.
+
+so at 761228 I just did the same to the next two hidden layers.
+(also weirdly eps is UP after this change... 380+... 400... why??)
+
+round 853977: more aggressive. added 10% nodes with .0001 weights to all layers.
+instantaneous error seems lower? saw ~34
+but I think it was probably a fluke. still doesn't really seem like these nodes
+are activating?
+
+nothing seems to be happening after a day of that, so at round 879696...
+10% on each layer with input weights of 0.1!
+
+ok here I at least see error jump to 47 from the start
+... oh but then immediately back down to 37.. 35... maybe just a fluke?
+the nodes are really activating, at least. this much is clear from
+the training UI. lesse how it fares overnight!
+
+over the long haul we're still seeing improvement, like 1 absolute error
+in 120000 rounds. If it kept going linearly (which is not expected),
+we'd get to 10 error at 950000 + 26 * 120000 = 3.1 M rounds, which is
+not really insane given that I'm already at 1M... something like 20
+days of training time. (Could even suggest that optimization is the
+right place to spend the effort.)
+
+Or maybe it's just that the training rate is too conservative now.
+
+at round 954412, set target rounds to 3M. This changes the learning rate
+from .002366 to 0.007455. and, well, it's obviously too much: error
+shoots up >100, it does come down after a few dozen rounds, but to like 70,
+which is terrible. makes ya kinda wonder if maybe the opposite thing
+is what we need to be doing!
+
+so, just undid that change, and fiddled with the start and end learn
+rates (still targeting 3M rounds) to make the instantenous rate 0.001403.
+verified that error looked good at the start. and, wow, I saw a round
+with an error of 30 right away?
+let's see if it picks up overnight.
+
+(maybe the learning rates are just way too high?)
+well, that was probably wishful thinking. at round 1,047,072 it is still
+making progress (err around 36.4) with training rate of 0.001329, but
+halving the training rate did not create some kinda miracle!
+
+
+at 1.08M rounds, vacuumed (0.00001) and culled with (only) the new
+unreferenced-node criterion, mostly to test that this doesn't mess up
+the network due to some bugs. It seems fine. 
+This only affects the last layer. On other layers we've kept every node
+alive because we insert nodes with nontrivial weights (and uniform
+random indices) in the new widen operation. Probably we'd have to wait
+a while for these to converge (or add decay).
+Also did a regular culling (rerandomize, threshold = 0.00001f) of
+each layer, but only ~5 nodes were removed per layer with this pass.
+
+Idea: In the Network file format, include each node's age (round at which
+it was born), which could be used to modulate individual training rates
+or weight decay. But actually, we might even need to do that at the level
+of weights (many operations introduce new weights), which seems like overkill.
+This of course would make training slower too, maybe a lot so.
+

@@ -321,8 +321,8 @@ void Network::ComputeInvertedIndices(Network *net, int max_parallelism) {
     CHECK_EQ(net->layers[layer].indices_per_node * dst_num_nodes,
 	     inverted->size());
 
-    printf("ComputeInvertedIndices layer %d...\n", layer);
-    fflush(stdout);
+    // printf("ComputeInvertedIndices layer %d...\n", layer);
+    // fflush(stdout);
     
     // Indexed by node id in the source layer.
     vector<vector<uint32>> occurrences;
@@ -339,8 +339,8 @@ void Network::ComputeInvertedIndices(Network *net, int max_parallelism) {
       occurrences[src_nodes_idx].push_back(dst_indices_idx);
     }
 
-    printf("Sort layer %d...\n", layer);
-    fflush(stdout);
+    // printf("Sort layer %d...\n", layer);
+    // fflush(stdout);
 
     // These can be in arbitrary order, but sort each subvector, for
     // locality of access and better compression.
@@ -348,8 +348,8 @@ void Network::ComputeInvertedIndices(Network *net, int max_parallelism) {
       std::sort(v.begin(), v.end());
     }
 
-    printf("Flatten layer %d...\n", layer);
-    fflush(stdout);
+    // printf("Flatten layer %d...\n", layer);
+    // fflush(stdout);
 
     // Now flatten.
     int flat_size = 0;

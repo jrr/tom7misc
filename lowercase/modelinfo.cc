@@ -12,11 +12,12 @@
 #include "base/stringprintf.h"
 
 using namespace std;
+using uint32 = uint32_t;
 using int64 = int64_t;
 
 namespace {
 // XXX could make sense as a standalone utility?
-struct Histogram {
+struct Histo {
   void Add(float f) {
     if (bound_low.has_value() && f < bound_low.value())
       f = bound_low.value();
@@ -26,8 +27,8 @@ struct Histogram {
     values.push_back(f);
   }
 
-  Histogram() {}
-  Histogram(optional<float> bound_low, optional<float> bound_high) :
+  Histo() {}
+  Histo(optional<float> bound_low, optional<float> bound_high) :
     bound_low(bound_low), bound_high(bound_high) {}
 
   // Assumes width is the number of buckets you want.
@@ -105,11 +106,12 @@ struct Histogram {
 };
 }  // namespace
 
-ImageRGBA ModelInfo(const Network &net, int width, int height,
-		    std::optional<float> weight_bound_low,
-		    std::optional<float> weight_bound_high,
-		    std::optional<float> bias_bound_low,
-		    std::optional<float> bias_bound_high) {
+ImageRGBA ModelInfo::Histogram(
+    const Network &net, int width, int height,
+    std::optional<float> weight_bound_low,
+    std::optional<float> weight_bound_high,
+    std::optional<float> bias_bound_low,
+    std::optional<float> bias_bound_high) {
   static constexpr int MARGIN = 8;
   // Get histogram of weights per layer.
   // Only layers with inputs (i.e. not the input layer) have weights.
@@ -122,13 +124,13 @@ ImageRGBA ModelInfo(const Network &net, int width, int height,
   img.Clear32(0x000000FF);
 
   for (int layer = 0; layer < net.num_layers; layer++) {
-    Histogram bias_histo{bias_bound_low, bias_bound_high};
+    Histo bias_histo{bias_bound_low, bias_bound_high};
     for (float f : net.layers[layer].biases) bias_histo.Add(f);
 
-    Histogram weight_histo{weight_bound_low, weight_bound_high};
+    Histo weight_histo{weight_bound_low, weight_bound_high};
     for (float f : net.layers[layer].weights) weight_histo.Add(f);
 
-    auto DrawHisto = [&img](const Histogram &histo, int x, int y, int w, int h,
+    auto DrawHisto = [&img](const Histo &histo, int x, int y, int w, int h,
 			    const string &label) {
 	const int hmargin = 10;
 	const auto [lo, hi, himg] = histo.MakeImage(w, h - hmargin);
@@ -156,5 +158,89 @@ ImageRGBA ModelInfo(const Network &net, int width, int height,
 	      StringPrintf("^ Weights layer %d ^", layer));
   }
 
+  return img;
+}
+
+static inline uint32 GetWeightColor(float f) {
+  auto MapV = [](float f) -> uint8 {
+      float ff = sqrtf(f);
+      int v = roundf(255.0f * ff);
+      if (v > 255) return 255;
+      if (v < 0) return 0;
+      return v;
+    };
+
+  // XXX from vacuum - configurable or remove?
+  static constexpr float THRESHOLD = 0.00001f;  
+  if (f == 0) {
+    return 0xFFFF00FF;
+  } else if (fabs(f) < THRESHOLD) {
+    return 0xFF00FFFF;
+  } else if (f > 0) {
+    uint32 v = MapV(f);
+    return (v << 16) | 0xFF;
+  } else {
+    uint32 v = MapV(-f);
+    return (v << 24) | 0xFF;
+  }
+}
+
+ImageRGBA ModelInfo::LayerWeights(const Network &net, int layer_idx,
+				  uint32 missing_weight_color) {
+  CHECK(layer_idx >= 0 && layer_idx < net.layers.size());
+  const Network::Layer &layer = net.layers[layer_idx];
+  const int prev_nodes = net.num_nodes[layer_idx];
+  const int num_nodes = net.num_nodes[layer_idx + 1];
+  const int ipn = layer.indices_per_node;
+  
+  //     <--- this layer's nodes --->
+  // ^
+  // |
+  // weights
+  // |
+  // |
+  // v
+  constexpr int TOP = 12;
+  constexpr int LEFT = 12;
+  constexpr int RIGHT = 4;
+  constexpr int BOTTOM = 4;
+  ImageRGBA img(LEFT + RIGHT + num_nodes,
+		TOP + BOTTOM + prev_nodes);
+
+  constexpr int WEIGHTSX = LEFT;
+  constexpr int WEIGHTSY = TOP;
+  img.Clear32(0x000000FF);
+  img.BlendRect32(WEIGHTSX, WEIGHTSY, num_nodes, prev_nodes,
+		  missing_weight_color);
+
+  vector<bool> has_reference(prev_nodes, false);
+  
+  for (int x = 0; x < num_nodes; x++) {
+    const int start = x * ipn;
+    for (int i = 0; i < ipn; i++) {
+      uint32 idx = layer.indices[start + i];
+      float w = layer.weights[start + i];
+
+      CHECK(idx < prev_nodes);
+      has_reference[idx] = true;
+      uint32 color = GetWeightColor(w);
+      img.SetPixel32(WEIGHTSX + x, WEIGHTSY + idx, color);
+    }
+  }
+
+  for (int y = 0; y < prev_nodes; y++) {
+    if (!has_reference[y]) {
+      for (int x = 0; x < num_nodes; x++) {
+	// XXX: Configurable?
+	// Would be missing_weight_color if not detected.
+	img.SetPixel32(WEIGHTSX + x, WEIGHTSY + y, 0xFFFF00FF);
+      }
+    }
+  }
+  
+  img.BlendText32(LEFT, 2, 0xCCCCCCFF,
+		  StringPrintf("<--   Layer %d's nodes (%d)  ipn=%d  -->",
+			       layer_idx, num_nodes, ipn));
+  
   return img;
 }

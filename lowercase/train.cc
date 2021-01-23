@@ -1705,15 +1705,17 @@ struct UI {
 
 	    if (histo_mode) {
 	      if (current_network != nullptr) {
-		const ImageRGBA img = ModelInfo(*current_network, 1920, 600);
+		const ImageRGBA histo =
+		  ModelInfo::Histogram(*current_network, 1920, 600);
 		// PERF should invest in fast blit of ImageRGBA to SDL screen
-		for (int y = 0; y < img.Height(); y++) {
-		  for (int x = 0; x < img.Width(); x++) {
-		    auto [r, g, b, _] = img.GetPixel(x, y);
+		for (int y = 0; y < histo.Height(); y++) {
+		  for (int x = 0; x < histo.Width(); x++) {
+		    auto [r, g, b, _] = histo.GetPixel(x, y);
 		    sdlutil::drawpixel(screen, x, y + SCREENH - 600, r, g, b);
 		  }
 		}
 	      }
+	      
 	    } else {
 	      if (vlayer >= 0) {
 		double tot = 0.0;
@@ -2211,7 +2213,7 @@ struct Training {
     // maximum increment to +/- 1.0f, which is not particularly principled
     // but does seem to help prevent runaway.
 
-    constexpr int TARGET_ROUNDS = 1000000;
+    constexpr int TARGET_ROUNDS = 3000000;
     auto Linear =
       [](double start, double end, double round_target, double input) {
 	if (input < 0.0) return start;
@@ -2220,8 +2222,8 @@ struct Training {
 	return (end * f) + start * (1.0 - f);
       };
     // constexpr float LEARNING_RATE_HIGH = 0.10f;
-    constexpr float LEARNING_RATE_HIGH = 0.01f;
-    constexpr float LEARNING_RATE_LOW = 0.002f;
+    constexpr float LEARNING_RATE_HIGH = 0.002f;
+    constexpr float LEARNING_RATE_LOW = 0.000125f;
     const float round_learning_rate =
       Linear(LEARNING_RATE_HIGH, LEARNING_RATE_LOW, TARGET_ROUNDS, net->rounds);
     Printf("%.2f%% of target rounds\n", (100.0 * net->rounds) / TARGET_ROUNDS);

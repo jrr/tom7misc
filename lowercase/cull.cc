@@ -24,13 +24,20 @@
 
 using namespace std;
 
+using uint32 = uint32_t;
 using int64 = int64_t;
 
+// If the node has zero references, it has no effect and training will
+// never change this. Remove such nodes.
+static constexpr bool CULL_UNREFERENCED_NODES = true;
+
 // If activation never exceeds this amount, remove the node.
+static constexpr bool CULL_WEAK_NODES = true;
 static constexpr float THRESHOLD = 0.00001f;
 
-// Layer to cull.
-static constexpr int CULL_LAYER = 2;
+// Layers to cull, in the given order. Pretty much the same as running
+// cull.exe sequentially.
+static constexpr std::initializer_list<int> CULL_LAYERS = {0, 1, 2};
 
 // How many random inputs to try. Approximate since we do the same number
 // per thread.
@@ -176,32 +183,36 @@ static std::unordered_map<int, int>
 CullLayer(ArcFour *rc,
 	  Network *net,
 	  int layer_idx,
-	  const vector<float> &max_activation) {
+	  const vector<float> &max_activation,
+	  const std::unordered_set<int> &unreferenced_nodes) {
 
   EZLayer ez(*net, layer_idx);
   CHECK(max_activation.size() == ez.nodes.size());
-  
+
   std::unordered_map<int, int> remapping;
-  int removed = 0;
+  int removed_weak = 0, removed_unreferenced = 0;
   {
     vector<EZLayer::Node> out;
     out.reserve(ez.nodes.size());
     for (int i = 0; i < ez.nodes.size(); i++) {
-      if (max_activation[i] >= THRESHOLD) {
+      if (CULL_WEAK_NODES && max_activation[i] < THRESHOLD) {
+	// Discarded because it doesn't reach the activation threshold.
+	removed_weak++;
+      } else if (CULL_UNREFERENCED_NODES &&
+		 unreferenced_nodes.find(i) != unreferenced_nodes.end()) {
+	removed_unreferenced++;
+      } else {
 	// Keep.
 	remapping[i] = out.size();
 	out.push_back(ez.nodes[i]);
-      } else {
-	// Otherwise, it's discarded.
-	removed++;
       }
     }
     ez.nodes = std::move(out);
   }
 
   ez.MakeWidthHeight();
-  printf("Removed %d nodes. New size %dx%d = %d.\n",
-	 removed, ez.width, ez.height, ez.nodes.size());
+  printf("Removed %d weak and %d unreferenced nodes. New size %dx%d = %d.\n",
+	 removed_weak, removed_unreferenced, ez.width, ez.height, ez.nodes.size());
 
   ez.Repack(net, layer_idx);
   
@@ -276,69 +287,72 @@ static void FixupLayer(ArcFour *rc, Network *net, int layer_idx,
   ez.Repack(net, layer_idx);
 }
 
-static void CullNetwork(ArcFour *rc, Network *net,
-			const Stimulation &max_stim) {
-  net->StructuralCheck();
+// Return the node indices on the indicated layer that have no
+// references at all (because of sparsity) on the following layer.
+// This can happen as a result of vacuuming, for example.
+static std::unordered_set<int> GetUnreferenced(const Network &net, int src_layer_idx) {
+  CHECK(src_layer_idx >= 0 && src_layer_idx < net.layers.size()) << src_layer_idx;
+  // Treat the final layer as completely referenced (i.e., externally).
+  if (src_layer_idx == net.layers.size() - 1) return {};
 
-  CHECK(CULL_LAYER < net->layers.size()) << "CULL_LAYER out of bounds?";
-  CHECK(CULL_LAYER != net->layers.size() - 1) << "Not culling the last "
-    "layer because it's probably a mistake; the structure of the problem "
-    "being trained would have to change. But you can try it by removing "
-    "this check if you want.";
-
-  // If missing from the remapping, it is deleted.
-  std::unordered_map<int, int> remapping =
-    CullLayer(rc, net, CULL_LAYER, max_stim.values[CULL_LAYER + 1]);
-  if (CULL_LAYER + 1 < net->layers.size())
-    FixupLayer(rc, net, CULL_LAYER + 1, remapping);
+  // ... really this is done from the perspective of the next layer.
+  const int layer_idx = src_layer_idx + 1;
+  CHECK(layer_idx >= 0 && layer_idx < net.layers.size());
+  const Network::Layer &layer = net.layers[layer_idx];
+  const int src_nodes = net.num_nodes[layer_idx];
   
-  // We changed the number of indices per node, so we need to resize
-  // the inverted indices (and recompute them).
-  net->ReallocateInvertedIndices();
+  vector<bool> has_reference(src_nodes, false);
+  for (const uint32 idx : layer.indices) {
+    CHECK(idx < has_reference.size());
+    has_reference[idx] = true;
+  }
 
-  printf("Recompute inverted indices...\n");
-  fflush(stdout);
-  Network::ComputeInvertedIndices(net, 24);
-  printf("Structural check...\n");
-  fflush(stdout);
-  net->StructuralCheck();
-  printf("Done.\n");
-  fflush(stdout);
+  std::unordered_set<int> unreferenced;
+  
+  for (int i = 0; i < src_nodes; i++) {
+    if (!has_reference[i]) {
+      unreferenced.insert(i);
+    }
+  }
+  return unreferenced;
 }
-
 
 static uint8 FloatByte(float f) {
   int x = roundf(f * 255.0f);
   return std::clamp(x, 0, 255);
 }
 
-int main(int argc, char **argv) {
+// The full culling process for the indicated layer. Needs a
+// well-formed network as input, and leaves it in a well-formed state
+// (but indices may be shuffled around, etc.).
+static void CullNetworkAt(ArcFour *rc, Network *net,
+			  // If present, writes an image of the random
+			  // stimulation's result as a PNG file.
+			  const std::optional<string> &stimulation_filename,
+			  int cull_layer) {
+  net->StructuralCheck();
 
-  CHECK(argc >= 2) << "\n\nUsage:\ncull.exe net.val [output.val]";
-  
-  Timer model_timer;
-  std::unique_ptr<Network> net{Network::ReadNetworkBinary(argv[1])};
-  fprintf(stderr, "Loaded model in %.2fs\n",
-	  model_timer.MS() / 1000.0);
-  fflush(stderr);
+  CHECK(cull_layer < net->layers.size()) << "cull_layer out of bounds?";
+  CHECK(cull_layer != net->layers.size() - 1) << "Not culling the last "
+    "layer because it's probably a mistake; the structure of the problem "
+    "being trained would have to change. But you can try it by removing "
+    "this check if you want.";
 
   Timer stimulate_timer;
-  ArcFour rc(StringPrintf("%lld,%lld,%lld",
-			  (int64)time(nullptr),
-			  net->rounds,
-			  net->Bytes()));
-  const Stimulation max_stim = RandomlyStimulate(&rc, *net);
+  // PERF could skip this if we're not culling weak nodes?
+  const Stimulation max_stim = RandomlyStimulate(rc, *net);
   
   // TODO: Also allow loading this same thing from the training
   // process (could be via an image?). The random stimulation has
   // shown weakness at triggering activations of non-dead nodes
   // in simple tests.
   
-  fprintf(stderr, "Randomly stimulated in %.2fs\n",
+  fprintf(stderr, "[Cull layer %d] Randomly stimulated in %.2fs\n",
+	  cull_layer,
 	  stimulate_timer.MS() / 1000.0);
 
   // Write image of max stimulation values.
-  {
+  if (stimulation_filename.has_value()) {
     constexpr int MARGIN = 4;
     int mw = 0, th = 0;
     for (int layer_idx = 0;
@@ -372,14 +386,62 @@ int main(int argc, char **argv) {
       starty += h + MARGIN;
     }
 
-    img.Save("random-stimulation.png");
+    img.Save(stimulation_filename.value());
   }
+  
+  const std::unordered_set<int> unreferenced = GetUnreferenced(*net, cull_layer);
+  if (!unreferenced.empty())
+    printf("[Cull layer %d] There are %d unreferenced nodes\n", cull_layer,
+	   unreferenced.size());
+  
+  // If missing from the remapping, it is deleted.
+  const std::unordered_map<int, int> remapping =
+    CullLayer(rc, net, cull_layer, max_stim.values[cull_layer + 1],
+	      unreferenced);
+  if (cull_layer + 1 < net->layers.size())
+    FixupLayer(rc, net, cull_layer + 1, remapping);
+  
+  // We changed the number of indices per node, so we need to resize
+  // the inverted indices (and recompute them).
+  net->ReallocateInvertedIndices();
 
-  Timer cull_timer;
-  CullNetwork(&rc, net.get(), max_stim);
-  fprintf(stderr, "Culled model in %.2fs\n",
-	  cull_timer.MS() / 1000.0);
+  printf("[Cull layer %d] Recompute inverted indices...\n", cull_layer);
+  fflush(stdout);
+  Network::ComputeInvertedIndices(net, 24);
+  printf("[Cull layer %d] Structural check...\n", cull_layer);
+  fflush(stdout);
+  net->StructuralCheck();
+  printf("[Cull layer %d] Done.\n", cull_layer);
+  fflush(stdout);
+}
+
+int main(int argc, char **argv) {
+
+  CHECK(argc >= 2) << "\n\nUsage:\ncull.exe net.val [output.val]";
+  
+  Timer model_timer;
+  std::unique_ptr<Network> net{Network::ReadNetworkBinary(argv[1])};
+  fprintf(stderr, "Loaded model in %.2fs\n",
+	  model_timer.MS() / 1000.0);
   fflush(stderr);
+
+  ArcFour rc(StringPrintf("%lld,%lld,%lld",
+			  (int64)time(nullptr),
+			  net->rounds,
+			  net->Bytes()));
+  
+  bool first = true;
+  for (int cull_layer : CULL_LAYERS) {
+    CHECK(cull_layer >= 0 && cull_layer < net->layers.size());
+    Timer cull_timer;
+    optional<string> stimfile = nullopt;
+    if (first) stimfile = {"random-stimulation.png"};
+    CullNetworkAt(&rc, net.get(), stimfile, cull_layer);
+    fprintf(stderr, "[Cull layer %d] Culled model in %.2fs\n",
+	    cull_layer, cull_timer.MS() / 1000.0);
+    fflush(stderr);
+    first = false;
+  }
 
   string outfile = argc > 2 ? argv[2] : "net-culled.val";
   Network::SaveNetworkBinary(*net, outfile);
