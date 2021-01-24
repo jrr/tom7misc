@@ -10,6 +10,7 @@
 #include <tuple>
 #include <type_traits>
 #include <vector>
+#include <optional>
 #include <functional>
 
 // Generate lines with Bresenham's algorithm. Use like this:
@@ -234,7 +235,44 @@ void LineAA::Draw(Float x0, Float y0, Float x1, Float y1, Fn drawpixel) {
   }
 }
 
-// tessellate until threshold p is happy... @TODO warped to compensate for non-linear stretching
+// Compute the point of intersection between two line segments
+// (given as their endpoints), or return nullopt if they do
+// not intersect.
+//
+// (Note that even for double inputs, this does some float
+// calculations and returns float. TODO: Could make it
+// use double (or long double) if inputs are that type, with
+// significant added trickery.)
+// Ported from sml-lib.
+template<class Num = float>
+std::optional<std::pair<float, float>> LineIntersection(
+    // First segment
+    Num p0x, Num p0y, Num p1x, Num p1y,
+    // Second segment
+    Num p2x, Num p2y, Num p3x, Num p3y) {
+
+  const auto s1x = p1x - p0x;
+  const auto s1y = p1y - p0y;
+  const auto s2x = p3x - p2x;
+  const auto s2y = p3y - p2y;
+
+  const auto l1 = p0x - p2x;
+  const auto l2 = p0y - p2y;
+  const float denom = s1x * s2y - s2x * s1y;
+  
+  const float s = (s1x * l2 - s1y * l1) / denom;
+
+  if (s >= 0.0f && s <= 1.0f) {
+    const float t = (s2x * l2 - s2y * l1) / denom;
+
+    if (t >= 0.0f && t <= 1.0f) {
+      return {{(float)p0x + (t * s1x),
+	       (float)p0y + (t * s1y)}};
+    }
+  }
+  return std::nullopt;
+}
+
 
 // Return a vector of endpoints, not including the start point (but
 // including the end), to draw as individual line segments in order to
