@@ -153,7 +153,7 @@ template<class F>
 void ParallelComp(int64_t num,
 		  const F &f,
 		  int max_concurrency) {
-  max_concurrency = std::min((int64_t)num, max_concurrency);
+  max_concurrency = std::min(num, (int64_t)max_concurrency);
   // Need at least one thread for correctness.
   max_concurrency = std::max(max_concurrency, 1);
   std::mutex index_m;
@@ -235,7 +235,7 @@ template<class T, class F>
 auto ParallelMapi(const std::vector<T> &vec,
 		  const F &f,
 		  int max_concurrency) ->
-  std::vector<decltype(f((int64_t)0, vec.front())> {
+  std::vector<decltype(f((int64_t)0, vec.front()))> {
   using R = decltype(f((int64_t)0, vec.front()));
   std::vector<R> result;
   result.resize(vec.size());
