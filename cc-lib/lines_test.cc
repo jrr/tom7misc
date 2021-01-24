@@ -93,6 +93,8 @@ int main() {
   TestWu();
   TestIntersection();
 
+  // TODO: Test point-line distance stuff.
+  
   printf("OK, but need to manually check the Bresenham and Wu results\n");
   
   return 0;

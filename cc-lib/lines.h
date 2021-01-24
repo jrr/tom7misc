@@ -273,6 +273,50 @@ std::optional<std::pair<float, float>> LineIntersection(
   return std::nullopt;
 }
 
+// Return the closest point (to x,y) on the given line segment.
+// It may be one of the endpoints.
+inline std::pair<float, float>
+ClosestPointOnSegment(
+    // Line segment
+    float x0, float y0, float x1, float y1,
+    // Point to test
+    float x, float y) {
+  auto SqDist = [](float x0, float y0,
+		   float x1, float y1) {
+      const float dx = x1 - x0;
+      const float dy = y1 - y0;
+      return dx * dx + dy * dy;
+    };
+  
+  const float sqlen = SqDist(x0, y0, x1, y1);
+  if (sqlen == 0.0) {
+    // Degenerate case where line segment is just a point,
+    // so there is only one choice.
+    return {x0, y0};
+  }
+
+  const float tf = ((x - x0) * (x1 - x0) + (y - y0) * (y1 - y0)) / sqlen;
+  // Make sure it is on the segment.
+  const float t = std::max(0.0f, std::min(1.0f, tf));
+  // Closest point, which is on the segment.
+
+  const float xx = x0 + t * (x1 - x0);
+  const float yy = y0 + t * (y1 - y0);
+  return {xx, yy};
+}
+
+// Return the minimum distance between the point and the line segment.
+inline float PointLineDistance(
+    // Line segment
+    float x0, float y0, float x1, float y1,
+    // Point to test
+    float x, float y) {
+
+  const auto [xx, yy] = ClosestPointOnSegment(x0, y0, x1, y1, x, y);
+  const float dx = x - xx;
+  const float dy = y - yy;
+  return sqrtf(dx * dx + dy * dy);
+}
 
 // Return a vector of endpoints, not including the start point (but
 // including the end), to draw as individual line segments in order to
