@@ -2,6 +2,7 @@
 #define _LOWERCASE_AUTOPARALLEL_H
 
 #include <limits>
+#include <vector>
 
 #include "arcfour.h"
 #include "randutil.h"
@@ -49,10 +50,53 @@ struct AutoParallelComp {
       save_timer.Start();
       last_save = save_timer.MS();
     }
+    rc = std::make_unique<ArcFour>(
+	StringPrintf("apc%lld.%f", time(nullptr), last_save));
   }
 
+  // with f(idx, value), ignoring result
+  template<class T, class F>
+  void ParallelAppi(const std::vector<T> &vec, const F &f) {
+    auto ff = [&vec, &f](int64_t idx) {
+	(void)f(idx, vec[idx]);
+      };
+    ParallelComp(vec.size(), ff);
+  }
+
+  // with f(value), ignoring result
+  template<class T, class F>
+  void ParallelApp(const std::vector<T> &vec, const F &f) {
+    auto ff = [&vec, &f](int64_t idx) {
+	(void)f(vec[idx]);
+      };
+    ParallelComp(vec.size(), ff);
+  }
+  
+  // with f(idx, value)
+  template<class T, class F>
+  auto ParallelMapi(const std::vector<T> &vec, const F &f) ->
+    std::vector<decltype(f((int64_t)0, vec.front()))> {
+    using R = decltype(f((int64_t)0, vec.front()));
+
+    std::vector<R> result(vec.size());
+    R *data = result.data();
+    auto run_write = [data, &f](int64_t idx, const T &arg) {
+	data[idx] = f(idx, arg);
+      };
+    ParallelAppi(vec, run_write);
+    return result;
+  }
+
+  // with f(value)
+  template<class T, class F>
+  auto ParallelMap(const std::vector<T> &vec, const F &f) ->
+    std::vector<decltype(f(vec.front()))> {
+    auto ff = [&f](int64_t idx, const T &arg) { return f(arg); };
+    return ParallelMapi(vec, ff);
+  }
+  
   template<class F>
-  void ParallelComp(int num, const F &f) {
+  void ParallelComp(int64_t num, const F &f) {
     // We want to balance between running the actual fastest bucket,
     // and running new experiments to improve our understanding of
     // buckets. The way we do this is to generate a variate for each
@@ -64,7 +108,7 @@ struct AutoParallelComp {
 
     // PERF avoid this loop once all buckets are full.
     
-    RandomGaussian gauss(&rc);
+    RandomGaussian gauss(rc.get());
     
     // Remember, i=0 means threads=1
     int best_i = 0;
@@ -85,6 +129,25 @@ struct AutoParallelComp {
       }
     }
     
+    auto Consider = [this, &best_i](int dx) {
+	int neighbor = best_i + dx;
+	if (neighbor < 0) return false;
+	if (neighbor >= max_parallelism) return false;
+
+	int bsamples = experiments[best_i].sample_ms.size();
+	int nsamples = experiments[neighbor].sample_ms.size();
+	int diff = bsamples - nsamples;
+	if (diff <= 0) return false;
+	// The bigger the difference, the more likely we are to do this.
+	if (RandTo(rc.get(), bsamples) >= diff) return false;
+	best_i = neighbor;
+	return true;
+      };
+
+    // consider some jitter to nearby buckets if this one has a lot more samples.
+    // (could even loop this?)
+    if (!Consider(-1)) Consider(+1);
+    
     const int threads = best_i + 1;
     if (verbose) {
       printf("AutoParallelComp: Selected threads=%d (%.5f ms +/- %.5f)\n",
@@ -96,7 +159,7 @@ struct AutoParallelComp {
     Timer expt_timer;
     if (best_i == 0) {
       // Run in serial without any locking etc.
-      for (int i = 0; i < num; i++) {
+      for (int64_t i = 0; i < num; i++) {
 	(void)f(i);
       }
     } else {
@@ -147,6 +210,59 @@ struct AutoParallelComp {
     last_save = save_timer.MS();
   }
 
+  void PrintHisto() {
+    // Get min/max, including stdev
+    double min_ms = std::numeric_limits<double>::infinity();
+    double max_ms = -std::numeric_limits<double>::infinity();
+    for (const Experiment &expt : experiments) {
+      min_ms = std::min(min_ms, expt.current_mean - expt.current_stdev);
+      max_ms = std::max(max_ms, expt.current_mean + expt.current_stdev);
+    }
+
+    if (max_ms <= min_ms) {
+      printf("(experiment samples are degenerate)\n");
+      return;
+    }
+
+    double width_ms = max_ms - min_ms;
+    
+    //      123 12345 12345678
+    //      12345678901234567890
+    printf("th |  # | avg ms |\n");
+    static constexpr int HW = 59;
+    for (int i = 0; i < experiments.size(); i++) {
+      const Experiment &expt = experiments[i];
+      // '% 2d' doesn't really work; the space is allocated
+      // to the missing '+' sign.
+      std::string th = StringPrintf("%d", i + 1);
+      while (th.size() < 2) th = (string)" " + th;
+      std::string sam = StringPrintf("%d", (int)expt.sample_ms.size());
+      while (sam.size() < 3) sam = (string)" " + sam;
+      std::string avg = StringPrintf("%.2f", expt.current_mean);
+      while (avg.size() < 8) avg = (string)" " + avg;
+      printf("%s |%s |%s| ", th.c_str(), sam.c_str(), avg.c_str());
+
+      double emin = (expt.current_mean - expt.current_stdev);
+      double emax = (expt.current_mean + expt.current_stdev);
+      double minf = (emin - min_ms) / width_ms;
+      double maxf = (emax - min_ms) / width_ms;
+      double avgf = (expt.current_mean - min_ms) / width_ms;
+      int imin = round(minf * (HW - 1));
+      int iavg = round(avgf * (HW - 1));
+      int imax = round(maxf * (HW - 1));
+      for (int x = 0; x < HW; x++) {
+	char c = ' ';
+	if (x == iavg) c = '*';
+	else if (x == imin) c = '<';
+	else if (x == imax) c = '>';
+	else if (x > imin && x < iavg) c = '-';
+	else if (x > iavg && x < imax) c = '-';
+	printf("%c", c);
+      }
+      printf("\n");
+    }
+  }
+  
 private:
   // This can certainly be improved!
   struct Experiment {
@@ -238,12 +354,13 @@ private:
     expt->current_mean = mean;
     expt->current_stdev = stdev;
   }
-      
+
+  
   const int max_parallelism = 1;
   const int max_samples = 1;
   const bool verbose = false;
   const string cachefile;
-  ArcFour rc{"autoparallelcomp"};
+  std::unique_ptr<ArcFour> rc;
   // experiments[i] is i+1 threads
   vector<Experiment> experiments;
   Timer save_timer;
