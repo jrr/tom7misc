@@ -40,7 +40,7 @@ static void TestAccumulate() {
   CHECK_EQ(acc, NUM) << acc;
 }
 
-int main(int argc, char **argv) {
+static void TestMap() {
   {
     vector<int> v = { 3, 2, 1 };
     vector<int> vs = ParallelMap(v, Square, 25);
@@ -49,10 +49,10 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < 10; i++) {
       CheckSameVec(UnParallelMap(v, Square, i),
-                   ParallelMap(v, Square, i));
+		   ParallelMap(v, Square, i));
     }
   }
-
+    
   {
     vector<string> v;
     for (int i = 0; i < 100; i++)
@@ -63,10 +63,27 @@ int main(int argc, char **argv) {
     for (int i = 0; i < 20; i++) {
       CheckSameVec(UnParallelMap(v, F, i), ParallelMap(v, F, i));
     }
-
   }
+}
 
+static void TestMapi() {
+  vector<char> ecs;
+  for (int c = 0; c < 255; c++) ecs.push_back(c ^ 0x5F);
+  
+  for (int th = 1; th < 100; th++) {
+    vector<char> cs = ParallelMapi(ecs, [](int i, char c) {
+	return (char)((c ^ 0x5f) - i);
+      }, th);
+    for (char c : cs) CHECK(c == 0);
+  }
+}
+
+int main(int argc, char **argv) {
+
+  TestMap();
+  TestMapi();
   TestAccumulate();
+  
   
   printf("OK.\n");
   return 0;

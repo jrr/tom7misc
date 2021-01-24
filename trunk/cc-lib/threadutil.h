@@ -146,82 +146,18 @@ Res ParallelAccumulate(int64_t num,
 // Do progress meter.
 // It should be thread safe and have a way for a thread to register a sub-meter.
 
-// Run the function f(idx, item) for each item in the vector in up to
-// max_concurrency parallel threads. The caller must of course
-// synchronize any accesses to shared data structures. Return value of
-// function is ignored.
-//
-// TODO: Implement this in terms of ParallelComp
-template<class T, class F>
-void ParallelAppi(const std::vector<T> &vec, 
-		  const F &f,
-		  int max_concurrency) {
-  // TODO: XXX This cast may really be unsafe, since these vectors
-  // could exceed 32 bit ints in practice.
-  max_concurrency = std::min((int)vec.size(), max_concurrency);
-  // Need at least one thread for correctness.
-  max_concurrency = std::max(max_concurrency, 1);
-  std::mutex index_m;
-  int next_index = 0;
-  
-  // Thread applies f repeatedly until there are no more indices.
-  // PERF: Can just start each thread knowing its start index, and avoid
-  // the synchronization overhead at startup.
-  auto th = [&index_m, &next_index, &vec, &f]() {
-    for (;;) {
-      index_m.lock();
-      if (next_index == (int64_t)vec.size()) {
-	// All done. Don't increment counter so that other threads can
-	// notice this too.
-	index_m.unlock();
-	return;
-      }
-      int my_index = next_index++;
-      index_m.unlock();
-
-      // Do work, not holding mutex.
-      (void)f(my_index, vec[my_index]);
-    }
-  };
-
-  std::vector<std::thread> threads;
-  threads.reserve(max_concurrency);
-  for (int i = 0; i < max_concurrency; i++) {
-    threads.emplace_back(th);
-  }
-  // Now just wait for them all to finish.
-  for (std::thread &t : threads) t.join();
-}
-
-// Same, but the typical case that the index is not needed.
-template<class T, class F>
-void ParallelApp(const std::vector<T> &vec, 
-		 const F &f,
-		 int max_concurrency) {
-  auto ff = [&f](int i_unused, const T &arg) { return f(arg); };
-  ParallelAppi(vec, ff, max_concurrency);
-}
-
-// Drop-in serial replacement for debugging, etc.
-template<class T, class F>
-void UnParallelApp(const std::vector<T> &vec, 
-		   const F &f,
-		   int max_concurrency) {
-  for (const auto &t : vec) f(t);
-}
-
 // Parallel comprehension. Runs f on 0...(num-1).
-// Actually is comprehension the right name for this given that it
-// doesn't return anything? XXX
+// (Comprehension might not be the right name for this given that it
+// doesn't return anything?)
 template<class F>
-void ParallelComp(int num,
+void ParallelComp(int64_t num,
 		  const F &f,
 		  int max_concurrency) {
-  max_concurrency = std::min(num, max_concurrency);
+  max_concurrency = std::min((int64_t)num, max_concurrency);
   // Need at least one thread for correctness.
   max_concurrency = std::max(max_concurrency, 1);
   std::mutex index_m;
-  int next_index = 0;
+  int64_t next_index = 0;
 
   // Thread applies f repeatedly until there are no more indices.
   // PERF: Can just start each thread knowing its start index, and avoid
@@ -235,7 +171,7 @@ void ParallelComp(int num,
 	index_m.unlock();
 	return;
       }
-      int my_index = next_index++;
+      int64_t my_index = next_index++;
       index_m.unlock();
 
       // Do work, not holding mutex.
@@ -254,9 +190,42 @@ void ParallelComp(int num,
 
 // Drop-in serial replacement for debugging, etc.
 template<class F>
-void UnParallelComp(int num, const F &f, int max_concurrency_ignored) {
-  for (int i = 0; i < num; i++) (void)f(i);
+void UnParallelComp(int64_t num, const F &f, int max_concurrency_ignored) {
+  for (int64_t i = 0; i < num; i++) (void)f(i);
 }
+
+// Run the function f(idx, item) for each item in the vector in up to
+// max_concurrency parallel threads. The caller must of course
+// synchronize any accesses to shared data structures. Return value of
+// function is ignored.
+template<class T, class F>
+void ParallelAppi(const std::vector<T> &vec, 
+		  const F &f,
+		  int max_concurrency) {
+
+  auto ff = [&vec, &f](int64_t idx) {
+      (void)f(idx, vec[idx]);
+    };
+  ParallelComp(vec.size(), ff, max_concurrency);
+}
+
+// Same, but the typical case that the index is not needed.
+template<class T, class F>
+void ParallelApp(const std::vector<T> &vec, 
+		 const F &f,
+		 int max_concurrency) {
+  auto ff = [&f](int64_t i_unused, const T &arg) { return f(arg); };
+  ParallelAppi(vec, ff, max_concurrency);
+}
+
+// Drop-in serial replacement for debugging, etc.
+template<class T, class F>
+void UnParallelApp(const std::vector<T> &vec, 
+		   const F &f,
+		   int max_concurrency) {
+  for (const auto &t : vec) f(t);
+}
+
 
 // With f(index, value).
 // F needs to be callable (std::function or lambda) and thread safe.
@@ -266,8 +235,8 @@ template<class T, class F>
 auto ParallelMapi(const std::vector<T> &vec,
 		  const F &f,
 		  int max_concurrency) ->
-      std::vector<decltype(f(0, vec.front()))> {
-  using R = decltype(f(0, vec.front()));
+  std::vector<decltype(f((int64_t)0, vec.front())> {
+  using R = decltype(f((int64_t)0, vec.front()));
   std::vector<R> result;
   result.resize(vec.size());
 
@@ -275,7 +244,7 @@ auto ParallelMapi(const std::vector<T> &vec,
   // vector::operator[], but if we have a data pointer then we can be
   // confident of having one writer to each slot.
   R *data = result.data();
-  auto run_write = [data, &f](int idx, const T &arg) {
+  auto run_write = [data, &f](int64_t idx, const T &arg) {
 		     data[idx] = f(idx, arg);
 		   };
   ParallelAppi(vec, run_write, max_concurrency);
@@ -290,7 +259,7 @@ template<class T, class F>
 auto ParallelMap(const std::vector<T> &vec,
 		 const F &f,
 		 int max_concurrency) -> std::vector<decltype(f(vec.front()))> {
-  auto ff = [&f](int idx, const T &arg) { return f(arg); };
+  auto ff = [&f](int64_t idx, const T &arg) { return f(arg); };
   return ParallelMapi(vec, ff, max_concurrency);
 }
 
@@ -322,30 +291,30 @@ struct ThreadJoiner {
 // Calls f(x, y) for each 0 <= x < num1 and 0 <= y < num2,
 // in up to max_concurrency parallel threads.
 template<class F>
-void ParallelComp2D(int num1, int num2,
+void ParallelComp2D(int64_t num1, int64_t num2,
 		    const F &f,
 		    int max_concurrency) {
-  const int total_num = num1 * num2;
+  const int64_t total_num = num1 * num2;
   ParallelComp(total_num,
-	       [&f, num2](int x) {
-		 const int x2 = x % num2;
-		 const int x1 = x / num2;
+	       [&f, num2](int64_t x) {
+		 const int64_t x2 = x % num2;
+		 const int64_t x1 = x / num2;
 		 f(x1, x2);
 	       },
 	       max_concurrency);
 }
 
 template<class F>
-void ParallelComp3D(int num1, int num2, int num3,
+void ParallelComp3D(int64_t num1, int64_t num2, int64_t num3,
 		    const F &f,
 		    int max_concurrency) {
-  const int total_num = num1 * num2 * num3;
+  const int64_t total_num = num1 * num2 * num3;
   ParallelComp(total_num,
-	       [&f, num2, num3](int x) {
-		 const int x3 = x % num3;
-		 const int xx = x / num3;
-		 const int x2 = xx % num2;
-		 const int x1 = xx / num2;
+	       [&f, num2, num3](int64_t x) {
+		 const int64_t x3 = x % num3;
+		 const int64_t xx = x / num3;
+		 const int64_t x2 = xx % num2;
+		 const int64_t x1 = xx / num2;
 		 f(x1, x2, x3);
 	       },
 	       max_concurrency);
