@@ -42,6 +42,18 @@
 #include "font-problem.h"
 #include "autoparallel.h"
 
+
+#define ANSI_RED "\x1B[1;31;40m"
+#define ANSI_GREY "\x1B[1;30;40m"
+#define ANSI_BLUE "\x1B[1;34;40m"
+#define ANSI_CYAN "\x1B[1;36;40m"
+#define ANSI_YELLOW "\x1B[1;33;40m"
+#define ANSI_GREEN "\x1B[1;32;40m"
+#define ANSI_WHITE "\x1B[1;37;40m"
+#define ANSI_PURPLE "\x1B[1;35;40m"
+#define ANSI_RESET "\x1B[m"
+#define ANSI_CLEAR_SCREEN "\x1B[2J\x1B[H"
+
 using namespace std;
 
 using uint8 = uint8_t;
@@ -51,8 +63,10 @@ using uchar = uint8_t;
 using uint32 = uint32_t;
 using uint64 = uint64_t;
 
-static constexpr int MAX_FONTS = 100'000;
-static constexpr int ENOUGH_FONTS = 100;
+static constexpr int NUM_EVAL_EXAMPLES = 26 * 4096;
+
+static constexpr int MAX_FONTS = 200'000;
+static constexpr int ENOUGH_FONTS = 2 * (NUM_EVAL_EXAMPLES / 26);
 
 static bool should_die = false;
 static std::shared_mutex should_die_m;
@@ -105,8 +119,6 @@ struct TrainingExample {
   char letter;
 };
 
-static constexpr int NUM_EVAL_EXAMPLES = 26 * 256;
-
 static void Generate(const std::string &model_filename,
 		     int num_features, bool lowercasing) {
   std::unique_ptr<Network> net(Network::ReadNetworkBinary(model_filename));
@@ -126,7 +138,7 @@ static void Generate(const std::string &model_filename,
   const int feature_size = net->layers[0].indices_per_node;
   printf("Feature size (=ipn of first layer): %d\n", feature_size);
   
-  AutoParallelComp eval_comp(32, 50, false, "autoparallel.eval-feature.txt");
+  AutoParallelComp eval_comp(32, 500, false, "autoparallel.eval-feature.txt");
 
   CHECK(load_fonts != nullptr) << "LoadFonts must be created first.";
   // First, pause until we have enough fonts.
@@ -147,7 +159,7 @@ static void Generate(const std::string &model_filename,
   vector<TrainingExample> examples;
   examples.reserve(NUM_EVAL_EXAMPLES);
 
-  double gen_examples_ms = 0.0;
+  double gen_examples_ms = 0.0, activate_ms = 0.0;
   
   auto PopulateExampleFromFont = [&rc](bool lowercase_input,
 				       const SDFLoadFonts::Font &f,
@@ -172,9 +184,20 @@ static void Generate(const std::string &model_filename,
       FillSDF(example->input.data(), f.sdfs[input_idx]);      
     };
 
-  vector<unordered_map<int, float>> features;
+  struct ScoredFeature {
+    unordered_map<int, float> inputs;
+    double mean = 0.0;
+    double stdev = 0.0;
+  };
+  
+  vector<ScoredFeature> features;
 
+  printf(ANSI_CLEAR_SCREEN);
+    
   for (int feature_num = 0; feature_num < num_features; feature_num++) {
+    // Move to beginning of screen
+    printf("\x1B[0;0H");
+
     while (examples.size() < NUM_EVAL_EXAMPLES) {
       Timer gen_examples;
       TrainingExample example;
@@ -189,7 +212,7 @@ static void Generate(const std::string &model_filename,
       gen_examples_ms += gen_examples.MS();
     }
 
-    printf("Have %d examples\n", (int)examples.size());
+    printf("Have %d examples    \n", (int)examples.size());
     
     // Make a random feature, which is a set of distinct
     // indices mapped to a weight.
@@ -306,37 +329,132 @@ static void Generate(const std::string &model_filename,
       Next(pi, posleft, pospts, posweight);
       Next(ni, negleft, negpts, negweight);
     }
+   
 
-    features.push_back(std::move(feature));
-    printf("Now have %d features\n", (int)features.size());
+    // Run the feature on each of the examples, in parallel.
+    Timer activate_timer;
+    CHECK(!examples.empty());
+    vector<float> activations =
+      eval_comp.ParallelMap(
+	  examples,
+	  [&feature](const TrainingExample &example) {
+	    float v = 0.0f;
+	    for (auto [idx, w] : feature) {
+	      v += example.input[idx] * w;
+	    }
+	    return v;
+	  });
+
+    eval_comp.PrintHisto();
     
+    double mean_activation = 0.0;
+    for (float f : activations) mean_activation += f;
+    mean_activation /= activations.size();
+
+    double sqerr = 0.0;
+    for (float f : activations) {
+      double dd = (f - mean_activation);
+      sqerr += dd * dd;
+    }
+    double stdev = sqrt(sqerr);
+    activate_ms += activate_timer.MS();
     
+    features.push_back({.inputs = std::move(feature),
+			.mean = mean_activation,
+			.stdev = stdev});
+    printf("Now have %d features    \n", (int)features.size());
+
+			    
     // Shuffle and and randomly discard examples so that
     // features aren't always generated from the same set.
     Shuffle(&rc, &examples);
     examples.resize(examples.size() / 2);
   }
 
+  CHECK(features.size() == num_features);
+  // get the ranked ones.
+  vector<int> ranked;
+  for (int i = 0; i < num_features; i++) ranked.push_back(i);
+  // Sort by stdev descending.
+  std::sort(ranked.begin(), ranked.end(),
+	    [&features](int a, int b) {
+	      return features[a].stdev > features[b].stdev;
+	    });
+
+  std::unordered_set<int> best;
+  for (int i = 0; i < num_features * 0.1; i++) {
+    best.insert(ranked[i]);
+  }
+
+  // TODO: The features with the highest variance on examples might
+  // nonetheless be highly correlated with one another.
+  
   // XXX debugs
-  ImageRGBA img(num_features * width, height);
-  for (int fx = 0; fx < num_features; fx++) {
-    int startx = fx * width;
-    img.BlendRect32(startx, 0, width, height,
-		    (fx & 1) ? 0x000020FF : 0x000040FF);
-    for (const auto [idx, weight] : features[fx]) {
-      int x = idx % width;
-      int y = idx / width;
-      uint32 color = weight > 0 ? 0x00FF00FF : 0xFF0000FF;
-      img.BlendPixel32(startx + x, y, color);
+  static constexpr int SCALE = 2;
+  static constexpr int FW = 32;
+  static constexpr int FH = 14;
+  static constexpr int TOP = 1;
+  static constexpr int LEFT = 1;
+  static constexpr int RIGHT = 2;
+  static constexpr int BOTTOM = 20;
+  ImageRGBA img(FW * (width * SCALE + LEFT + RIGHT), FH * (height * SCALE + TOP + BOTTOM));
+  img.Clear32(0x000000FF);
+  for (int fy = 0; fy < FH; fy++) {
+    for (int fx = 0; fx < FW; fx++) {
+      int fn = fy * FW + fx;
+      if (fn >= num_features) continue;
+      ImageRGBA fimg(width, height);
+      fimg.Clear32(((fx + fy) & 1) ? 0x000020FF : 0x000060FF);
+    
+      const ScoredFeature &feature = features[fn];
+      for (const auto [idx, weight] : feature.inputs) {
+	int x = idx % width;
+	int y = idx / width;
+	uint32 color = weight > 0 ? 0x00FF00FF : 0xFF0000FF;
+	fimg.BlendPixel32(x, y, color);
+      }
+
+      int startx = fx * (width * SCALE + LEFT + RIGHT) + LEFT;
+      int starty = fy * (height * SCALE + TOP + BOTTOM) + TOP;
+      ImageRGBA sfimg = fimg.ScaleBy(SCALE);
+      if (best.find(fn) != best.end()) {
+	img.BlendBox32(startx - 1, starty - 1, width * SCALE + 2, height * SCALE + 2,
+		       0xCC00CCFF, 0xCC00CC7F);
+      }
+      img.BlendImage(startx, starty, sfimg);
+      img.BlendText32(startx, starty + height * SCALE, 0xCCCCCCFF,
+		      StringPrintf("%.3f", feature.mean));
+      img.BlendText32(startx, starty + height * SCALE + 9, 0x888888FF,
+		      StringPrintf("%.3f", feature.stdev));
     }
   }
   img.Save("makefeatures.png");
-    
-  printf("gen examples: %.2fs",
-	 gen_examples_ms / 1000.0);
+
+  eval_comp.PrintHisto();
+  
+  printf("gen examples: %.2fs\n"
+	 "activations: %.2fs\n",
+	 gen_examples_ms / 1000.0,
+         activate_ms / 1000.0);
 }
 
 int main(int argc, char **argv) {
+  // XXX to cc-lib
+  // Try to enable ANSI sequences. mintty supports these well, but we
+  // actually compile as a native window application, so we would use
+  // windows routines to change the console output (e.g.
+  // SetConsoleCursorPosition). In the modern world these are actually
+  // deprecated; windows prefers you to use control sequences like ANSI.
+  // But these are only enabled if VIRTUAL_TERMINAL_PROCSESING is on.
+  HANDLE stdout_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+  DWORD out_mode;
+  if (stdout_handle != INVALID_HANDLE_VALUE &&
+      GetConsoleMode(stdout_handle, &out_mode)) {
+    // TODO: Could save old value and try to restore it on exit?
+    out_mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    (void)SetConsoleMode(stdout_handle, out_mode);
+  }
+  
   // Start loading fonts in background.
   load_fonts = new SDFLoadFonts(
       []() { return ReadWithLock(&should_die_m, &should_die); },
@@ -344,7 +462,7 @@ int main(int argc, char **argv) {
       12,
       MAX_FONTS);
 
-  Generate("net0.val", 10, true);
+  Generate("net0.val", 500, true);
 
   WriteWithLock(&should_die_m, &should_die, true);
   

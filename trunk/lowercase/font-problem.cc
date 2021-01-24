@@ -258,7 +258,7 @@ void FontProblem::RenderSDF(
   vector<ImageA> letters;
   letters.resize(26 * 2);
   ParallelComp(26 * 2,
-	       [&config, &font_filename, &ttf, &letters](int idx) {
+	       [&config, &font_filename, &ttf, &letters](int64_t idx) {
 		 int c = CHARS[idx];
 		 CHECK(c != 0);
 		 std::optional<ImageA> sdf =
@@ -284,7 +284,7 @@ void FontProblem::RenderSDF(
       ParallelComp
 	(26,
 	 [&config, &letters, &net, lowercasing,
-	  &img, &loss_m, &total_loss](int letter) {
+	  &img, &loss_m, &total_loss](int64_t letter) {
 	   double letter_loss = 0.0;
 	   const int startx =
 	     LEFT_MARGIN + (LETTER_WIDTH + LETTER_X_MARGIN) * letter;
