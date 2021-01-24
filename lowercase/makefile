@@ -1,7 +1,7 @@
 
 default: train.exe collate-errors.exe vacuum.exe cull.exe widen.exe
 
-all: ui.exe cleandb.exe samecase.exe train.exe collate-errors.exe vacuum.exe widen.exe get-modelinfo.exe font-problem_test.exe top_test.exe vector-eval.exe sdf-eval.exe vector-info.exe sdf-info.exe area.exe get-layerweights.exe
+all: ui.exe cleandb.exe samecase.exe train.exe collate-errors.exe vacuum.exe widen.exe get-modelinfo.exe font-problem_test.exe top_test.exe vector-eval.exe sdf-eval.exe vector-info.exe sdf-info.exe area.exe get-layerweights.exe makefeatures.exe
 
 modelinfos: modelinfo0.png modelinfo1.png 
 layerweights: weights0-layer0.png weights1-layer0.png
@@ -59,6 +59,10 @@ ui.exe : $(OBJECTS) $(SDLOBJECTS) ui.o
 	@echo -n "!"
 
 train.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o train.o loadfonts.o top.o
+	@$(CXX) $^ -o $@ $(LFLAGS)
+	@echo -n "!"
+
+makefeatures.exe : $(OBJECTS) makefeatures.o loadfonts.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
