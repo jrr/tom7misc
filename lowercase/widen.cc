@@ -32,16 +32,20 @@ enum class Dimension {
   WIDTH,
   HEIGHT,
   ONE_DIMENSIONAL,
+  // requires SRC_NETWORK to be defined
+  FROM_NETWORK,
   // TODO: Channels also makes sense
 };
 
-static constexpr Dimension DIMENSION = Dimension::ONE_DIMENSIONAL;
+static constexpr char *SRC_NETWORK = "makefeatures.val";
+
+static constexpr Dimension DIMENSION = Dimension::FROM_NETWORK;
 
 // The layer (as an index into layers[]) to widen. It's probably
 // safest to do some tuning after each widen operation.
 // Not clear if widening from top to bottom or bottom to top is
 // better, or whether that matters?
-static constexpr int WIDEN_LAYER = 2;
+static constexpr int WIDEN_LAYER = 0;
 
 // On the next layer, we'll add some indices (increasing
 // indices_per_node) to reference only these new added
@@ -370,6 +374,53 @@ WidenLayer1D(ArcFour *rc, Network *net, int layer_idx) {
   return {rewritten_indices, added_indices};
 }
 
+// Like 1D, but just copies features from another network (typically
+// a fake one produced by makefeatures.exe).
+static std::pair<vector<int>, vector<int>>
+WidenFromNetwork(ArcFour *rc, Network *net, int layer_idx, const string &srcfile) {
+  std::unique_ptr<Network> srcnet{Network::ReadNetworkBinary(srcfile)};  
+  
+  EZLayer ez(*net, layer_idx);
+
+  EZLayer ezsrc(*srcnet, layer_idx);
+  
+  // Add nodes to the end.
+
+  const int previous_layer_size = net->num_nodes[layer_idx];
+  // Or I guess the source could be smaller...
+  CHECK_EQ(srcnet->num_nodes[layer_idx], previous_layer_size);
+  // But these really need to be the same unless we pad or something.
+  CHECK_EQ(ez.ipn, ezsrc.ipn);
+  CHECK(ez.ipn <= previous_layer_size);
+
+  CHECK(DIMENSION == Dimension::FROM_NETWORK);
+
+  const int old_num_nodes = ez.nodes.size();
+  const int add_nodes = ezsrc.nodes.size();
+  
+  // Existing nodes keep the same indices.
+  vector<int> rewritten_indices;
+  rewritten_indices.reserve(old_num_nodes);
+  for (int i = 0; i < old_num_nodes; i++)
+    rewritten_indices.push_back(i);
+  
+  vector<int> added_indices;
+  printf("From network: %d + %d becomes %d nodes\n", old_num_nodes, add_nodes,
+	 old_num_nodes + add_nodes);
+
+  for (const EZLayer::Node &srcnode : ezsrc.nodes) {
+    added_indices.push_back(ez.nodes.size());
+    ez.nodes.push_back(srcnode);
+  }
+
+  ez.MakeWidthHeight();
+  
+  ez.Repack(net, layer_idx);
+  
+  return {rewritten_indices, added_indices};
+}
+
+
 // Dispatch to the appropriate method.
 static std::pair<vector<int>, vector<int>>
 WidenLayer(ArcFour *rc, Network *net, int layer_idx) {
@@ -379,6 +430,8 @@ WidenLayer(ArcFour *rc, Network *net, int layer_idx) {
     return WidenLayer3D(rc, net, layer_idx);    
   case Dimension::ONE_DIMENSIONAL:
     return WidenLayer1D(rc, net, layer_idx);
+  case Dimension::FROM_NETWORK:
+    return WidenFromNetwork(rc, net, layer_idx, SRC_NETWORK);
   default:
     LOG(FATAL) << "Unknown dimension?";
     // return {{}, {}};

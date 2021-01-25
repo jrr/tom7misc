@@ -377,3 +377,6 @@ or weight decay. But actually, we might even need to do that at the level
 of weights (many operations introduce new weights), which seems like overkill.
 This of course would make training slower too, maybe a lot so.
 
+
+At 1.20M, added 100 features from makefeatures.exe to net0 (but not net1 yet).
+Then 1.206M, same for net1.

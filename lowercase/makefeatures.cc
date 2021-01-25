@@ -64,9 +64,29 @@ using uint32 = uint32_t;
 using uint64 = uint64_t;
 
 static constexpr int NUM_EVAL_EXAMPLES = 26 * 4096;
+// static constexpr int NUM_EVAL_EXAMPLES = 26 * 16; // FIXME just to test
 
-static constexpr int MAX_FONTS = 200'000;
+
 static constexpr int ENOUGH_FONTS = 2 * (NUM_EVAL_EXAMPLES / 26);
+static constexpr int MAX_FONTS = ENOUGH_FONTS;
+
+// To select features, we generate a bunch of candidates, rank them
+// according to some criteria, and then take the best. There are two
+// phases:
+
+// First, e.g. for 0.25, we generate 4x the target (whatever's needed
+// for the distance step below) number of examples, then keep the best
+// 25% of those.
+static constexpr float TAKE_BEST_STDDEV = 0.25f;
+static_assert(TAKE_BEST_STDDEV > 0.0f && TAKE_BEST_STDDEV <= 1.0f);
+
+// Second, e.g. for 0.10, we generate 10x the target (the requested
+// number of output features) and then find 10% of those to maximize
+// their distance from one another.
+static constexpr float TAKE_BEST_DISTANCE = 0.10f;
+static_assert(TAKE_BEST_DISTANCE > 0.0f && TAKE_BEST_DISTANCE <= 1.0f);
+
+static constexpr int NUM_DIST_TRIES = 2000;
 
 static bool should_die = false;
 static std::shared_mutex should_die_m;
@@ -89,6 +109,18 @@ static void DeleteElements(C *cont) {
 static uint8 FloatByte(float f) {
   int x = roundf(f * 255.0f);
   return std::clamp(x, 0, 255);
+}
+
+static void CheckIsPermutation(const std::vector<int> &perm) {
+  int radix = perm.size();
+  vector<bool> found(radix, false);
+  for (int i = 0; i < perm.size(); i++) {
+    int x = perm[i];
+    CHECK(x >= 0 && x < radix) << i << " " << x;
+    CHECK(!found[x]) << i << " " << x;
+    found[x] = true;
+  }
+  // (which implies found[i] for all i)
 }
 
 static std::tuple<uint8, uint8, uint8> FloatColor(float f) {
@@ -119,11 +151,17 @@ struct TrainingExample {
   char letter;
 };
 
+// Generate num_output_features "good" features that are different from one another.
 static void Generate(const std::string &model_filename,
-		     int num_features, bool lowercasing) {
+		     int num_output_features, bool lowercasing) {
   std::unique_ptr<Network> net(Network::ReadNetworkBinary(model_filename));
   CHECK(net.get() != nullptr) << model_filename;
 
+  const int num_features = num_output_features / (TAKE_BEST_STDDEV * TAKE_BEST_DISTANCE);
+  const int num_best_features = num_output_features / TAKE_BEST_STDDEV;
+
+  printf("Need to generate %d candidate features\n", num_features);
+  
   ArcFour rc(StringPrintf("%lld,%lld,%lld,%s",
 			  (int64)time(nullptr),
 			  net->rounds,
@@ -142,19 +180,23 @@ static void Generate(const std::string &model_filename,
 
   CHECK(load_fonts != nullptr) << "LoadFonts must be created first.";
   // First, pause until we have enough fonts.
+  // XXX since we now just get one batch and keep it, this can be simplified to
+  // just wait until we have loaded ENOUGH_FONTS, stop, and use those
   for (;;) {
+    int64 num_fonts = 0;
     {
       ReadMutexLock ml(&load_fonts->fonts_m);
-      if (load_fonts->fonts.size() >= ENOUGH_FONTS)
+      num_fonts = load_fonts->fonts.size();
+      if (num_fonts >= ENOUGH_FONTS)
 	break;
     }
 
-    Printf("Not enough training data loaded yet!\n");
+    Printf("Not enough training data loaded yet (%d/%d)!\n",
+	   num_fonts, ENOUGH_FONTS);
     std::this_thread::sleep_for(1s);
     if (ReadWithLock(&should_die_m, &should_die))
       return;
   }
-  Printf("Training thread has enough fonts to start creating examples.\n");
 
   vector<TrainingExample> examples;
   examples.reserve(NUM_EVAL_EXAMPLES);
@@ -186,6 +228,7 @@ static void Generate(const std::string &model_filename,
 
   struct ScoredFeature {
     unordered_map<int, float> inputs;
+    vector<float> centered_act;
     double mean = 0.0;
     double stdev = 0.0;
   };
@@ -193,26 +236,27 @@ static void Generate(const std::string &model_filename,
   vector<ScoredFeature> features;
 
   printf(ANSI_CLEAR_SCREEN);
-    
+
+  // Use the same vector of examples for each, so that we can compare
+  // their ability to distinguish examples.
+  while (examples.size() < NUM_EVAL_EXAMPLES) {
+    Timer gen_examples;
+    TrainingExample example;
+    {
+      ReadMutexLock ml(&load_fonts->fonts_m);
+      const int idx = RandTo(&rc, load_fonts->fonts.size());
+
+      // Here if we are lowercasing, the input should be uppercase.
+      PopulateExampleFromFont(!lowercasing, load_fonts->fonts[idx], &example);
+    }
+    examples.emplace_back(std::move(example));
+    gen_examples_ms += gen_examples.MS();
+  }
+  
   for (int feature_num = 0; feature_num < num_features; feature_num++) {
     // Move to beginning of screen
-    printf("\x1B[0;0H");
-
-    while (examples.size() < NUM_EVAL_EXAMPLES) {
-      Timer gen_examples;
-      TrainingExample example;
-      {
-	ReadMutexLock ml(&load_fonts->fonts_m);
-	const int idx = RandTo(&rc, load_fonts->fonts.size());
-
-	// Here if we are lowercasing, the input should be uppercase.
-	PopulateExampleFromFont(!lowercasing, load_fonts->fonts[idx], &example);
-      }
-      examples.emplace_back(std::move(example));
-      gen_examples_ms += gen_examples.MS();
-    }
-
-    printf("Have %d examples    \n", (int)examples.size());
+    // printf("\x1B[0;0H");
+    // printf("Have %d examples    \n", (int)examples.size());
     
     // Make a random feature, which is a set of distinct
     // indices mapped to a weight.
@@ -345,7 +389,7 @@ static void Generate(const std::string &model_filename,
 	    return v;
 	  });
 
-    eval_comp.PrintHisto();
+    // eval_comp.PrintHisto();
     
     double mean_activation = 0.0;
     for (float f : activations) mean_activation += f;
@@ -358,17 +402,15 @@ static void Generate(const std::string &model_filename,
     }
     double stdev = sqrt(sqerr);
     activate_ms += activate_timer.MS();
+
+    // Apply bias.
+    for (float &a : activations) a -= mean_activation;
     
     features.push_back({.inputs = std::move(feature),
+			.centered_act = std::move(activations),
 			.mean = mean_activation,
 			.stdev = stdev});
     printf("Now have %d features    \n", (int)features.size());
-
-			    
-    // Shuffle and and randomly discard examples so that
-    // features aren't always generated from the same set.
-    Shuffle(&rc, &examples);
-    examples.resize(examples.size() / 2);
   }
 
   CHECK(features.size() == num_features);
@@ -382,60 +424,298 @@ static void Generate(const std::string &model_filename,
 	    });
 
   std::unordered_set<int> best;
-  for (int i = 0; i < num_features * 0.1; i++) {
+  for (int i = 0; i < num_best_features; i++) {
     best.insert(ranked[i]);
   }
 
-  // TODO: The features with the highest variance on examples might
-  // nonetheless be highly correlated with one another.
-  
-  // XXX debugs
-  static constexpr int SCALE = 2;
-  static constexpr int FW = 32;
-  static constexpr int FH = 14;
-  static constexpr int TOP = 1;
-  static constexpr int LEFT = 1;
-  static constexpr int RIGHT = 2;
-  static constexpr int BOTTOM = 20;
-  ImageRGBA img(FW * (width * SCALE + LEFT + RIGHT), FH * (height * SCALE + TOP + BOTTOM));
-  img.Clear32(0x000000FF);
-  for (int fy = 0; fy < FH; fy++) {
-    for (int fx = 0; fx < FW; fx++) {
-      int fn = fy * FW + fx;
-      if (fn >= num_features) continue;
-      ImageRGBA fimg(width, height);
-      fimg.Clear32(((fx + fy) & 1) ? 0x000020FF : 0x000060FF);
+  printf("Got the best %d features (maximizing std dev)\n",
+	 (int)best.size());
+
+  auto MakeImage = [width, height](
+      const vector<ScoredFeature> &features,
+      // highlight items in this set
+      const std::unordered_set<int> &best,
+      const string &filename) {
+
+      const int num_features = features.size();
+      // XXX debugs
+      static constexpr int SCALE = 2;
+      static constexpr int TOP = 1;
+      static constexpr int LEFT = 1;
+      static constexpr int RIGHT = 2;
+      static constexpr int BOTTOM = 20;
+      const int FW = 1920 / (width * SCALE + LEFT + RIGHT);
+      const int FH = 1080 / (height * SCALE + TOP + BOTTOM);
+
+      ImageRGBA img(FW * (width * SCALE + LEFT + RIGHT),
+		    FH * (height * SCALE + TOP + BOTTOM));
+      img.Clear32(0x000000FF);
+      for (int fy = 0; fy < FH; fy++) {
+	for (int fx = 0; fx < FW; fx++) {
+	  int fn = fy * FW + fx;
+	  if (fn >= num_features) continue;
+	  ImageRGBA fimg(width, height);
+	  fimg.Clear32(((fx + fy) & 1) ? 0x000020FF : 0x000060FF);
+
+	  const ScoredFeature &feature = features[fn];
+	  for (const auto [idx, weight] : feature.inputs) {
+	    int x = idx % width;
+	    int y = idx / width;
+	    uint32 color = weight > 0 ? 0x00FF00FF : 0xFF0000FF;
+	    fimg.BlendPixel32(x, y, color);
+	  }
+
+	  int startx = fx * (width * SCALE + LEFT + RIGHT) + LEFT;
+	  int starty = fy * (height * SCALE + TOP + BOTTOM) + TOP;
+	  ImageRGBA sfimg = fimg.ScaleBy(SCALE);
+	  if (best.find(fn) != best.end()) {
+	    img.BlendBox32(startx - 1, starty - 1, width * SCALE + 2, height * SCALE + 2,
+			   0xCC00CCFF, 0xCC00CC7F);
+	  }
+	  img.BlendImage(startx, starty, sfimg);
+	  img.BlendText32(startx, starty + height * SCALE + 1, 0xCCCCCCFF,
+			  StringPrintf("%.3f", feature.mean));
+	  img.BlendText32(startx, starty + height * SCALE + 10, 0x888888FF,
+			  StringPrintf("%.3f", feature.stdev));
+	}
+      }
+      img.Save(filename);
+    };
     
-      const ScoredFeature &feature = features[fn];
-      for (const auto [idx, weight] : feature.inputs) {
-	int x = idx % width;
-	int y = idx / width;
-	uint32 color = weight > 0 ? 0x00FF00FF : 0xFF0000FF;
-	fimg.BlendPixel32(x, y, color);
+  MakeImage(features, best, "makefeatures.png");
+
+
+  // Restrict to the best ones.
+
+  {
+    vector<ScoredFeature> tmp;
+    for (int idx : best) tmp.push_back(std::move(features[idx]));
+    features = std::move(tmp);
+  }
+
+  CHECK(features.size() == num_best_features);
+  
+  // The features with the highest variance on examples might
+  // nonetheless be highly correlated with one another (in fact this
+  // seems very common). So next, find features that are different
+  // from one another, as measured by the distance of their activation
+  // vectors for the examples.
+
+  // Pairwise distances. Could store only when a < b, but it just gets
+  // complicated for little (?) gain.
+  vector<float> dists(num_best_features * num_best_features, 0.0f);
+  auto SetDistAt = [num_best_features, &dists](int a, int b, float d) {
+      dists[a * num_best_features + b] = d;
+    };
+  auto DistAt = [num_best_features, &dists](int a, int b) -> float {
+      return dists[a * num_best_features + b];
+    };
+  for (int a = 0; a < num_best_features; a++) {
+    // Diagonal already set correctly to 0.0.
+    for (int b = 0; b < a; b++) {
+      double sqdist = 0.0;
+      const vector<float> &aact = features[a].centered_act;
+      const vector<float> &bact = features[b].centered_act;      
+      CHECK_EQ(aact.size(), bact.size());
+      for (int i = 0; i < aact.size(); i++) {
+	float d = aact[i] - bact[i];
+	sqdist += d * (double)d;
       }
 
-      int startx = fx * (width * SCALE + LEFT + RIGHT) + LEFT;
-      int starty = fy * (height * SCALE + TOP + BOTTOM) + TOP;
-      ImageRGBA sfimg = fimg.ScaleBy(SCALE);
-      if (best.find(fn) != best.end()) {
-	img.BlendBox32(startx - 1, starty - 1, width * SCALE + 2, height * SCALE + 2,
-		       0xCC00CCFF, 0xCC00CC7F);
-      }
-      img.BlendImage(startx, starty, sfimg);
-      img.BlendText32(startx, starty + height * SCALE, 0xCCCCCCFF,
-		      StringPrintf("%.3f", feature.mean));
-      img.BlendText32(startx, starty + height * SCALE + 9, 0x888888FF,
-		      StringPrintf("%.3f", feature.stdev));
+      float dist = sqrt(sqdist);
+      SetDistAt(a, b, dist);
+      SetDistAt(b, a, dist);
     }
   }
-  img.Save("makefeatures.png");
+
+  std::shared_mutex best_m;
+  vector<int> best_out;
+  double best_dist = 0.0;
+
+  // static constexpr int NUM_THREADS = 6;
+  static constexpr int NUM_THREADS = 6;
+  static constexpr int TRIES_PER_THREAD = NUM_DIST_TRIES / NUM_THREADS;
+  vector<ArcFour *> rcs;
+  for (int i = 0; i < NUM_THREADS; i++) rcs.push_back(Substream(&rc, i));
+
+  const int nbf = num_best_features;
+  const int nof = num_output_features;
+  Timer dist_timer;
+  ParallelFan(NUM_THREADS, [&DistAt, &best_m, &best_out, &best_dist, &rcs, nbf, nof](
+      int thread_id) {
+      CHECK(thread_id < rcs.size());
+      ArcFour *rc = rcs[thread_id];
+      printf("Thread %d: %02x\n", thread_id, rc->Byte());
+      
+      for (int iter = 0; iter < TRIES_PER_THREAD; iter++) {
+	// Generate a random permutation. The first num_output_features in
+	// the permutation is the current selection.
+
+	
+	vector<int> perm;
+	perm.reserve(nbf);
+	for (int i = 0; i < nbf; i++) perm.push_back(i);
+	Shuffle(rc, &perm);
+
+	auto GetDist = [&DistAt, &perm, nof]() {
+	    double dist = 0.0;
+	    for (int i = 0; i < nof; i++) {
+	      for (int j = 0; j < i; j++) {
+		// ok with i = j
+		dist += DistAt(perm[i], perm[j]);
+	      }
+	    }
+	    return dist;
+	  };
+	
+	// Compute initial distance.
+	double dist = GetDist();
+
+	// Save the permutation if it is the global best, using double-checked lock.
+	auto SaveBest = [&best_m, &best_out, &best_dist, nof, &dist, &perm]() {
+	    if (dist > ReadWithLock(&best_m, &best_dist)) {
+	      WriteMutexLock ml(&best_m);
+	      if (dist > best_dist) {
+		best_out.clear();
+		for (int i = 0; i < nof; i++) {
+		  best_out.push_back(perm[i]);
+		}
+		best_dist = dist;
+		printf("New best total distance: %.2f\n", dist);
+	      } else {
+		printf("(lost race %.2f!)\n", dist);
+	      }
+	    }
+	  };
+
+	SaveBest();
+
+	// XXX Now try to hill-climb.
+
+	CheckIsPermutation(perm);
+	
+	int64 climbed = 0, swapped = 0;
+	bool improved = false;
+	do {
+	  improved = false;
+	  // for each currently selected feature
+	  for (int src = 0; src < nof; src++) {
+	    // consider swapping it with unselected ones...
+	    for (int dst = nof; dst < nbf; dst++) {
+	      double new_dist = dist;
+	      // subtract old, add new
+	      for (int u = 0; u < nof; u++) {
+		if (u != src) {
+		  new_dist -= DistAt(perm[u], perm[src]);
+		  new_dist += DistAt(perm[u], perm[dst]);
+		}
+	      }
+
+	      if (new_dist > dist) {
+		// better! do it
+		if (false)
+		  printf("%d Swap #%lld: %d and %d, dist %.2f -> %.2f\n",
+			 thread_id, swapped,
+			 src, dst,
+			 dist, new_dist);
+		int old = perm[src];
+		perm[src] = perm[dst];
+		perm[dst] = old;
+		dist = new_dist;
+		// continue hill-climbing
+		swapped++;
+
+		if (false) {
+		  // Sanity checks.
+		  CheckIsPermutation(perm);
+		  double rdist = GetDist();
+		  CHECK(fabs(dist - rdist) < 0.1) << dist << " vs " << rdist;
+		}
+		
+		improved = true;
+	      } else {
+		if (false)
+		  printf("%d Swap %d and %d, dist %.2f -> %.2f WORSE\n",
+			 thread_id,
+			 src, dst,
+			 dist, new_dist);
+	      }
+	    }
+	    // printf("[%d] Done src %d/%d %.2f\n", thread_id, src, nof, dist);
+	  }
+
+	  if (improved) SaveBest();
+	  climbed++;
+	} while (improved);
+
+	printf("Thread %d finished %d/%d iters, %lld passes %lld swaps to %.2f\n",
+	       thread_id, iter + 1, TRIES_PER_THREAD,
+	       climbed, swapped,
+	       dist);
+      }
+
+      
+    });
+  const double dist_ms = dist_timer.MS();
+
+  std::unordered_set<int> best_out_set;
+  for (int i : best_out) best_out_set.insert(i);
+  printf("Max distance was %.2f, with these feature ids:\n", best_dist);
+  for (int i : best_out) printf("%d, ", i);
+  printf("\n");
+  
+  MakeImage(features, best_out_set, "distfeatures.png");
 
   eval_comp.PrintHisto();
   
+  Timer make_timer;
+  {
+    // Now save 'em. We make a fake one-layer network since the features
+    // have the same serialization needs as a hidden layer (no coincidence here!)
+    vector<int> nn = {width * height, num_output_features};
+    vector<int> ii = {feature_size};
+    vector<TransferFunction> tfs = {LEAKY_RELU};
+    Network save(nn, ii, tfs);
+    save.width = {width, num_output_features};
+    save.height = {height, 1};
+    save.channels = {1, 1};
+    save.renderstyle = {RENDERSTYLE_FLAT, RENDERSTYLE_FLAT};
+    CHECK(save.layers.size() == 1);
+    Network::Layer *layer = &save.layers[0];
+    layer->type = LAYER_SPARSE;
+    layer->indices.clear();
+    layer->weights.clear();
+    layer->biases.clear();
+    for (int f : best_out) {
+      CHECK(f >= 0 && f < features.size());
+      const ScoredFeature &feature = features[f];
+      // Subtract the mean as the bias, so that it's centered at 0.
+      // (Might be better to use median, so we separate # of examples,
+      // rather than mass?)
+      layer->biases.push_back(-feature.mean);
+      // PERF sort 'em? I guess widen.exe will do it.
+      for (const auto [idx, weight] : feature.inputs) {
+	layer->indices.push_back(idx);
+	layer->weights.push_back(weight);
+      }
+    }
+      
+    save.ReallocateInvertedIndices();
+    Network::ComputeInvertedIndices(&save, 8);
+    save.StructuralCheck();
+    Network::SaveNetworkBinary(save, "makefeatures.val");    
+  }
+  const double make_ms = make_timer.MS();
+  
+  
   printf("gen examples: %.2fs\n"
-	 "activations: %.2fs\n",
+	 "activations: %.2fs\n"
+	 "dist: %.2fs\n"
+	 "make/save net: %.2fs\n",
 	 gen_examples_ms / 1000.0,
-         activate_ms / 1000.0);
+         activate_ms / 1000.0,
+	 dist_ms / 1000.0,
+	 make_ms / 1000.0);
 }
 
 int main(int argc, char **argv) {
@@ -462,7 +742,7 @@ int main(int argc, char **argv) {
       12,
       MAX_FONTS);
 
-  Generate("net0.val", 500, true);
+  Generate("net1.val", 100, false);
 
   WriteWithLock(&should_die_m, &should_die, true);
   
