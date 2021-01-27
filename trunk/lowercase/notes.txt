@@ -380,3 +380,62 @@ This of course would make training slower too, maybe a lot so.
 
 At 1.20M, added 100 features from makefeatures.exe to net0 (but not net1 yet).
 Then 1.206M, same for net1.
+
+Not much seems to be happening here overnight, so at 1278649, increased
+training rate again (by doubling rate_high), 
+
+
+overnight, eps 283.5, averaged last 100 rounds. boinc is running
+... later on that same day, 297.68, 307
+(why does this change so much? should just be a constant workload? boinc?
+number of export rounds that happen in the window?)
+
+
+at 1.34M increased training rate again (rate high triple instead of double)
+so it is now 0.003373
+
+at 1.355M, double round batch size to 512, also increase eps rolling average
+window to 1000. It does look like this helps eps a little, now 317?
+REMEMBER that rounds are now twice as expensive, so the sdf error plots etc.
+no longer have the same x scale
+
+things to try:
+  - add a layer at front or back
+  - increase or decrease batch size
+
+== adding a layer ==
+
+I've tried widening layers, so far to no avail. Maybe deeper will help.
+
+We can insert a hidden layer without changing the network's predictions.
+Just make it the same size as the layer that precedes it, make sure each
+node has its corresponding node as an input with weight 1.0, and a bias
+of 0. Obviously we would want to be able to create new structures, so
+we should also take random other inputs, and just set their weights to
+zero.
+
+it was instructive to watch the weights change with just ipn=1 (identity
+matrix)... obviously there is not anything "real" to learn, but you can
+get a sense of the magnitude per round.
+
+soooo
+
+at 1,369,777, added a copy of the final layer to both models.
+Connected every node to the 26 letter outputs, and the 26 nodes before that.
+Then also a square neighborhood of 25 pixels, then random. 256 ipn.
+(this power-of-two superstition might have utility here, since we actually
+compile the opencl programs with this as a constant!)
+
+
+Maybe this is like a cpu power/heat scaling thing, but the eps are much
+higher when I started (378!). So that's good?
+Seems like error increased a lot (now at 41) but not to like a worrisome
+level.. I crave some movement here! YOLO! OK j/k, now seeing results
+down near 34 again.
+
+I seem to see this a lot... maybe it's just like because I'm watching,
+but it could also be that early in training we haven't loaded enough
+examples, and so there are too many repeats in the training sets? Or
+the zero weights behave badly somehow (indeed the derivative is not
+well-defined here), but once we get small nonzero weights it stabilizes?
+

@@ -58,7 +58,7 @@ Network::Network(vector<int> num_nodes,
   ReallocateInvertedIndices();
 }
 
-void Network::ReallocateInvertedIndices() {  
+void Network::ReallocateInvertedIndices() {
   inverted_indices.resize(num_layers);
   for (int i = 0; i < num_layers; i++) {
     InvertedIndices &ii = inverted_indices[i];
@@ -189,7 +189,7 @@ void Network::RunForwardVerbose(Stimulation *stim) const {
       CHECK(!std::isnan(potential)) << node_idx;
       const int my_weights = node_idx * indices_per_node;
       const int my_indices = node_idx * indices_per_node;
-		
+
       for (int i = 0; i < indices_per_node; i++) {
 	const float w = weights[my_weights + i];
 	int srci = indices[my_indices + i];
@@ -206,7 +206,7 @@ void Network::RunForwardVerbose(Stimulation *stim) const {
 	potential += w * v;
       }
       CHECK(!std::isnan(potential));
-		
+
       CHECK(node_idx >= 0 && node_idx < dst_values->size());
       float out = Forward(potential);
       printf("    %f -> %f\n", potential, out);
@@ -242,6 +242,14 @@ void Network::NaNCheck(const std::string &message) const {
 
 void Network::StructuralCheck() const {
   // TODO: Other checks!
+  CHECK(layers.size() == num_layers);
+  CHECK(width.size() == num_layers + 1);
+  CHECK(height.size() == num_layers + 1);
+  CHECK(channels.size() == num_layers + 1);
+  CHECK(renderstyle.size() == num_layers + 1);
+
+  CHECK(inverted_indices.size() == num_layers);
+  
   for (int i = 0; i < num_layers; i++) {
     const Layer &layer = layers[i];
     const int num_prev_nodes = num_nodes[i];
@@ -264,7 +272,7 @@ void Network::StructuralCheck() const {
       }
     }
   }
-  
+
   CheckInvertedIndices();
 }
 
@@ -323,7 +331,7 @@ void Network::ComputeInvertedIndices(Network *net, int max_parallelism) {
 
     // printf("ComputeInvertedIndices layer %d...\n", layer);
     // fflush(stdout);
-    
+
     // Indexed by node id in the source layer.
     vector<vector<uint32>> occurrences;
     occurrences.resize(net->num_nodes[layer]);
@@ -421,7 +429,7 @@ Network *Network::ReadNetworkBinary(const string &filename) {
     printf("%d ", num_nodes[i]);
   }
   printf("\n");
-  
+
   vector<int> width, height, channels;
   vector<uint32_t> renderstyle;
   for (int i = 0; i < file_num_layers + 1; i++)
@@ -441,12 +449,12 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   for (int w : width) CHECK(w > 0);
   for (int h : height) CHECK(h > 0);
   for (int c : channels) CHECK(c > 0);
-  
+
   for (int i = 0; i < file_num_layers + 1; i++) {
     printf("Layer %d: %d x %d x %d (as %08x)\n",
 	   i - 1, width[i], height[i], channels[i], renderstyle[i]);
   }
-  
+
   printf("\n%s: indices per node/fns/type: ", filename.c_str());
   vector<int> indices_per_node(file_num_layers, 0);
   vector<TransferFunction> transfer_functions(file_num_layers, SIGMOID);
@@ -472,12 +480,12 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   net->height = height;
   net->channels = channels;
   net->renderstyle = renderstyle;
-  
+
   net->rounds = round;
   net->examples = examples;
 
   int64 large_weights = 0, large_biases = 0;
-  
+
   // Read Layer structs.
   for (int i = 0; i < file_num_layers; i++) {
     LayerType type = layer_types[i];
@@ -514,7 +522,7 @@ Network *Network::ReadNetworkBinary(const string &filename) {
     ReadFloats(&net->layers[i].biases);
 
     static constexpr float LARGE_WEIGHT = 8.0f;
-    static constexpr float LARGE_BIAS = 128.0f;    
+    static constexpr float LARGE_BIAS = 128.0f;
     for (float f : net->layers[i].weights) {
       if (f > LARGE_WEIGHT || f < -LARGE_WEIGHT) {
 	large_weights++;
@@ -573,13 +581,13 @@ void Network::SaveNetworkBinary(const Network &net,
   CHECK(net.height.size() == net.num_layers + 1);
   CHECK(net.channels.size() == net.num_layers + 1);
   CHECK(net.renderstyle.size() == net.num_layers + 1);
-  
+
   for (const int i : net.num_nodes) Write32(i);
   for (const int w : net.width) Write32(w);
   for (const int h : net.height) Write32(h);
   for (const int c : net.channels) Write32(c);
   for (const uint32 s : net.renderstyle) Write32(s);
-  
+
   for (const Network::Layer &layer : net.layers) {
     Write32(layer.indices_per_node);
     Write32(layer.transfer_function);

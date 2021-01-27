@@ -81,6 +81,8 @@ struct Network {
     this->renderstyle = other.renderstyle;
     this->layers = other.layers;
     this->inverted_indices = other.inverted_indices;
+    this->rounds = other.rounds;
+    this->examples = other.examples;
   }
 
   // Check for NaN weights and abort if any are found.
@@ -137,14 +139,14 @@ struct Network {
   // "Real" layer; none for the input.
   struct Layer {
     // Same number of input indices for each node.
-    int indices_per_node;
+    int indices_per_node = 0;
     // The transfer function used to compute the output from the
     // input indices.
-    TransferFunction transfer_function;
+    TransferFunction transfer_function = LEAKY_RELU;
     // Whether the layer is sparse or dense. We currently still store
     // the indices for dense layers, but they can also just be deduced
     // from the dimensions. (PERF: Save the ram?)
-    LayerType type;
+    LayerType type = LAYER_SPARSE;
     // indices_per_node * num_nodes[l + 1], flat, node-major
     // If type = LAYER_DENSE, then for n < num_nodes[l + 1],
     // indices[n * indices_per_node + i] = i.

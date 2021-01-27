@@ -3,7 +3,7 @@
 
 // XXX should be configurable on command line
 static constexpr int NUM_MODELS = 2;
-static constexpr int MAX_POINTS = 10000;
+static constexpr int MAX_POINTS = 1000;
 
 int main(int argc, char **argv) {
 
