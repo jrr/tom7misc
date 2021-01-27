@@ -67,6 +67,7 @@
 #include "color-util.h"
 #include "image.h"
 #include "lines.h"
+#include "rolling-average.h"
 
 #include "loadfonts.h"
 #include "network.h"
@@ -2071,7 +2072,7 @@ struct Training {
 
   // Number of examples per round of training. Includes eval
   // examples.
-  static constexpr int EXAMPLES_PER_ROUND = 256;
+  static constexpr int EXAMPLES_PER_ROUND = 512;
   // Number of examples that are eval inputs (not trained); the
   // remainder are training examples.
   static constexpr int EVAL_INPUTS_PER_ROUND = EXAMPLES_PER_ROUND / 4;
@@ -2187,6 +2188,9 @@ struct Training {
 
   std::unique_ptr<AutoParallelComp> stim_init_comp, forward_comp,
     error_comp, decay_comp, backward_comp;
+
+  RollingAverage eps_average{1000};
+  // RollingAverage err_average{100};
   
   // Run one training round. Might stall if starved for examples.
   // Will exit early if global train_should_die becomes true.
@@ -2222,7 +2226,7 @@ struct Training {
 	return (end * f) + start * (1.0 - f);
       };
     // constexpr float LEARNING_RATE_HIGH = 0.10f;
-    constexpr float LEARNING_RATE_HIGH = 0.002f;
+    constexpr float LEARNING_RATE_HIGH = 0.006f;
     constexpr float LEARNING_RATE_LOW = 0.000125f;
     const float round_learning_rate =
       Linear(LEARNING_RATE_HIGH, LEARNING_RATE_LOW, TARGET_ROUNDS, net->rounds);
@@ -2557,10 +2561,10 @@ struct Training {
     // These are per-round values now, not cumulative.
     double denom = 1.0; // rounds_executed + 1;
 
-    // TODO: Would be nice to average this over the last few rounds.
     const double round_eps = EXAMPLES_PER_ROUND / (round_ms / 1000.0);
-    // (EXAMPLES_PER_ROUND * denom) / (total_ms / 1000.0)
-    ui->ExportExamplesPerSec(model_index, round_eps);
+    eps_average.AddSample(round_eps);
+    
+    ui->ExportExamplesPerSec(model_index, eps_average.Average());
     double measured_ms =
       setup_ms + stimulation_init_ms + eval_ms +
       forward_ms + /* fc init and kernel should be part of that */
