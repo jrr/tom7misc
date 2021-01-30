@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
   const int num_histos = net->num_layers;
     
   static constexpr int HISTOW = 800;
-  static constexpr int HISTOH = 256;
+  static constexpr int HISTOH = 220;
   static constexpr int MARGIN = 4;
   
   const int WIDTH = HISTOW * 2 + MARGIN;
