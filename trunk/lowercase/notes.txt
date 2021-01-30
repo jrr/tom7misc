@@ -428,7 +428,8 @@ compile the opencl programs with this as a constant!)
 
 
 Maybe this is like a cpu power/heat scaling thing, but the eps are much
-higher when I started (378!). So that's good?
+higher when I started (378!). So that's good? (OK back to around 300)
+
 Seems like error increased a lot (now at 41) but not to like a worrisome
 level.. I crave some movement here! YOLO! OK j/k, now seeing results
 down near 34 again.
@@ -439,3 +440,71 @@ examples, and so there are too many repeats in the training sets? Or
 the zero weights behave badly somehow (indeed the derivative is not
 well-defined here), but once we get small nonzero weights it stabilizes?
 
+
+at 1.399M, increase the training rate again: doubling it, by setting
+rate_high to .012. My thinking is that I want to get this as high as
+possible without runaway, since I feel like we're stuck in some local
+minimum and the weights aren't changing much either. Also increased
+ENOUGH_FONTS 10x to 1000, since I'm a little superstitious now that
+early on we see too many repetitions due to the smallish pool, and
+that repetitions may cause updates to be too large.
+... and that was enough to instantly explode
+
+failure mode is that all the weights end up pushed to -max or +max...
+it's obvious from the layerweights images too.
+
+
+I tried it again and it didn't blow up this time, although the error
+has clearly gotten worse. Seems like it'd be basically starting over.
+same for rate high = 0.009 (.0048 at current round)
+tried .0075 (giving .0040).
+
+
+let that run a day or two. Now at round 1.468M (remember these rounds
+are twice as many examples now). Error is about as good as it's ever
+been. Again it is instructive to look at the new last layer and how it
+is starting to diverge from the identity matrix. In the histogram I
+can see the huge cluster of 0 weights spreading out and becoming
+gaussian-looking (seems right), with its max bucket (0.0007) moving
+rightward. The tower of 1s is spreading out too (this peak is now
+totally flat but the values are all very near 1).
+
+Now some weights
+are a visible dim green or red. The SDF pixels have significant weights
+on the A-Z predictions on the previous layer; I guess this allows us to
+have a different bias for each pixel based on what letter is predicted
+(makes sense, seems useful). Similarly, some clear spatial relationships
+within the SDF region, with both positive and negative influence from
+nearby weights.
+
+Overnight again, layer 4's weights continue their march. max bucket is
+now at 0.0011. I think the meaningful thing here is not the max
+bucket's position, since we'd probably expect that thing to be
+centered around 0; I think the value there is just an artifact. But
+meaningful is that the new weights that started at 0 spread out and
+some have a chance of reaching the values of the old weights that
+started at 1... We wouldn't expect it to have a chance to "converge"
+before that happens. That time scale looks like ~weeks.
+
+Training error over this period does look to be improving, if very
+slowly. uppercase is just around 40, and lowercase around 35.2.
+
+
+things to try:
+  - decrease batch size instead
+  - lots of parallel smaller models (perhaps would be good use case for
+    global optimization of hyperparameters too)
+  - expand loss function to put more weight on the region we really care about
+    (near onedge_value for the sdf pixels).
+
+
+nonlinear error:
+ - before this, set output error takes about 100ms, 4.4%
+ - don't see a significant difference after, maybe 110ms?
+
+Note that the total error computation for UI and tsv export is actually based
+on diffs done on the CPU, so it's unaffected by the remapping change. So error
+values are comparable to before (although this change should actually be less
+efficient wrt that calculation, right?). What we'd hope for is that the letter
+shapes after thresholding are more accurate, which is something we only test
+subjectively by looking at them.

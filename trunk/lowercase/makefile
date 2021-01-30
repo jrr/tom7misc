@@ -1,7 +1,7 @@
 
 default: train.exe collate-errors.exe vacuum.exe cull.exe widen.exe deepen.exe
 
-all: ui.exe cleandb.exe samecase.exe train.exe collate-errors.exe vacuum.exe widen.exe get-modelinfo.exe font-problem_test.exe top_test.exe vector-eval.exe sdf-eval.exe vector-info.exe sdf-info.exe area.exe get-layerweights.exe makefeatures.exe
+all: ui.exe cleandb.exe samecase.exe train.exe collate-errors.exe vacuum.exe widen.exe get-modelinfo.exe font-problem_test.exe top_test.exe vector-eval.exe sdf-eval.exe vector-info.exe sdf-info.exe area.exe get-layerweights.exe makefeatures.exe plot.exe
 
 modelinfos: modelinfo0.png modelinfo1.png 
 layerweights: weights0-layer0.png weights1-layer0.png
@@ -107,6 +107,9 @@ get-modelinfo.exe : $(OBJECTS) get-modelinfo.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 get-layerweights.exe : $(OBJECTS) get-layerweights.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+plot.exe : $(OBJECTS) plot.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 top_test.exe : top.o top_test.o $(OBJECTS)

@@ -167,8 +167,8 @@ static Font *font = nullptr;
 #define SCREENH 1280
 static SDL_Surface *screen = nullptr;
 
-static constexpr int MAX_FONTS = 100'000;
-static constexpr int ENOUGH_FONTS = 100;
+static constexpr int64 MAX_FONTS = 100'000;
+static constexpr int64 ENOUGH_FONTS = 1000;
 
 // Thread-safe, so shared between train and ui threads.
 static CL *global_cl = nullptr;
@@ -197,13 +197,25 @@ static uint8 FloatByte(float f) {
   return std::clamp(x, 0, 255);
 }
 
-static std::tuple<uint8, uint8, uint8> FloatColor(float f) {
+static std::tuple<uint8, uint8, uint8> inline FloatColor(float f) {
   if (f > 0.0f) {
     uint8 v = FloatByte(f);
     return {0, v, 20};
   } else {
     uint8 v = FloatByte(-f);
     return {v, 0, 20};
+  }
+}
+
+static std::tuple<uint8, uint8, uint8> inline ErrorFloatColor(float f) {
+  if (f > 0.0f) {
+    if (f > 1.0f) return {0, 255, 0};
+    uint8 v = FloatByte(sqrt(f));
+    return {0, v, 0};
+  } else {
+    if (f < -1.0f) return {255, 0, 0};
+    uint8 v = FloatByte(sqrt(-f));
+    return {v, 0, 0};
   }
 }
 
@@ -228,10 +240,131 @@ static constexpr int OUTPUT_LAYER_SIZE =
 // Weight decay; should be a number less than, but close to, 1.
 // This is like L2 regularization (I think just modulo a constant
 // factor of 2), but less principled.
+// This seemed to help with reducing runaway, and does produce a
+// sparser model, but one of the most effective improvements I ever
+// got was from turning this *off*. 
 static constexpr bool DECAY = false;
 static constexpr float DECAY_FACTOR = 0.999995;
 
+// If true, remap both the network's output and the expected values
+// before computing the error (which is just a linear distance). This
+// allows certain regions to be given higher importance. For the
+// SDF font problem for example, we care a lot about whether the
+// output is above or below SDFConfig().onedge_value (because we threshold
+// here when rendering), but very little about values that are very low
+// or high.
+//
+// This is not that principled, and this function had better be monotonic
+// at least, or else the derivative we implicitly compute on the results
+// will just be wrong!
+
+static constexpr bool REMAP_OUTPUT = true;
+static string GetRemap() {
+  static constexpr float fonedge = FontProblem::SDFConfig().onedge_value / 255.0f;
+  // Remap a value x (nominally) in [0,1] space to a new value, also nominally
+  // in [0,1]. Here, a piecewise linear mapping
+  //                    s2
+  // 1 |               b-`/
+  //   |               |/
+  // o |              /| 
+  // u |            / |  
+  // t |          /  |  interesting
+  // p |        /   |   slope
+  // u |      /   .-a
+  // t |    /  .-`
+  //   |  / .-` s1
+  //   |/.-`  
+  // 0 +------------|--|---
+  //   0   input    a  b  1
+  //     input
+  //
+  // Here the / line would be the identity function. Instead we have a
+  // more shallow slope in the less-interesting regions [0,a] and
+  // [b,1]. The interesting region [a,b] thus has a steeper slope,
+  // which means that smaller differences in the inputs yield bigger
+  // differences in the outputs in this region.
+  //
+  static constexpr float ffalloff = FontProblem::SDFConfig().falloff_per_pixel / 255.0f;
+  // +/- 1.5 pixels from the edge value is the critical region
+  // This gets pretty close to 1.0 on the high end, btw.
+  static constexpr float ax = fonedge - ffalloff * 1.5f;
+  static constexpr float bx = fonedge + ffalloff * 1.5f;
+  // HERE then need to also specify the slope of the interesting region.
+  static constexpr float interesting_slope = 3.0f;
+
+  static_assert(ax > 0.0f);
+  static_assert(bx < 1.0f);
+  static_assert(bx > ax);
+  static_assert(interesting_slope > 0.0f);
+  
+  static constexpr float w = bx - ax;
+  static constexpr float h = interesting_slope * w;
+
+  // Now we need to figure out the y coordinate of a. There's
+  // one degree of freedom in the drawing which can be resolved
+  // by setting the slopes s1 and s2 equal. Just rearrange so
+  // that the interesting box (w by h) is in the bottom left
+  // corner. The slope of the remaining line will be the same
+  // as the two uninteresting line segments.
+  static constexpr float uw = 1 - w;
+  static constexpr float uh = 1 - h;
+  static_assert(uw > 0.0f);
+  static_assert(uh > 0.0f);
+  static constexpr float s = uh / uw;
+
+  // Now we can compute the location of the interesting box.
+  static constexpr float ay = ax * s;
+  static constexpr float by = ay + h;
+  static_assert(ay > 0.0f && ay < 1.0f);
+  static_assert(by > 0.0f && by < 1.0f);  
+  
+  // Finally, the remapping function is just a piecewise linear
+  // function. For the lowercase problem, we only apply it for
+  // the SDF pixels.
+
+  [[maybe_unused]]
+  auto Remap = [](int i, float x) {
+      if (i < SDF_SIZE) {
+	// PERF could probably simplify this!
+	if (x < ax) return x * s;
+	if (x < bx) return ay + (x - ax) * interesting_slope;
+	return by + (x - bx) * s;
+      } else {
+	return x;
+      }
+    };
+
+  Printf("ax: %.9f\n"
+	 "bx: %.9f\n"
+	 "ay: %.9f\n"
+	 "by: %.9f\n"
+	 "s: %.9f\n",
+	 ax, bx, ay, by, s);
+  
+  return StringPrintf(
+      "#define REMAP(i, x) "
+      "((i < %d) ? "
+      // if (x < ax) return x * s;
+      "((x < %.9f) ? x * %.9f : "
+      // if (x < bx) return ay + (x - ax) * interesting_slope;
+      "(x < %.9f) ? %.9f + (x - %.9f) * %.9f : "
+      // return by + (x - bx) * s;
+      "%.9f + (x - %.9f) * %.9f) : "
+      // else return x
+      "x)",
+      SDF_SIZE,
+      ax, s,
+      bx, ay, ax, interesting_slope,
+      by, bx, s);
+}
+
+
+// When generating the initial network, the number of nodes that
+// are guaranteed to be sampled from the corresponding spatial
+// location in the input layer. The square is actually sized
+// NEIGHBORHOOD + 1 + NEIGHBORHOOD along both dimensions.
 static constexpr int NEIGHBORHOOD = 3;
+
 
 
 // custom renderstyles for font problem
@@ -567,11 +700,41 @@ struct ForwardLayerCL {
   std::shared_mutex m;
 };
 
+
 // Set the error values; this is almost just a memcpy.
 struct SetOutputErrorCL {
-  explicit SetOutputErrorCL(CL *cl) : cl(cl) {
-    std::tie(programs, kernels) =
-      MakeTransferKernels(cl, "setoutputerror.cl", "SetOutputError");
+  explicit SetOutputErrorCL(CL *cl, const Network &net) : cl(cl) {
+    // This only runs on one layer, the output. But we do need to have the
+    // transfer function's derivative.
+    string base_src = Util::ReadFile("setoutputerror.cl");
+    
+    const TransferFunction transfer_function =
+      net.layers.back().transfer_function;
+
+    string kernel_src;
+    switch (transfer_function) {
+    case SIGMOID: kernel_src += SIGMOID_FN; break;
+    case RELU: kernel_src += RELU_FN; break;
+    case LEAKY_RELU: kernel_src += LEAKY_RELU_FN; break;
+    default:
+      CHECK(false) << "Invalid transfer function " << transfer_function;
+    }
+
+    // Add remapping function or fill in identity if disabled.
+    kernel_src += "\n";
+    if (REMAP_OUTPUT) {
+      kernel_src += GetRemap();
+    } else {
+      kernel_src += "#define REMAP(i, x) x";
+    }
+    kernel_src += "\n";
+    
+    kernel_src += base_src;
+
+    Printf("Compile:\n%s\n", kernel_src.c_str());
+    auto pk = cl->BuildOneKernel(kernel_src, "SetOutputError");
+    program = pk.first;
+    kernel = pk.second;
   }
 
   struct Context {
@@ -582,11 +745,8 @@ struct SetOutputErrorCL {
       CL *cl = parent->cl;
 
       const Network *net = net_gpu->net;
-      // Errors are always computed for the output layer, which is the last one.
-      const TransferFunction transfer_function =
-	net->layers.back().transfer_function;
 
-      cl_kernel kernel = parent->kernels[transfer_function];
+      cl_kernel kernel = parent->kernel;
 
       // All three memories here have num_nodes floats.
       int num_nodes = net->num_nodes[net->num_layers];
@@ -631,17 +791,15 @@ struct SetOutputErrorCL {
   };
 
   ~SetOutputErrorCL() {
-    for (auto &k : kernels)
-      CHECK_SUCCESS(clReleaseKernel(k));
-    for (auto &p : programs)
-      CHECK_SUCCESS(clReleaseProgram(p));
+    clReleaseKernel(kernel);
+    clReleaseProgram(program);
   }
 
  private:
   CL *cl = nullptr;
   // Owned:
-  std::vector<cl_program> programs;
-  std::vector<cl_kernel> kernels;
+  cl_program program;
+  cl_kernel kernel;
 
   std::shared_mutex m;
 
@@ -1590,6 +1748,23 @@ struct UI {
 		    }
 		  }
 		};
+
+	      auto DrawSDFError = [](const vector<float> &values, int startx, int starty) {
+		  for (int y = 0; y < SDF_SIZE; y++) {
+		    int yy = starty + y * 2;
+		    for (int x = 0; x < SDF_SIZE; x++) {
+		      int xx = startx + x * 2;
+
+		      float f = values[y * SDF_SIZE + x];
+		      const auto [r, g, b] = ErrorFloatColor(f);
+		      
+		      sdlutil::drawclippixel(screen, xx, yy, r, g, b);
+		      sdlutil::drawclippixel(screen, xx + 1, yy, r, g, b);
+		      sdlutil::drawclippixel(screen, xx, yy + 1, r, g, b);
+		      sdlutil::drawclippixel(screen, xx + 1, yy + 1, r, g, b);		    
+		    }
+		  }
+		};
 	      
 	      const auto render_style = current_network->renderstyle[l];
 	      switch (render_style) {
@@ -1601,6 +1776,18 @@ struct UI {
 	      case RENDERSTYLE_SDF26: {
 		const vector<float> &outs = stim.values[l];
 		DrawSDF(outs, xstart, ystart);
+
+		// Errors
+		#if 1
+		const int error_layer = l - 1;
+		if (error_layer >= 0 && error_layer < err.error.size()) {
+		  const std::vector<float> &evalues = err.error[error_layer];
+		  if (evalues.size() >= SDF_SIZE * SDF_SIZE) {
+		    DrawSDFError(evalues, xstart + SDF_SIZE * 4, ystart);
+		  }
+		}
+		#endif
+		
 		for (int i = 0; i < 26; i++) {
 		  const uint8 v = FloatByte(outs[SDF_SIZE * SDF_SIZE + i]);
 		  EmbeddedFont::Blit('A' + i,
@@ -2135,7 +2322,7 @@ struct Training {
 
     // Create kernels right away so that we get any compilation errors early.
     forwardlayer = make_unique<ForwardLayerCL>(global_cl, *net);
-    setoutputerror = make_unique<SetOutputErrorCL>(global_cl);
+    setoutputerror = make_unique<SetOutputErrorCL>(global_cl, *net);
     backwardlayer = make_unique<BackwardLayerCL>(global_cl, *net);
     decayweights = make_unique<DecayWeightsCL>(global_cl, *net);
     updateweights = make_unique<UpdateWeightsCL>(global_cl, *net);
@@ -2226,7 +2413,7 @@ struct Training {
 	return (end * f) + start * (1.0 - f);
       };
     // constexpr float LEARNING_RATE_HIGH = 0.10f;
-    constexpr float LEARNING_RATE_HIGH = 0.006f;
+    constexpr float LEARNING_RATE_HIGH = 0.0075f;
     constexpr float LEARNING_RATE_LOW = 0.000125f;
     const float round_learning_rate =
       Linear(LEARNING_RATE_HIGH, LEARNING_RATE_LOW, TARGET_ROUNDS, net->rounds);
@@ -2758,13 +2945,17 @@ static void MakeTrainingExamplesThread(
   CHECK(load_fonts != nullptr) << "LoadFonts must be created first.";
   // First, pause until we have enough fonts.
   for (;;) {
+    int64 have_fonts = 0;
     {
       ReadMutexLock ml(&load_fonts->fonts_m);
-      if (load_fonts->fonts.size() >= ENOUGH_FONTS)
-	break;
+      have_fonts = load_fonts->fonts.size();
     }
 
-    Printf("Not enough training data loaded yet!\n");
+    if (have_fonts >= ENOUGH_FONTS)
+      break;
+
+    Printf("Not enough training data loaded yet (%lld/%lld)!\n",
+	   have_fonts, ENOUGH_FONTS);
     std::this_thread::sleep_for(1s);
     if (ReadWithLock(&train_should_die_m, &train_should_die))
       return;
