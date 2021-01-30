@@ -320,6 +320,18 @@ void ParallelComp3D(int64_t num1, int64_t num2, int64_t num3,
 	       max_concurrency);
 }
 
+// Run exactly num_threads copies of f, each getting its thread id.
+template<class F>
+void ParallelFan(int num_threads, const F &f) {
+  std::vector<std::thread> threads;
+  threads.reserve(num_threads);
+  for (int i = 0; i < num_threads; i++) {
+    threads.emplace_back([i, &f]() { (void)f(i); });
+  }
+  // Now just wait for them all to finish.
+  for (std::thread &t : threads) t.join();
+}
+
 // Manages running up to X asynchronous tasks in separate threads. This
 // is intended for use in situations like compressing and writing a
 // bunch of frames of a movie out to disk. There's substantial parallelism

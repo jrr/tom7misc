@@ -8,6 +8,7 @@
 #include <vector>
 #include <cstdint>
 #include <tuple>
+#include <optional>
 
 #include "base/logging.h"
 
@@ -44,6 +45,9 @@ struct ImageRGBA {
   // fill_color.
   ImageRGBA Crop32(int x, int y, int w, int h,
 		   uint32 fill_color = 0x00000000) const;
+
+  // Scale by a positive integer factor, crisp pixels.
+  ImageRGBA ScaleBy(int scale) const;
   
   // In RGBA order, where R value is MSB. x/y must be in bounds.
   inline uint32 GetPixel32(int x, int y) const;
@@ -65,6 +69,12 @@ struct ImageRGBA {
   void BlendRect(int x, int y, int w, int h,
 		 uint8 r, uint8 g, uint8 b, uint8 a);
   void BlendRect32(int x, int y, int w, int h, uint32 color);
+
+  // Hollow box, one pixel width.
+  // nullopt corner_color = color for a crisp box, but setting
+  // the corners to 50% alpha makes a subtle roundrect effect.
+  void BlendBox32(int x, int y, int w, int h,
+		  uint32 color, std::optional<uint32> corner_color);
   
   // Embedded 9x9 pixel font.
   void BlendText(int x, int y,
