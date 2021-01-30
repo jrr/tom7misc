@@ -232,6 +232,25 @@ ImageRGBA ImageRGBA::Crop32(int x, int y, int w, int h,
   return ret;
 }
 
+ImageRGBA ImageRGBA::ScaleBy(int scale) const {
+  // 1 is not useful, but it does work
+  CHECK(scale >= 1);
+  ImageRGBA ret(width * scale, height * scale);
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      const uint32 color = GetPixel32(x, y);
+      for (int yy = 0; yy < scale; yy++) {
+	for (int xx = 0; xx < scale; xx++) {
+	  ret.SetPixel32(x * scale + xx,
+			 y * scale + yy,
+			 color);
+	}
+      }
+    }
+  }
+  return ret;
+}
+
 void ImageRGBA::Clear32(uint32 color) {
   // PERF: This can be optimized by writing 32 bits at a time,
   // but beware endianness, etc.
@@ -318,6 +337,30 @@ void ImageRGBA::BlendRect(int x, int y, int w, int h,
 void ImageRGBA::BlendRect32(int x, int y, int w, int h, uint32 color) {
   const auto [r, g, b, a] = Unpack32(color);
   BlendRect(x, y, w, h, r, g, b, a);
+}
+
+void ImageRGBA::BlendBox32(int x, int y, int w, int h,
+			   uint32 color, std::optional<uint32> cco) {
+  const int x1 = x + w - 1;
+  const int y1 = y + h - 1;
+
+  const uint32 corner_color = cco.has_value() ? cco.value() : color;
+
+  // PERF: straight lines can be faster by skipping bresenham
+  // XXX this is wrong for 1x1 and 2x2 boxes. fix!
+  // Top
+  BlendLine32(x + 1, y, x1 - 1, y, color);
+  // Left
+  BlendLine32(x, y + 1, x, y1 - 1, color);
+  // Right
+  BlendLine32(x1, y + 1, x1, y1 - 1, color);
+  // Bottom
+  BlendLine32(x + 1, y1, x1 - 1, y1, color);
+
+  BlendPixel32(x, y, corner_color);
+  BlendPixel32(x1, y, corner_color);
+  BlendPixel32(x, y1, corner_color);
+  BlendPixel32(x1, y1, corner_color);
 }
 
 // PERF: For many of these where we call blendpixel in a loop,
