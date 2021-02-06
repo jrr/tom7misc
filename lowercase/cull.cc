@@ -37,7 +37,7 @@ static constexpr float THRESHOLD = 0.00001f;
 
 // Layers to cull, in the given order. Pretty much the same as running
 // cull.exe sequentially.
-static constexpr std::initializer_list<int> CULL_LAYERS = {0, 1, 2};
+static constexpr std::initializer_list<int> CULL_LAYERS = {0, 1, 2, 3};
 
 // How many random inputs to try. Approximate since we do the same number
 // per thread.

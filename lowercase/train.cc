@@ -58,8 +58,6 @@
 #include "base/logging.h"
 #include "arcfour.h"
 #include "util.h"
-#include "stb_image.h"
-#include "stb_image_write.h"
 #include "vector-util.h"
 #include "threadutil.h"
 #include "randutil.h"
@@ -186,6 +184,21 @@ static void DeleteElements(C *cont) {
     delete elt;
   }
   cont->clear();
+}
+
+static void BlitImage(const ImageRGBA &img, int xpos, int ypos) {
+  // PERF should invest in fast blit of ImageRGBA to SDL screen
+  for (int y = 0; y < img.Height(); y++) {
+    for (int x = 0; x < img.Width(); x++) {
+      int xx = xpos + x;
+      int yy = ypos + y;
+      if (yy >= 0 && yy < SCREENH &&
+	  xx >= 0 && xx < SCREENW) {
+	auto [r, g, b, _] = img.GetPixel(x, y);
+	sdlutil::drawpixel(screen, xpos + x, ypos + y, r, g, b);
+      }
+    }
+  }
 }
 
 // Communication between threads.
@@ -345,11 +358,11 @@ static string GetRemap() {
       "#define REMAP(i, x) "
       "((i < %d) ? "
       // if (x < ax) return x * s;
-      "((x < %.9f) ? x * %.9f : "
+      "((x < %.9ff) ? x * %.9ff : "
       // if (x < bx) return ay + (x - ax) * interesting_slope;
-      "(x < %.9f) ? %.9f + (x - %.9f) * %.9f : "
+      "(x < %.9ff) ? %.9ff + (x - %.9ff) * %.9ff : "
       // return by + (x - bx) * s;
-      "%.9f + (x - %.9f) * %.9f) : "
+      "%.9ff + (x - %.9ff) * %.9ff) : "
       // else return x
       "x)",
       SDF_SIZE,
@@ -1433,6 +1446,217 @@ static constexpr int EVAL_SCREENSHOT_EVERY = 1000;
 
 static constexpr bool DRAW_ERRORS = false;
 
+// Render the layer in the training UI for one example.
+// This is responsible for both the stimulations and errors (if enabled).
+// If the returned image is small, the driver may choose to render it
+// at 2x (or larger) size.
+static ImageRGBA RenderLayer(const Network &net,
+			     int layer,
+			     // Stimulation values
+			     const vector<float> &values,
+			     // Can be null; will always be null for input layer.
+			     const vector<float> *opt_error) {
+
+  // Render the SDF (at 2x size) and anti-aliased letter image. Each have the
+  // same dimensions.
+  auto MakeSDF = [](const vector<float> &values) -> pair<ImageRGBA, ImageRGBA> {
+      ImageA img = FontProblem::SDFGetImage(SDF_CONFIG, values);
+      ImageA twox = img.ResizeBilinear(SDF_SIZE * 2, SDF_SIZE * 2);
+      ImageA letter = FontProblem::SDFThresholdAA(SDF_CONFIG.onedge_value,
+						  twox, 3);
+      return {img.GreyscaleRGBA().ScaleBy(2), letter.GreyscaleRGBA()};
+    };
+
+  // Errors, just from the SDF region (beginning of the array), at 2x size.
+  auto MakeSDFError = [](const vector<float> &values) {
+      ImageRGBA img(SDF_SIZE, SDF_SIZE);
+      for (int y = 0; y < SDF_SIZE; y++) {
+	for (int x = 0; x < SDF_SIZE; x++) {
+	  const float f = values[y * SDF_SIZE + x];
+	  const auto [r, g, b] = ErrorFloatColor(f);
+	  img.SetPixel(x, y, r, g, b, 0xFF);
+	}
+      }
+      return img.ScaleBy(2);
+    };
+
+  #if 0
+  // TODO: generic error output. could probably be shared with
+  // guts of MakeSDFError.
+  // Now errors.
+  // (XXX Something wrong with this? It draws on top of
+  // the output)
+  if (DRAW_ERRORS && l > 0) {
+    const int exstart = xstart +
+      std::get<0>(PixelSize(*current_network, l));
+    const vector<float> &errs = err.error[l - 1];
+    switch (current_network->renderstyle[l]) {
+    default:
+    case RENDERSTYLE_FLAT:
+    case RENDERSTYLE_RGB:
+      constexpr int SCALE = 2;
+      for (int y = 0; y < height; y++) {
+	const int ystart = ypos + y * SCALE;
+	for (int x = 0; x < width; x++) {
+	  const int idx = y * width + x;
+	  const int xstart = xpos + x * SCALE;
+	  // Allow this to not be rectangular, e.g. chessboard.
+	  uint8 r = ((x + y) & 1) ? 0xFF : 0x00;
+	  uint8 g = 0x00;
+	  uint8 b = ((x + y) & 1) ? 0xFF : 0x00;
+	  if (idx < errs.size()) {
+	    const float f = errs[idx];
+	    // Use different colors for negative/positive.
+	    // XXX: Show errors greater than magnitude 1!
+	    if (f < 0.0f) {
+	      r = FloatByte(-f);
+	      g = 0;
+	      b = 0;
+	    } else {
+	      r = 0;
+	      g = FloatByte(f);
+	      b = 0;
+	    }
+	  }
+
+	  // Hopefully this gets unrolled.
+	  for (int yy = 0; yy < SCALE; yy++) {
+	    for (int xx = 0; xx < SCALE; xx++) {
+	      sdlutil::drawpixel(screen, xstart + xx, ystart + yy, r, g, b);
+	    }
+	  }
+	}
+      }
+    }
+  }
+  #endif
+  
+  
+  const auto render_style = net.renderstyle[layer];
+  switch (render_style) {
+
+  case RENDERSTYLE_SDF: {
+    ImageRGBA out(SDF_SIZE * 2 * 2, SDF_SIZE * 2);
+    auto [sdf, letter] = MakeSDF(values);
+    out.BlendImage(0, 0, sdf);
+    out.BlendImage(SDF_SIZE * 2, 0, letter);
+    return out;
+  }
+    
+  case RENDERSTYLE_SDF26: {
+    int alphabet_width = 26 * EmbeddedFont::CHAR_WIDTH;
+    // 2xSDF, aa letter, 2x error for sdf part
+    int images_width = 3 * SDF_SIZE * 2;
+    int width = std::max(alphabet_width, images_width);
+    int height = SDF_SIZE * 2 + 1 + EmbeddedFont::CHAR_HEIGHT;
+    ImageRGBA out(width, height);
+    auto [sdf, letter] = MakeSDF(values);
+    out.BlendImage(0, 0, sdf);
+    out.BlendImage(SDF_SIZE * 2, 0, letter);
+    
+    if (opt_error != nullptr) {
+      ImageRGBA sdf_error = MakeSDFError(*opt_error);
+      out.BlendImage(SDF_SIZE * 4, 0, sdf_error);
+
+      // XXX Letter error?
+    }
+
+    // Letter classifiers.
+    for (int i = 0; i < 26; i++) {
+      const uint8 v = FloatByte(values[SDF_SIZE * SDF_SIZE + i]);
+      string s = "A";
+      s[0] += i;
+      out.BlendText(EmbeddedFont::CHAR_HEIGHT * i, SDF_SIZE * 2 + 1,
+		    v, v, 0xFF, 0xFF,
+		    s);
+    }
+
+    // TODO: Show other crap that follows?
+    return out;
+  }
+
+  case RENDERSTYLE_RGB: {
+    int width = net.width[layer];
+    int height = net.height[layer];
+    int channels = net.channels[layer];
+    ImageRGBA out(width, height);
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+	
+	int cidx = (y * width + x) * channels;
+
+	switch (channels) {
+	case 0: break;
+	case 1: {
+	  const uint8 v = FloatByte(values[cidx]);
+	  out.SetPixel(x, y, v, v, v, 0xFF);
+	  break;
+	}
+	case 2: {
+	  const uint8 r = FloatByte(values[cidx + 0]);
+	  const uint8 g = FloatByte(values[cidx + 1]);
+	  out.SetPixel(x, y, r, g, 0, 0xFF);
+	  break;
+	}
+	default:
+	  // If more than 3, later ones are just ignored.
+	case 3: {
+	  const uint8 r = FloatByte(values[cidx + 0]);
+	  const uint8 g = FloatByte(values[cidx + 1]);
+	  const uint8 b = FloatByte(values[cidx + 2]);
+	  out.SetPixel(x, y, r, g, b, 0xFF);
+	  break;
+	}
+	}
+      }
+    }
+    return out;
+  }
+
+  case RENDERSTYLE_FLAT: {
+    // XXX not uncommon to have ridiculous aspect ratios
+    // when the layers are not actually spatial, or after
+    // culling. Could have special support for ragged sizes?
+    int width = net.width[layer];
+    int height = net.height[layer];
+    int channels = net.channels[layer];
+    
+    int ww = width * channels;
+
+    // If the aspect ratio is too crazy, ignore the width
+    // and height and just make a ragged rectangle that's
+    // square.
+    if ((float)ww / height > 20.0f ||
+	(float)height / ww > 20.0f) {
+      ww = sqrtf(ww * height);
+      height = ww;
+      while (ww * height < values.size()) {
+	if (ww < height) ww++;
+	else height++;
+      }
+    }
+    
+    ImageRGBA out(ww, height);
+
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < ww; x++) {
+	const int cidx = y * ww + x;
+	if (cidx < values.size()) {
+	  const auto [r, g, b] = FloatColor(values[cidx]);
+	  out.SetPixel(x, y, r, g, b, 0xFF);
+	}
+      }
+    }
+    return out;
+  }
+  default: {
+    ImageRGBA out(9, 9);
+    out.BlendText32(0, 0, 0xFF4444FF, "?");
+    return out;
+  }
+  }
+}
+
 // XXX this needs to support multiple models somehow.
 // right now it only accepts stuff from model index 0.
 struct UI {
@@ -1540,100 +1764,12 @@ struct UI {
     }
   }
 
-  // TODO: For this drawing stuff, maybe do it in terms of headless
-  // ImageRGBA, and then UI thread just blits that stuff to SDL screen.
-  // This lets us export training images for movie, and maybe make the
-  // rendering code more portable (e.g. could have web-based UI rather
-  // than SDL)?
-
-  // Returns unscaled width, height, and scale (= number of screen
-  // pixels per layer pixel)
-  static std::tuple<int, int, int>
-  PixelSize(const Network &net, int layer) {
-    auto MakeScale =
-      [](int w, int h) {
-	int d = std::max(w, h);
-	return (d <= 16) ? 3 : (d <= 128) ? 2 : 1;
-      };
-    switch (net.renderstyle[layer]) {
-    default:
-    case RENDERSTYLE_RGB: {
-      // Could do a hybrid where we use 3 channels per pixel, but still
-      // show them all
-      int w = net.width[layer], h = net.height[layer];
-      return {w, h, MakeScale(w, h)};
-    }
-    case RENDERSTYLE_FLAT: {
-      #if 0
-      if (h == 1 && w > 100) {
-	// XXX hax for extreme "rectangles"
-	int ww = 100;
-	int hh = (w / 1000) + 1;
-	return {ww, hh, MakeScale(ww, hh)};
-      }
-      #endif
-      int w = net.width[layer] * net.channels[layer];
-      int h = net.height[layer];
-      return {w, h, MakeScale(w, h)};
-    }
-
-    case RENDERSTYLE_SDF:
-      return {SDF_SIZE * 2, SDF_SIZE * 2, 1};
-    case RENDERSTYLE_SDF26:
-      return {std::max(SDF_SIZE * 2, EmbeddedFont::CHAR_WIDTH * 26),
-	      SDF_SIZE * 2 + 1 + EmbeddedFont::CHAR_HEIGHT,
-	      1};
-    }
-  }
-
-  static int ErrorWidth(const Network &net, int layer) {
-    switch (net.renderstyle[layer]) {
-    default:
-      return net.width[layer];
-    }
-  }
-
-  // Draw error pixels to the screen.
-  template<int SCALE>
-  static void Error2D(const vector<float> &errs,
-		      // Screen coordinates.
-		      int xpos, int ypos,
-		      // Unscaled width/height.
-		      int width, int height) {
-    static_assert(SCALE >= 1);
-    for (int y = 0; y < height; y++) {
-      const int ystart = ypos + y * SCALE;
-      for (int x = 0; x < width; x++) {
-	const int idx = y * width + x;
-	const int xstart = xpos + x * SCALE;
-	// Allow this to not be rectangular, e.g. chessboard.
-	uint8 r = ((x + y) & 1) ? 0xFF : 0x00;
-	uint8 g = 0x00;
-	uint8 b = ((x + y) & 1) ? 0xFF : 0x00;
-	if (idx < errs.size()) {
-	  const float f = errs[idx];
-	  // Use different colors for negative/positive.
-	  // XXX: Show errors greater than magnitude 1!
-	  if (f < 0.0f) {
-	    r = FloatByte(-f);
-	    g = 0;
-	    b = 0;
-	  } else {
-	    r = 0;
-	    g = FloatByte(f);
-	    b = 0;
-	  }
-	}
-
-	// Hopefully this gets unrolled.
-	for (int yy = 0; yy < SCALE; yy++) {
-	  for (int xx = 0; xx < SCALE; xx++) {
-	    sdlutil::drawpixel(screen, xstart + xx, ystart + yy, r, g, b);
-	  }
-	}
-      }
-    }
-  }
+  // TODO: Now that this is more in terms of headless RGBA stuff, we
+  // could consider rendering in a totally different thread and UI thread
+  // is just responsible for blitting to SDL screen?
+  // This lets us more easily export training images for movie, and
+  // maybe make the rendering code more portable (e.g. could have
+  // web-based UI rather than SDL)?
 
   // Supposedly SDL prefers this to be called from the main thread.
   void Loop() {
@@ -1664,24 +1800,21 @@ struct UI {
 	    continue;
 	  }
 
-	  int max_width = 0;
-	  for (int layer = 0;
-	       layer < current_network->num_layers + 1;
-	       layer++) {
-	    int w = std::get<0>(PixelSize(*current_network, layer));
-	    if (DRAW_ERRORS)
-	      w += ErrorWidth(*current_network, layer) * 2 + 2;
-	    max_width = std::max(w, max_width);
-	  }
-	  max_width += 4;
-
 	  CHECK(current_stimulations.size() == NUM_VIDEO_STIMULATIONS);
 	  CHECK(current_errors.size() == NUM_VIDEO_STIMULATIONS);
 	  CHECK(current_expected.size() == NUM_VIDEO_STIMULATIONS);
+
+	  int xstart = 0;
 	  for (int s = 0; s < NUM_VIDEO_STIMULATIONS; s++) {
+	    if (xstart >= SCREENW)
+	      break;
+
+	    int max_width = 4;
+	    
 	    const Stimulation &stim = current_stimulations[s];
 	    const Errors &err = current_errors[s];
 	    const vector<float> &expected = current_expected[s];
+
 	    // These are not filled in atomically, so it's possible
 	    // that we have stimulations but not expected values yet.
 	    if (expected.empty()) continue;
@@ -1697,211 +1830,52 @@ struct UI {
 	    CHECK(stim.values.size() == current_network->renderstyle.size());
 	    CHECK(err.error.size() == current_network->num_layers);
 	    CHECK(expected.size() == current_network->num_nodes.back());
+
+	    static constexpr int MIN_WIDTH = SDF_SIZE * 4;
 	    
-	    const int xstart = 4 + s * max_width;
-	    if (xstart >= SCREENW)
-	      break;
-
-
 	    int ystart = 24;
-	    for (int l = 0; l < stim.values.size(); l++) {
+	    for (int layer_idx = 0; layer_idx < stim.values.size(); layer_idx++) {
 
-	      auto DrawSDF = [](const vector<float> &values, int startx, int starty) {
-		  ImageA img = FontProblem::SDFGetImage(SDF_CONFIG, values);
-		  ImageA twox = img.ResizeBilinear(SDF_SIZE * 2, SDF_SIZE * 2);
-		  ImageA aa = FontProblem::SDFThresholdAA(SDF_CONFIG.onedge_value,
-							  twox, 3);
-		  
-		  for (int y = 0; y < SDF_SIZE; y++) {
-		    int yy = starty + y * 2;
-		    for (int x = 0; x < SDF_SIZE; x++) {
-		      int xx = startx + x * 2;
-		      uint8 v = img.GetPixel(x, y);
+	      const int error_layer = layer_idx - 1;
+	      const vector<float> *opt_errors =
+		(error_layer >= 0 && error_layer < err.error.size()) ?
+		&err.error[error_layer] : nullptr;
+	      ImageRGBA layer_img =
+		RenderLayer(*current_network,
+			    layer_idx,
+			    stim.values[layer_idx],
+			    opt_errors);
+	      // TODO: expected etc.
 
-		      sdlutil::drawclippixel(screen, xx, yy, v, v, v);
-		      sdlutil::drawclippixel(screen, xx + 1, yy, v, v, v);
-		      sdlutil::drawclippixel(screen, xx, yy + 1, v, v, v);
-		      sdlutil::drawclippixel(screen, xx + 1, yy + 1, v, v, v);		    
-		    }
-		  }
+	      // XXX other scales
+	      if (layer_img.Width() * 2 < MIN_WIDTH) {
+		layer_img = layer_img.ScaleBy(2);
+	      }
 
-		  // second image immediately to the right of the 2x image above
-		  const int X_MARGIN = SDF_SIZE * 2;
-		  #if 0
-		  for (int y = 0; y < SDF_SIZE * 2; y++) {
-		    int yy = starty + y;
-		    for (int x = 0; x < SDF_SIZE * 2; x++) {
-		      int xx = startx + X_MARGIN + x;
-		      uint8 v = twox.GetPixel(x, y);
+	      BlitImage(layer_img, xstart, ystart);
 
-		      uint8 vv = v >= SDF_CONFIG.onedge_value ? 0xFF : 0x00;
-		      sdlutil::drawclippixel(screen, xx, yy, vv, vv, vv);
-		    }
-		  }
-		  #endif
-		  for (int y = 0; y < aa.Height(); y++) {
-		    int yy = starty + y;
-		    for (int x = 0; x < aa.Width(); x++) {
-		      int xx = startx + X_MARGIN + x;
-		      uint8 v = aa.GetPixel(x, y);
-		      sdlutil::drawclippixel(screen, xx, yy, v, v, v);
-		    }
-		  }
-		};
 
-	      auto DrawSDFError = [](const vector<float> &values, int startx, int starty) {
-		  for (int y = 0; y < SDF_SIZE; y++) {
-		    int yy = starty + y * 2;
-		    for (int x = 0; x < SDF_SIZE; x++) {
-		      int xx = startx + x * 2;
+	      max_width = std::max(max_width, layer_img.Width());
+	      ystart += layer_img.Height();
 
-		      float f = values[y * SDF_SIZE + x];
-		      const auto [r, g, b] = ErrorFloatColor(f);
-		      
-		      sdlutil::drawclippixel(screen, xx, yy, r, g, b);
-		      sdlutil::drawclippixel(screen, xx + 1, yy, r, g, b);
-		      sdlutil::drawclippixel(screen, xx, yy + 1, r, g, b);
-		      sdlutil::drawclippixel(screen, xx + 1, yy + 1, r, g, b);		    
-		    }
-		  }
-		};
-	      
-	      const auto render_style = current_network->renderstyle[l];
-	      switch (render_style) {
-
-	      case RENDERSTYLE_SDF:
-		DrawSDF(stim.values[l], xstart, ystart);
-		break;
-
-	      case RENDERSTYLE_SDF26: {
-		const vector<float> &outs = stim.values[l];
-		DrawSDF(outs, xstart, ystart);
-
-		// Errors
-		#if 1
-		const int error_layer = l - 1;
-		if (error_layer >= 0 && error_layer < err.error.size()) {
-		  const std::vector<float> &evalues = err.error[error_layer];
-		  if (evalues.size() >= SDF_SIZE * SDF_SIZE) {
-		    DrawSDFError(evalues, xstart + SDF_SIZE * 4, ystart);
-		  }
-		}
-		#endif
+	      // Separator.
+	      if (layer_idx != stim.values.size() - 1) {
+		sdlutil::drawclipline(screen, xstart + 8, ystart + 2, xstart + 32, ystart + 2,
+				      0x77, 0x77, 0x77);
+	      }
 		
-		for (int i = 0; i < 26; i++) {
-		  const uint8 v = FloatByte(outs[SDF_SIZE * SDF_SIZE + i]);
-		  EmbeddedFont::Blit('A' + i,
-				     xstart + EmbeddedFont::CHAR_HEIGHT * i,
-				     ystart + SDF_SIZE * 2 + 1,
-				     [this, v](int x, int y) {
-				       sdlutil::drawclippixel(
-					   screen, x, y,
-					   v, v, 0xFF);
-				     },
-				     [this](int x, int y) {
-				       sdlutil::drawclippixel(
-					   screen, x, y,
-					   0, 0, 0);
-				     });
-		}
-		break;
-	      }
-
-	      case RENDERSTYLE_RGB:
-		for (int y = 0; y < current_network->height[l]; y++) {
-		  int yy = ystart + y;
-		  if (yy >= SCREENH) break;
-
-		  for (int x = 0; x < current_network->width[l]; x++) {
-
-		    int xx = xstart + x;
-		    if (x >= SCREENW) break;
-
-		    int cidx = y * current_network->width[l] *
-		      current_network->channels[l] +
-		      x * current_network->channels[l];
-
-		    // XXX! Need to support more than 3 channels for
-		    // chess. Color is dubious anyway?
-		    switch (current_network->channels[l]) {
-		    case 0: break;
-		    case 1: {
-		      const uint8 v = FloatByte(stim.values[l][cidx]);
-		      sdlutil::drawpixel(screen, xx, yy, v, v, v);
-		      break;
-		    }
-		    case 2: {
-		      const uint8 r = FloatByte(stim.values[l][cidx + 0]);
-		      const uint8 g = FloatByte(stim.values[l][cidx + 1]);
-		      sdlutil::drawpixel(screen, xx, yy, r, g, 0);
-		      break;
-		    }
-		    default:
-		      // If more than 3, later ones are just ignored.
-		    case 3: {
-		      const uint8 r = FloatByte(stim.values[l][cidx + 0]);
-		      const uint8 g = FloatByte(stim.values[l][cidx + 1]);
-		      const uint8 b = FloatByte(stim.values[l][cidx + 2]);
-		      sdlutil::drawpixel(screen, xx, yy, r, g, b);
-		      break;
-		    }
-		    }
-		  }
-		}
-		break;
-
-	      case RENDERSTYLE_FLAT:
-		for (int y = 0; y < current_network->height[l]; y++) {
-		  const int yy = ystart + y;
-		  for (int x = 0;
-		       x < current_network->width[l] *
-			 current_network->channels[l];
-		       x++) {
-		    const int xx = xstart + x;
-		    if (x >= SCREENW) break;
-		    const int cidx =
-		      y * current_network->width[l] *
-		      current_network->channels[l] + x;
-		    const auto [r, g, b] = FloatColor(stim.values[l][cidx]);
-		    // const uint8 v = FloatByte();
-		    sdlutil::drawpixel(screen, xx, yy, r, g, b);
-		  }
-		}
-		break;
-	      }
-
-	      // Now errors.
-	      // (XXX Something wrong with this? It draws on top of
-	      // the output)
-	      if (DRAW_ERRORS && l > 0) {
-		const int exstart = xstart +
-		  std::get<0>(PixelSize(*current_network, l));
-		const vector<float> &errs = err.error[l - 1];
-		switch (current_network->renderstyle[l]) {
-		default:
-		case RENDERSTYLE_FLAT:
-		case RENDERSTYLE_RGB:
-		  Error2D<2>(errs, exstart, ystart,
-			     current_network->width[l] *
-			     current_network->channels[l],
-			     current_network->height[l]);
-		}
-	      }
-
-	      ystart += std::get<1>(PixelSize(*current_network, l)) + 4;
+	      ystart += 5;
+	      
 	    }
 
+	    xstart += max_width + 4;
+
+	    // TODO: Could have layerweights view mode too?
 	    if (histo_mode) {
 	      if (current_network != nullptr) {
 		const ImageRGBA histo =
 		  ModelInfo::Histogram(*current_network, 1920, 600);
-		// PERF should invest in fast blit of ImageRGBA to SDL screen
-		for (int y = 0; y < histo.Height(); y++) {
-		  for (int x = 0; x < histo.Width(); x++) {
-		    auto [r, g, b, _] = histo.GetPixel(x, y);
-		    sdlutil::drawpixel(screen, x, y + SCREENH - 600, r, g, b);
-		  }
-		}
+		BlitImage(histo, 0, SCREENH - 600);
 	      }
 	      
 	    } else {

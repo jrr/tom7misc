@@ -118,12 +118,14 @@ top_test.exe : top.o top_test.o $(OBJECTS)
 font-problem_test.exe : font-problem.o font-problem_test.o $(OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+ptxtest.exe : $(OBJECTS) ptxtest.o clutil.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 modelinfo%.png : net%.val get-modelinfo.exe
 	./get-modelinfo.exe $< $@
 
 weights%-layer0.png : net%.val get-layerweights.exe
 	./get-layerweights.exe $< weights$*
-
 
 collate-errors.exe : collate-errors.o $(OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)

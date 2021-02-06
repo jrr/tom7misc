@@ -4,6 +4,7 @@
 #include <shared_mutex>
 #include <cstdint>
 #include <set>
+#include <unordered_set>
 
 #include "threadutil.h"
 #include "randutil.h"
@@ -24,7 +25,8 @@ using int64 = int64_t;
 //
 // Note that this is applied to the dimension being widened (width or
 // height) and in extreme cases could result in a lot of roundoff
-// error.
+// error. Ignored for FROM_NETWORK, which just adds all the nodes
+// from the network.
 static constexpr float ADD_NODE_FRAC = 0.10f;
 static_assert(ADD_NODE_FRAC > 0.0f);
 
@@ -38,14 +40,13 @@ enum class Dimension {
 };
 
 static constexpr char *SRC_NETWORK = "makefeatures.val";
-
-static constexpr Dimension DIMENSION = Dimension::FROM_NETWORK;
+static constexpr Dimension DIMENSION = Dimension::ONE_DIMENSIONAL;
 
 // The layer (as an index into layers[]) to widen. It's probably
 // safest to do some tuning after each widen operation.
 // Not clear if widening from top to bottom or bottom to top is
 // better, or whether that matters?
-static constexpr int WIDEN_LAYER = 0;
+static constexpr int WIDEN_LAYER = 3;
 
 // On the next layer, we'll add some indices (increasing
 // indices_per_node) to reference only these new added
@@ -87,6 +88,46 @@ static float NewUseWeight(ArcFour *rc) {
   return 0.0f;
 }
 
+// Get num input indices from the previous layer for a single new
+// node. They must be distinct. They don't have to be random.
+static vector<int> GetInputIndices(ArcFour *rc, int previous_layer_size, int num) {
+  // Always add from the last 200 nodes, which are some
+  // generated features.
+
+  std::unordered_set<int> indices;
+  indices.reserve(num);
+  // XXXXXXXX make this a proper config value
+  static constexpr int NUM_LAST = 185;
+  static constexpr uint8 P_LAST = 140;
+  int idx = previous_layer_size - 1;
+  for (int i = 0; i < NUM_LAST && indices.size() < num; i++) {
+    CHECK(idx >= 0);
+
+    if (rc->Byte() < P_LAST) {
+      indices.insert(idx);
+    }
+    idx--;
+  }
+
+  // Fill the rest of the budget uniformly.
+  vector<int> all;
+  all.reserve(previous_layer_size);
+  for (int i = 0; i < previous_layer_size; i++)
+    all.push_back(i);
+  Shuffle(rc, &all);
+
+  for (int i = 0; i < all.size() && indices.size() < num; i++) {
+    // Might already be there; does nothing.
+    indices.insert(all[i]);
+  }
+
+  // Convert to vector.
+  vector<int> ret;
+  ret.reserve(indices.size());
+  for (int i : indices) ret.push_back(i);
+  CHECK(ret.size() == num);
+  return ret;
+}
 
 // Modifies the network in place. May remap node indices, and adds new
 // ones. Returns mapping from old idx to new (first vector), and
@@ -173,14 +214,7 @@ WidenLayer3D(ArcFour *rc, Network *net, int layer_idx) {
       node.bias = 0.0f;
       node.inputs.reserve(ipn);
       
-      // Generate a random permutation of the previous layer's indices,
-      // which we'll use to select 
-      vector<int> indices;
-      indices.reserve(previous_layer_size);
-      for (int i = 0; i < previous_layer_size; i++)
-	indices.push_back(i);
-      Shuffle(rc, &indices);
-      indices.resize(ipn);
+      vector<int> indices = GetInputIndices(rc, previous_layer_size, ipn);
       
       for (int i = 0; i < ipn; i++) {
 	OneIndex oi;
@@ -325,20 +359,17 @@ WidenLayer1D(ArcFour *rc, Network *net, int layer_idx) {
   // because of the resizing. But for the first hidden layer, it
   // definitely still makes sense to reference nearby pixels if the
   // input is an image! Should make this an option when generating
-  // node indices.
+  // node indices. (alternatively, use makefeatures and from_network!)
   auto NewNode = [&rc, &ez, previous_layer_size]() {
       EZLayer::Node node;
       node.bias = 0.0f;
       node.inputs.reserve(ez.ipn);
-      
-      vector<int> indices;
-      indices.reserve(previous_layer_size);
-      for (int i = 0; i < previous_layer_size; i++)
-	indices.push_back(i);
-      Shuffle(rc, &indices);
-      indices.resize(ez.ipn);
+
+      vector<int> indices = GetInputIndices(rc, previous_layer_size, ez.ipn);
       
       for (int i = 0; i < ez.ipn; i++) {
+	CHECK(i < indices.size());
+	CHECK(indices[i] >= 0 && indices[i] < previous_layer_size);
 	EZLayer::OneIndex oi;
 	oi.index = indices[i];
 	oi.weight = NewNodeInputWeight(rc);

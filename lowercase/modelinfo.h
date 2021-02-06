@@ -28,9 +28,13 @@ struct ModelInfo {
   // layer_idx is an index into net's Layers (0 is the first hidden layer).
   static ImageRGBA LayerWeights(
       const Network &net, int layer_idx,
-      // color to use for weights that are implied 0 (sparse) as
-      // opposed to actually present but with 0 value.
-      uint32_t missing_weight_color = 0x000000FF);
+      // In diagnostic mode, draw unreferenced cells, small nonzero
+      // weights, and missing (sparse) inputs distinctly; it's easier
+      // to see structural issues this way. Otherwise, draw the matrix
+      // as though dense, and boost the visibility of small weights
+      // (sqrt(sqrt(f))); it's easier to see patterns in weight values
+      // this way and it's nicer on the eye.
+      bool diagnostic_mode = false);
   
 };
   

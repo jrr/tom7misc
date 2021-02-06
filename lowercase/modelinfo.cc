@@ -32,7 +32,11 @@ struct Histo {
     bound_low(bound_low), bound_high(bound_high) {}
 
   // Assumes width is the number of buckets you want.
-  std::tuple<float, float, ImageA> MakeImage(int width, int height) const {
+  // If tallest_bucket is, say, 0.9, the bars are stretched to go 90% of the way to
+  // the top of the image (1.0 is a sensible default but can be confusing in the
+  // presence of tick marks, say).
+  std::tuple<float, float, ImageA> MakeImage(int width, int height,
+					     double tallest_bucket = 1.0) const {
     ImageA img(width, height);
 
     float lo = std::numeric_limits<float>::infinity();
@@ -68,7 +72,7 @@ struct Histo {
     // Finally, fill in the image.
     for (int bucket = 0; bucket < width; bucket++) {
       double hfrac = count[bucket] / (double)max_count;
-      float fh = hfrac * (height - 1);
+      float fh = (hfrac * tallest_bucket) * (height - 1);
       int h = fh;
       float fpart = fh - h;
       // don't allow zero pixels.
@@ -94,12 +98,52 @@ struct Histo {
     float center = lo + ((maxi + 0.5f) * bucket_width);
     string label = StringPrintf("%.4f", center);
     int lw = label.size() * 9;
-    int x = maxi > (width / 2) ? maxi - (lw + 1) : maxi + 1;
-    img.BlendText(x, 0, 0xFF, label);
+    // Align on left or right of the label so as not to run off the screen
+    // (we could also try to avoid other buckets?)
+    int x = maxi > (width / 2) ? maxi - (lw + 2) : maxi + 3;
+    // Align with the peak, taking into account tallest_bucket.
+    int y = (1.0 - tallest_bucket) * (height - 1);
+    img.BlendText(x, y, 0xFF, label);
 
     return make_tuple(lo, hi, img);
   }
 
+  // For example with tick=0.25, vertical lines at -0.25, 0, 0.25, 0.50, ...
+  static ImageRGBA TickImage(int width, int height, float lo, float hi,
+			     uint32 negative_tick_color,
+			     uint32 zero_tick_color,
+			     uint32 positive_tick_color,
+			     float tick) {
+    ImageRGBA img(width, height);
+    const float ival = hi - lo;
+    const float bucket_width = ival / width;
+
+    for (int x = 0; x < width; x++) {
+      const float bucket_lo = lo + x * bucket_width;
+      const float bucket_hi = bucket_lo + bucket_width;
+      // Does any tick edge reside in the bucket?
+      // (Note there can be more than one...)
+
+      // Floor here because we need rounding towards negative
+      // infinity, not zero.
+      const int tlo = floorf(bucket_lo / tick);
+      const int thi = floorf(bucket_hi / tick);
+      if (tlo != thi) {
+	uint32 tick_color = 0;
+	// tlo and thi are floor, so zero would fall in the bucket
+	// [-1, 0]
+	if (tlo == -1 && thi == 0) tick_color = zero_tick_color;
+	else if (tlo < 0) tick_color = negative_tick_color;
+	else tick_color = positive_tick_color;
+	for (int y = 0; y < height; y++) {
+	  img.SetPixel32(x, y, tick_color);
+	}
+      }
+    }
+    return img;
+  }
+
+  // If present, samples are clipped to these bounds.
   optional<float> bound_low = nullopt, bound_high = nullopt;
 
   vector<float> values;
@@ -132,11 +176,32 @@ ImageRGBA ModelInfo::Histogram(
 
     auto DrawHisto = [&img](const Histo &histo, int x, int y, int w, int h,
 			    const string &label) {
-	const int hmargin = 10;
-	const auto [lo, hi, himg] = histo.MakeImage(w, h - hmargin);
-	ImageRGBA color = himg.AlphaMaskRGBA(0xFF, 0xFF, 0x00);
+	constexpr int hmargin = 14;
+	const auto [lo, hi, himg] = histo.MakeImage(w, h - hmargin, 0.95);
+	ImageRGBA color(himg.Width(), himg.Height());
+
+	// Always ticks at 0.1.
+	const ImageRGBA timg = Histo::TickImage(w, h, lo, hi,
+						0xFF777735,
+						0xFFFFFF75,
+						0x77FF7735,
+						0.1f);
+	color.BlendImage(0, 0, timg);
+
+	// minor ticks if scale is very small?
+	if (hi - lo <= 2.0f) {
+	  const ImageRGBA mtimg = Histo::TickImage(w, h, lo, hi,
+						   0xFF777720,
+						   0xFFFFFF40,
+						   0x77FF7720,
+						   0.025f);
+	  color.BlendImage(0, 0, mtimg);
+	}
+
+	color.BlendImage(0, 0, himg.AlphaMaskRGBA(0xFF, 0xFF, 0x00));
+
 	img.BlendImage(x, y, color);
-	const int label_y = y + (h - hmargin);
+	const int label_y = y + (h - hmargin) + 1;
 	img.BlendText32(x, label_y,
 			0xFFAAAAFF,
 			StringPrintf("%.9f", lo));
@@ -161,9 +226,11 @@ ImageRGBA ModelInfo::Histogram(
   return img;
 }
 
-static inline uint32 GetWeightColor(float f) {
-  auto MapV = [](float f) -> uint8 {
+// Aesthetic mode
+static inline uint32 GetWeightColor(float f, bool diagnostic_mode) {
+  auto MapV = [diagnostic_mode](float f) -> uint8 {
       float ff = sqrtf(f);
+      if (diagnostic_mode) ff = sqrtf(ff);
       int v = roundf(255.0f * ff);
       if (v > 255) return 255;
       if (v < 0) return 0;
@@ -172,9 +239,9 @@ static inline uint32 GetWeightColor(float f) {
 
   // XXX from vacuum - configurable or remove?
   static constexpr float THRESHOLD = 0.00001f;  
-  if (f == 0) {
+  if (diagnostic_mode && f == 0) {
     return 0xFFFF00FF;
-  } else if (fabs(f) < THRESHOLD) {
+  } else if (diagnostic_mode && fabs(f) < THRESHOLD) {
     return 0xFF00FFFF;
   } else if (f > 0) {
     uint32 v = MapV(f);
@@ -186,7 +253,7 @@ static inline uint32 GetWeightColor(float f) {
 }
 
 ImageRGBA ModelInfo::LayerWeights(const Network &net, int layer_idx,
-				  uint32 missing_weight_color) {
+				  bool diagnostic_mode) {
   CHECK(layer_idx >= 0 && layer_idx < net.layers.size());
   const Network::Layer &layer = net.layers[layer_idx];
   const int prev_nodes = net.num_nodes[layer_idx];
@@ -207,6 +274,9 @@ ImageRGBA ModelInfo::LayerWeights(const Network &net, int layer_idx,
   ImageRGBA img(LEFT + RIGHT + num_nodes,
 		TOP + BOTTOM + prev_nodes);
 
+  const uint32 missing_weight_color =
+    diagnostic_mode ? 0x000060FF : 0x000000FF;
+  
   constexpr int WEIGHTSX = LEFT;
   constexpr int WEIGHTSY = TOP;
   img.Clear32(0x000000FF);
@@ -223,17 +293,19 @@ ImageRGBA ModelInfo::LayerWeights(const Network &net, int layer_idx,
 
       CHECK(idx < prev_nodes);
       has_reference[idx] = true;
-      uint32 color = GetWeightColor(w);
+      uint32 color = GetWeightColor(w, diagnostic_mode);
       img.SetPixel32(WEIGHTSX + x, WEIGHTSY + idx, color);
     }
   }
 
-  for (int y = 0; y < prev_nodes; y++) {
-    if (!has_reference[y]) {
-      for (int x = 0; x < num_nodes; x++) {
-	// XXX: Configurable?
-	// Would be missing_weight_color if not detected.
-	img.SetPixel32(WEIGHTSX + x, WEIGHTSY + y, 0xFFFF00FF);
+  if (diagnostic_mode) {
+    for (int y = 0; y < prev_nodes; y++) {
+      if (!has_reference[y]) {
+	for (int x = 0; x < num_nodes; x++) {
+	  // XXX: Configurable?
+	  // Would be missing_weight_color if not detected.
+	  img.SetPixel32(WEIGHTSX + x, WEIGHTSY + y, 0xFFFF00FF);
+	}
       }
     }
   }

@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
   CHECK(net.get() != nullptr) << modelfile;
 
   for (int i = 0; i < net->layers.size(); i++) {
-    const ImageRGBA img = ModelInfo::LayerWeights(*net, i, 0x000060FF);
+    const ImageRGBA img = ModelInfo::LayerWeights(*net, i, false);
 
     const string outfile = StringPrintf("%s-layer%d.png",
 					outputbase.c_str(), i);
