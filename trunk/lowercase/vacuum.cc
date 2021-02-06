@@ -58,7 +58,7 @@ static constexpr float THRESHOLD = 0.00001f;
 // If you're not throwing out half the layer or more, you'd probably
 // be better off just zeroing weights for the same effect (but then
 // why bother?)
-static const std::set<int> VACUUM_LAYERS{0, 1, 2, 3};
+static const std::set<int> VACUUM_LAYERS{0, 1, 2, 3, 4};
 
 
 // XXX use EzLayer for this

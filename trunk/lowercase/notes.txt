@@ -490,17 +490,14 @@ Training error over this period does look to be improving, if very
 slowly. uppercase is just around 40, and lowercase around 35.2.
 
 
-things to try:
-  - decrease batch size instead
-  - lots of parallel smaller models (perhaps would be good use case for
-    global optimization of hyperparameters too)
-  - expand loss function to put more weight on the region we really care about
-    (near onedge_value for the sdf pixels).
-
 
 nonlinear error:
  - before this, set output error takes about 100ms, 4.4%
  - don't see a significant difference after, maybe 110ms?
+ - everything looks normal.
+ - I don't really perceive a difference in the visualization of the error
+   values, but maybe that's not that surprising. Maybe would be worth looking
+   at the same example side by side. 
 
 Note that the total error computation for UI and tsv export is actually based
 on diffs done on the CPU, so it's unaffected by the remapping change. So error
@@ -508,3 +505,34 @@ values are comparable to before (although this change should actually be less
 efficient wrt that calculation, right?). What we'd hope for is that the letter
 shapes after thresholding are more accurate, which is something we only test
 subjectively by looking at them.
+
+Looks good overnight.
+
+
+Should probably widen layer 3 now; it was never widened and it has the most
+suspicious structure to begin with.
+
+At 1.526M: (vacumming and culling did nothing)
+widened layer 3 by 10%, 15% add index rate
+
+
+things to try:
+  - decrease batch size instead
+  - lots of parallel smaller models (perhaps would be good use case for
+    global optimization of hyperparameters too)
+  - could try to visualize how much each node is contributing to overall
+    accuracy with knockout? might be helpful for knowing whether the
+    widened regions are "actually helping"
+
+
+Just let this run for a while since I was preoccupied. At round 1.634M we
+are still seeing slow improvement. And so too at 1.666. At 1.666, added
+another 100 generated features, and also widened every layer by 10%. This
+time rather than uniformly sampling the entire previous layer, I mostly
+sample from the newly introduced nodes each time (on the second layer,
+I densely sample the new generated features, in fact). Let's see whether
+that does anything good.
+
+... all seems well the next day. It seems to me that eps is not obviously
+reduced by these widening operations; still around 250 eps here. I guess
+that is lower than I saw right after adding a new layer. 
