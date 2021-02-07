@@ -26,15 +26,15 @@ struct TTFOps {
   // return the difference as the fraction of pixels in the second
   // bitmap that are the same in the first (will be in [0, 1]).
   static double CharBitmapDifference(const TTF &ttf,
-				     int c1, int c2,
-				     // Determines the base bitmap size for both
-				     // characters. c1 is unstretched.
-				     float scale,
-				     // Additional scale for c2, which can stretch it.
-				     // (we use scale * xscale2, scale * yscale2)
-				     float xscale2, float yscale2,
-				     // Offsets for c2. Maybe depends on scale?
-				     float xmov2, float ymov2);
+                                     int c1, int c2,
+                                     // Determines the base bitmap size for both
+                                     // characters. c1 is unstretched.
+                                     float scale,
+                                     // Additional scale for c2, which can stretch it.
+                                     // (we use scale * xscale2, scale * yscale2)
+                                     float xscale2, float yscale2,
+                                     // Offsets for c2. Maybe depends on scale?
+                                     float xmov2, float ymov2);
 
   // Returns the best CharBitmapDifference for each letter A-Z vs a-z.
   // Maximum return value is 26, if every letter disagrees on every pixel.
@@ -43,9 +43,9 @@ struct TTFOps {
   // Increasing bitmap_scale and iters_per_char increase accuracy, but also cost.
   // Defaults seem to be fine.
   static double TotalAlphabetDifference(const TTF &ttf,
-					float bitmap_scale = 200.0f,
-					int iters_per_char = 1000,
-					float threshold = 26.0);
+                                        float bitmap_scale = 200.0f,
+                                        int iters_per_char = 1000,
+                                        float threshold = 26.0);
 };
 
 

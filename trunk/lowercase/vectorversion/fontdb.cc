@@ -9,9 +9,9 @@ using namespace std;
 FontDB::FontDB() {
   std::unordered_map<string, Type> string_type;
   for (const Type t : {Type::SANS, Type::SERIF, Type::FANCY,
-	Type::TECHNO, Type::DECORATIVE,
-	Type::MESSY, Type::DINGBATS, Type::OTHER, Type::BROKEN,
-	Type::UNKNOWN}) {
+        Type::TECHNO, Type::DECORATIVE,
+        Type::MESSY, Type::DINGBATS, Type::OTHER, Type::BROKEN,
+        Type::UNKNOWN}) {
     string_type[TypeString(t)] = t;
   }
     
@@ -48,15 +48,15 @@ void FontDB::Save() {
     // XXX sort by filename
     for (const auto &[filename, info] : files) {
       lines.push_back(StringPrintf("%s %.5f %s %s",
-				   FlagString(info.flags).c_str(),
-				   info.bitmap_diffs,
-				   TypeString(info.type),
-				   filename.c_str()));
+                                   FlagString(info.flags).c_str(),
+                                   info.bitmap_diffs,
+                                   TypeString(info.type),
+                                   filename.c_str()));
     }
     Util::WriteLinesToFile(DATABASE_FILENAME, lines);
     printf("Wrote %lld entries to %s\n",
-	   (int64)lines.size(),
-	   DATABASE_FILENAME);
+           (int64)lines.size(),
+           DATABASE_FILENAME);
   }
       
   {
@@ -66,23 +66,23 @@ void FontDB::Save() {
       float score = 0.0;
       bool same_case = false;
       Labeled(float score, bool same_case) :
-	score(score), same_case(same_case) {}
+        score(score), same_case(same_case) {}
     };
 
     vector<Labeled> labs;
     for (const auto &[filename, info] : files) {
       if (info.bitmap_diffs >= 0.0 && info.bitmap_diffs <= 1.0) {
-	auto it = info.flags.find(Flag::SAME_CASE);
-	if (it != info.flags.end()) {
-	  labs.emplace_back(info.bitmap_diffs, it->second);
-	}
+        auto it = info.flags.find(Flag::SAME_CASE);
+        if (it != info.flags.end()) {
+          labs.emplace_back(info.bitmap_diffs, it->second);
+        }
       }
     }
 
     std::sort(labs.begin(), labs.end(),
-	      [](const Labeled &a, const Labeled &b) {
-		return a.score < b.score;
-	      });
+              [](const Labeled &a, const Labeled &b) {
+                return a.score < b.score;
+              });
       
     // "Positive" here means same case (this is a low score).
     //
@@ -96,11 +96,11 @@ void FontDB::Save() {
     {
       int64 pos_above = 0;
       for (int64 i = labs.size() - 1; i >= 0; i--) {
-	remaining_positives[i] = pos_above;
-	if (labs[i].same_case) {
-	  total_positives++;
-	  pos_above++;
-	}
+        remaining_positives[i] = pos_above;
+        if (labs[i].same_case) {
+          total_positives++;
+          pos_above++;
+        }
       }
     }
 
@@ -110,17 +110,17 @@ void FontDB::Save() {
     std::vector<string> lines;
     lines.reserve(labs.size() + 1);
     lines.push_back("threshold\t"
-		    "recall\t"
-		    "precision");
+                    "recall\t"
+                    "precision");
     for (int64 i = 0; i < labs.size(); i++) {
       if (labs[i].same_case) positives_so_far++;
       double precision = (double)positives_so_far / (i + 1);
       lines.push_back(
-	  StringPrintf("%.5f\t%.5f\t%.5f",
-		       labs[i].score,
-		       (total_positives - remaining_positives[i]) /
-		       (double)total_positives,
-		       precision));
+          StringPrintf("%.5f\t%.5f\t%.5f",
+                       labs[i].score,
+                       (total_positives - remaining_positives[i]) /
+                       (double)total_positives,
+                       precision));
     }
     Util::WriteLinesToFile("pr-curve.tsv", lines);
   }

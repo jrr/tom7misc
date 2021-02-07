@@ -92,10 +92,10 @@ static bool should_die = false;
 static std::shared_mutex should_die_m;
 
 std::shared_mutex print_mutex;
-#define Printf(fmt, ...) do {				\
-    WriteMutexLock Printf_ml(&print_mutex);		\
-    printf(fmt, ##__VA_ARGS__);				\
-    fflush(stdout);					\
+#define Printf(fmt, ...) do {                           \
+    WriteMutexLock Printf_ml(&print_mutex);             \
+    printf(fmt, ##__VA_ARGS__);                         \
+    fflush(stdout);                                     \
   } while (0);
 
 template<class C>
@@ -153,7 +153,7 @@ struct TrainingExample {
 
 // Generate num_output_features "good" features that are different from one another.
 static void Generate(const std::string &model_filename,
-		     int num_output_features, bool lowercasing) {
+                     int num_output_features, bool lowercasing) {
   std::unique_ptr<Network> net(Network::ReadNetworkBinary(model_filename));
   CHECK(net.get() != nullptr) << model_filename;
 
@@ -163,10 +163,10 @@ static void Generate(const std::string &model_filename,
   printf("Need to generate %d candidate features\n", num_features);
   
   ArcFour rc(StringPrintf("%lld,%lld,%lld,%s",
-			  (int64)time(nullptr),
-			  net->rounds,
-			  net->Bytes(),
-			  model_filename.c_str()));
+                          (int64)time(nullptr),
+                          net->rounds,
+                          net->Bytes(),
+                          model_filename.c_str()));
   
   CHECK(net->channels[0] == 1) << "Only single-channel inputs are supported";
   const int width = net->width[0];
@@ -188,11 +188,11 @@ static void Generate(const std::string &model_filename,
       ReadMutexLock ml(&load_fonts->fonts_m);
       num_fonts = load_fonts->fonts.size();
       if (num_fonts >= ENOUGH_FONTS)
-	break;
+        break;
     }
 
     Printf("Not enough training data loaded yet (%d/%d)!\n",
-	   num_fonts, ENOUGH_FONTS);
+           num_fonts, ENOUGH_FONTS);
     std::this_thread::sleep_for(1s);
     if (ReadWithLock(&should_die_m, &should_die))
       return;
@@ -204,18 +204,18 @@ static void Generate(const std::string &model_filename,
   double gen_examples_ms = 0.0, activate_ms = 0.0;
   
   auto PopulateExampleFromFont = [&rc](bool lowercase_input,
-				       const SDFLoadFonts::Font &f,
-				       TrainingExample *example) {
+                                       const SDFLoadFonts::Font &f,
+                                       TrainingExample *example) {
       auto FillSDF = [](float *buffer, const ImageA &img) {
-	  CHECK(img.Width() == SDF_SIZE);
-	  CHECK(img.Height() == SDF_SIZE);
-	  for (int y = 0; y < SDF_SIZE; y++) {
-	    for (int x = 0; x < SDF_SIZE; x++) {
-	      int idx = y * SDF_SIZE + x;
-	      buffer[idx] = ByteFloat(img.GetPixel(x, y));
-	    }
-	  }
-	};
+          CHECK(img.Width() == SDF_SIZE);
+          CHECK(img.Height() == SDF_SIZE);
+          for (int y = 0; y < SDF_SIZE; y++) {
+            for (int x = 0; x < SDF_SIZE; x++) {
+              int idx = y * SDF_SIZE + x;
+              buffer[idx] = ByteFloat(img.GetPixel(x, y));
+            }
+          }
+        };
 
       const int letter = RandTo(&rc, 26);
       example->letter = letter;
@@ -276,31 +276,31 @@ static void Generate(const std::string &model_filename,
     // better results by generating float endpoints?
     auto GetTwoLines = [&rc, width, height]() ->
       pair<tuple<int, int, int, int>,
-	   tuple<int, int, int, int>> {
+           tuple<int, int, int, int>> {
       for (;;) {
-	// First segment.
-	int x0 = RandTo(&rc, width);
-	int y0 = RandTo(&rc, height);
-	int x1 = RandTo(&rc, width);
-	int y1 = RandTo(&rc, height);
+        // First segment.
+        int x0 = RandTo(&rc, width);
+        int y0 = RandTo(&rc, height);
+        int x1 = RandTo(&rc, width);
+        int y1 = RandTo(&rc, height);
 
-	/*
-	  TODO: Consder generating the second segment
-	  to be the same length?
-	  int dx = (x1 - x0);
-	  int dy = (y1 - y0);
-	  float len = sqrtf(dx * dx + dy * dy);
-	*/
-	
-	int x2 = RandTo(&rc, width);
-	int y2 = RandTo(&rc, height);
-	int x3 = RandTo(&rc, width);
-	int y3 = RandTo(&rc, height);	
+        /*
+          TODO: Consder generating the second segment
+          to be the same length?
+          int dx = (x1 - x0);
+          int dy = (y1 - y0);
+          float len = sqrtf(dx * dx + dy * dy);
+        */
+        
+        int x2 = RandTo(&rc, width);
+        int y2 = RandTo(&rc, height);
+        int x3 = RandTo(&rc, width);
+        int y3 = RandTo(&rc, height);   
 
-	if (!LineIntersection(x0, y0, x1, y1,
-			      x2, y2, x3, y3).has_value()) {
-	  return {{x0, y0, x1, y1}, {x2, y2, x3, y3}};
-	}
+        if (!LineIntersection(x0, y0, x1, y1,
+                              x2, y2, x3, y3).has_value()) {
+          return {{x0, y0, x1, y1}, {x2, y2, x3, y3}};
+        }
       }
     };
 
@@ -313,26 +313,26 @@ static void Generate(const std::string &model_filename,
     
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
-	const int idx = y * width + x;
+        const int idx = y * width + x;
 
-	float dpos = PointLineDistance(std::get<0>(line1),
-				       std::get<1>(line1),
-				       std::get<2>(line1),
-				       std::get<3>(line1),
-				       x, y);
-	float dneg = PointLineDistance(std::get<0>(line2),
-				       std::get<1>(line2),
-				       std::get<2>(line2),
-				       std::get<3>(line2),
-				       x, y);
-	pospts.emplace_back(idx, dpos);
-	negpts.emplace_back(idx, dneg);	
+        float dpos = PointLineDistance(std::get<0>(line1),
+                                       std::get<1>(line1),
+                                       std::get<2>(line1),
+                                       std::get<3>(line1),
+                                       x, y);
+        float dneg = PointLineDistance(std::get<0>(line2),
+                                       std::get<1>(line2),
+                                       std::get<2>(line2),
+                                       std::get<3>(line2),
+                                       x, y);
+        pospts.emplace_back(idx, dpos);
+        negpts.emplace_back(idx, dneg); 
       }
     }
 
     auto ByDist = [](const pair<int, float> &a,
-		     const pair<int, float> &b) {
-	return a.second < b.second;
+                     const pair<int, float> &b) {
+        return a.second < b.second;
       };
 
     // In case of ties, start from a shuffled array to
@@ -354,21 +354,21 @@ static void Generate(const std::string &model_filename,
     int pi = 0, ni = 0;
     while (negleft > 0 || posleft > 0) {
       auto Next = [&feature](int &i, int &left,
-			     vector<pair<int, float>> &pts, float weight) {
-	  if (left > 0) {
-	    for (;;) {
-	      CHECK(i < pts.size());
-	      auto [idx, dist_] = pts[i];
-	      i++;
+                             vector<pair<int, float>> &pts, float weight) {
+          if (left > 0) {
+            for (;;) {
+              CHECK(i < pts.size());
+              auto [idx, dist_] = pts[i];
+              i++;
 
-	      if (feature.find(idx) == feature.end()) {
-		feature[idx] = weight;
-		left--;
-		return;
-	      }
-	    }
-	  }
-	};
+              if (feature.find(idx) == feature.end()) {
+                feature[idx] = weight;
+                left--;
+                return;
+              }
+            }
+          }
+        };
 
       Next(pi, posleft, pospts, posweight);
       Next(ni, negleft, negpts, negweight);
@@ -380,14 +380,14 @@ static void Generate(const std::string &model_filename,
     CHECK(!examples.empty());
     vector<float> activations =
       eval_comp.ParallelMap(
-	  examples,
-	  [&feature](const TrainingExample &example) {
-	    float v = 0.0f;
-	    for (auto [idx, w] : feature) {
-	      v += example.input[idx] * w;
-	    }
-	    return v;
-	  });
+          examples,
+          [&feature](const TrainingExample &example) {
+            float v = 0.0f;
+            for (auto [idx, w] : feature) {
+              v += example.input[idx] * w;
+            }
+            return v;
+          });
 
     // eval_comp.PrintHisto();
     
@@ -407,9 +407,9 @@ static void Generate(const std::string &model_filename,
     for (float &a : activations) a -= mean_activation;
     
     features.push_back({.inputs = std::move(feature),
-			.centered_act = std::move(activations),
-			.mean = mean_activation,
-			.stdev = stdev});
+                        .centered_act = std::move(activations),
+                        .mean = mean_activation,
+                        .stdev = stdev});
     printf("Now have %d features    \n", (int)features.size());
   }
 
@@ -419,9 +419,9 @@ static void Generate(const std::string &model_filename,
   for (int i = 0; i < num_features; i++) ranked.push_back(i);
   // Sort by stdev descending.
   std::sort(ranked.begin(), ranked.end(),
-	    [&features](int a, int b) {
-	      return features[a].stdev > features[b].stdev;
-	    });
+            [&features](int a, int b) {
+              return features[a].stdev > features[b].stdev;
+            });
 
   std::unordered_set<int> best;
   for (int i = 0; i < num_best_features; i++) {
@@ -429,7 +429,7 @@ static void Generate(const std::string &model_filename,
   }
 
   printf("Got the best %d features (maximizing std dev)\n",
-	 (int)best.size());
+         (int)best.size());
 
   auto MakeImage = [width, height](
       const vector<ScoredFeature> &features,
@@ -448,36 +448,36 @@ static void Generate(const std::string &model_filename,
       const int FH = 1080 / (height * SCALE + TOP + BOTTOM);
 
       ImageRGBA img(FW * (width * SCALE + LEFT + RIGHT),
-		    FH * (height * SCALE + TOP + BOTTOM));
+                    FH * (height * SCALE + TOP + BOTTOM));
       img.Clear32(0x000000FF);
       for (int fy = 0; fy < FH; fy++) {
-	for (int fx = 0; fx < FW; fx++) {
-	  int fn = fy * FW + fx;
-	  if (fn >= num_features) continue;
-	  ImageRGBA fimg(width, height);
-	  fimg.Clear32(((fx + fy) & 1) ? 0x000020FF : 0x000060FF);
+        for (int fx = 0; fx < FW; fx++) {
+          int fn = fy * FW + fx;
+          if (fn >= num_features) continue;
+          ImageRGBA fimg(width, height);
+          fimg.Clear32(((fx + fy) & 1) ? 0x000020FF : 0x000060FF);
 
-	  const ScoredFeature &feature = features[fn];
-	  for (const auto [idx, weight] : feature.inputs) {
-	    int x = idx % width;
-	    int y = idx / width;
-	    uint32 color = weight > 0 ? 0x00FF00FF : 0xFF0000FF;
-	    fimg.BlendPixel32(x, y, color);
-	  }
+          const ScoredFeature &feature = features[fn];
+          for (const auto [idx, weight] : feature.inputs) {
+            int x = idx % width;
+            int y = idx / width;
+            uint32 color = weight > 0 ? 0x00FF00FF : 0xFF0000FF;
+            fimg.BlendPixel32(x, y, color);
+          }
 
-	  int startx = fx * (width * SCALE + LEFT + RIGHT) + LEFT;
-	  int starty = fy * (height * SCALE + TOP + BOTTOM) + TOP;
-	  ImageRGBA sfimg = fimg.ScaleBy(SCALE);
-	  if (best.find(fn) != best.end()) {
-	    img.BlendBox32(startx - 1, starty - 1, width * SCALE + 2, height * SCALE + 2,
-			   0xCC00CCFF, 0xCC00CC7F);
-	  }
-	  img.BlendImage(startx, starty, sfimg);
-	  img.BlendText32(startx, starty + height * SCALE + 1, 0xCCCCCCFF,
-			  StringPrintf("%.3f", feature.mean));
-	  img.BlendText32(startx, starty + height * SCALE + 10, 0x888888FF,
-			  StringPrintf("%.3f", feature.stdev));
-	}
+          int startx = fx * (width * SCALE + LEFT + RIGHT) + LEFT;
+          int starty = fy * (height * SCALE + TOP + BOTTOM) + TOP;
+          ImageRGBA sfimg = fimg.ScaleBy(SCALE);
+          if (best.find(fn) != best.end()) {
+            img.BlendBox32(startx - 1, starty - 1, width * SCALE + 2, height * SCALE + 2,
+                           0xCC00CCFF, 0xCC00CC7F);
+          }
+          img.BlendImage(startx, starty, sfimg);
+          img.BlendText32(startx, starty + height * SCALE + 1, 0xCCCCCCFF,
+                          StringPrintf("%.3f", feature.mean));
+          img.BlendText32(startx, starty + height * SCALE + 10, 0x888888FF,
+                          StringPrintf("%.3f", feature.stdev));
+        }
       }
       img.Save(filename);
     };
@@ -518,8 +518,8 @@ static void Generate(const std::string &model_filename,
       const vector<float> &bact = features[b].centered_act;      
       CHECK_EQ(aact.size(), bact.size());
       for (int i = 0; i < aact.size(); i++) {
-	float d = aact[i] - bact[i];
-	sqdist += d * (double)d;
+        float d = aact[i] - bact[i];
+        sqdist += d * (double)d;
       }
 
       float dist = sqrt(sqdist);
@@ -548,110 +548,110 @@ static void Generate(const std::string &model_filename,
       printf("Thread %d: %02x\n", thread_id, rc->Byte());
       
       for (int iter = 0; iter < TRIES_PER_THREAD; iter++) {
-	// Generate a random permutation. The first num_output_features in
-	// the permutation is the current selection.
+        // Generate a random permutation. The first num_output_features in
+        // the permutation is the current selection.
 
-	
-	vector<int> perm;
-	perm.reserve(nbf);
-	for (int i = 0; i < nbf; i++) perm.push_back(i);
-	Shuffle(rc, &perm);
+        
+        vector<int> perm;
+        perm.reserve(nbf);
+        for (int i = 0; i < nbf; i++) perm.push_back(i);
+        Shuffle(rc, &perm);
 
-	auto GetDist = [&DistAt, &perm, nof]() {
-	    double dist = 0.0;
-	    for (int i = 0; i < nof; i++) {
-	      for (int j = 0; j < i; j++) {
-		// ok with i = j
-		dist += DistAt(perm[i], perm[j]);
-	      }
-	    }
-	    return dist;
-	  };
-	
-	// Compute initial distance.
-	double dist = GetDist();
+        auto GetDist = [&DistAt, &perm, nof]() {
+            double dist = 0.0;
+            for (int i = 0; i < nof; i++) {
+              for (int j = 0; j < i; j++) {
+                // ok with i = j
+                dist += DistAt(perm[i], perm[j]);
+              }
+            }
+            return dist;
+          };
+        
+        // Compute initial distance.
+        double dist = GetDist();
 
-	// Save the permutation if it is the global best, using double-checked lock.
-	auto SaveBest = [&best_m, &best_out, &best_dist, nof, &dist, &perm]() {
-	    if (dist > ReadWithLock(&best_m, &best_dist)) {
-	      WriteMutexLock ml(&best_m);
-	      if (dist > best_dist) {
-		best_out.clear();
-		for (int i = 0; i < nof; i++) {
-		  best_out.push_back(perm[i]);
-		}
-		best_dist = dist;
-		printf("New best total distance: %.2f\n", dist);
-	      } else {
-		printf("(lost race %.2f!)\n", dist);
-	      }
-	    }
-	  };
+        // Save the permutation if it is the global best, using double-checked lock.
+        auto SaveBest = [&best_m, &best_out, &best_dist, nof, &dist, &perm]() {
+            if (dist > ReadWithLock(&best_m, &best_dist)) {
+              WriteMutexLock ml(&best_m);
+              if (dist > best_dist) {
+                best_out.clear();
+                for (int i = 0; i < nof; i++) {
+                  best_out.push_back(perm[i]);
+                }
+                best_dist = dist;
+                printf("New best total distance: %.2f\n", dist);
+              } else {
+                printf("(lost race %.2f!)\n", dist);
+              }
+            }
+          };
 
-	SaveBest();
+        SaveBest();
 
-	// XXX Now try to hill-climb.
+        // XXX Now try to hill-climb.
 
-	CheckIsPermutation(perm);
-	
-	int64 climbed = 0, swapped = 0;
-	bool improved = false;
-	do {
-	  improved = false;
-	  // for each currently selected feature
-	  for (int src = 0; src < nof; src++) {
-	    // consider swapping it with unselected ones...
-	    for (int dst = nof; dst < nbf; dst++) {
-	      double new_dist = dist;
-	      // subtract old, add new
-	      for (int u = 0; u < nof; u++) {
-		if (u != src) {
-		  new_dist -= DistAt(perm[u], perm[src]);
-		  new_dist += DistAt(perm[u], perm[dst]);
-		}
-	      }
+        CheckIsPermutation(perm);
+        
+        int64 climbed = 0, swapped = 0;
+        bool improved = false;
+        do {
+          improved = false;
+          // for each currently selected feature
+          for (int src = 0; src < nof; src++) {
+            // consider swapping it with unselected ones...
+            for (int dst = nof; dst < nbf; dst++) {
+              double new_dist = dist;
+              // subtract old, add new
+              for (int u = 0; u < nof; u++) {
+                if (u != src) {
+                  new_dist -= DistAt(perm[u], perm[src]);
+                  new_dist += DistAt(perm[u], perm[dst]);
+                }
+              }
 
-	      if (new_dist > dist) {
-		// better! do it
-		if (false)
-		  printf("%d Swap #%lld: %d and %d, dist %.2f -> %.2f\n",
-			 thread_id, swapped,
-			 src, dst,
-			 dist, new_dist);
-		int old = perm[src];
-		perm[src] = perm[dst];
-		perm[dst] = old;
-		dist = new_dist;
-		// continue hill-climbing
-		swapped++;
+              if (new_dist > dist) {
+                // better! do it
+                if (false)
+                  printf("%d Swap #%lld: %d and %d, dist %.2f -> %.2f\n",
+                         thread_id, swapped,
+                         src, dst,
+                         dist, new_dist);
+                int old = perm[src];
+                perm[src] = perm[dst];
+                perm[dst] = old;
+                dist = new_dist;
+                // continue hill-climbing
+                swapped++;
 
-		if (false) {
-		  // Sanity checks.
-		  CheckIsPermutation(perm);
-		  double rdist = GetDist();
-		  CHECK(fabs(dist - rdist) < 0.1) << dist << " vs " << rdist;
-		}
-		
-		improved = true;
-	      } else {
-		if (false)
-		  printf("%d Swap %d and %d, dist %.2f -> %.2f WORSE\n",
-			 thread_id,
-			 src, dst,
-			 dist, new_dist);
-	      }
-	    }
-	    // printf("[%d] Done src %d/%d %.2f\n", thread_id, src, nof, dist);
-	  }
+                if (false) {
+                  // Sanity checks.
+                  CheckIsPermutation(perm);
+                  double rdist = GetDist();
+                  CHECK(fabs(dist - rdist) < 0.1) << dist << " vs " << rdist;
+                }
+                
+                improved = true;
+              } else {
+                if (false)
+                  printf("%d Swap %d and %d, dist %.2f -> %.2f WORSE\n",
+                         thread_id,
+                         src, dst,
+                         dist, new_dist);
+              }
+            }
+            // printf("[%d] Done src %d/%d %.2f\n", thread_id, src, nof, dist);
+          }
 
-	  if (improved) SaveBest();
-	  climbed++;
-	} while (improved);
+          if (improved) SaveBest();
+          climbed++;
+        } while (improved);
 
-	printf("Thread %d finished %d/%d iters, %lld passes %lld swaps to %.2f\n",
-	       thread_id, iter + 1, TRIES_PER_THREAD,
-	       climbed, swapped,
-	       dist);
+        printf("Thread %d finished %d/%d iters, %lld passes %lld swaps to %.2f\n",
+               thread_id, iter + 1, TRIES_PER_THREAD,
+               climbed, swapped,
+               dist);
       }
 
       
@@ -695,8 +695,8 @@ static void Generate(const std::string &model_filename,
       layer->biases.push_back(-feature.mean);
       // PERF sort 'em? I guess widen.exe will do it.
       for (const auto [idx, weight] : feature.inputs) {
-	layer->indices.push_back(idx);
-	layer->weights.push_back(weight);
+        layer->indices.push_back(idx);
+        layer->weights.push_back(weight);
       }
     }
       
@@ -709,13 +709,13 @@ static void Generate(const std::string &model_filename,
   
   
   printf("gen examples: %.2fs\n"
-	 "activations: %.2fs\n"
-	 "dist: %.2fs\n"
-	 "make/save net: %.2fs\n",
-	 gen_examples_ms / 1000.0,
+         "activations: %.2fs\n"
+         "dist: %.2fs\n"
+         "make/save net: %.2fs\n",
+         gen_examples_ms / 1000.0,
          activate_ms / 1000.0,
-	 dist_ms / 1000.0,
-	 make_ms / 1000.0);
+         dist_ms / 1000.0,
+         make_ms / 1000.0);
 }
 
 int main(int argc, char **argv) {

@@ -19,7 +19,7 @@ Top::Enumerate() {
   
   
   if (!EnumProcesses(pids.data(), MAX_PROCESSES * sizeof (DWORD),
-		     &bytes_needed)) {
+                     &bytes_needed)) {
     // (Shouldn't fail, even if there are too many to fit...)
     return {};
   }
@@ -32,8 +32,8 @@ Top::Enumerate() {
     int pid = pids[i];
 
     HANDLE handle = OpenProcess(PROCESS_QUERY_INFORMATION |
-				PROCESS_VM_READ,
-				FALSE, pid);
+                                PROCESS_VM_READ,
+                                FALSE, pid);
 
     if (handle == nullptr)
       continue;
@@ -43,10 +43,10 @@ Top::Enumerate() {
     HMODULE module;
     DWORD bytes_needed;
     if (EnumProcessModules(handle, &module, sizeof (module),
-			   &bytes_needed)) {
+                           &bytes_needed)) {
       char name[MAX_PATH + 1] = "";
       if (0 != GetModuleBaseNameA(handle, module, name, MAX_PATH)) {
-	out.emplace_back(name);
+        out.emplace_back(name);
       }
     }
     

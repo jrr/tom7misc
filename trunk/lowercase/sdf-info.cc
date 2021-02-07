@@ -44,9 +44,9 @@ int main(int argc, char **argv) {
   for (const SDFLoadFonts::Font &font : loadfonts.fonts) {
     for (const ImageA &img : font.sdfs) {
       for (int y = 0; y < SIZE; y++) {
-	for (int x = 0; x < SIZE; x++) {
-	  average[y * SIZE + x] += img.GetPixel(x, y) / 255.0f;
-	}
+        for (int x = 0; x < SIZE; x++) {
+          average[y * SIZE + x] += img.GetPixel(x, y) / 255.0f;
+        }
       }
       denom++;
     }
@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
   }
   printf("Done in %.2f\n", avg_timer.MS() / 1000.0);
   printf("%lld fonts done, %lld fonts failed\n",
-	 done, loadfonts.NumFailed());
+         done, loadfonts.NumFailed());
   
   ImageRGBA out{SIZE, SIZE};
   for (int y = 0; y < SIZE; y++) {

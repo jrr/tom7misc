@@ -155,16 +155,16 @@ static void DensifyLayer(ArcFour *rc, Network *net, int layer_idx) {
     used.insert(node.inputs[0].index);
     
     auto MaybeAdd = [&node, &used](int idx) {
-	if (used.find(idx) == used.end()) {
-	  EZLayer::OneIndex oi;
-	  oi.index = idx;
-	  oi.weight = 0.0f;
-	  node.inputs.push_back(oi);
-	  used.insert(idx);
-	  return true;
-	} else {
-	  return false;
-	}
+        if (used.find(idx) == used.end()) {
+          EZLayer::OneIndex oi;
+          oi.index = idx;
+          oi.weight = 0.0f;
+          node.inputs.push_back(oi);
+          used.insert(idx);
+          return true;
+        } else {
+          return false;
+        }
       };
     
     // This is a custom policy for the lowercase problem.
@@ -185,15 +185,15 @@ static void DensifyLayer(ArcFour *rc, Network *net, int layer_idx) {
       int y = src_idx / SDF_SIZE;
       int x = src_idx % SDF_SIZE;
       for (int dy = -NEIGHBORHOOD; dy <= NEIGHBORHOOD; dy++) {
-	for (int dx = -NEIGHBORHOOD; dx <= NEIGHBORHOOD; dx++) {
-	  int ny = y + dy;
-	  int nx = x + dx;
-	  if (ny >= 0 && nx >= 0 &&
-	      ny < SDF_SIZE && nx <= SDF_SIZE) {
-	    int nidx = ny * SDF_SIZE + nx;
-	    MaybeAdd(nidx);
-	  }
-	}
+        for (int dx = -NEIGHBORHOOD; dx <= NEIGHBORHOOD; dx++) {
+          int ny = y + dy;
+          int nx = x + dx;
+          if (ny >= 0 && nx >= 0 &&
+              ny < SDF_SIZE && nx <= SDF_SIZE) {
+            int nidx = ny * SDF_SIZE + nx;
+            MaybeAdd(nidx);
+          }
+        }
       }
     }
 
@@ -215,9 +215,9 @@ static void DoDeepen(const string &input_file, const string &output_file) {
   std::unique_ptr<Network> input_net{Network::ReadNetworkBinary(input_file)};
 
   ArcFour rc(StringPrintf("%lld,%lld,%lld",
-			  (int64)time(nullptr),
-			  input_net->rounds,
-			  input_net->Bytes()));
+                          (int64)time(nullptr),
+                          input_net->rounds,
+                          input_net->Bytes()));
 
   input_net->StructuralCheck();
 

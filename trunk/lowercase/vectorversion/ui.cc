@@ -140,16 +140,16 @@ struct UI {
 // (Debug version of the code in ttfops.)
 static
 double BitmapDifference(const TTF &ttf,
-			int c1, int c2,
-			// Determines the base bitmap size for both
-			// characters. c1 is unstretched.
-			float scale,
-			// Additional scale for c2, which can stretch it.
-			// (we use scale * xscale2, scale * yscale2)
-			float xscale2, float yscale2,
-			// Offsets for c2. Maybe depends on scale?
-			float xmov2, float ymov2,
-			bool draw = false) {
+                        int c1, int c2,
+                        // Determines the base bitmap size for both
+                        // characters. c1 is unstretched.
+                        float scale,
+                        // Additional scale for c2, which can stretch it.
+                        // (we use scale * xscale2, scale * yscale2)
+                        float xscale2, float yscale2,
+                        // Offsets for c2. Maybe depends on scale?
+                        float xmov2, float ymov2,
+                        bool draw = false) {
   
   const stbtt_fontinfo *info = ttf.Font();
   CHECK(info != nullptr);
@@ -163,13 +163,13 @@ double BitmapDifference(const TTF &ttf,
   
   int width1, height1, xoff1, yoff1;
   uint8 *bit1 = stbtt_GetCodepointBitmapSubpixel(info,
-						 // uniform scale
-						 stb_scale, stb_scale,
-						 // unshifted
-						 0.0f, 0.0f,
-						 c1,
-						 &width1, &height1,
-						 &xoff1, &yoff1);
+                                                 // uniform scale
+                                                 stb_scale, stb_scale,
+                                                 // unshifted
+                                                 0.0f, 0.0f,
+                                                 c1,
+                                                 &width1, &height1,
+                                                 &xoff1, &yoff1);
   CHECK(bit1 != nullptr);
 
   // Get integral part and remainder (always in [0, 1)).
@@ -189,16 +189,16 @@ double BitmapDifference(const TTF &ttf,
 
   if (draw) {
     printf ("scale %.5f %.5f\n",
-	    stb_scale * xscale2, stb_scale * yscale2);
+            stb_scale * xscale2, stb_scale * yscale2);
   }
   
   int width2, height2, xoff2, yoff2;
   uint8 *bit2 = stbtt_GetCodepointBitmapSubpixel(info,
-						 stb_scale * xscale2, stb_scale * yscale2,
-						 subpixel_x, subpixel_y,
-						 c2,
-						 &width2, &height2,
-						 &xoff2, &yoff2);
+                                                 stb_scale * xscale2, stb_scale * yscale2,
+                                                 subpixel_x, subpixel_y,
+                                                 c2,
+                                                 &width2, &height2,
+                                                 &xoff2, &yoff2);
 
   CHECK(bit2 != nullptr);  
 
@@ -208,20 +208,20 @@ double BitmapDifference(const TTF &ttf,
     constexpr int X2 = 400, Y2 = 200;  
 
     auto DrawBitmap = [](int startx, int starty, uint8 *bm,
-			 int width, int height,
-			 uint8 rmask, uint8 gmask, uint8 bmask) {
+                         int width, int height,
+                         uint8 rmask, uint8 gmask, uint8 bmask) {
 
-	int idx = 0;
-	for (int y = 0; y < height; y++) {
-	  int yy = starty + y;
-	  for (int x = 0; x < width; x++) {
-	    uint8 v = bm[idx];
-	    int xx = startx + x;
-	    sdlutil::drawclippixel(screen, xx, yy,
-				   v & rmask, v & gmask, v & bmask);
-	    idx++;
-	  }
-	}
+        int idx = 0;
+        for (int y = 0; y < height; y++) {
+          int yy = starty + y;
+          for (int x = 0; x < width; x++) {
+            uint8 v = bm[idx];
+            int xx = startx + x;
+            sdlutil::drawclippixel(screen, xx, yy,
+                                   v & rmask, v & gmask, v & bmask);
+            idx++;
+          }
+        }
       };
 
     DrawBitmap(X1, Y1, bit1, width1, height1, 0xFF, 0x00, 0x00);
@@ -231,15 +231,15 @@ double BitmapDifference(const TTF &ttf,
     font->draw(X2, Y2 - font->height, StringPrintf("^3%d^1x^3%d", width2, height2));  
 
     auto Locate = [](int x, int y) {
-	for (int dy : {-1, 0, 1}) {
-	  for (int dx : {-1, 0, 1}) {
-	    if (dy ==0 && dx == 0) {
-	      sdlutil::drawclippixel(screen, x + dx, y + dy, 0x00, 0x00, 0xFF);
-	    } else {
-	      sdlutil::drawclippixel(screen, x + dx, y + dy, 0xFF, 0xFF, 0xFF);
-	    }
-	  }
-	}
+        for (int dy : {-1, 0, 1}) {
+          for (int dx : {-1, 0, 1}) {
+            if (dy ==0 && dx == 0) {
+              sdlutil::drawclippixel(screen, x + dx, y + dy, 0x00, 0x00, 0xFF);
+            } else {
+              sdlutil::drawclippixel(screen, x + dx, y + dy, 0xFF, 0xFF, 0xFF);
+            }
+          }
+        }
       };
 
     Locate(X1 - xoff1, Y1 - yoff1);
@@ -266,16 +266,16 @@ double BitmapDifference(const TTF &ttf,
   auto GetPx = [](const uint8 *bm, int width, int height, int x, int y) -> uint8 {
       // Empty outside the bitmap itself.
       if (x < 0 || y < 0 ||
-	  x >= width || y >= height) return 0;
+          x >= width || y >= height) return 0;
       return bm[y * width + x];
     };
 
   if (draw) {
   font->draw(BX, BY - font->height,
-	     StringPrintf("min: %d,%d  max %d,%d  off1 %d,%d  off2 %d,%d",
-			  minx, miny, maxx, maxy,
-			  xoff1, yoff1,
-			  xoff2, yoff2));
+             StringPrintf("min: %d,%d  max %d,%d  off1 %d,%d  off2 %d,%d",
+                          minx, miny, maxx, maxy,
+                          xoff1, yoff1,
+                          xoff2, yoff2));
   }
 
   // For each pixel in the second bitmap, absolute difference between it
@@ -303,12 +303,12 @@ double BitmapDifference(const TTF &ttf,
       const uint8 v2 = GetPx(bit2, width2, height2, x2, y2);
 
       if (x2 >= 0 && y2 >= 0 &&
-	  x2 < width2 && y2 < height2) {
-	numer255 += abs((int)v2 - (int)v1);
+          x2 < width2 && y2 < height2) {
+        numer255 += abs((int)v2 - (int)v1);
       }
       
       if (draw) {
-	sdlutil::drawclippixel(screen, BX + x, BY + y, v1, v2, 0);
+        sdlutil::drawclippixel(screen, BX + x, BY + y, v1, v2, 0);
       }
     }
   }
@@ -317,9 +317,9 @@ double BitmapDifference(const TTF &ttf,
 
   if (draw) {
     font->draw(BX, BY + bbh + 4, StringPrintf("Error: %.2f / %d px = %.4f%%",
-					      numer255 / 255.0,
-					      denom,
-					      err * 100.0));
+                                              numer255 / 255.0,
+                                              denom,
+                                              err * 100.0));
   }
   
   if (draw) {
@@ -360,22 +360,22 @@ UI::UI() {
     }
 
     if (RE2::FullMatch(filename, required) &&
-	info.type != Type::BROKEN) {
+        info.type != Type::BROKEN) {
 
       // Only unlabeled ones while working...
       if (info.type == Type::UNKNOWN) {
-	cur_filenames.push_back(filename);
+        cur_filenames.push_back(filename);
       }
     }
   }
 
   std::sort(cur_filenames.begin(),
-	    cur_filenames.end(),
-	    [](const string &a, const string &b) {
-	      auto aa = FontDB::GetBaseFilename(a);
-	      auto bb = FontDB::GetBaseFilename(b);
-	      return aa < bb;
-	    });
+            cur_filenames.end(),
+            [](const string &a, const string &b) {
+              auto aa = FontDB::GetBaseFilename(a);
+              auto bb = FontDB::GetBaseFilename(b);
+              return aa < bb;
+            });
   
   // Optional. Might be good to keep fonts in the same family
   // together, really..
@@ -396,13 +396,13 @@ UI::UI() {
   printf("All fonts: %d\n"
          "Sorted fonts: %lld\n"
          "Unsorted fonts: %lld\n"
-	 "Case marked: %lld\n"
-	 "Case unmarked: %lld\n",
-	 fontdb.Size(),
-	 sorted,
-	 unsorted,
-	 case_marked,
-	 case_unmarked);
+         "Case marked: %lld\n"
+         "Case unmarked: %lld\n",
+         fontdb.Size(),
+         sorted,
+         unsorted,
+         case_marked,
+         case_unmarked);
 }
 
 void UI::SetType(Type t) {
@@ -435,11 +435,11 @@ void UI::RecomputeLoop() {
     
     Timer assn_timer;
     looptest_assignment.emplace(
-	FontProblem::BestLoopAssignment(&rc,
-					looptest_expected,
-					looptest_actual));
+        FontProblem::BestLoopAssignment(&rc,
+                                        looptest_expected,
+                                        looptest_actual));
     printf("Computed assignment in %.5fms\n",
-	   assn_timer.MS());
+           assn_timer.MS());
   } else {
     looptest_assignment.reset();
   }
@@ -455,274 +455,274 @@ void UI::Loop() {
     if (SDL_PollEvent(&event)) {
       switch (event.type) {
       case SDL_QUIT:
-	printf("QUIT.\n");
-	return;
+        printf("QUIT.\n");
+        return;
 
       case SDL_MOUSEMOTION: {
-	SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
+        SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
 
-	mousex = e->x;
-	mousey = e->y;
+        mousex = e->x;
+        mousey = e->y;
 
-	// Do dragging...
-	break;
+        // Do dragging...
+        break;
       }
 
       case SDL_MOUSEBUTTONDOWN: {
         // LMB/RMB, drag, etc.
-	SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
+        SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
         mousex = e->x;
         mousey = e->y;
 
-	if (mode == Mode::LOOPTEST) {
-	  if (e->button == SDL_BUTTON_LEFT) {
-	    looptest_expected.emplace_back((float)mousex, (float)mousey);
-	  } else {
-	    looptest_actual.emplace_back((float)mousex, (float)mousey);
-	  }
+        if (mode == Mode::LOOPTEST) {
+          if (e->button == SDL_BUTTON_LEFT) {
+            looptest_expected.emplace_back((float)mousex, (float)mousey);
+          } else {
+            looptest_actual.emplace_back((float)mousex, (float)mousey);
+          }
 
-	  RecomputeLoop();
+          RecomputeLoop();
 
-	  ui_dirty = true;
-	}
+          ui_dirty = true;
+        }
 
-	break;
+        break;
       }
-	
+        
       case SDL_KEYDOWN: {
 
-	// Need to press this consecutively in order
-	// to exit without saving.
-	if (event.key.keysym.sym != SDLK_ESCAPE)
-	  confirmations = 0;
+        // Need to press this consecutively in order
+        // to exit without saving.
+        if (event.key.keysym.sym != SDLK_ESCAPE)
+          confirmations = 0;
 
-	switch (event.key.keysym.sym) {
-	case SDLK_ESCAPE:
-	  printf("ESCAPE.\n");
-	  if (fontdb.Dirty()) {
-	    ui_dirty = true;
-	    confirmations++;
-	    if (confirmations >= 5)
-	      return;
-	  } else {
-	    return;
-	  }
-	  break;
+        switch (event.key.keysym.sym) {
+        case SDLK_ESCAPE:
+          printf("ESCAPE.\n");
+          if (fontdb.Dirty()) {
+            ui_dirty = true;
+            confirmations++;
+            if (confirmations >= 5)
+              return;
+          } else {
+            return;
+          }
+          break;
 
-	case SDLK_a: {
-	  
-	  if (mode == Mode::SCALETEST) {
-	    printf("Solving...\n");
+        case SDLK_a: {
+          
+          if (mode == Mode::SCALETEST) {
+            printf("Solving...\n");
 
-	    TTF *ttf = GetFont(cur);
-	    CHECK(ttf != nullptr);
-	    
-	    auto GetErr = [ttf](const std::array<double, 4> &args) {
-		const auto [xscale2, yscale2, xoff2, yoff2] = args;
-		return 
-		  BitmapDifference(*ttf,
-				   'A', 'a',
-				   200,
-				   xscale2, yscale2,
-				   xoff2, yoff2,
-				   // don't draw
-				   false);
-	      };
+            TTF *ttf = GetFont(cur);
+            CHECK(ttf != nullptr);
+            
+            auto GetErr = [ttf](const std::array<double, 4> &args) {
+                const auto [xscale2, yscale2, xoff2, yoff2] = args;
+                return 
+                  BitmapDifference(*ttf,
+                                   'A', 'a',
+                                   200,
+                                   xscale2, yscale2,
+                                   xoff2, yoff2,
+                                   // don't draw
+                                   false);
+              };
 
-	    const auto [args, err] = 
-	      Opt::Minimize<4>(GetErr, {0.1, 0.1, -50.0, -50.0}, {10.0, 10.0, 50.0, 50.0},
-			       1000);
+            const auto [args, err] = 
+              Opt::Minimize<4>(GetErr, {0.1, 0.1, -50.0, -50.0}, {10.0, 10.0, 50.0, 50.0},
+                               1000);
 
-	    const auto [xscale2, yscale2, xoff2, yoff2] = args;
-	    
-	    printf("Done! Error: %.4f%%\n", err * 100.0);
-	    current_xscale = xscale2;
-	    current_yscale = yscale2;
-	    current_xoff = xoff2;
-	    current_yoff = yoff2;
+            const auto [xscale2, yscale2, xoff2, yoff2] = args;
+            
+            printf("Done! Error: %.4f%%\n", err * 100.0);
+            current_xscale = xscale2;
+            current_yscale = yscale2;
+            current_xoff = xoff2;
+            current_yoff = yoff2;
 
-	    double rerr = GetErr({xscale2, yscale2, xoff2, yoff2});
-	    printf("Recomputed: %.4f%%\n", rerr * 100.0);
-	    
-	    ui_dirty = true;
-	  }
-	  break;
-	}
-	  
-	case SDLK_TAB:
-	  printf("TAB.\n");
-	  switch (mode) {
-	  default:
-	  case Mode::BITMAP:
-	    mode = Mode::SORTITION;
-	    break;
-	  case Mode::SORTITION:
-	    mode = Mode::SCALETEST;
-	    break;
-	  case Mode::SCALETEST:
-	    mode = Mode::LOOPTEST;
-	    break;
-	  case Mode::LOOPTEST:
-	    mode = Mode::BITMAP;
-	    break;
-	  }
-	  ui_dirty = true;
-	  break;
+            double rerr = GetErr({xscale2, yscale2, xoff2, yoff2});
+            printf("Recomputed: %.4f%%\n", rerr * 100.0);
+            
+            ui_dirty = true;
+          }
+          break;
+        }
+          
+        case SDLK_TAB:
+          printf("TAB.\n");
+          switch (mode) {
+          default:
+          case Mode::BITMAP:
+            mode = Mode::SORTITION;
+            break;
+          case Mode::SORTITION:
+            mode = Mode::SCALETEST;
+            break;
+          case Mode::SCALETEST:
+            mode = Mode::LOOPTEST;
+            break;
+          case Mode::LOOPTEST:
+            mode = Mode::BITMAP;
+            break;
+          }
+          ui_dirty = true;
+          break;
 
-	case SDLK_0:
-	  current_xoff = current_yoff = 0.0f;
-	  current_scale = 100;
-	  current_xscale = current_yscale = 1.0f;
-	  ui_dirty = true;
-	  break;
+        case SDLK_0:
+          current_xoff = current_yoff = 0.0f;
+          current_scale = 100;
+          current_xscale = current_yscale = 1.0f;
+          ui_dirty = true;
+          break;
 
-	case SDLK_PAGEUP:
-	case SDLK_PAGEDOWN:
-	case SDLK_UP:
-	case SDLK_DOWN:
-	case SDLK_LEFT:
-	case SDLK_RIGHT: {
-	  int dx = event.key.keysym.sym == SDLK_RIGHT ? 1 :
-	    event.key.keysym.sym == SDLK_LEFT ? -1 : 0;
-	  int dy = event.key.keysym.sym == SDLK_DOWN ? 1 :
-	    event.key.keysym.sym == SDLK_UP ? -1 :
-	    event.key.keysym.sym == SDLK_PAGEUP ? -10 :
-	    event.key.keysym.sym == SDLK_PAGEDOWN ? 10 :
-	    0;
+        case SDLK_PAGEUP:
+        case SDLK_PAGEDOWN:
+        case SDLK_UP:
+        case SDLK_DOWN:
+        case SDLK_LEFT:
+        case SDLK_RIGHT: {
+          int dx = event.key.keysym.sym == SDLK_RIGHT ? 1 :
+            event.key.keysym.sym == SDLK_LEFT ? -1 : 0;
+          int dy = event.key.keysym.sym == SDLK_DOWN ? 1 :
+            event.key.keysym.sym == SDLK_UP ? -1 :
+            event.key.keysym.sym == SDLK_PAGEUP ? -10 :
+            event.key.keysym.sym == SDLK_PAGEDOWN ? 10 :
+            0;
 
-	  switch (mode) {
-	  case Mode::LOOPTEST:
-	    break;
-	  
-	  case Mode::SORTITION:
-	    cur += dy;
-	    if (cur < 0) cur = 0;
-	    if (cur >= cur_filenames.size())
-	      cur = cur_filenames.size() - 1;
-	    ui_dirty = true;
-	    break;
-	  case Mode::BITMAP:
-	    current_char += dx;
-	    if (current_char > 'Z') current_char = 'Z';
-	    else if (current_char < 'A') current_char = 'A';
-	    ui_dirty = true;
-	    break;
+          switch (mode) {
+          case Mode::LOOPTEST:
+            break;
+          
+          case Mode::SORTITION:
+            cur += dy;
+            if (cur < 0) cur = 0;
+            if (cur >= cur_filenames.size())
+              cur = cur_filenames.size() - 1;
+            ui_dirty = true;
+            break;
+          case Mode::BITMAP:
+            current_char += dx;
+            if (current_char > 'Z') current_char = 'Z';
+            else if (current_char < 'A') current_char = 'A';
+            ui_dirty = true;
+            break;
 
-	  case Mode::SCALETEST: {
-	    float fdx = dx;
-	    float fdy = dy;
-	    if (event.key.keysym.mod & KMOD_SHIFT) {
-	      fdx *= 10;
-	      fdy *= 10;
-	    } else if (event.key.keysym.mod & KMOD_ALT) {
-	      fdx *= 0.1;
-	      fdy *= 0.1;
-	    }
-	      
-	    if (event.key.keysym.mod & KMOD_CTRL) {
-	      current_xscale += 0.05 * fdx;
-	      if (current_xscale < 0.01) current_xscale = 0.01;
+          case Mode::SCALETEST: {
+            float fdx = dx;
+            float fdy = dy;
+            if (event.key.keysym.mod & KMOD_SHIFT) {
+              fdx *= 10;
+              fdy *= 10;
+            } else if (event.key.keysym.mod & KMOD_ALT) {
+              fdx *= 0.1;
+              fdy *= 0.1;
+            }
+              
+            if (event.key.keysym.mod & KMOD_CTRL) {
+              current_xscale += 0.05 * fdx;
+              if (current_xscale < 0.01) current_xscale = 0.01;
 
-	      current_yscale += 0.05 * fdy;
-	      if (current_yscale < 0.01) current_yscale = 0.01;
+              current_yscale += 0.05 * fdy;
+              if (current_yscale < 0.01) current_yscale = 0.01;
 
-	    } else {
-	      current_xoff += fdx;
-	      current_yoff += fdy;
-	    }
+            } else {
+              current_xoff += fdx;
+              current_yoff += fdy;
+            }
 
-	    ui_dirty = true;
-	    break;
-	  }
-	  }
-	  break;
-	}
-
-
-	case SDLK_PERIOD:
-	  draw_points = !draw_points;
-	  ui_dirty = true;
-	  break;
-
-	case SDLK_2:
-	  if (event.key.keysym.mod & KMOD_SHIFT) {
-	    printf("AT\n");
-	    only_bezier = !only_bezier;
-	    ui_dirty = true;
-	  }
-	  break;
-
-	case SDLK_6:
-	  if (event.key.keysym.mod & KMOD_SHIFT) {
-	    printf("CARET\n");
-	    normalize = !normalize;
-	    ui_dirty = true;
-	  }
-	  break;
-	  
-	case SDLK_PLUS:
-	case SDLK_EQUALS:
-	  current_scale += 5;
-	  ui_dirty = true;
-	  break;
-
-	case SDLK_MINUS:
-	  if (current_scale > 15)
-	    current_scale -= 5;
-	  ui_dirty = true;
-	  break;
-
-	case SDLK_c:
-	  SetFlag(Flag::SAME_CASE, false);
-	  break;
-	case SDLK_x:
-	  SetFlag(Flag::SAME_CASE, true);
-	  break;
-	  
-	case SDLK_g:
-	  SetType(Type::SANS);
-	  break;
-
-	case SDLK_s:
-	  SetType(Type::SERIF);
-	  break;
-
-	case SDLK_i:
-	  SetType(Type::DINGBATS);
-	  break;
-
-	case SDLK_f:
-	  SetType(Type::FANCY);
-	  break;
-
-	case SDLK_t:
-	  SetType(Type::TECHNO);
-	  break;
-
-	case SDLK_d:
-	  SetType(Type::DECORATIVE);
-	  break;
-
-	case SDLK_m:
-	  SetType(Type::MESSY);
-	  break;
-
-	case SDLK_o:
-	  SetType(Type::OTHER);
-	  break;
-
-	case SDLK_b:
-	  SetType(Type::BROKEN);
-	  break;
-
-	case SDLK_v:
-	  fontdb.Save();
-	  ui_dirty = true;
-	  break;
+            ui_dirty = true;
+            break;
+          }
+          }
+          break;
+        }
 
 
-	default:;
-	}
+        case SDLK_PERIOD:
+          draw_points = !draw_points;
+          ui_dirty = true;
+          break;
+
+        case SDLK_2:
+          if (event.key.keysym.mod & KMOD_SHIFT) {
+            printf("AT\n");
+            only_bezier = !only_bezier;
+            ui_dirty = true;
+          }
+          break;
+
+        case SDLK_6:
+          if (event.key.keysym.mod & KMOD_SHIFT) {
+            printf("CARET\n");
+            normalize = !normalize;
+            ui_dirty = true;
+          }
+          break;
+          
+        case SDLK_PLUS:
+        case SDLK_EQUALS:
+          current_scale += 5;
+          ui_dirty = true;
+          break;
+
+        case SDLK_MINUS:
+          if (current_scale > 15)
+            current_scale -= 5;
+          ui_dirty = true;
+          break;
+
+        case SDLK_c:
+          SetFlag(Flag::SAME_CASE, false);
+          break;
+        case SDLK_x:
+          SetFlag(Flag::SAME_CASE, true);
+          break;
+          
+        case SDLK_g:
+          SetType(Type::SANS);
+          break;
+
+        case SDLK_s:
+          SetType(Type::SERIF);
+          break;
+
+        case SDLK_i:
+          SetType(Type::DINGBATS);
+          break;
+
+        case SDLK_f:
+          SetType(Type::FANCY);
+          break;
+
+        case SDLK_t:
+          SetType(Type::TECHNO);
+          break;
+
+        case SDLK_d:
+          SetType(Type::DECORATIVE);
+          break;
+
+        case SDLK_m:
+          SetType(Type::MESSY);
+          break;
+
+        case SDLK_o:
+          SetType(Type::OTHER);
+          break;
+
+        case SDLK_b:
+          SetType(Type::BROKEN);
+          break;
+
+        case SDLK_v:
+          fontdb.Save();
+          ui_dirty = true;
+          break;
+
+
+        default:;
+        }
       }
 
       default:;
@@ -746,11 +746,11 @@ int UI::DrawChar(TTF *ttf, int sx, int sy, float scale, char c, char nc) {
 
   auto Line = [&](float x1, float y1, float x2, float y2, uint32 color) {
       sdlutil::drawclipline(screen,
-			    sx + x1 * scale, sy + y1 * scale,
-			    sx + x2 * scale, sy + y2 * scale,
-			    0xFF & (color >> 24),
-			    0xFF & (color >> 16),
-			    0xFF & (color >> 8));
+                            sx + x1 * scale, sy + y1 * scale,
+                            sx + x2 * scale, sy + y2 * scale,
+                            0xFF & (color >> 24),
+                            0xFF & (color >> 16),
+                            0xFF & (color >> 8));
     };
 
   // One screen pixel in normalized coordinates.
@@ -762,19 +762,19 @@ int UI::DrawChar(TTF *ttf, int sx, int sy, float scale, char c, char nc) {
     for (const auto &p : contour.paths) {
       switch (p.type) {
       case TTF::PathType::LINE: {
-	Line(x, y, p.x, p.y, 0x000000FF);
-	x = p.x;
-	y = p.y;
-	break;
+        Line(x, y, p.x, p.y, 0x000000FF);
+        x = p.x;
+        y = p.y;
+        break;
       }
       case TTF::PathType::BEZIER: {
-	for (const auto [xx, yy] :
-	       TesselateQuadraticBezier<double>(x, y, p.cx, p.cy, p.x, p.y, sqerr)) {
-	  Line(x, y, xx, yy, 0xFF0000FF);
-	  x = xx;
-	  y = yy;
-	}
-	break;
+        for (const auto [xx, yy] :
+               TesselateQuadraticBezier<double>(x, y, p.cx, p.cy, p.x, p.y, sqerr)) {
+          Line(x, y, xx, yy, 0xFF0000FF);
+          x = xx;
+          y = yy;
+        }
+        break;
       }
       }
     }
@@ -796,17 +796,17 @@ int UI::DrawChar(TTF *ttf, int sx, int sy, float scale, char c, char nc) {
       PointAt(contour.startx, contour.starty);
 
       for (const auto &p : contour.paths) {
-	switch (p.type) {
-	case TTF::PathType::LINE: {
-	  PointAt(p.x, p.y);
-	  break;
-	}
-	case TTF::PathType::BEZIER: {
-	  // auto [cx, cy] = ttf->Norm(p.cx, p.cy);
-	  PointAt(p.x, p.y);
-	  break;
-	}
-	}
+        switch (p.type) {
+        case TTF::PathType::LINE: {
+          PointAt(p.x, p.y);
+          break;
+        }
+        case TTF::PathType::BEZIER: {
+          // auto [cx, cy] = ttf->Norm(p.cx, p.cy);
+          PointAt(p.x, p.y);
+          break;
+        }
+        }
       }
     }
   }
@@ -835,30 +835,30 @@ int UI::DrawAlphabet(TTF *ttf, int sx, int sy, float scale) {
 void UI::DrawSortition() {
 
   font2x->draw(12, 4,
-	       "[^6G^<]eometric " // Sans
-	       "[^6S^<]erif "
-	       "[^6F^<]ancy "
-	       "[^6T^<]echno "
-	       "[^6D^<]ecorative "
-	       "[^6M^<]essy "
-	       "[^6I^<]cons " // Dingbats
-	       "[^6O^<]ther "
-	       "[^6B^<]roken");
+               "[^6G^<]eometric " // Sans
+               "[^6S^<]erif "
+               "[^6F^<]ancy "
+               "[^6T^<]echno "
+               "[^6D^<]ecorative "
+               "[^6M^<]essy "
+               "[^6I^<]cons " // Dingbats
+               "[^6O^<]ther "
+               "[^6B^<]roken");
 
   if (fontdb.Dirty()) {
     font2x->draw(SCREENW - font2x->width * 8, 4, "(Sa[^6V^<]e?)");
   }
   if (confirmations > 0) {
     font2x->draw(SCREENW - font2x->width * 10, 32, StringPrintf("^2CONFIRM ^5%d",
-								confirmations));
+                                                                confirmations));
   }
 
   {
     double pct = (100.0 * fontdb.NumSorted()) / (double)fontdb.Size();
     string progress = StringPrintf("^6%.2f^4%%^<  %d^4/^<%d",
-				   pct, cur, cur_filenames.size());
+                                   pct, cur, cur_filenames.size());
     font2x->draw(SCREENW - font2x->sizex(progress) - 8, SCREENH - font2x->height - 2,
-		 progress);
+                 progress);
   }
 
     
@@ -881,18 +881,18 @@ void UI::DrawSortition() {
       string dest = "";
       string cstring = "";
       if (info.has_value()) {
-	if (info.value().type != Type::UNKNOWN) {
-	  dest = FontDB::TypeString(info.value().type);
-	}
-	const auto &flags = info.value().flags;
-	auto it = flags.find(Flag::SAME_CASE);
-	if (it != flags.end()) {
-	  if (it->second) {
-	    cstring = "^2[X]^< same case";
-	  } else {
-	    cstring = "^5C^<ase ok";
-	  }
-	}
+        if (info.value().type != Type::UNKNOWN) {
+          dest = FontDB::TypeString(info.value().type);
+        }
+        const auto &flags = info.value().flags;
+        auto it = flags.find(Flag::SAME_CASE);
+        if (it != flags.end()) {
+          if (it->second) {
+            cstring = "^2[X]^< same case";
+          } else {
+            cstring = "^5C^<ase ok";
+          }
+        }
       }
 
       
@@ -901,7 +901,7 @@ void UI::DrawSortition() {
       ypos += font->height + 1;
 
       if (i == cur) {
-	font2x->draw(xpos - 52, ypos, "^6>^7>^8>");
+        font2x->draw(xpos - 52, ypos, "^6>^7>^8>");
       }
 
       font2x->draw(4, ypos + font2x->height, dest);
@@ -910,11 +910,11 @@ void UI::DrawSortition() {
       ypos += DrawAlphabet(GetFont(i), xpos, ypos, scale);
       ypos += 2;
       sdlutil::drawclipline(screen, xpos, ypos, SCREENW - 128, ypos,
-			    0xAA, 0xAA, 0xAA);
+                            0xAA, 0xAA, 0xAA);
       ypos += 2;
     } else {
       sdlutil::drawbox(screen, xpos, ypos, SCREENW - 128, 60,
-		       0x77, 0x77, 0x77);
+                       0x77, 0x77, 0x77);
       ypos += 64;
     }
   }
@@ -933,48 +933,48 @@ void UI::Draw() {
     // ^8 = blue = actual
 
     auto DrawAssignment = [this](const FontProblem::LoopAssignment &assn) {
-	// here we have like
-	//        0       1 2
-	//        x       y z      <- expected
-	//    a b c d e f g h i j  <- actual
-	//    0 1 2 3 4 5 6 7 8 9 
-	// This would be represented with point0 = 2,
-	// and groups = {4, 1, 5}.
+        // here we have like
+        //        0       1 2
+        //        x       y z      <- expected
+        //    a b c d e f g h i j  <- actual
+        //    0 1 2 3 4 5 6 7 8 9 
+        // This would be represented with point0 = 2,
+        // and groups = {4, 1, 5}.
 
-	int a = assn.point0;
-	for (int e = 0; e < looptest_expected.size(); e++) {
-	  int num = assn.groups[e];
-	  for (int i = 0; i < num; i++) {
-	    FontProblem::Point apt = looptest_actual[a];
-	    FontProblem::Point ept = looptest_expected[e];
+        int a = assn.point0;
+        for (int e = 0; e < looptest_expected.size(); e++) {
+          int num = assn.groups[e];
+          for (int i = 0; i < num; i++) {
+            FontProblem::Point apt = looptest_actual[a];
+            FontProblem::Point ept = looptest_expected[e];
 
-	    sdlutil::drawclipline(screen,
-				  (int)apt.first, (int)apt.second,
-				  (int)ept.first, (int)ept.second,
-				  0xFF, 0x44, 0x44);
-	    
-	    a++;
-	    if (a == looptest_actual.size()) a = 0;
-	  }
-	}
+            sdlutil::drawclipline(screen,
+                                  (int)apt.first, (int)apt.second,
+                                  (int)ept.first, (int)ept.second,
+                                  0xFF, 0x44, 0x44);
+            
+            a++;
+            if (a == looptest_actual.size()) a = 0;
+          }
+        }
       };
 
     if (looptest_assignment.has_value())
       DrawAssignment(looptest_assignment.value());
     
     auto DrawLoop = [](const vector<FontProblem::Point> &pts,
-		       uint8 r, uint8 g, uint8 b) {
-	for (int i = 0; i < pts.size(); i++) {
-	  const int next_i = i < pts.size() - 1 ? i + 1 : 0;
-	  auto [sx, sy] = pts[i];
-	  auto [dx, dy] = pts[next_i];
-	  sdlutil::drawclipline(
-	      screen,
-	      sx, sy, dx, dy,
-	      r, g, b);
+                       uint8 r, uint8 g, uint8 b) {
+        for (int i = 0; i < pts.size(); i++) {
+          const int next_i = i < pts.size() - 1 ? i + 1 : 0;
+          auto [sx, sy] = pts[i];
+          auto [dx, dy] = pts[next_i];
+          sdlutil::drawclipline(
+              screen,
+              sx, sy, dx, dy,
+              r, g, b);
 
-	  sdlutil::drawbox(screen, sx - 2, sy - 2, 5, 5, r, g, b);
-	}
+          sdlutil::drawbox(screen, sx - 2, sy - 2, 5, 5, r, g, b);
+        }
       };
 
     DrawLoop(looptest_expected, 0x00, 0xAA, 0x00);
@@ -985,11 +985,11 @@ void UI::Draw() {
     const int LINE3 = LINE2 + font->height;
 
     auto MakePts = [](const vector<FontProblem::Point> &pts) {
-	string ret;
-	for (const auto &p : pts) {
-	  StringAppendF(&ret, "%d,%d  ", (int)p.first, (int)p.second);
-	}
-	return ret;
+        string ret;
+        for (const auto &p : pts) {
+          StringAppendF(&ret, "%d,%d  ", (int)p.first, (int)p.second);
+        }
+        return ret;
       };
     string epts = MakePts(looptest_expected);
     string apts = MakePts(looptest_actual);
@@ -998,9 +998,9 @@ void UI::Draw() {
     font->draw(12, LINE2, StringPrintf("^8  Actual:^< %s", apts.c_str()));
     if (looptest_assignment.has_value()) {
       string assn = StringPrintf("Assignment: ^2Point0^< = %d ^3groups^< = ",
-				 looptest_assignment->point0);
+                                 looptest_assignment->point0);
       for (int n : looptest_assignment->groups)
-	StringAppendF(&assn, "%d ", n);
+        StringAppendF(&assn, "%d ", n);
       font->draw(12, LINE3, assn);
     } else {
       font->draw(12, LINE3, "(No assignment)");
@@ -1014,25 +1014,25 @@ void UI::Draw() {
     vector<TTF::Contour> contours = times.GetContours(current_char);
     if (only_bezier) contours = TTF::MakeOnlyBezier(contours);
     if (normalize) contours = TTF::NormalizeOrder(contours,
-						  0.0f, 0.0f);
+                                                  0.0f, 0.0f);
     
     constexpr int XPOS = 128;
     constexpr int YPOS = 48;
     // Basically, the height of the font in pixels.
     constexpr int SCALE = 1000;
     auto Line = [&](float x1, float y1, float x2, float y2, uint32 color) {
-	sdlutil::drawclipline(screen,
-			      XPOS + x1 * SCALE, YPOS + y1 * SCALE,
-			      XPOS + x2 * SCALE, YPOS + y2 * SCALE,
-			      0xFF & (color >> 24),
-			      0xFF & (color >> 16),
-			      0xFF & (color >> 8));
+        sdlutil::drawclipline(screen,
+                              XPOS + x1 * SCALE, YPOS + y1 * SCALE,
+                              XPOS + x2 * SCALE, YPOS + y2 * SCALE,
+                              0xFF & (color >> 24),
+                              0xFF & (color >> 16),
+                              0xFF & (color >> 8));
       };
 
     auto Point = [&](float x, float y, int n) {
-	int xx = XPOS + x * SCALE;
-	int yy = YPOS + y * SCALE;
-	font->draw(xx, yy, StringPrintf("%d", n));
+        int xx = XPOS + x * SCALE;
+        int yy = YPOS + y * SCALE;
+        font->draw(xx, yy, StringPrintf("%d", n));
       };
     
     // One screen pixel in normalized coordinates.
@@ -1044,33 +1044,33 @@ void UI::Draw() {
       printf("CONTOUR. Start %.5f %.5f\n", x, y);
       Point(x, y, -1);
       for (int i = 0; i < contour.paths.size(); i++) {
-	const auto &p = contour.paths[i];
-	Point(p.x, p.y, i);
-	switch (p.type) {
-	case TTF::PathType::LINE: {
-	  printf("   %d. LINE %.5f %.5f\n", i, p.x, p.y);
-	  Line(x, y, p.x, p.y, 0x000000FF);
-	  x = p.x;
-	  y = p.y;
-	  break;
-	}
-	case TTF::PathType::BEZIER: {
-	  printf("   %d. BEZ  %.5f %.5f   %.5f %.5f\n",
-		 i,
-		 p.cx, p.cy,
-		 p.x, p.y);
-	  // Line(x, y, p.cx, p.cy, 0x00FF00FF);
-	  // Line(p.cx, p.cy, p.px, p.py, 0x0000FFFF);
-	  for (const auto [xx, yy] :
-		 TesselateQuadraticBezier<double>(x, y, p.cx, p.cy, p.x, p.y, sqerr)) {
-	    // times.Norm(1, 1.0f / 1000.0f).second)) {
-	    Line(x, y, xx, yy, 0xFF0000FF);
-	    x = xx;
-	    y = yy;
-	  }
-	  break;
-	}
-	}
+        const auto &p = contour.paths[i];
+        Point(p.x, p.y, i);
+        switch (p.type) {
+        case TTF::PathType::LINE: {
+          printf("   %d. LINE %.5f %.5f\n", i, p.x, p.y);
+          Line(x, y, p.x, p.y, 0x000000FF);
+          x = p.x;
+          y = p.y;
+          break;
+        }
+        case TTF::PathType::BEZIER: {
+          printf("   %d. BEZ  %.5f %.5f   %.5f %.5f\n",
+                 i,
+                 p.cx, p.cy,
+                 p.x, p.y);
+          // Line(x, y, p.cx, p.cy, 0x00FF00FF);
+          // Line(p.cx, p.cy, p.px, p.py, 0x0000FFFF);
+          for (const auto [xx, yy] :
+                 TesselateQuadraticBezier<double>(x, y, p.cx, p.cy, p.x, p.y, sqerr)) {
+            // times.Norm(1, 1.0f / 1000.0f).second)) {
+            Line(x, y, xx, yy, 0xFF0000FF);
+            x = xx;
+            y = yy;
+          }
+          break;
+        }
+        }
       }
     }
 
@@ -1087,9 +1087,9 @@ void UI::Draw() {
     fflush(stdout);
 
     font2x->draw(3, font2x->height + 3,
-		 StringPrintf("scale ^5%.2f^1x^5%.2f  ^0off ^6%.2f %.2f",
-			      current_xscale, current_yscale,
-			      current_xoff, current_yoff));
+                 StringPrintf("scale ^5%.2f^1x^5%.2f  ^0off ^6%.2f %.2f",
+                              current_xscale, current_yscale,
+                              current_xoff, current_yoff));
     
     TTF *ttf = GetFont(cur);
     CHECK(ttf != nullptr);
@@ -1097,13 +1097,13 @@ void UI::Draw() {
     [[maybe_unused]]
     double diff =
       BitmapDifference(*ttf,
-		       'A', 'a',
-		       // XXX need to figure this parameter out
-		       // scale,
-		       200,
-		       current_xscale, current_yscale,
-		       current_xoff, current_yoff,
-		       true);
+                       'A', 'a',
+                       // XXX need to figure this parameter out
+                       // scale,
+                       200,
+                       current_xscale, current_yscale,
+                       current_xoff, current_yoff,
+                       true);
     
     break;
   }
@@ -1125,8 +1125,8 @@ int main(int argc, char **argv) {
 
   /* Initialize SDL and network, if we're using it. */
   CHECK(SDL_Init(SDL_INIT_VIDEO |
-		 SDL_INIT_TIMER |
-		 SDL_INIT_AUDIO) >= 0);
+                 SDL_INIT_TIMER |
+                 SDL_INIT_AUDIO) >= 0);
   fprintf(stderr, "SDL initialized OK.\n");
 
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,
@@ -1143,16 +1143,16 @@ int main(int argc, char **argv) {
   CHECK(screen);
 
   font = Font::create(screen,
-		      "font.png",
-		      FONTCHARS,
-		      FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
+                      "font.png",
+                      FONTCHARS,
+                      FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font != nullptr) << "Couldn't load font.";
 
   font2x = Font::CreateX(2,
-			 screen,
-			 "font.png",
-			 FONTCHARS,
-			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
+                         screen,
+                         "font.png",
+                         FONTCHARS,
+                         FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font2x != nullptr) << "Couldn't load font2x";
 
   UI ui;

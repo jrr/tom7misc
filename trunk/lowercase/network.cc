@@ -38,8 +38,8 @@ const char *LayerTypeName(LayerType lt) {
 }
 
 Network::Network(vector<int> num_nodes,
-		 vector<int> indices_per_node,
-		 vector<TransferFunction> transfer_functions) :
+                 vector<int> indices_per_node,
+                 vector<TransferFunction> transfer_functions) :
   num_layers(num_nodes.size() - 1),
   num_nodes(num_nodes) {
   CHECK(num_nodes.size() >= 1) << "Must include input layer.";
@@ -91,7 +91,7 @@ int64 Network::Bytes() const {
       sizeof inverted_indices[i].start[0] * inverted_indices[i].start.size() +
       sizeof inverted_indices[i].length[0] * inverted_indices[i].length.size() +
       sizeof inverted_indices[i].output_indices[0] *
-	  inverted_indices[i].output_indices.size();
+          inverted_indices[i].output_indices.size();
   }
 
   return ret;
@@ -111,15 +111,15 @@ void Network::RunForwardLayer(Stimulation *stim, int src_layer) const {
     [transfer_function](float potential) -> float {
       switch (transfer_function) {
       case SIGMOID:
-	return 1.0f / (1.0f + expf(-potential));
+        return 1.0f / (1.0f + expf(-potential));
       case RELU:
-	return (potential < 0.0f) ? 0.0f : potential;
+        return (potential < 0.0f) ? 0.0f : potential;
       case LEAKY_RELU:
-	return (potential < 0.0f) ? potential * 0.01f : potential;
+        return (potential < 0.0f) ? potential * 0.01f : potential;
       default:
-	CHECK(false) << "Unimplemented transfer function " <<
-	  TransferFunctionName(transfer_function);
-	return 0.0f;
+        CHECK(false) << "Unimplemented transfer function " <<
+          TransferFunctionName(transfer_function);
+        return 0.0f;
       }
     };
 
@@ -158,18 +158,18 @@ void Network::RunForwardVerbose(Stimulation *stim) const {
       layers[src].transfer_function;
     auto Forward =
       [transfer_function](float potential) -> float {
-	switch (transfer_function) {
-	case SIGMOID:
-	  return 1.0f / (1.0f + expf(-potential));
-	case RELU:
-	  return (potential < 0.0f) ? 0.0f : potential;
-	case LEAKY_RELU:
-	  return (potential < 0.0f) ? potential * 0.01f : potential;
-	default:
-	  CHECK(false) << "Unimplemented transfer function " <<
-	    TransferFunctionName(transfer_function);
-	  return 0.0f;
-	}
+        switch (transfer_function) {
+        case SIGMOID:
+          return 1.0f / (1.0f + expf(-potential));
+        case RELU:
+          return (potential < 0.0f) ? 0.0f : potential;
+        case LEAKY_RELU:
+          return (potential < 0.0f) ? potential * 0.01f : potential;
+        default:
+          CHECK(false) << "Unimplemented transfer function " <<
+            TransferFunctionName(transfer_function);
+          return 0.0f;
+        }
       };
 
 
@@ -185,25 +185,25 @@ void Network::RunForwardVerbose(Stimulation *stim) const {
       // Start with bias.
       double potential = biases[node_idx];
       printf("%d|L %d n %d. bias: %f\n",
-	     rounds, src, node_idx, potential);
+             rounds, src, node_idx, potential);
       CHECK(!std::isnan(potential)) << node_idx;
       const int my_weights = node_idx * indices_per_node;
       const int my_indices = node_idx * indices_per_node;
 
       for (int i = 0; i < indices_per_node; i++) {
-	const float w = weights[my_weights + i];
-	int srci = indices[my_indices + i];
-	// XXX check dupes
-	CHECK(srci >= 0 && srci < src_values.size()) << srci;
-	const float v = src_values[srci];
-	CHECK(!std::isnan(w) &&
-	      !std::isnan(v) &&
-	      !std::isnan(potential)) <<
-	  StringPrintf("L %d, n %d. [%d=%d] %f * %f + %f\n",
-		       src,
-		       node_idx,
-		       i, srci, w, v, potential);
-	potential += w * v;
+        const float w = weights[my_weights + i];
+        int srci = indices[my_indices + i];
+        // XXX check dupes
+        CHECK(srci >= 0 && srci < src_values.size()) << srci;
+        const float v = src_values[srci];
+        CHECK(!std::isnan(w) &&
+              !std::isnan(v) &&
+              !std::isnan(potential)) <<
+          StringPrintf("L %d, n %d. [%d=%d] %f * %f + %f\n",
+                       src,
+                       node_idx,
+                       i, srci, w, v, potential);
+        potential += w * v;
       }
       CHECK(!std::isnan(potential));
 
@@ -231,9 +231,9 @@ void Network::NaNCheck(const std::string &message) const {
     string err;
     for (int i = 0; i < layer_nans.size(); i++) {
       err += StringPrintf("(real) layer %d. %d/%d weights, %d/%d biases\n",
-			  i,
-			  layer_nans[i].first, layers[i].weights.size(),
-			  layer_nans[i].second, layers[i].biases.size());
+                          i,
+                          layer_nans[i].first, layers[i].weights.size(),
+                          layer_nans[i].second, layers[i].biases.size());
     }
     CHECK(false) << "[" << message << "] The network has NaNs :-(\n" << err;
   }
@@ -266,9 +266,9 @@ void Network::StructuralCheck() const {
     if (layer.type == LAYER_DENSE) {
       CHECK(layer.indices_per_node == num_prev_nodes);
       for (int n = 0; n < num_this_nodes; n++) {
-	for (int p = 0; p < num_prev_nodes; p++) {
-	  CHECK(layer.indices[n * layer.indices_per_node + p] == p);
-	}
+        for (int p = 0; p < num_prev_nodes; p++) {
+          CHECK(layer.indices[n * layer.indices_per_node + p] == p);
+        }
       }
     }
   }
@@ -281,25 +281,25 @@ void Network::CheckInvertedIndices() const {
     const vector<uint32> &indices = layers[layer].indices;
     const Network::InvertedIndices &inv = inverted_indices[layer];
     CHECK_EQ(num_nodes[layer + 1] * layers[layer].indices_per_node,
-	     indices.size());
+             indices.size());
     // Need one start/length pair for every node in the source layer.
     CHECK_EQ(num_nodes[layer], inv.start.size());
     CHECK_EQ(num_nodes[layer], inv.length.size());
     // But the output size is determined by the next layer.
     CHECK_EQ(num_nodes[layer + 1] * layers[layer].indices_per_node,
-	     inv.output_indices.size());
+             inv.output_indices.size());
     // z is a node id from the src layer.
     for (int z = 0; z < inv.start.size(); z++) {
       // i is the index within the compacted inverted index.
       for (int i = inv.start[z]; i < inv.start[z] + inv.length[z]; i++) {
-	// Global index into 'indices'.
-	CHECK(i >= 0);
-	CHECK(i < inv.output_indices.size());
-	const int gidx = inv.output_indices[i];
-	CHECK(gidx >= 0);
-	CHECK(gidx < indices.size());
-	// This should map back to our current node id.
-	CHECK_EQ(indices[gidx], z);
+        // Global index into 'indices'.
+        CHECK(i >= 0);
+        CHECK(i < inv.output_indices.size());
+        const int gidx = inv.output_indices[i];
+        CHECK(gidx >= 0);
+        CHECK(gidx < indices.size());
+        // This should map back to our current node id.
+        CHECK_EQ(indices[gidx], z);
       }
     }
   }
@@ -327,7 +327,7 @@ void Network::ComputeInvertedIndices(Network *net, int max_parallelism) {
     vector<uint32> *inverted = &net->inverted_indices[layer].output_indices;
     // But this has to account for all the nodes on the destination layer.
     CHECK_EQ(net->layers[layer].indices_per_node * dst_num_nodes,
-	     inverted->size());
+             inverted->size());
 
     // printf("ComputeInvertedIndices layer %d...\n", layer);
     // fflush(stdout);
@@ -336,14 +336,14 @@ void Network::ComputeInvertedIndices(Network *net, int max_parallelism) {
     vector<vector<uint32>> occurrences;
     occurrences.resize(net->num_nodes[layer]);
     for (int dst_indices_idx = 0;
-	 dst_indices_idx < net->layers[layer].indices_per_node * dst_num_nodes;
-	 dst_indices_idx++) {
+         dst_indices_idx < net->layers[layer].indices_per_node * dst_num_nodes;
+         dst_indices_idx++) {
       // This index gets put into exactly one place in occurrences.
       CHECK(dst_indices_idx < net->layers[layer].indices.size());
       const int src_nodes_idx = net->layers[layer].indices[dst_indices_idx];
       CHECK(src_nodes_idx >= 0) << src_nodes_idx;
       CHECK(src_nodes_idx < occurrences.size()) << src_nodes_idx << " vs "
-						<< occurrences.size();
+                                                << occurrences.size();
       occurrences[src_nodes_idx].push_back(dst_indices_idx);
     }
 
@@ -362,14 +362,14 @@ void Network::ComputeInvertedIndices(Network *net, int max_parallelism) {
     // Now flatten.
     int flat_size = 0;
     for (int src_nodes_idx = 0;
-	 src_nodes_idx < src_num_nodes;
-	 src_nodes_idx++) {
+         src_nodes_idx < src_num_nodes;
+         src_nodes_idx++) {
       (*start)[src_nodes_idx] = flat_size;
       (*length)[src_nodes_idx] = occurrences[src_nodes_idx].size();
 
       for (const int val : occurrences[src_nodes_idx]) {
-	(*inverted)[flat_size] = val;
-	flat_size++;
+        (*inverted)[flat_size] = val;
+        flat_size++;
       }
     }
     CHECK_EQ(dst_num_nodes * net->layers[layer].indices_per_node, flat_size);
@@ -384,7 +384,7 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   FILE *file = fopen(filename.c_str(), "rb");
   if (file == nullptr) {
     printf("  ... failed. If it's present, there may be a "
-	   "permissions problem?\n");
+           "permissions problem?\n");
     fflush(stdout);
     return nullptr;
   }
@@ -421,7 +421,7 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   int file_num_layers = Read32();
   CHECK_GE(file_num_layers, 0);
   printf("%s: %lld rounds, %lld examples, %d layers.\n",
-	 filename.c_str(), round, examples, file_num_layers);
+         filename.c_str(), round, examples, file_num_layers);
   vector<int> num_nodes(file_num_layers + 1, 0);
   printf("%s: num nodes: ", filename.c_str());
   for (int i = 0; i < file_num_layers + 1; i++) {
@@ -452,7 +452,7 @@ Network *Network::ReadNetworkBinary(const string &filename) {
 
   for (int i = 0; i < file_num_layers + 1; i++) {
     printf("Layer %d: %d x %d x %d (as %08x)\n",
-	   i - 1, width[i], height[i], channels[i], renderstyle[i]);
+           i - 1, width[i], height[i], channels[i], renderstyle[i]);
   }
 
   printf("\n%s: indices per node/fns/type: ", filename.c_str());
@@ -468,9 +468,9 @@ Network *Network::ReadNetworkBinary(const string &filename) {
     CHECK(lt >= 0 && lt < NUM_LAYER_TYPES) << lt;
     layer_types[i] = lt;
     printf("%d %s %s ",
-	   indices_per_node[i],
-	   TransferFunctionName(tf),
-	   LayerTypeName(lt));
+           indices_per_node[i],
+           TransferFunctionName(tf),
+           LayerTypeName(lt));
   }
   printf("\n");
 
@@ -493,7 +493,7 @@ Network *Network::ReadNetworkBinary(const string &filename) {
     switch(type) {
     case LAYER_SPARSE:
       for (int j = 0; j < net->layers[i].indices.size(); j++) {
-	net->layers[i].indices[j] = Read32();
+        net->layers[i].indices[j] = Read32();
       }
       break;
     case LAYER_DENSE: {
@@ -501,16 +501,16 @@ Network *Network::ReadNetworkBinary(const string &filename) {
       const int prev_num_nodes = net->num_nodes[i];
       const int num_nodes = net->num_nodes[i + 1];
       CHECK_EQ(net->layers[i].indices.size(), prev_num_nodes * num_nodes) <<
-	"For a dense layer, indices per node should be the size of "
-	"the previous layer! prev * cur: " << prev_num_nodes <<
-	" * " << num_nodes << " = " << prev_num_nodes * num_nodes <<
-	" but got " << net->layers[i].indices.size();
+        "For a dense layer, indices per node should be the size of "
+        "the previous layer! prev * cur: " << prev_num_nodes <<
+        " * " << num_nodes << " = " << prev_num_nodes * num_nodes <<
+        " but got " << net->layers[i].indices.size();
       int64 offset = 0;
       for (int n = 0; n < num_nodes; n++) {
-	for (int p = 0; p < prev_num_nodes; p++) {
-	  net->layers[i].indices[offset] = p;
-	  offset++;
-	}
+        for (int p = 0; p < prev_num_nodes; p++) {
+          net->layers[i].indices[offset] = p;
+          offset++;
+        }
       }
       break;
     }
@@ -525,19 +525,19 @@ Network *Network::ReadNetworkBinary(const string &filename) {
     static constexpr float LARGE_BIAS = 128.0f;
     for (float f : net->layers[i].weights) {
       if (f > LARGE_WEIGHT || f < -LARGE_WEIGHT) {
-	large_weights++;
+        large_weights++;
       }
     }
     for (float f : net->layers[i].biases) {
       if (f > LARGE_BIAS || f < -LARGE_BIAS) {
-	large_biases++;
+        large_biases++;
       }
     }
   }
 
   if (large_weights > 0 || large_biases > 0) {
     printf("Warning: %lld large weights and %lld large biases\n",
-	   large_weights, large_biases);
+           large_weights, large_biases);
   }
 
   fclose(file);
@@ -555,7 +555,7 @@ Network *Network::ReadNetworkBinary(const string &filename) {
 }
 
 void Network::SaveNetworkBinary(const Network &net,
-				const string &filename) {
+                                const string &filename) {
   // Not portable, obviously.
   FILE *file = fopen(filename.c_str(), "wb");
   auto Write64 = [file](int64_t i) {
@@ -636,11 +636,11 @@ void Stimulation::NaNCheck(const std::string &message) const {
     string err;
     for (int i = 0; i < layer_nans.size(); i++) {
       err += StringPrintf("stim layer %d. %d/%d values\n",
-			  i,
-			  layer_nans[i], values[i].size());
+                          i,
+                          layer_nans[i], values[i].size());
     }
     CHECK(false) << "[" << message
-		 << "] The stimulation has NaNs :-(\n" << err;
+                 << "] The stimulation has NaNs :-(\n" << err;
   }
 }
 

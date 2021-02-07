@@ -14,20 +14,20 @@
 struct ErrorHistory {
 
   ErrorHistory(const std::string &filename,
-	       int num_models = 1);
+               int num_models = 1);
 
   // OK to add rounds sparsely, or even out-of-order.
   // is_eval false means this is training error, true means test (aka eval)
   // 0 <= model_idx < num_models.
   void Add(int64_t round_number,
-	   double error_per_example,
-	   bool is_eval,
-	   int model_idx = 0);
+           double error_per_example,
+           bool is_eval,
+           int model_idx = 0);
 
   void Save();
 
   void WriteMergedTSV(const std::string &outfile,
-		      std::optional<int> max_points = {}) const;
+                      std::optional<int> max_points = {}) const;
   
 private:
   void Load();

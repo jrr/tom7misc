@@ -48,7 +48,7 @@ static constexpr int NUM_SAMPLES = 327680;
 // regularity here...
 // Not thread safe.
 static void AccumulateLayer(const Stimulation &actual, Stimulation *maxes,
-			    int layer_idx) {
+                            int layer_idx) {
   const vector<float> &vs = actual.values[layer_idx];
   vector<float> *ms = &maxes->values[layer_idx];
   CHECK(vs.size() == ms->size());
@@ -89,84 +89,84 @@ static Stimulation RandomlyStimulate(ArcFour *rc, const Network &net) {
 
   vector<Stimulation> maxes =
     ParallelMapi(rcs, [&net](int idx, ArcFour *rc) {
-	Stimulation m(net);
+        Stimulation m(net);
 
-	auto Acc = [&net, &m](Stimulation *r) {
-	    net.RunForward(r);
-	    Accumulate(*r, &m);
-	  };
-	
-	if (idx == 0) {
-	  Stimulation r(net);
-	  // All on.
-	  for (float &v : r.values[0]) v = 1.0f;
-	  Acc(&r);
-	  // All off.
-	  for (float &v : r.values[0]) v = 0.0f;
-	  Acc(&r);
+        auto Acc = [&net, &m](Stimulation *r) {
+            net.RunForward(r);
+            Accumulate(*r, &m);
+          };
+        
+        if (idx == 0) {
+          Stimulation r(net);
+          // All on.
+          for (float &v : r.values[0]) v = 1.0f;
+          Acc(&r);
+          // All off.
+          for (float &v : r.values[0]) v = 0.0f;
+          Acc(&r);
 
-	  // Checkerboards of various scales.
-	  // Reasonable to assume some spatial meaning for
-	  // the input layer,
-	  const int w = net.width[0];
-	  const int h = net.height[0];
-	  CHECK(net.channels[0] == 1) <<
-	    "could implement multichannel here";
+          // Checkerboards of various scales.
+          // Reasonable to assume some spatial meaning for
+          // the input layer,
+          const int w = net.width[0];
+          const int h = net.height[0];
+          CHECK(net.channels[0] == 1) <<
+            "could implement multichannel here";
 
-	  int iters = 0;
-	  for (int size = 1; size < w; size++) {
-	    for (int xo = 0; xo < size / 2; xo++) {
-	      for (int yo = 0; yo < size / 2; yo ++) {
-		for (int parity = 0; parity < 2; parity++) {
-		  // Fill image...
-		  for (int y = 0; y < h; y++) {
-		    for (int x = 0; x < w; x++) {
-		      int p = (((x + xo) / size) + ((y + yo) / size)) % 2;
-		      int idx = y * w + x;
-		      r.values[0][idx] = (p == parity) ? 1.0f : 0.0f;
-		    }
-		  }
-		  Acc(&r);
-		  iters++;
-		  // don't let this one be too much longer.
-		  // but these patterns do seem to be important at
-		  // coaxing some features to activate.
-		  if (iters > (SAMPLES_PER_THREAD * 2)) {
-		    printf("Exited checkerboard early.");
-		    return m;
-		  }
-		}
-	      }
-	    }
-	  }
-	  
-	} else {
-	  // General case is uniformly random.
-	  for (int i = 0; i < SAMPLES_PER_THREAD; i++) {
-	    Stimulation r(net);
-	    for (float &v : r.values[0])
-	      v = RandDouble(rc);
+          int iters = 0;
+          for (int size = 1; size < w; size++) {
+            for (int xo = 0; xo < size / 2; xo++) {
+              for (int yo = 0; yo < size / 2; yo ++) {
+                for (int parity = 0; parity < 2; parity++) {
+                  // Fill image...
+                  for (int y = 0; y < h; y++) {
+                    for (int x = 0; x < w; x++) {
+                      int p = (((x + xo) / size) + ((y + yo) / size)) % 2;
+                      int idx = y * w + x;
+                      r.values[0][idx] = (p == parity) ? 1.0f : 0.0f;
+                    }
+                  }
+                  Acc(&r);
+                  iters++;
+                  // don't let this one be too much longer.
+                  // but these patterns do seem to be important at
+                  // coaxing some features to activate.
+                  if (iters > (SAMPLES_PER_THREAD * 2)) {
+                    printf("Exited checkerboard early.");
+                    return m;
+                  }
+                }
+              }
+            }
+          }
+          
+        } else {
+          // General case is uniformly random.
+          for (int i = 0; i < SAMPLES_PER_THREAD; i++) {
+            Stimulation r(net);
+            for (float &v : r.values[0])
+              v = RandDouble(rc);
 
-	    // (no reason to accumulate the input layer)
-	    
-	    for (int src_layer = 0; src_layer < r.values.size() - 1; src_layer++) {
-	      net.RunForwardLayer(&r, src_layer);
-	      AccumulateLayer(r, &m, src_layer + 1);
+            // (no reason to accumulate the input layer)
+            
+            for (int src_layer = 0; src_layer < r.values.size() - 1; src_layer++) {
+              net.RunForwardLayer(&r, src_layer);
+              AccumulateLayer(r, &m, src_layer + 1);
 
-	      // If rerandomization is on, just replace the destination layer with
-	      // random noise.
-	      if (RERANDOMIZE && rc->Byte() < 64) {
-		for (float &v : r.values[src_layer + 1]) {
-		  // Here, activation ranges from -1 to 1?
-		  v = (RandDouble(rc) * 2.0) - 1.0;
-		}
-	      }
-	    }
-				  
-	    Acc(&r);
-	  }
-	}
-	return m;
+              // If rerandomization is on, just replace the destination layer with
+              // random noise.
+              if (RERANDOMIZE && rc->Byte() < 64) {
+                for (float &v : r.values[src_layer + 1]) {
+                  // Here, activation ranges from -1 to 1?
+                  v = (RandDouble(rc) * 2.0) - 1.0;
+                }
+              }
+            }
+                                  
+            Acc(&r);
+          }
+        }
+        return m;
       }, THREADS);
 
   for (ArcFour *rc : rcs) delete rc;
@@ -181,10 +181,10 @@ static Stimulation RandomlyStimulate(ArcFour *rc, const Network &net) {
 // deleted.
 static std::unordered_map<int, int>
 CullLayer(ArcFour *rc,
-	  Network *net,
-	  int layer_idx,
-	  const vector<float> &max_activation,
-	  const std::unordered_set<int> &unreferenced_nodes) {
+          Network *net,
+          int layer_idx,
+          const vector<float> &max_activation,
+          const std::unordered_set<int> &unreferenced_nodes) {
 
   EZLayer ez(*net, layer_idx);
   CHECK(max_activation.size() == ez.nodes.size());
@@ -196,15 +196,15 @@ CullLayer(ArcFour *rc,
     out.reserve(ez.nodes.size());
     for (int i = 0; i < ez.nodes.size(); i++) {
       if (CULL_WEAK_NODES && max_activation[i] < THRESHOLD) {
-	// Discarded because it doesn't reach the activation threshold.
-	removed_weak++;
+        // Discarded because it doesn't reach the activation threshold.
+        removed_weak++;
       } else if (CULL_UNREFERENCED_NODES &&
-		 unreferenced_nodes.find(i) != unreferenced_nodes.end()) {
-	removed_unreferenced++;
+                 unreferenced_nodes.find(i) != unreferenced_nodes.end()) {
+        removed_unreferenced++;
       } else {
-	// Keep.
-	remapping[i] = out.size();
-	out.push_back(ez.nodes[i]);
+        // Keep.
+        remapping[i] = out.size();
+        out.push_back(ez.nodes[i]);
       }
     }
     ez.nodes = std::move(out);
@@ -212,7 +212,7 @@ CullLayer(ArcFour *rc,
 
   ez.MakeWidthHeight();
   printf("Removed %d weak and %d unreferenced nodes. New size %dx%d = %d.\n",
-	 removed_weak, removed_unreferenced, ez.width, ez.height, ez.nodes.size());
+         removed_weak, removed_unreferenced, ez.width, ez.height, ez.nodes.size());
 
   ez.Repack(net, layer_idx);
   
@@ -220,7 +220,7 @@ CullLayer(ArcFour *rc,
 }
 
 static void FixupLayer(ArcFour *rc, Network *net, int layer_idx,
-		       const std::unordered_map<int, int> &remapping) {
+                       const std::unordered_map<int, int> &remapping) {
   EZLayer ez(*net, layer_idx);
 
   // Random permutation of valid indices in the previous layer, which
@@ -238,14 +238,14 @@ static void FixupLayer(ArcFour *rc, Network *net, int layer_idx,
     int deleted = 0;
     for (const EZLayer::OneIndex &oi : node.inputs)
       if (remapping.find(oi.index) == remapping.end())
-	deleted++;
+        deleted++;
     min_deleted = std::min(min_deleted, deleted);
   }
 
   ez.ipn -= min_deleted;
   
   printf("We deleted at least %d input(s) from every node. ipn now %d\n",
-	 min_deleted, ez.ipn);
+         min_deleted, ez.ipn);
 
   // Now remap, and add new indices wherever we're less than ipn.
   for (EZLayer::Node &node : ez.nodes) {
@@ -254,13 +254,13 @@ static void FixupLayer(ArcFour *rc, Network *net, int layer_idx,
     for (const EZLayer::OneIndex &oi : node.inputs) {
       auto it = remapping.find(oi.index);
       if (it == remapping.end()) {
-	// Deleted. Skip.
+        // Deleted. Skip.
       } else {
-	EZLayer::OneIndex noi;
-	noi.index = it->second;
-	noi.weight = oi.weight;
-	new_inputs.push_back(noi);
-	used.insert(noi.index);
+        EZLayer::OneIndex noi;
+        noi.index = it->second;
+        noi.weight = oi.weight;
+        new_inputs.push_back(noi);
+        used.insert(noi.index);
       }
     }
 
@@ -268,14 +268,14 @@ static void FixupLayer(ArcFour *rc, Network *net, int layer_idx,
     int ai = 0;
     while (new_inputs.size() < ez.ipn) {
       CHECK(ai < available.size()) << "Ran out of available indices? "
-	"I think this should not be possible because we already reduced "
-	"ipn to account for deleted nodes.";
+        "I think this should not be possible because we already reduced "
+        "ipn to account for deleted nodes.";
       if (used.find(available[ai]) == used.end()) {
-	EZLayer::OneIndex noi;
-	noi.index = available[ai];
-	noi.weight = 0.0f;
-	new_inputs.push_back(noi);
-	used.insert(noi.index);
+        EZLayer::OneIndex noi;
+        noi.index = available[ai];
+        noi.weight = 0.0f;
+        new_inputs.push_back(noi);
+        used.insert(noi.index);
       }
       ai++;
     }
@@ -326,10 +326,10 @@ static uint8 FloatByte(float f) {
 // well-formed network as input, and leaves it in a well-formed state
 // (but indices may be shuffled around, etc.).
 static void CullNetworkAt(ArcFour *rc, Network *net,
-			  // If present, writes an image of the random
-			  // stimulation's result as a PNG file.
-			  const std::optional<string> &stimulation_filename,
-			  int cull_layer) {
+                          // If present, writes an image of the random
+                          // stimulation's result as a PNG file.
+                          const std::optional<string> &stimulation_filename,
+                          int cull_layer) {
   net->StructuralCheck();
 
   CHECK(cull_layer < net->layers.size()) << "cull_layer out of bounds?";
@@ -348,20 +348,20 @@ static void CullNetworkAt(ArcFour *rc, Network *net,
   // in simple tests.
   
   fprintf(stderr, "[Cull layer %d] Randomly stimulated in %.2fs\n",
-	  cull_layer,
-	  stimulate_timer.MS() / 1000.0);
+          cull_layer,
+          stimulate_timer.MS() / 1000.0);
 
   // Write image of max stimulation values.
   if (stimulation_filename.has_value()) {
     constexpr int MARGIN = 4;
     int mw = 0, th = 0;
     for (int layer_idx = 0;
-	 layer_idx < max_stim.values.size();
-	 layer_idx++) {
+         layer_idx < max_stim.values.size();
+         layer_idx++) {
       CHECK(layer_idx < net->width.size());
       CHECK(net->channels[layer_idx] == 1) << "This process does not "
-	"support channels != 1. Should preprocess the network to multiply "
-	"width by channels so we can set channels == 1.";
+        "support channels != 1. Should preprocess the network to multiply "
+        "width by channels so we can set channels == 1.";
       mw = std::max(mw, net->width[layer_idx]);
       th += net->height[layer_idx];
     }
@@ -372,16 +372,16 @@ static void CullNetworkAt(ArcFour *rc, Network *net,
     img.Clear32(0x00007FFF);
     int starty = 0;
     for (int layer_idx = 0;
-	 layer_idx < max_stim.values.size();
-	 layer_idx++) {
+         layer_idx < max_stim.values.size();
+         layer_idx++) {
       int w = net->width[layer_idx];
       int h = net->height[layer_idx];
       for (int y = 0; y < h; y++) {
-	for (int x = 0; x < w; x++) {
-	  float f = max_stim.values[layer_idx][y * w + x];
-	  uint8 v = FloatByte(f);
-	  img.SetPixel(x, starty + y, v, v, v, 0xFF);
-	}
+        for (int x = 0; x < w; x++) {
+          float f = max_stim.values[layer_idx][y * w + x];
+          uint8 v = FloatByte(f);
+          img.SetPixel(x, starty + y, v, v, v, 0xFF);
+        }
       }
       starty += h + MARGIN;
     }
@@ -392,12 +392,12 @@ static void CullNetworkAt(ArcFour *rc, Network *net,
   const std::unordered_set<int> unreferenced = GetUnreferenced(*net, cull_layer);
   if (!unreferenced.empty())
     printf("[Cull layer %d] There are %d unreferenced nodes\n", cull_layer,
-	   unreferenced.size());
+           unreferenced.size());
   
   // If missing from the remapping, it is deleted.
   const std::unordered_map<int, int> remapping =
     CullLayer(rc, net, cull_layer, max_stim.values[cull_layer + 1],
-	      unreferenced);
+              unreferenced);
   if (cull_layer + 1 < net->layers.size())
     FixupLayer(rc, net, cull_layer + 1, remapping);
   
@@ -422,13 +422,13 @@ int main(int argc, char **argv) {
   Timer model_timer;
   std::unique_ptr<Network> net{Network::ReadNetworkBinary(argv[1])};
   fprintf(stderr, "Loaded model in %.2fs\n",
-	  model_timer.MS() / 1000.0);
+          model_timer.MS() / 1000.0);
   fflush(stderr);
 
   ArcFour rc(StringPrintf("%lld,%lld,%lld",
-			  (int64)time(nullptr),
-			  net->rounds,
-			  net->Bytes()));
+                          (int64)time(nullptr),
+                          net->rounds,
+                          net->Bytes()));
   
   bool first = true;
   for (int cull_layer : CULL_LAYERS) {
@@ -438,7 +438,7 @@ int main(int argc, char **argv) {
     if (first) stimfile = {"random-stimulation.png"};
     CullNetworkAt(&rc, net.get(), stimfile, cull_layer);
     fprintf(stderr, "[Cull layer %d] Culled model in %.2fs\n",
-	    cull_layer, cull_timer.MS() / 1000.0);
+            cull_layer, cull_timer.MS() / 1000.0);
     fflush(stderr);
     first = false;
   }

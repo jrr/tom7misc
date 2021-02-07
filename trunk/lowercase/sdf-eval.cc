@@ -26,10 +26,10 @@ int main(int argc, char **argv) {
 
   printf("Render image...\n");  
   FontProblem::RenderSDF("helvetica.ttf",
-			 *make_lowercase,
-			 *make_uppercase,
-			 SDF_CONFIG,
-			 "evaloneoff");
+                         *make_lowercase,
+                         *make_uppercase,
+                         SDF_CONFIG,
+                         "evaloneoff");
 
 
   printf("Done.\n");

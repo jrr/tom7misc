@@ -35,25 +35,25 @@ int main(int argc, char **argv) {
       int c = letters[idx];
       
       std::vector<TTF::Contour> contours =
-	// XXX just to ensure that expectations are met
-	TTF::NormalizeOrder(
-	    ttf->GetContours(c),
-	    0.0f, 0.0f);
+        // XXX just to ensure that expectations are met
+        TTF::NormalizeOrder(
+            ttf->GetContours(c),
+            0.0f, 0.0f);
       mc = std::max(mc, (int)contours.size());
       std::vector<int> path_lengths;
       for (const TTF::Contour &c : contours) {
-	path_lengths.push_back(c.paths.size());
+        path_lengths.push_back(c.paths.size());
       }
 
       std::sort(path_lengths.begin(), path_lengths.end(),
-		[](int a, int b) { return b < a; });
+                [](int a, int b) { return b < a; });
 
       if (path_lengths.size() > 0)
-	mp0 = std::max(mp0, path_lengths[0]);
+        mp0 = std::max(mp0, path_lengths[0]);
       if (path_lengths.size() > 1)
-	mp1 = std::max(mp1, path_lengths[1]);
+        mp1 = std::max(mp1, path_lengths[1]);
       if (path_lengths.size() > 2)
-	mp2 = std::max(mp2, path_lengths[2]);
+        mp2 = std::max(mp2, path_lengths[2]);
 
     }
 

@@ -38,13 +38,13 @@ int main(int argc, char **argv) {
 
   int width2, height2, x2, y2;
   uint8 *bit2 = stbtt_GetCodepointBitmapSubpixel(info,
-						 0.4972374737262726,
-						 0.4986416995525360,
-						 0.2391788959503174,
-						 0.1752119064331055,
-						 'd',
-						 &width2, &height2,
-						 &x2, &y2);
+                                                 0.4972374737262726,
+                                                 0.4986416995525360,
+                                                 0.2391788959503174,
+                                                 0.1752119064331055,
+                                                 'd',
+                                                 &width2, &height2,
+                                                 &x2, &y2);
   
   stbtt_FreeBitmap(bit2, nullptr);
 

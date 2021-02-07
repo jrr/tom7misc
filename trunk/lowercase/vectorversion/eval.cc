@@ -32,9 +32,9 @@ int main(int argc, char **argv) {
 
 
   FontProblem::RenderVector("helvetica.ttf",
-			    *net,
-			    row_max_points,
-			    "eval.png");
+                            *net,
+                            row_max_points,
+                            "eval.png");
 
 
   printf("Done.\n");
