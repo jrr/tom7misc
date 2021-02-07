@@ -49,7 +49,7 @@ static void TestMap() {
 
     for (int i = 0; i < 10; i++) {
       CheckSameVec(UnParallelMap(v, Square, i),
-		   ParallelMap(v, Square, i));
+                   ParallelMap(v, Square, i));
     }
   }
     
@@ -72,7 +72,7 @@ static void TestMapi() {
   
   for (int th = 1; th < 100; th++) {
     vector<char> cs = ParallelMapi(ecs, [](int i, char c) {
-	return (char)((c ^ 0x5f) - i);
+        return (char)((c ^ 0x5f) - i);
       }, th);
     for (char c : cs) CHECK(c == 0);
   }

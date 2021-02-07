@@ -194,9 +194,9 @@ STBIWDEF void stbi_flip_vertically_on_write(int flip_boolean);
 
 // Simpler interface for common case, with rgba pixels.
 extern int stbi_write_png_rgba(const char *filename,
-			       int w, int h, const uint8_t *rgba);
+                               int w, int h, const uint8_t *rgba);
 // Same but generate the file in-memory.
 extern std::vector<uint8_t> stbi_make_png_rgba(int w, int h,
-					       const uint8_t *rgba);
+                                               const uint8_t *rgba);
 
 #endif // INCLUDE_STB_IMAGE_WRITE_H

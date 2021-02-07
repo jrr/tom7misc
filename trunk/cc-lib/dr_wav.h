@@ -157,12 +157,12 @@ enum drwav_container {
 
 // Callback for when data is read. Return value is the number of bytes actually read.
 typedef size_t (* drwav_read_proc)(void* pUserData,
-				   void* pBufferOut, size_t bytesToRead);
+                                   void* pBufferOut, size_t bytesToRead);
 
 // Callback for when data needs to be seeked. Return value is true on
 // success; false on failure.
 typedef dr_bool32 (* drwav_seek_proc)(void* pUserData, int offset,
-				      drwav_seek_origin origin);
+                                      drwav_seek_origin origin);
 
 // Structure for internal use. Only used for loaders opened with drwav_open_memory.
 struct drwav__memory_stream {
@@ -267,7 +267,7 @@ struct drwav {
 //
 // Returns true if successful; false otherwise.
 dr_bool32 drwav_init(drwav* pWav, drwav_read_proc onRead,
-		     drwav_seek_proc onSeek, void* pUserData);
+                     drwav_seek_proc onSeek, void* pUserData);
 
 // Uninitializes the given drwav object. Use this only for objects
 // initialized with drwav_init().
@@ -281,7 +281,7 @@ void drwav_uninit(drwav* pWav);
 // This is different from drwav_init() in that it will allocate the
 // drwav object for you via malloc() before initializing it.
 drwav* drwav_open(drwav_read_proc onRead, drwav_seek_proc onSeek,
-		  void* pUserData);
+                  void* pUserData);
 
 // Uninitializes and deletes the the given drwav object. Use this only
 // for objects created with drwav_open().
@@ -328,7 +328,7 @@ dr_bool32 drwav_seek_to_sample(drwav* pWav, dr_uint64 sample);
 // If the return value is less than <samplesToRead> it means the end
 // of the file has been reached.
 dr_uint64 drwav_read_s16(drwav* pWav, dr_uint64 samplesToRead,
-			 dr_int16* pBufferOut);
+                         dr_int16* pBufferOut);
 
 
 // Reads a chunk of audio data and converts it to IEEE 32-bit floating
@@ -339,7 +339,7 @@ dr_uint64 drwav_read_s16(drwav* pWav, dr_uint64 samplesToRead,
 // If the return value is less than <samplesToRead> it means the end
 // of the file has been reached.
 dr_uint64 drwav_read_f32(drwav* pWav, dr_uint64 samplesToRead,
-			 float* pBufferOut);
+                         float* pBufferOut);
 
 // Low-level function for converting unsigned 8-bit PCM samples to
 // IEEE 32-bit floating point samples.
@@ -377,7 +377,7 @@ void drwav_ulaw_to_f32(float* pOut, const dr_uint8* pIn, size_t sampleCount);
 // If the return value is less than <samplesToRead> it means the end
 // of the file has been reached.
 dr_uint64 drwav_read_s32(drwav* pWav, dr_uint64 samplesToRead,
-			 dr_int32* pBufferOut);
+                         dr_int32* pBufferOut);
 
 // Low-level function for converting unsigned 8-bit PCM samples to
 // signed 32-bit PCM samples.
@@ -486,17 +486,17 @@ dr_int32* drwav_open_and_read_file_s32(
 
 // Opens an decodes a wav file from a block of memory in a single operation.
 dr_int16* drwav_open_and_read_memory_s16(const void* data, size_t dataSize,
-					 unsigned int* channels,
-					 unsigned int* sampleRate,
-					 dr_uint64* totalSampleCount);
+                                         unsigned int* channels,
+                                         unsigned int* sampleRate,
+                                         dr_uint64* totalSampleCount);
 float* drwav_open_and_read_memory_f32(const void* data, size_t dataSize,
-				      unsigned int* channels,
-				      unsigned int* sampleRate,
-				      dr_uint64* totalSampleCount);
+                                      unsigned int* channels,
+                                      unsigned int* sampleRate,
+                                      dr_uint64* totalSampleCount);
 dr_int32* drwav_open_and_read_memory_s32(const void* data, size_t dataSize,
-					 unsigned int* channels,
-					 unsigned int* sampleRate,
-					 dr_uint64* totalSampleCount);
+                                         unsigned int* channels,
+                                         unsigned int* sampleRate,
+                                         dr_uint64* totalSampleCount);
 #endif
 
 // Frees data that was allocated internally by dr_wav.

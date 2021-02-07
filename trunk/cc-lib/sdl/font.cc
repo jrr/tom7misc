@@ -30,11 +30,11 @@ struct AttrList {
     while (cs && !(gotc && gota)) {
       switch(cs->what) {
       case COLOR: 
-	if (!gotc) { c = cs->value; gotc = true; }
-	break;
+        if (!gotc) { c = cs->value; gotc = true; }
+        break;
       case ALPHA: 
-	if (!gota) { a = cs->value; gota = true; }
-	break;
+        if (!gota) { a = cs->value; gota = true; }
+        break;
       }
       cs = cs -> next;
     }      
@@ -82,7 +82,7 @@ struct FontReal final : public Font {
   virtual ~FontReal() {
     if (data) {
       for (int i = 0; i < ndim; i++) {
-	if (data[i]) SDL_FreeSurface(data[i]);
+        if (data[i]) SDL_FreeSurface(data[i]);
       }
       free(data);
     }
@@ -92,13 +92,13 @@ struct FontReal final : public Font {
 Font::~Font() {}
 
 Font *Font::create_from_surface(SDL_Surface *screen,
-				SDL_Surface *font_surface,
-				const string &charmap,
-				int width,
-				int height,
-				int styles,
-				int overlap,
-				int ndim) {
+                                SDL_Surface *font_surface,
+                                const string &charmap,
+                                int width,
+                                int height,
+                                int styles,
+                                int overlap,
+                                int ndim) {
   std::unique_ptr<FontReal> f{new FontReal};
   f->screen = screen;
   f->width = width;
@@ -136,36 +136,36 @@ Font *Font::create_from_surface(SDL_Surface *screen,
 }
 
 Font *Font::create(SDL_Surface *screen,
-		   const string &file,
-		   const string &charmap,
-		   int width,
-		   int height,
-		   int styles,
-		   int overlap,
-		   int ndim) {
+                   const string &file,
+                   const string &charmap,
+                   int width,
+                   int height,
+                   int styles,
+                   int overlap,
+                   int ndim) {
   SDL_Surface *fon = sdlutil::LoadImage(file);
   if (fon == nullptr) return nullptr;
   return Font::create_from_surface(screen, fon, charmap, 
-				   width, height, styles, overlap, ndim);
+                                   width, height, styles, overlap, ndim);
 }
 
 Font *Font::CreateX(int px,
-		    SDL_Surface *screen,
-		    const string &file,
-		    const string &charmap,
-		    int width,
-		    int height,
-		    int styles,
-		    int overlap,
-		    int ndim) {
+                    SDL_Surface *screen,
+                    const string &file,
+                    const string &charmap,
+                    int width,
+                    int height,
+                    int styles,
+                    int overlap,
+                    int ndim) {
   SDL_Surface *fon_orig = sdlutil::LoadImage(file);
   if (fon_orig == nullptr) return nullptr;
   SDL_Surface *fonx = sdlutil::GrowX(fon_orig, px);
   SDL_FreeSurface(fon_orig);
   if (fonx == nullptr) return nullptr;
   return Font::create_from_surface(screen, fonx, charmap,
-				   width * px, height * px, styles, overlap * px, ndim);
-}			    
+                                   width * px, height * px, styles, overlap * px, ndim);
+}                           
 
 void FontReal::draw(int x, int y, const string &s) {
   drawto(screen, x, y, s);
@@ -214,32 +214,32 @@ void FontReal::drawto(SDL_Surface *surf, int x, int y, const string &s) {
 
     if ((unsigned char)s[i] == '^') {
       if (i < s.length()) {
-	i++;
-	switch((unsigned char)s[i]) {
-	case '^': break; /* quoted... keep going */
-	case '<': /* pop */
-	  if (cstack) AttrList::pop(cstack);
-	  AttrList::set(cstack, color, alpha);
-	  continue;
-	default:
-	  if (s[i] >= '#' && s[i] <= '\'') {
-	    /* alpha */
-	    cstack =
-	      new AttrList(ALPHA,
-			   abs((unsigned char)s[i] - '#') % ndim,
-			   cstack);
-	  } else {
-	    /* color */
-	    cstack = 
-	      new AttrList(COLOR,
-			   abs(((unsigned char)s[i] - '0')
-			       % styles),
-			   cstack);
-	  }
+        i++;
+        switch((unsigned char)s[i]) {
+        case '^': break; /* quoted... keep going */
+        case '<': /* pop */
+          if (cstack) AttrList::pop(cstack);
+          AttrList::set(cstack, color, alpha);
+          continue;
+        default:
+          if (s[i] >= '#' && s[i] <= '\'') {
+            /* alpha */
+            cstack =
+              new AttrList(ALPHA,
+                           abs((unsigned char)s[i] - '#') % ndim,
+                           cstack);
+          } else {
+            /* color */
+            cstack = 
+              new AttrList(COLOR,
+                           abs(((unsigned char)s[i] - '0')
+                               % styles),
+                           cstack);
+          }
 
-	  AttrList::set(cstack, color, alpha);
-	  continue;
-	}
+          AttrList::set(cstack, color, alpha);
+          continue;
+        }
       }
     }
 
@@ -288,14 +288,14 @@ int FontReal::drawlinesc(int x, int y, const string &s, bool center) {
     /* reached end of string? */
     if (idx >= s.length()) {
       if (wroteany) {
-	int xx;
-	string sub = s.substr(start, idx - start);
-	if (center) {
-	  xx = x - (sizex(sub) >> 1);
-	} else xx = x;
+        int xx;
+        string sub = s.substr(start, idx - start);
+        if (center) {
+          xx = x - (sizex(sub) >> 1);
+        } else xx = x;
 
-	draw(xx, y + offset, sub);
-	return offset + height;
+        draw(xx, y + offset, sub);
+        return offset + height;
       } else return offset;
     }
      
@@ -303,7 +303,7 @@ int FontReal::drawlinesc(int x, int y, const string &s, bool center) {
       int xx;
       string sub = s.substr(start, idx - start);
       if (center) {
-	xx = x - (sizex(sub) >> 1);
+        xx = x - (sizex(sub) >> 1);
       } else xx = x;
       draw(xx, y + offset, sub);
       offset += height;
@@ -335,17 +335,17 @@ int Font::lines(const string &s) {
     switch (m) {
     case M_FINDANY:
       if (s[idx] == '\n') {
-	sofar++;
-	continue;
+        sofar++;
+        continue;
       } else {
-	sofar++;
-	m = M_STEADY;
-	continue;
+        sofar++;
+        m = M_STEADY;
+        continue;
       }
     case M_STEADY:
       if (s[idx] == '\n') {
-	m = M_FINDANY;
-	continue;
+        m = M_FINDANY;
+        continue;
       }
     }
   }
@@ -361,8 +361,8 @@ string Font::substr(const string &s, unsigned int start, unsigned int len) {
 
     if ((unsigned char)s[i] == '^') {
       if (i < s.length()) {
-	i++;
-	if ((unsigned char)s[i] == '^') j++;
+        i++;
+        if ((unsigned char)s[i] == '^') j++;
       } else j++; /* ??? */
     } else j++;
 
@@ -379,8 +379,8 @@ string Font::substr(const string &s, unsigned int start, unsigned int len) {
 
     if ((unsigned char)s[i] == '^') {
       if (i < s.length()) {
-	i++;
-	if ((unsigned char)s[i] == '^') j++;
+        i++;
+        if ((unsigned char)s[i] == '^') j++;
       } else k++; /* ??? */
     } else k++;
 
@@ -404,8 +404,8 @@ unsigned int Font::length(const string &s) {
   for (i = 0; i < s.length(); i++) {
     if ((unsigned char)s[i] == '^') {
       if (i < s.length()) {
-	i++;
-	if ((unsigned char)s[i] == '^') n++;
+        i++;
+        if ((unsigned char)s[i] == '^') n++;
       } else n++; /* ??? */
     } else n++;
   }

@@ -46,7 +46,7 @@ struct Util {
   // (Nothing special is done for newlines already in the input.)
   // Returns true upon success.
   static bool WriteLinesToFile(const string &f,
-			       const std::vector<string> &lines);
+                               const std::vector<string> &lines);
   
   static std::vector<string> SplitToLines(const string &s);
 
@@ -61,12 +61,12 @@ struct Util {
 
   static std::vector<uint8_t> ReadFileBytes(const string &f);
   static bool WriteFileBytes(const string &f,
-			     const std::vector<uint8_t> &b);
+                             const std::vector<uint8_t> &b);
 
   // Read/write a vector of uint64s in big-endian byte order.
   static std::vector<uint64_t> ReadUint64File(const string &filename);
   static bool WriteUint64File(const string &filename,
-			      const std::vector<uint64_t> &contents);
+                              const std::vector<uint64_t> &contents);
   
   static std::vector<string> ListFiles(const string &dir);
 
@@ -75,7 +75,7 @@ struct Util {
   // Join({"z"}, ".") = "z"
   // Join({}, ".") = ""
   static string Join(const std::vector<std::string> &pieces,
-		     const std::string &sep);
+                     const std::string &sep);
 
   // Split the string on the given character. The output
   // always contains at least one element; split("", "x")
@@ -149,7 +149,7 @@ struct Util {
   static string chop(string &line);
 
   static double ParseDouble(const string &s,
-			    double default_value = 0.0);
+                            double default_value = 0.0);
 
   /* number of entries (not . or ..) in dir d */
   static int dirsize(string d);
@@ -231,7 +231,7 @@ struct Util {
 
   /* replace all occurrences of 'findme' with 'replacewith' in 'src' */
   static string Replace(string src, const string &findme,
-			const string &replacewith);
+                        const string &replacewith);
   
   /* called minimum, maximum because some includes
      define these with macros, ugh */

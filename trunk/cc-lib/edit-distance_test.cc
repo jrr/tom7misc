@@ -11,17 +11,17 @@ using namespace std;
 template<class F>
 static void TestDistance(F Distance) {
   CHECK_EQ(0,
-	   Distance("if on a winter's night a traveler",
-		    "if on a winter's night a traveler"));
+           Distance("if on a winter's night a traveler",
+                    "if on a winter's night a traveler"));
   CHECK_EQ(1,
-	   Distance("if on a wintxr's night a traveler",
-		    "if on a winter's night a traveler"));
+           Distance("if on a wintxr's night a traveler",
+                    "if on a winter's night a traveler"));
   CHECK_EQ(2,
-	   Distance("f on a wintxr's night a traveler",
-		    "if on a winter's night a traveler"));
+           Distance("f on a wintxr's night a traveler",
+                    "if on a winter's night a traveler"));
   CHECK_EQ(2,
-	   Distance("iff on a winter's night a traveler",
-		    "if on a winter's night a travele"));
+           Distance("iff on a winter's night a traveler",
+                    "if on a winter's night a travele"));
   CHECK_EQ(4, Distance("zzzz", "yyyy"));
   CHECK_EQ(3, Distance("kitten", "sitting"));
   CHECK_EQ(3, Distance("sitting", "kitten"));
@@ -33,17 +33,17 @@ static void TestThreshold() {
   CHECK_EQ(1, EditDistance::Ukkonen("zzzz", "yyyy", 1));  
 
   CHECK_EQ(2,
-	   EditDistance::Ukkonen("iff on a winter's night a ta traveler",
-				 "if on a winter's night a travele",
-				 2));
+           EditDistance::Ukkonen("iff on a winter's night a ta traveler",
+                                 "if on a winter's night a travele",
+                                 2));
   CHECK_EQ(2,
-	   EditDistance::Ukkonen("iff on a winter's night a traveler",
-				 "if on a winter's night a travele",
-				 2));
+           EditDistance::Ukkonen("iff on a winter's night a traveler",
+                                 "if on a winter's night a travele",
+                                 2));
   CHECK_EQ(1,
-	   EditDistance::Ukkonen("iff on a winter's night a traveler",
-				 "if on a winter's night a travele",
-				 1));
+           EditDistance::Ukkonen("iff on a winter's night a traveler",
+                                 "if on a winter's night a travele",
+                                 1));
 
 }
 

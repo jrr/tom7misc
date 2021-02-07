@@ -85,10 +85,10 @@ void WriteWithLock(std::shared_mutex *m, T *t, const T &val) {
 // It has exclusive access to res. Typical would be to += into it.
 template<class Res, class Add, class F>
 Res ParallelAccumulate(int64_t num,
-		       Res zero,
-		       const Add &add,
-		       const F &f,
-		       int max_concurrency) {
+                       Res zero,
+                       const Add &add,
+                       const F &f,
+                       int max_concurrency) {
   if (max_concurrency > num) max_concurrency = num;
   // Need at least one thread for correctness.
   int num_threads = std::max(max_concurrency, 1);
@@ -102,7 +102,7 @@ Res ParallelAccumulate(int64_t num,
   std::vector<Res> accs(num_threads, zero);
   
   auto th = [&accs,
-	     &index_m, &next_index, num, &f](int thread_num) {
+             &index_m, &next_index, num, &f](int thread_num) {
     // PERF consider creating the accumulator in the thread as
     // a local, for numa etc.?
     int my_idx = thread_num;
@@ -114,10 +114,10 @@ Res ParallelAccumulate(int64_t num,
       // Get next index, if any.
       index_m.lock();
       if (next_index == num) {
-	// All done. Don't increment counter so that other threads can
-	// notice this too.
-	index_m.unlock();
-	return;
+        // All done. Don't increment counter so that other threads can
+        // notice this too.
+        index_m.unlock();
+        return;
       }
       my_idx = next_index++;
       index_m.unlock();
@@ -151,8 +151,8 @@ Res ParallelAccumulate(int64_t num,
 // doesn't return anything?)
 template<class F>
 void ParallelComp(int64_t num,
-		  const F &f,
-		  int max_concurrency) {
+                  const F &f,
+                  int max_concurrency) {
   max_concurrency = std::min(num, (int64_t)max_concurrency);
   // Need at least one thread for correctness.
   max_concurrency = std::max(max_concurrency, 1);
@@ -166,10 +166,10 @@ void ParallelComp(int64_t num,
     for (;;) {
       index_m.lock();
       if (next_index == num) {
-	// All done. Don't increment counter so that other threads can
-	// notice this too.
-	index_m.unlock();
-	return;
+        // All done. Don't increment counter so that other threads can
+        // notice this too.
+        index_m.unlock();
+        return;
       }
       int64_t my_index = next_index++;
       index_m.unlock();
@@ -200,8 +200,8 @@ void UnParallelComp(int64_t num, const F &f, int max_concurrency_ignored) {
 // function is ignored.
 template<class T, class F>
 void ParallelAppi(const std::vector<T> &vec, 
-		  const F &f,
-		  int max_concurrency) {
+                  const F &f,
+                  int max_concurrency) {
 
   auto ff = [&vec, &f](int64_t idx) {
       (void)f(idx, vec[idx]);
@@ -212,8 +212,8 @@ void ParallelAppi(const std::vector<T> &vec,
 // Same, but the typical case that the index is not needed.
 template<class T, class F>
 void ParallelApp(const std::vector<T> &vec, 
-		 const F &f,
-		 int max_concurrency) {
+                 const F &f,
+                 int max_concurrency) {
   auto ff = [&f](int64_t i_unused, const T &arg) { return f(arg); };
   ParallelAppi(vec, ff, max_concurrency);
 }
@@ -221,8 +221,8 @@ void ParallelApp(const std::vector<T> &vec,
 // Drop-in serial replacement for debugging, etc.
 template<class T, class F>
 void UnParallelApp(const std::vector<T> &vec, 
-		   const F &f,
-		   int max_concurrency) {
+                   const F &f,
+                   int max_concurrency) {
   for (const auto &t : vec) f(t);
 }
 
@@ -233,8 +233,8 @@ void UnParallelApp(const std::vector<T> &vec,
 // only be efficient if it has move semantics as well.
 template<class T, class F>
 auto ParallelMapi(const std::vector<T> &vec,
-		  const F &f,
-		  int max_concurrency) ->
+                  const F &f,
+                  int max_concurrency) ->
   std::vector<decltype(f((int64_t)0, vec.front()))> {
   using R = decltype(f((int64_t)0, vec.front()));
   std::vector<R> result;
@@ -245,8 +245,8 @@ auto ParallelMapi(const std::vector<T> &vec,
   // confident of having one writer to each slot.
   R *data = result.data();
   auto run_write = [data, &f](int64_t idx, const T &arg) {
-		     data[idx] = f(idx, arg);
-		   };
+                     data[idx] = f(idx, arg);
+                   };
   ParallelAppi(vec, run_write, max_concurrency);
   return result;
 }
@@ -257,8 +257,8 @@ auto ParallelMapi(const std::vector<T> &vec,
 // only be efficient if it has move semantics as well.
 template<class T, class F>
 auto ParallelMap(const std::vector<T> &vec,
-		 const F &f,
-		 int max_concurrency) -> std::vector<decltype(f(vec.front()))> {
+                 const F &f,
+                 int max_concurrency) -> std::vector<decltype(f(vec.front()))> {
   auto ff = [&f](int64_t idx, const T &arg) { return f(arg); };
   return ParallelMapi(vec, ff, max_concurrency);
 }
@@ -266,7 +266,7 @@ auto ParallelMap(const std::vector<T> &vec,
 // Drop in replacement for testing, debugging, etc.
 template<class T, class F>
 auto UnParallelMap(const std::vector<T> &vec,
-		   const F &f, int max_concurrency_ignored) ->
+                   const F &f, int max_concurrency_ignored) ->
   std::vector<decltype(f(vec.front()))> {
   using R = decltype(f(vec.front()));
   std::vector<R> result;
@@ -292,32 +292,32 @@ struct ThreadJoiner {
 // in up to max_concurrency parallel threads.
 template<class F>
 void ParallelComp2D(int64_t num1, int64_t num2,
-		    const F &f,
-		    int max_concurrency) {
+                    const F &f,
+                    int max_concurrency) {
   const int64_t total_num = num1 * num2;
   ParallelComp(total_num,
-	       [&f, num2](int64_t x) {
-		 const int64_t x2 = x % num2;
-		 const int64_t x1 = x / num2;
-		 f(x1, x2);
-	       },
-	       max_concurrency);
+               [&f, num2](int64_t x) {
+                 const int64_t x2 = x % num2;
+                 const int64_t x1 = x / num2;
+                 f(x1, x2);
+               },
+               max_concurrency);
 }
 
 template<class F>
 void ParallelComp3D(int64_t num1, int64_t num2, int64_t num3,
-		    const F &f,
-		    int max_concurrency) {
+                    const F &f,
+                    int max_concurrency) {
   const int64_t total_num = num1 * num2 * num3;
   ParallelComp(total_num,
-	       [&f, num2, num3](int64_t x) {
-		 const int64_t x3 = x % num3;
-		 const int64_t xx = x / num3;
-		 const int64_t x2 = xx % num2;
-		 const int64_t x1 = xx / num2;
-		 f(x1, x2, x3);
-	       },
-	       max_concurrency);
+               [&f, num2, num3](int64_t x) {
+                 const int64_t x3 = x % num3;
+                 const int64_t xx = x / num3;
+                 const int64_t x2 = xx % num2;
+                 const int64_t x1 = xx / num2;
+                 f(x1, x2, x3);
+               },
+               max_concurrency);
 }
 
 // Run exactly num_threads copies of f, each getting its thread id.
@@ -345,7 +345,7 @@ void ParallelFan(int num_threads, const F &f) {
 // cleans up after itself.
 struct Asynchronously {
   explicit Asynchronously(int max_threads) : threads_active(0),
-					     max_threads(max_threads) {}
+                                             max_threads(max_threads) {}
 
   // Run the function asynchronously if we haven't exceeded the maximum
   // number of threads. Otherwise, run it in this thread and don't
@@ -356,10 +356,10 @@ struct Asynchronously {
       threads_active++;
       m.unlock();
       std::thread t{[this, f]() {
-	  f();
-	  MutexLock ml(&this->m);
-	  threads_active--;
-	}};
+          f();
+          MutexLock ml(&this->m);
+          threads_active--;
+        }};
       t.detach();
       
     } else {
@@ -374,7 +374,7 @@ struct Asynchronously {
     for (;;) {
       MutexLock ml(&m);
       if (threads_active == 0) {
-	return;
+        return;
       }
     }
   }

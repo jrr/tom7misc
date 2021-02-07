@@ -10,13 +10,13 @@
 using namespace std;
 
 string TextSVG::HeaderEx(double x, double y,
-			 double width, double height,
-			 const string &units,
-			 const string &generator) {
+                         double width, double height,
+                         const string &units,
+                         const string &generator) {
   string out;
   out += "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
   if (!generator.empty()) out += (string)"<!-- Generator: " +
-			    generator + (string)" -->\n";
+                            generator + (string)" -->\n";
 
   string xu = Rtos(x) + units;
   string yu = Rtos(y) + units;
@@ -24,12 +24,12 @@ string TextSVG::HeaderEx(double x, double y,
   string hu = Rtos(height) + units;
   
   out += "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" "
-	 "\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\" [\n"
-	 "<!ENTITY ns_flows \"http://ns.adobe.com/Flows/1.0/\">\n"
-	 "]>\n"
-	 "<svg version=\"1.1\"\n"
-	 " xmlns=\"http://www.w3.org/2000/svg\""
-	 " xmlns:xlink=\"http://www.w3.org/1999/xlink\""
+         "\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\" [\n"
+         "<!ENTITY ns_flows \"http://ns.adobe.com/Flows/1.0/\">\n"
+         "]>\n"
+         "<svg version=\"1.1\"\n"
+         " xmlns=\"http://www.w3.org/2000/svg\""
+         " xmlns:xlink=\"http://www.w3.org/1999/xlink\""
          " xmlns:a=\"http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/\"";
   out += " x=\"" + xu + "\" y=\"" + yu + "\"";
   out += " width=\"" + wu + "\" height=\"" + hu + "\"";
@@ -83,13 +83,13 @@ string TextSVG::Rtos(double d) {
     
     if (truncating) {
       if (e != nullptr) {
-	// Have a run of zeroes. Stop?
-	if (*f != '0')
-	  e = nullptr;
+        // Have a run of zeroes. Stop?
+        if (*f != '0')
+          e = nullptr;
       } else {
-	// No run. Start?
-	if (*f == '0')
-	  e = f;
+        // No run. Start?
+        if (*f == '0')
+          e = f;
       }
     }
   }
@@ -174,14 +174,14 @@ struct ColinearRemover {
   };
 
   static inline double SqDist(pair<double, double> pt1,
-			      pair<double, double> pt2) {
+                              pair<double, double> pt2) {
     double dx = pt2.first - pt1.first;
     double dy = pt2.second - pt1.second;
     return dx * dx + dy * dy;
   }
   
   void Push(pair<double, double> pt,
-	    vector<pair<double, double>> *out) {
+            vector<pair<double, double>> *out) {
     switch (state) {
     case EMPTY:
       // Always take a starting point.
@@ -191,10 +191,10 @@ struct ColinearRemover {
     case ONE_POINT: {
       const double sqdist = SqDist(a, pt);
       if (sqdist > max_error) {
-	b = pt;
-	state = LINE;
-	// PERF precompute some info about line here?
-	return;
+        b = pt;
+        state = LINE;
+        // PERF precompute some info about line here?
+        return;
       }
       return;
     }
@@ -204,21 +204,21 @@ struct ColinearRemover {
       const double x1 = a.first, y1 = a.second;
       const double x2 = b.first, y2 = b.second;
       const double numer =
-	abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1);
+        abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1);
       const double line_length = sqrt(SqDist(a, b));
       const double dist = numer / line_length;
       if (dist < max_error) {
-	// Drop the interior point.
-	// XXX: This is actually wrong if the third point is between
-	// the first two. Should test for this, and shift in this case.
-	b = pt;
-	return;
+        // Drop the interior point.
+        // XXX: This is actually wrong if the third point is between
+        // the first two. Should test for this, and shift in this case.
+        b = pt;
+        return;
       } else {
-	// Shift.
-	out->push_back(a);
-	a = b;
-	b = pt;
-	return;
+        // Shift.
+        out->push_back(a);
+        a = b;
+        b = pt;
+        return;
       }
     }
     }

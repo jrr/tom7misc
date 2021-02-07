@@ -9,10 +9,10 @@
 
 using namespace std;
 
-#define EXPECT_EQ(a, b) do {						\
-    auto aa = (a); auto bb = (b);					\
-    CHECK_EQ(aa, bb) << "\nValue of: " #a "\nWhich was: " << aa		\
-		     << "\nShould equal: " #b "\nWhich was: " << bb;	\
+#define EXPECT_EQ(a, b) do {                                            \
+    auto aa = (a); auto bb = (b);                                       \
+    CHECK_EQ(aa, bb) << "\nValue of: " #a "\nWhich was: " << aa         \
+                     << "\nShould equal: " #b "\nWhich was: " << bb;    \
   } while (0)
 
 int main(int argc, char **argv) {

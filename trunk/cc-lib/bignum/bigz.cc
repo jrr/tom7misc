@@ -84,7 +84,7 @@ static const int BigHexToDigit[] = {
 };
 
 #define CTOI(c) ((((unsigned int)c) < (unsigned int)127) \
-                 ? BigHexToDigit[(unsigned int)c]	 \
+                 ? BigHexToDigit[(unsigned int)c]        \
                  : -1)
 
 static BzSign   BzGetOppositeSign(const BigZ z);
@@ -2413,7 +2413,7 @@ BzModExp(const BigZ base, const BigZ exponent, const BigZ modulus) {
         int  neg;
 
         if ((result = BzFromInteger(1)) == BZNULL) {
-	  return BZNULL;
+          return BZNULL;
         }
 
         switch (BzGetSign(exponent)) {
@@ -2432,7 +2432,7 @@ BzModExp(const BigZ base, const BigZ exponent, const BigZ modulus) {
                         /*
                          * modulus < 0 => modulus + 1
                          */
-			BigZ tmp = BzAdd(modulus, result);
+                        BigZ tmp = BzAdd(modulus, result);
                         BzFree(result);
                         return (tmp);
                 } else  {

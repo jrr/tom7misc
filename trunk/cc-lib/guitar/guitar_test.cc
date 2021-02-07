@@ -20,11 +20,11 @@ static void TestParse() {
   CHECK(!Guitar::Parse("").has_value());
   CHECK(Guitar::Parse("C").has_value());
   CHECK_EQ(Guitar::Parse("Cmajor"),
-	   Guitar::Parse("Cmaj"));
+           Guitar::Parse("Cmaj"));
   CHECK(Guitar::Parse("Cmajor") !=
-	Guitar::Parse("Cmaj5"));
+        Guitar::Parse("Cmaj5"));
   CHECK_EQ(Guitar::Parse("Gb9#11"),
-	   Guitar::Parse("F#9#11"));
+           Guitar::Parse("F#9#11"));
   CHECK_EQ(Guitar::Parse("C6/9"), Guitar::Parse("C69"));
   CHECK_EQ(Guitar::Parse("Eb6add9"), Guitar::Parse("Eb69"));
   CHECK(Guitar::Parse("C6add9") != Guitar::Parse("Cm69"));
@@ -46,7 +46,7 @@ static void TestFingering() {
   CHECK_EQ(c_maj_s, "x32010") << c_maj_s;
   CHECK_EQ(Guitar::FingeringString(c_add9), "x32030");
   CHECK_EQ(Guitar::FingeringString(
-	       make_tuple(10, 11, 12, -1, 0, 1)), "abcx01");
+               make_tuple(10, 11, 12, -1, 0, 1)), "abcx01");
   {
     optional<Guitar::Chord> co = Guitar::Parse("C");
     CHECK(co.has_value());
@@ -102,13 +102,13 @@ static void TestNameFingering() {
     for (int s = 0; s < Guitar::NUM_SUFFIXES; s++) {
       const Chord c = Guitar::ChordOf(b, s);
       for (const Fingering f : Guitar::GetFingerings(c)) {
-	const optional<Chord> co = Guitar::NameFingering(f);
-	CHECK(co.has_value()) << Guitar::FingeringString(f);
+        const optional<Chord> co = Guitar::NameFingering(f);
+        CHECK(co.has_value()) << Guitar::FingeringString(f);
 
-	// We might not get the same chord back because of some
-	// ambiguities. But the chord should have the fingering!
-	CHECK(HasFingering(co.value(), f)) << Guitar::ChordString(co.value())
-					   << ": " << Guitar::FingeringString(f);
+        // We might not get the same chord back because of some
+        // ambiguities. But the chord should have the fingering!
+        CHECK(HasFingering(co.value(), f)) << Guitar::ChordString(co.value())
+                                           << ": " << Guitar::FingeringString(f);
       }
     }
   }

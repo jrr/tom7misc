@@ -50,10 +50,10 @@ static void BenchmarkPNG() {
     const auto [x0, y0, x1, y1] = RandBox(&rc);
     if (0)
       printf("Box %d, #%02x%02x%02x%02x %d,%d -> %d,%d\n",
-	     i, r, g, b, a, x0, y0, x1, y1);
+             i, r, g, b, a, x0, y0, x1, y1);
     for (int y = y0; y < y1; y++) {
       for (int x = x0; x < x1; x++) {
-	image.BlendPixel(x, y, r, g, b, a);
+        image.BlendPixel(x, y, r, g, b, a);
       }
     }
   }
@@ -72,7 +72,7 @@ static void BenchmarkPNG() {
   for (int i = 0; i < 2000; i++) {
     const auto [x0, y0, x1, y1] = RandBox(&rc);
     image.BlendText32(x0, y0, 0x000000FF,
-		      StringPrintf("%d,%d", x1, y1));
+                      StringPrintf("%d,%d", x1, y1));
   }
 
   const std::vector<uint8> imgbytes = image.SaveToVec();
@@ -95,7 +95,7 @@ static void BenchmarkPNG() {
   }
   const int64 took = time(nullptr) - start;
   printf("Decoded %d times in %lld sec = %.4f images/sec\n",
-	 TIMES, took, (double)TIMES / took);
+         TIMES, took, (double)TIMES / took);
 }
 
 int main (int argc, char **argv) {

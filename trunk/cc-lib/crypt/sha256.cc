@@ -79,16 +79,16 @@ static void sha256_block_data_order(
 
 #define ROTATE(a,n)     (((a)<<(n))|(((a)&0xffffffff)>>(32-(n))))
 
-#define HOST_c2l(c,l)  (l =(((unsigned long)(*((c)++)))<<24),		\
-			l|=(((unsigned long)(*((c)++)))<<16),		\
-			l|=(((unsigned long)(*((c)++)))<< 8),		\
-			l|=(((unsigned long)(*((c)++)))    ))
+#define HOST_c2l(c,l)  (l =(((unsigned long)(*((c)++)))<<24),           \
+                        l|=(((unsigned long)(*((c)++)))<<16),           \
+                        l|=(((unsigned long)(*((c)++)))<< 8),           \
+                        l|=(((unsigned long)(*((c)++)))    ))
 
-#define HOST_l2c(l,c)  (*((c)++)=(unsigned char)(((l)>>24)&0xff),	\
-			*((c)++)=(unsigned char)(((l)>>16)&0xff),	\
-			*((c)++)=(unsigned char)(((l)>> 8)&0xff),	\
-			*((c)++)=(unsigned char)(((l)    )&0xff),	\
-			l)
+#define HOST_l2c(l,c)  (*((c)++)=(unsigned char)(((l)>>24)&0xff),       \
+                        *((c)++)=(unsigned char)(((l)>>16)&0xff),       \
+                        *((c)++)=(unsigned char)(((l)>> 8)&0xff),       \
+                        *((c)++)=(unsigned char)(((l)    )&0xff),       \
+                        l)
 
 void SHA256::Update(Ctx *c, const uint8 *data, size_t len) {
   unsigned char *p;
@@ -287,7 +287,7 @@ bool SHA256::UnAscii(const string &s, std::vector<uint8> *out) {
 
   for (size_t i = 0; i < 32; i++) {
     out->push_back((((s[i * 2] | 4400) % 55) << 4) |
-		   ((s[i * 2 + 1] | 4400) % 55));
+                   ((s[i * 2 + 1] | 4400) % 55));
   }
 
   return true;

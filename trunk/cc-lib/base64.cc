@@ -65,14 +65,14 @@ static string EncodePtr(const uint8 *in, unsigned int length) {
       ogroup[3] = dtable[igroup[2] & 0x3F];
 
       if (n < 3) {
-	ogroup[3] = '=';
-	if (n < 2) {
-	  ogroup[2] = '=';
-	}
+        ogroup[3] = '=';
+        if (n < 2) {
+          ogroup[2] = '=';
+        }
       }
 
       for (i = 0; i < 4; i++) {
-	ou += (char)ogroup[i];
+        ou += (char)ogroup[i];
       }
 
     }
@@ -114,23 +114,23 @@ static C DecodeC(const string &in) {
     for (int i = 0; i < 4; i++){
       int c = 0;
       while (idx < in.length()) {
-	c = in[idx];
-	if (c > ' ') break;
-	else idx++;
+        c = in[idx];
+        if (c > ' ') break;
+        else idx++;
       }
 
       if (idx >= in.length()) {
-	if (i > 0) {
-	  fprintf(stderr, "Unexpected end of file.\n");
-	  return C{};
-	} else return ou; /* done */
+        if (i > 0) {
+          fprintf(stderr, "Unexpected end of file.\n");
+          return C{};
+        } else return ou; /* done */
       }
 
       idx++;
 
       if (dtable[c] & 0x80){
-	fprintf(stderr, "Illegal character '%c' in input file.\n", c);
-	return C{};
+        fprintf(stderr, "Illegal character '%c' in input file.\n", c);
+        return C{};
       }
 
       a[i] = (uint8)c;

@@ -244,7 +244,7 @@ struct ServerImpl final : public WebServer {
   bool ListenOn(uint16_t port) override;
 
   bool AcceptConnectionsUntilStopped(const struct sockaddr *address,
-				     socklen_t addressLength);
+                                     socklen_t addressLength);
   
   vector<pair<string, Handler>> handlers;
   void AddHandler(const string &prefix, Handler h) override {
@@ -255,45 +255,45 @@ struct ServerImpl final : public WebServer {
 
   Handler GetDefaultHandler() const {
     return [](const Request &ignored) {
-	Response fail;
-	fail.code = 404;
-	fail.status = "Not Found";
-	fail.content_type = "text/html; charset=UTF-8";
-	fail.body = "<!doctype html>Not found (no handler)\n";
-	return fail;
+        Response fail;
+        fail.code = 404;
+        fail.status = "Not Found";
+        fail.content_type = "text/html; charset=UTF-8";
+        fail.body = "<!doctype html>Not found (no handler)\n";
+        return fail;
       };
   }
 
   Handler GetStatsHandler() const {
     return [](const Request &ignored) {
-	Response resp;
-	resp.code = 200;
-	resp.status = "OK";
-	resp.content_type = "text/html; charset=UTF-8";
-	resp.body = "<!doctype html>\n"
-	  "<style>\n"
-	  "  body { font: 12px Verdana,Helvetica,sans-serif; }\n"
-	  "</style>\n"
-	  "<body>\n"
+        Response resp;
+        resp.code = 200;
+        resp.status = "OK";
+        resp.content_type = "text/html; charset=UTF-8";
+        resp.body = "<!doctype html>\n"
+          "<style>\n"
+          "  body { font: 12px Verdana,Helvetica,sans-serif; }\n"
+          "</style>\n"
+          "<body>\n"
 
-	  "<table><tr><th>Counter</th><th>Value</th></tr>\n";
+          "<table><tr><th>Counter</th><th>Value</th></tr>\n";
 
-	{
-	  Counters *counters = GetCounters();
-	  MutexLock ml(&counters->m);
-	  for (CounterImpl *counter : counters->counters) {
-	    MutexLock mlc(&counter->m);
-	    resp.body += "<tr><td>";
-	    resp.body += counter->name;
-	    resp.body += "</td><td>";
-	    resp.body += Itoa(counter->value);
-	    resp.body += "</td><tr>\n";
-	  }
-	}
+        {
+          Counters *counters = GetCounters();
+          MutexLock ml(&counters->m);
+          for (CounterImpl *counter : counters->counters) {
+            MutexLock mlc(&counter->m);
+            resp.body += "<tr><td>";
+            resp.body += counter->name;
+            resp.body += "</td><td>";
+            resp.body += Itoa(counter->value);
+            resp.body += "</td><tr>\n";
+          }
+        }
 
-	resp.body += "</table></body>\n";
-	
-	return resp;
+        resp.body += "</table></body>\n";
+        
+        return resp;
       };
   }
   
@@ -374,11 +374,11 @@ static string URLDecode(const char *encoded) {
     switch (state) {
     case Normal:
       if ('%' == *encoded) {
-	state = PercentFirstDigit;
+        state = PercentFirstDigit;
       } else if ('+' == *encoded) {
-	decoded.push_back(' ');
+        decoded.push_back(' ');
       } else {
-	decoded.push_back(*encoded);
+        decoded.push_back(*encoded);
       }
       break;
     case PercentFirstDigit:
@@ -393,10 +393,10 @@ static string URLDecode(const char *encoded) {
       char hex_string[] = {first_digit, second_digit, '\0'};
       int items = sscanf(hex_string, "%02x", &decoded_escape);
       if (1 == items) {
-	decoded.push_back((char)decoded_escape);
+        decoded.push_back((char)decoded_escape);
       } else {
-	ews_printf("Warning: Unable to decode hex string 0x%s from %s",
-		   hex_string, encoded);
+        ews_printf("Warning: Unable to decode hex string 0x%s from %s",
+                   hex_string, encoded);
       }
       state = Normal;
     }
@@ -540,128 +540,128 @@ struct RequestParser {
       char c = requestFragment[i];
       switch (state) {
       case RequestParseState::Method:
-	if (c == ' ') {
-	  state = RequestParseState::Path;
-	} else {
-	  request->method += c;
-	}
-	break;
+        if (c == ' ') {
+          state = RequestParseState::Path;
+        } else {
+          request->method += c;
+        }
+        break;
       case RequestParseState::Path:
-	if (c == ' ') {
-	  state = RequestParseState::Version;
-	} else {
-	  request->path += c;
-	}
-	break;
+        if (c == ' ') {
+          state = RequestParseState::Version;
+        } else {
+          request->path += c;
+        }
+        break;
       case RequestParseState::Version:
-	if (c == '\r') {
-	  state = RequestParseState::CR;
-	} else {
-	  request->version += c;
-	}
-	break;
+        if (c == '\r') {
+          state = RequestParseState::CR;
+        } else {
+          request->version += c;
+        }
+        break;
       case RequestParseState::HeaderName:
-	if (c == ':') {
-	  state = RequestParseState::HeaderValue;
-	} else if (c == '\r') {
-	  // Invalid header...
-	  partial_header_name.clear();
-	  state = RequestParseState::CR;
-	} else  {
-	  // Accumulate into temporary state, which is flushed when a complete
-	  // header value is found.
-	  partial_header_name += c;
-	}
-	break;
+        if (c == ':') {
+          state = RequestParseState::HeaderValue;
+        } else if (c == '\r') {
+          // Invalid header...
+          partial_header_name.clear();
+          state = RequestParseState::CR;
+        } else  {
+          // Accumulate into temporary state, which is flushed when a complete
+          // header value is found.
+          partial_header_name += c;
+        }
+        break;
       case RequestParseState::HeaderValue:
-	// skip leading spaces.
-	if (c == ' ' && partial_header_value.empty()) {
-	  /* intentionally skipped */
-	} else if (c == '\r') {
-	  // Only accept if we have non-empty data.
-	  if (!partial_header_name.empty() &&
-	      !partial_header_value.empty()) {
-	    request->headers.emplace_back(partial_header_name,
-					  partial_header_value);
-	  }
-	  partial_header_name.clear();
-	  partial_header_value.clear();
-	  state = RequestParseState::CR;
-	} else {
-	  partial_header_value += c;
-	}
-	break;
+        // skip leading spaces.
+        if (c == ' ' && partial_header_value.empty()) {
+          /* intentionally skipped */
+        } else if (c == '\r') {
+          // Only accept if we have non-empty data.
+          if (!partial_header_name.empty() &&
+              !partial_header_value.empty()) {
+            request->headers.emplace_back(partial_header_name,
+                                          partial_header_value);
+          }
+          partial_header_name.clear();
+          partial_header_value.clear();
+          state = RequestParseState::CR;
+        } else {
+          partial_header_value += c;
+        }
+        break;
       case RequestParseState::CR:
-	if (c == '\n') {
-	  state = RequestParseState::CRLF;
-	} else {
-	  state = RequestParseState::HeaderName;
-	}
-	break;
+        if (c == '\n') {
+          state = RequestParseState::CRLF;
+        } else {
+          state = RequestParseState::HeaderName;
+        }
+        break;
       case RequestParseState::CRLF:
-	if (c == '\r') {
-	  state = RequestParseState::CRLFCR;
-	} else {
-	  state = RequestParseState::HeaderName;
-	  /* this is the first character of the header - replay the
-	     HeaderName case so this character gets appended */
-	  i--;
-	}
-	break;
+        if (c == '\r') {
+          state = RequestParseState::CRLFCR;
+        } else {
+          state = RequestParseState::HeaderName;
+          /* this is the first character of the header - replay the
+             HeaderName case so this character gets appended */
+          i--;
+        }
+        break;
       case RequestParseState::CRLFCR:
-	if (c == '\n') {
-	  /* assume the request state is done unless we have some
-	     Content-Length, which would come from something like a
-	     JSON blob */
-	  state = RequestParseState::Done;
-	  const string *contentLengthHeader =
-	    request->GetHeader("Content-Length");
-	  if (nullptr != contentLengthHeader) {
-	    ews_printf_debug("Incoming request has a body of length %s\n",
-			     contentLengthHeader->c_str());
-	    /* Note that this limits content length to < 2GB on Windows */
-	    long content_length = 0;
-	    if (1 == sscanf(contentLengthHeader->c_str(), "%ld",
-			    &content_length)) {
-	      if (content_length > REQUEST_MAX_BODY_LENGTH) {
-		request->body_truncated = true;
-		content_length = REQUEST_MAX_BODY_LENGTH;
-	      }
-	      if (content_length < 0) {
-		ews_printf_debug("Warning: Incoming request has negative "
-				 "content length: %ld\n", content_length);
-		content_length = 0;
-	      }
-	      request->content_length = content_length;
-	      request->body.reserve(content_length);
-	      state = RequestParseState::Body;
-	    }
-	  }
-	} else {
-	  state = RequestParseState::HeaderName;
-	}
-	break;
+        if (c == '\n') {
+          /* assume the request state is done unless we have some
+             Content-Length, which would come from something like a
+             JSON blob */
+          state = RequestParseState::Done;
+          const string *contentLengthHeader =
+            request->GetHeader("Content-Length");
+          if (nullptr != contentLengthHeader) {
+            ews_printf_debug("Incoming request has a body of length %s\n",
+                             contentLengthHeader->c_str());
+            /* Note that this limits content length to < 2GB on Windows */
+            long content_length = 0;
+            if (1 == sscanf(contentLengthHeader->c_str(), "%ld",
+                            &content_length)) {
+              if (content_length > REQUEST_MAX_BODY_LENGTH) {
+                request->body_truncated = true;
+                content_length = REQUEST_MAX_BODY_LENGTH;
+              }
+              if (content_length < 0) {
+                ews_printf_debug("Warning: Incoming request has negative "
+                                 "content length: %ld\n", content_length);
+                content_length = 0;
+              }
+              request->content_length = content_length;
+              request->body.reserve(content_length);
+              state = RequestParseState::Body;
+            }
+          }
+        } else {
+          state = RequestParseState::HeaderName;
+        }
+        break;
       case RequestParseState::Body:
-	// PERF can copy in bigger chunks...
-	request->body.push_back(c);
-	if ((int64)request->body.size() == (int64)request->content_length) {
-	  state = RequestParseState::Done;
-	}
-	break;
+        // PERF can copy in bigger chunks...
+        request->body.push_back(c);
+        if ((int64)request->body.size() == (int64)request->content_length) {
+          state = RequestParseState::Done;
+        }
+        break;
       case RequestParseState::Done:
-	break;
+        break;
       }
     }
   }
 };
 
 static void requestPrintWarnings(const Request *request,
-				 const char *remote_host,
-				 const char *remote_port) {
+                                 const char *remote_host,
+                                 const char *remote_port) {
   if (request->body_truncated) {
     ews_printf("Warning: Request from %s:%s body was truncated "
-	       "to %" PRIu64 " bytes\n",
-	       remote_host, remote_port, (uint64)request->body.size());
+               "to %" PRIu64 " bytes\n",
+               remote_host, remote_port, (uint64)request->body.size());
   }
 }
 
@@ -677,29 +677,29 @@ bool ServerImpl::ListenOn(uint16_t portInHostOrder) {
   anyInterfaceIPv4.sin_family = AF_INET;
   anyInterfaceIPv4.sin_port = htons(portInHostOrder);
   return AcceptConnectionsUntilStopped((struct sockaddr*) &anyInterfaceIPv4,
-				       sizeof(anyInterfaceIPv4));
+                                       sizeof(anyInterfaceIPv4));
 }
 
 bool ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
-					       socklen_t addressLength) {
+                                               socklen_t addressLength) {
   callWSAStartupIfNecessary();
   /* resolve the local address we are binding to so we can print it out later */
   char addressHost[256];
   char addressPort[20];
   int nameResult = getnameinfo(address, addressLength, addressHost,
-			       sizeof(addressHost), addressPort,
-			       sizeof(addressPort),
-			       NI_NUMERICHOST | NI_NUMERICSERV);
+                               sizeof(addressHost), addressPort,
+                               sizeof(addressPort),
+                               NI_NUMERICHOST | NI_NUMERICSERV);
   if (0 != nameResult) {
     ews_printf("AcceptConnectionsUntilStopped: Could not get numeric host name "
-	       "and/or port for the argument address.\n");
+               "and/or port for the argument address.\n");
     strcpy(addressHost, "Unknown");
     strcpy(addressPort, "Unknown");
   }
   listenerfd = socket(address->sa_family, SOCK_STREAM, IPPROTO_TCP);
   if (listenerfd  <= 0) {
     ews_printf("Could not create listener socket: %s = %d\n",
-	       strerror(errno), errno);
+               strerror(errno), errno);
     return false;
   }
   /* SO_REUSEADDR tells the kernel to re-use the bind address in
@@ -707,36 +707,36 @@ bool ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
      servers that I want this option, especially on Mac OS X */
   int reuse = 1;
   int result = setsockopt(listenerfd, SOL_SOCKET, SO_REUSEADDR,
-			  (char*)&reuse, sizeof(reuse));
+                          (char*)&reuse, sizeof(reuse));
   if (0 != result) {
     ews_printf("Failed to setsockopt SO_REUSEADDR = true with %s = %d. "
-	       "Continuing because we might still succeed...\n",
-	       strerror(errno), errno);
+               "Continuing because we might still succeed...\n",
+               strerror(errno), errno);
   }
 
   if (address->sa_family == AF_INET6) {
     int ipv6only = 0;
     result = setsockopt(listenerfd, IPPROTO_IPV6, IPV6_V6ONLY,
-			(char*)&ipv6only, sizeof(ipv6only));
+                        (char*)&ipv6only, sizeof(ipv6only));
     if (0 != result) {
       ews_printf("Failed to setsockopt IPV6_V6ONLY = true with %s = %d. "
-		 "This is not supported on BSD/macOS\n",
-		 strerror(errno), errno);
+                 "This is not supported on BSD/macOS\n",
+                 strerror(errno), errno);
     }
   }
 
   result = bind(listenerfd, address, addressLength);
   if (0 != result) {
     ews_printf("Could not bind to %s:%s %s = %d\n",
-	       addressHost, addressPort, strerror(errno), errno);
+               addressHost, addressPort, strerror(errno), errno);
     return false;
   }
   /* listen for the maximum possible amount of connections */
   result = listen(listenerfd, SOMAXCONN);
   if (0 != result) {
     ews_printf("Could not listen for SOMAXCONN (%d) connections. %s = %d. "
-	       "Continuing because we might still succeed...\n",
-	       SOMAXCONN, strerror(errno), errno);
+               "Continuing because we might still succeed...\n",
+               SOMAXCONN, strerror(errno), errno);
   }
   /* print out the addresses we're listening on. 
      Special-case IPv4 0.0.0.0 bind-to-all-interfaces */
@@ -750,7 +750,7 @@ bool ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
   }
   if (!printed) {
     ews_printf("Listening for connections on %s:%s\n",
-	       addressHost, addressPort);
+               addressHost, addressPort);
   }
   /* allocate a connection (which sets connection->remote_addr_length)
      and accept the next inbound connection */
@@ -771,12 +771,12 @@ bool ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
       int ret = select(listenerfd + 1, &fds, nullptr, nullptr, &tv);
       if (!ReadWithLock(&global_mutex, &should_run)) break;
       if (ret < 0) {
-	// Error... could be a signal so we keep trying.
-	continue;
+        // Error... could be a signal so we keep trying.
+        continue;
       }
       if (ret == 0) {
-	// Timeout. Keep looping.
-	continue;
+        // Timeout. Keep looping.
+        continue;
       }
       if (ret > 0) break;
     } 
@@ -786,24 +786,24 @@ bool ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
     next_connection->remote_addr_length = sizeof(next_connection->remote_addr);
     next_connection->socketfd =
       accept(listenerfd, (struct sockaddr*) &next_connection->remote_addr,
-	     &next_connection->remote_addr_length);
+             &next_connection->remote_addr_length);
     // XXX Apparently socketfd unsigned on win32? If so, this is not the right
     // way to be testing this?
     if (-1 == (int)next_connection->socketfd) {
       if (errno == EINTR) {
-	ews_printf("accept was interrupted, continuing if server.should_run "
-		   "is true...\n");
-	continue;
+        ews_printf("accept was interrupted, continuing if server.should_run "
+                   "is true...\n");
+        continue;
       }
       if (errno == EBADF) {
-	ews_printf("accept was stopped because the file descriptor is "
-		   "invalid (EBADF). This is probably because you closed "
-		   "it?\n");
-	continue;
+        ews_printf("accept was stopped because the file descriptor is "
+                   "invalid (EBADF). This is probably because you closed "
+                   "it?\n");
+        continue;
       }
       ews_printf("exiting because accept failed (probably interrupted) "
-		 "%s = %d\n",
-		 strerror(errno), errno);
+                 "%s = %d\n",
+                 strerror(errno), errno);
       break;
     }
 
@@ -831,8 +831,8 @@ bool ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
     std::unique_lock<std::mutex> lock_count(connection_finished_mutex);
     while (active_connection_count > 0) {
       ews_printf_debug(
-	  "Active connection cound is %d, waiting for it go to 0...\n",
-	  active_connection_count);
+          "Active connection cound is %d, waiting for it go to 0...\n",
+          active_connection_count);
       // XXX can use predicate
       connection_finished_cond.wait(lock_count);
     }
@@ -849,7 +849,7 @@ bool ServerImpl::AcceptConnectionsUntilStopped(const struct sockaddr *address,
 
 
 static int SendResponse(Connection *connection, const Response &response,
-			ssize_t *bytesSent) {
+                        ssize_t *bytesSent) {
 
   string response_header = "HTTP/1.1 ";
   response_header += Itoa(response.code);
@@ -872,7 +872,7 @@ static int SendResponse(Connection *connection, const Response &response,
     send(connection->socketfd, response_header.c_str(), response_header.size(), 0);
   if (sendResult != (int64)response_header.size()) {
     ews_printf("Failed to respond to %s:%s because we could not send the HTTP "
-	       "response *header*. send returned %ld with %s = %d\n",
+               "response *header*. send returned %ld with %s = %d\n",
                connection->remote_host,
                connection->remote_port,
                (long) sendResult,
@@ -887,13 +887,13 @@ static int SendResponse(Connection *connection, const Response &response,
     sendResult = send(connection->socketfd, response.body.c_str(), response.body.size(), 0);
     if (sendResult != (ssize_t) response.body.size()) {
       ews_printf(
-	  "Failed to respond to %s:%s because we could not send the HTTP "
-	  "response *body*. send returned %" PRId64 " with %s = %d\n",
-	  connection->remote_host,
-	  connection->remote_port,
-	  (int64) sendResult,
-	  strerror(errno),
-	  errno);
+          "Failed to respond to %s:%s because we could not send the HTTP "
+          "response *body*. send returned %" PRId64 " with %s = %d\n",
+          connection->remote_host,
+          connection->remote_port,
+          (int64) sendResult,
+          strerror(errno),
+          errno);
       return -1;
     }
     *bytesSent = *bytesSent + sendResult;
@@ -911,7 +911,7 @@ static void connectionHandlerThread(void *connection_pointer) {
       connection->remote_port, sizeof(connection->remote_port),
       NI_NUMERICHOST | NI_NUMERICSERV);
   ews_printf_debug("New connection from %s:%s...\n",
-		   connection->remote_host, connection->remote_port);
+                   connection->remote_host, connection->remote_port);
   ServerImpl *server = connection->server;
   server->active_connections->Increment();
   server->total_connections->Increment();
@@ -922,7 +922,7 @@ static void connectionHandlerThread(void *connection_pointer) {
   ssize_t bytesRead;
   RequestParser parser(&connection->request);
   while ((bytesRead = recv(connection->socketfd, connection->send_recv_buffer,
-			   SEND_RECV_BUFFER_SIZE, 0)) > 0) {
+                           SEND_RECV_BUFFER_SIZE, 0)) > 0) {
     if (OptionPrintWholeRequest) {
       fwrite(connection->send_recv_buffer, 1, bytesRead, stdout);
     }
@@ -930,11 +930,11 @@ static void connectionHandlerThread(void *connection_pointer) {
     parser.Parse(connection->send_recv_buffer, bytesRead);
     if (parser.HaveFirstLine() && !madeRequestPrintf) {
       ews_printf_debug("Request from %s:%s: %s to %s HTTP version %s\n",
-		       connection->remote_host,
-		       connection->remote_port,
-		       connection->request.method.c_str(),
-		       connection->request.path.c_str(),
-		       connection->request.version.c_str());
+                       connection->remote_host,
+                       connection->remote_port,
+                       connection->request.method.c_str(),
+                       connection->request.path.c_str(),
+                       connection->request.version.c_str());
       madeRequestPrintf = true;
     }
     if (parser.Finished()) {
@@ -944,7 +944,7 @@ static void connectionHandlerThread(void *connection_pointer) {
   }
   
   requestPrintWarnings(&connection->request,
-		       connection->remote_host, connection->remote_port);
+                       connection->remote_host, connection->remote_port);
 
 
   ssize_t bytesSent = 0;
@@ -955,22 +955,22 @@ static void connectionHandlerThread(void *connection_pointer) {
     int result = SendResponse(connection, response, &bytesSent);
     if (0 == result) {
       ews_printf_debug("%s:%s: Responded with HTTP %d %s length %" PRId64 "\n",
-		       connection->remote_host,
-		       connection->remote_port,
-		       response.code,
-		       response.status.c_str(),
-		       (int64)bytesSent);
+                       connection->remote_host,
+                       connection->remote_port,
+                       response.code,
+                       response.status.c_str(),
+                       (int64)bytesSent);
     }
     
     connection->bytes_sent = bytesSent;
 
   } else {
     ews_printf(
-	"No request found from %s:%s? Closing connection. Here's the last "
-	"bytes we received in the request (length %" PRIi64 "). The total "
-	"bytes received on this connection: %" PRIi64 " :\n",
-	connection->remote_host, connection->remote_port, (int64) bytesRead,
-	connection->bytes_received);
+        "No request found from %s:%s? Closing connection. Here's the last "
+        "bytes we received in the request (length %" PRIi64 "). The total "
+        "bytes received on this connection: %" PRIi64 " :\n",
+        connection->remote_host, connection->remote_port, (int64) bytesRead,
+        connection->bytes_received);
     if (bytesRead > 0) {
       fwrite(connection->send_recv_buffer, 1, bytesRead, stdout);
     }
@@ -983,7 +983,7 @@ static void connectionHandlerThread(void *connection_pointer) {
   server->active_connections->IncrementBy(-1LL);
   
   ews_printf_debug("Connection from %s:%s closed\n",
-		   connection->remote_host, connection->remote_port);
+                   connection->remote_host, connection->remote_port);
   {
     connection->server->connection_finished_mutex.lock();
     connection->server->active_connection_count--;
@@ -1011,7 +1011,7 @@ static bool StringEndsWith(const string &big, const char *ends_with) {
 }
 
 string WebServer::GuessMIMEType(const string &filename,
-				const string &contents) {
+                                const string &contents) {
   // http://libpng.org/pub/png/spec/1.2/PNG-Structure.html
   static constexpr uint8_t PNGMagic[] = {137, 80, 78, 71, 13, 10, 26, 10};
   // http://www.onicos.com/staff/iz/formats/gif.html
@@ -1118,8 +1118,8 @@ static void callWSAStartupIfNecessary() {
     int result = WSAStartup(MAKEWORD(2, 2), &data);
     if (0 != result) {
       ews_printf("Calling WSAStartup failed! It returned %d with "
-		 "GetLastError() = %lld\n",
-		 result, (int64)GetLastError());
+                 "GetLastError() = %lld\n",
+                 result, (int64)GetLastError());
       abort();
     }
   } else {
@@ -1144,8 +1144,8 @@ static void ignoreSIGPIPE() {
   if (nullptr != previousSIGPIPEHandler &&
       previousSIGPIPEHandler != &SIGPIPEHandler) {
     ews_printf(
-	"Warning: Uninstalled previous SIGPIPE handler:%p and installed our "
-	"handler which ignores SIGPIPE\n", previousSIGPIPEHandler);
+        "Warning: Uninstalled previous SIGPIPE handler:%p and installed our "
+        "handler which ignores SIGPIPE\n", previousSIGPIPEHandler);
   }
 }
 
@@ -1161,7 +1161,7 @@ static void printIPv4Addresses(uint16_t portInHostOrder) {
     if (nullptr != p->ifa_addr && p->ifa_addr->sa_family == AF_INET) {
       char hostname[256];
       getnameinfo(p->ifa_addr, sizeof(struct sockaddr_in),
-		  hostname, sizeof(hostname), nullptr, 0, NI_NUMERICHOST);
+                  hostname, sizeof(hostname), nullptr, 0, NI_NUMERICHOST);
       ews_printf("Listening %s:%u\n", hostname, portInHostOrder);
     }
     p = p->ifa_next;

@@ -53,10 +53,10 @@ int main(int argc, char *argv[]) {
 
   typedef IntervalTree<double, string> IT;
   auto IsSameSet = [](const set<string> &expected,
-		      const vector<IT::Interval *> &v) -> bool {
+                      const vector<IT::Interval *> &v) -> bool {
     if (expected.size() != v.size()) {
       printf("Expected %d elements, got %d\n",
-	     (int)expected.size(), (int)v.size());
+             (int)expected.size(), (int)v.size());
       return false;
     }
     CHECK(expected.size() == v.size());
@@ -64,13 +64,13 @@ int main(int argc, char *argv[]) {
     for (const IT::Interval *ival : v) {
       // No duplicates.
       if (ContainsKey(already, ival->t)) {
-	printf("Duplicate key: %s\n", ival->t.c_str());
-	return false;
+        printf("Duplicate key: %s\n", ival->t.c_str());
+        return false;
       }
       already.insert(ival->t);
       if (!ContainsKey(expected, ival->t)) {
-	printf("Key present that shouldn't be: %s\n", ival->t.c_str());
-	return false;
+        printf("Key present that shouldn't be: %s\n", ival->t.c_str());
+        return false;
       }
     }
     return true;
@@ -111,9 +111,9 @@ int main(int argc, char *argv[]) {
     CHECK(IsSameSet({"f", "h"}, tree.OverlappingPoint(0.8)));
     CHECK(IsSameSet({"d", "f"}, tree.OverlappingPoint(0.3)));
     CHECK(IsSameSet({"a", "c", "e", "f", "g"},
-		    tree.OverlappingPoint(0.2)));
+                    tree.OverlappingPoint(0.2)));
     CHECK(IsSameSet({"a", "c", "e", "f"},
-		    tree.OverlappingPoint(0.1)));
+                    tree.OverlappingPoint(0.1)));
 
     CHECK(tree.LowerBound() == 0.0);
     CHECK(tree.UpperBound() == 0.9);

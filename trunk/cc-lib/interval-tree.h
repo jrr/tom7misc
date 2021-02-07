@@ -69,10 +69,10 @@ struct IntervalTree {
       // First interval might be in the overlapping set.
       // If it's non-empty, then the first one is the earliest.
       if (!t->by_begin.empty()) {
-	if (!has_idx || t->by_begin.begin()->first < lowest) {
-	  lowest = t->by_begin.begin()->first;
-	  has_idx = true;
-	}
+        if (!has_idx || t->by_begin.begin()->first < lowest) {
+          lowest = t->by_begin.begin()->first;
+          has_idx = true;
+        }
       }
     }
 
@@ -89,11 +89,11 @@ struct IntervalTree {
       // Last interval might be in the overlapping set.
       // If it's non-empty, then the first one is the latest.
       if (!t->by_end.empty()) {
-	// (Note reverse iterator.)
-	if (!has_idx || highest < t->by_end.rbegin()->first) {
-	  highest = t->by_end.rbegin()->first;
-	  has_idx = true;
-	}
+        // (Note reverse iterator.)
+        if (!has_idx || highest < t->by_end.rbegin()->first) {
+          highest = t->by_end.rbegin()->first;
+          has_idx = true;
+        }
       }
     }
 
@@ -107,18 +107,18 @@ struct IntervalTree {
     Node **tree = &root;
     while ((*tree) != nullptr) {
       if (end < (*tree)->center) {
-	// Entirely to the left.
-	tree = &(*tree)->left;
+        // Entirely to the left.
+        tree = &(*tree)->left;
       } else if ((*tree)->center < start) {
-	// Entirely to the right.
-	tree = &(*tree)->right;
+        // Entirely to the right.
+        tree = &(*tree)->right;
       } else {
-	// New interval overlaps the center. Just insert
-	// it here.
-	(*tree)->by_begin.insert(std::make_pair(start, ret));
-	(*tree)->by_end.insert(std::make_pair(end, ret));
-	// Done!
-	return ret;
+        // New interval overlaps the center. Just insert
+        // it here.
+        (*tree)->by_begin.insert(std::make_pair(start, ret));
+        (*tree)->by_end.insert(std::make_pair(end, ret));
+        // Done!
+        return ret;
       }
     }
 
@@ -159,41 +159,41 @@ struct IntervalTree {
   // Recursive is most natural, but iterative is easier and
   // faster/safer in C++.
   static std::vector<Interval *> OverlappingPointIt(Idx point,
-						    const Node *tree) {
+                                                    const Node *tree) {
     std::vector<Interval *> ret;
     while (tree != nullptr) {
       if (point < tree->center) {
-	// Since intervals in this node overlap the center, they
-	// certainly end after the point. Return all the ones that
-	// begin before the point (or on the point).
+        // Since intervals in this node overlap the center, they
+        // certainly end after the point. Return all the ones that
+        // begin before the point (or on the point).
 
-	for (auto it = tree->by_begin.begin(); 
-	     it != tree->by_begin.end() && it->first <= point;
-	     ++it) {
-	  ret.push_back(it->second);
-	}
+        for (auto it = tree->by_begin.begin(); 
+             it != tree->by_begin.end() && it->first <= point;
+             ++it) {
+          ret.push_back(it->second);
+        }
 
-	tree = tree->left;
+        tree = tree->left;
       } else if (tree->center < point) {
-	// Symetrically, intervals in this node begin before the
-	// point. Return any that end (strictly) after the point.
+        // Symetrically, intervals in this node begin before the
+        // point. Return any that end (strictly) after the point.
 
-	// (note this is a reverse iteration -- we are sorting
-	// by end point, which is the key in the multimap)
-	for (auto it = tree->by_end.rbegin();
-	     it != tree->by_end.rend() && point < it->first;
-	     ++it) {
-	  ret.push_back(it->second);
-	}
+        // (note this is a reverse iteration -- we are sorting
+        // by end point, which is the key in the multimap)
+        for (auto it = tree->by_end.rbegin();
+             it != tree->by_end.rend() && point < it->first;
+             ++it) {
+          ret.push_back(it->second);
+        }
 
-	tree = tree->right;
+        tree = tree->right;
       } else {
-	// If point is exactly the center, then the overlapping
-	// ones are it. Early exit.
-	for (const auto &p : tree->by_begin) {
-	  ret.push_back(p.second);
-	}
-	return ret;
+        // If point is exactly the center, then the overlapping
+        // ones are it. Early exit.
+        for (const auto &p : tree->by_begin) {
+          ret.push_back(p.second);
+        }
+        return ret;
       }
     }
     return ret;

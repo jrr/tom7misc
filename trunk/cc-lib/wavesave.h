@@ -15,8 +15,8 @@ struct WaveSave {
 
   // Unsigned 16-bit samples, mono.
   static bool SaveMono16(const std::string &filename,
-			 const std::vector<uint16_t> &samples,
-			 int samples_per_sec);
+                         const std::vector<uint16_t> &samples,
+                         int samples_per_sec);
 };
 
 #endif

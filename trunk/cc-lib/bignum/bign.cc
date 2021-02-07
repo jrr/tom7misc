@@ -31,7 +31,7 @@
 /*
  *      bign.c : the kernel written in pure C (it uses no C library)
  *
- *      $Id: bign.c,v 1.60 2019/06/28 13:02:42 tom7 Exp $
+ *      $Id: bign.c,v 1.61 2021/02/07 11:29:21 tom7 Exp $
  */
 
 /*
@@ -665,7 +665,7 @@ BnnMultiplyDigit(BigNum pp,
 /* xh:xl -= yh:yl */
 
 #define SUB(xh, xl, yh, yl)                                     \
-        xh -= yh + (int)(yl > xl);				\
+        xh -= yh + (int)(yl > xl);                              \
         xl -= yl;
 
 BigNumDigit

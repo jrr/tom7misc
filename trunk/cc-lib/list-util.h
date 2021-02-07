@@ -10,7 +10,7 @@
 // are invalidated.
 template<class T>
 void ListMoveToBack(std::list<T> *l,
-		    typename std::list<T>::const_iterator it) {
+                    typename std::list<T>::const_iterator it) {
   l->splice(l->end(), *l, it);
 }
 

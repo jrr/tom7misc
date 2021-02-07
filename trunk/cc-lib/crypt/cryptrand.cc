@@ -25,11 +25,11 @@ uint64_t CryptRand::Word64() {
   HCRYPTPROV hCryptProv;
 
   CHECK(CryptAcquireContext(    
-	    &hCryptProv,
-	    NULL,
-	    NULL,
-	    PROV_RSA_FULL,
-	    0));
+            &hCryptProv,
+            NULL,
+            NULL,
+            PROV_RSA_FULL,
+            0));
 
   uint64_t data = 0ULL;
   CHECK(CryptGenRandom(hCryptProv, sizeof (data), (uint8_t*)&data));

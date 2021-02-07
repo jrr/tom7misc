@@ -49,12 +49,12 @@ static void TestShuffle(int n, double absolute_error) {
   for (const auto &p : counts) {
     double observed_prob = p.second / (double)ITERS;
     printf("%s: %lld (p = %.8f)\n", p.first.c_str(),
-	   p.second, p.second / (double)ITERS);
+           p.second, p.second / (double)ITERS);
     if (fabs(observed_prob - correct_prob) > 
-	absolute_error) {
+        absolute_error) {
       printf(" (but wanted %.8f.) "
-	     "... this is outside the allowed error "
-	     "of %.8f.\n", correct_prob, absolute_error);
+             "... this is outside the allowed error "
+             "of %.8f.\n", correct_prob, absolute_error);
       exit(-1);
     }
   }

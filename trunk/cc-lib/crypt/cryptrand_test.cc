@@ -27,15 +27,15 @@ int main(int argc, char **argv) {
 
   auto IncBits = [&bits](uint8 b) {
       for (int i = 0; i < 8; i++) {
-	bits[b & 1]++;
-	b >>= 1;
+        bits[b & 1]++;
+        b >>= 1;
       }
   };
 
   static constexpr int TRIALS = 1000000;
   for (int i = 0; i < TRIALS; i++) {
     if (i % 1000 == 0) printf("%d/%d (%.2f%%)...\n",
-			      i, TRIALS, (i * 100.0) / TRIALS);
+                              i, TRIALS, (i * 100.0) / TRIALS);
     uint64 ww = cr.Word64();
     uint8 a = ww & 0xFF; ww >>= 8;
     uint8 b = ww & 0xFF; ww >>= 8;
@@ -58,27 +58,27 @@ int main(int argc, char **argv) {
   }
 
   printf("0 bits: %lld (%.4f%%)\n"
-	 "1 bits: %lld (%.4f%%)\n",
-	 bits[false], (bits[false] * 100.0) / (TRIALS * 64.0),
-	 bits[true], (bits[true] * 100.0) / (TRIALS * 64.0));
+         "1 bits: %lld (%.4f%%)\n",
+         bits[false], (bits[false] * 100.0) / (TRIALS * 64.0),
+         bits[true], (bits[true] * 100.0) / (TRIALS * 64.0));
 
   std::vector<std::pair<uint8, int64>> all;
   for (auto [byte, count] : bytes) all.emplace_back(byte, count);
   CHECK(all.size() == 256) << "Some bytes were never output after "
     "a million 64-bit words, which should basically never happen!";
   std::sort(all.begin(),
-	    all.end(),
-	    [](const std::pair<uint8, int64> a,
-	       const std::pair<uint8, int64> b) {
-	      if (a.second == b.second)
-		return a.first < b.first;
-	      return a.second < b.second;
-	    });
+            all.end(),
+            [](const std::pair<uint8, int64> a,
+               const std::pair<uint8, int64> b) {
+              if (a.second == b.second)
+                return a.first < b.first;
+              return a.second < b.second;
+            });
 
   auto PrintOne = [&all](int idx) {
     printf("%02x x %lld (%.2f%%)\n",
-	   all[idx].first,
-	   all[idx].second, (100.0 * all[idx].second) / (TRIALS * 8.0));
+           all[idx].first,
+           all[idx].second, (100.0 * all[idx].second) / (TRIALS * 8.0));
     };
   for (int i = 0; i < 8; i++)
     PrintOne(i);

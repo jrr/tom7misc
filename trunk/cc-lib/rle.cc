@@ -27,7 +27,7 @@ vector<uint8> RLE::Decompress(const vector<uint8> &in) {
 
 // static
 vector<uint8> RLE::CompressEx(const vector<uint8> &in,
-			      uint8 run_cutoff) {
+                              uint8 run_cutoff) {
   // No idea how big this needs to be until we compress...
   // (There are lower bounds like in.size() / 128 but it's
   // hard to imagine that being useful.
@@ -49,8 +49,8 @@ vector<uint8> RLE::CompressEx(const vector<uint8> &in,
     // that this is legal.
     int run_length = 1;
     while (run_length < max_run_length &&
-	   i + run_length < (int)in.size() &&
-	   in[i + run_length] == target) {
+           i + run_length < (int)in.size() &&
+           in[i + run_length] == target) {
       run_length++;
     }
 
@@ -73,31 +73,31 @@ vector<uint8> RLE::CompressEx(const vector<uint8> &in,
       // same.
       int anti_run_length = 1;
       while (anti_run_length < max_antirun_length &&
-	     i + anti_run_length + 1 < (int)in.size() &&
-	     in[i + anti_run_length] != 
-	     in[i + anti_run_length + 1]) {
-	anti_run_length++;
+             i + anti_run_length + 1 < (int)in.size() &&
+             in[i + anti_run_length] != 
+             in[i + anti_run_length + 1]) {
+        anti_run_length++;
       }
 
       CHECK_GT(anti_run_length, 0);
       CHECK_LE(anti_run_length, max_antirun_length);
 
       if (anti_run_length == 1) {
-	// printf("at %d, singleton of %d\n", i, target);
-	CHECK_EQ(run_length, 1);
-	const uint8 control = 0;
-	out.push_back(control);
-	out.push_back(target);
-	i++;
+        // printf("at %d, singleton of %d\n", i, target);
+        CHECK_EQ(run_length, 1);
+        const uint8 control = 0;
+        out.push_back(control);
+        out.push_back(target);
+        i++;
       } else {
-	const uint8 control = (anti_run_length - 1) + run_cutoff;
-	CHECK_GT(control, run_cutoff);
-	out.reserve(out.size() + anti_run_length + 1);
-	out.push_back(control);
-	for (int a = 0; a < anti_run_length; a++) {
-	  out.push_back(in[i]);
-	  i++;
-	}
+        const uint8 control = (anti_run_length - 1) + run_cutoff;
+        CHECK_GT(control, run_cutoff);
+        out.reserve(out.size() + anti_run_length + 1);
+        out.push_back(control);
+        for (int a = 0; a < anti_run_length; a++) {
+          out.push_back(in[i]);
+          i++;
+        }
       }
     }
   }
@@ -106,8 +106,8 @@ vector<uint8> RLE::CompressEx(const vector<uint8> &in,
 
 // static 
 bool RLE::DecompressEx(const vector<uint8> &in,
-		       uint8 run_cutoff,
-		       vector<uint8> *out) {
+                       uint8 run_cutoff,
+                       vector<uint8> *out) {
   // Worst possible encoding is that the output is half the size of
   // the input, though it could also be like 256x longer. PERF: Could
   // make a sub-linear pass to compute this (then remove the reserves
@@ -122,16 +122,16 @@ bool RLE::DecompressEx(const vector<uint8> &in,
       const int run_length = control + 1;
       
       if (i >= (int)in.size()) {
-	// printf("Run of length %d, i now %d, in.size() is %d\n",
-	// run_length, i, (int)in.size());
-	return false;
+        // printf("Run of length %d, i now %d, in.size() is %d\n",
+        // run_length, i, (int)in.size());
+        return false;
       }
       
       const uint8 b = in[i];
       i++;
       out->reserve(out->size() + run_length);
       for (int j = 0; j < run_length; j++)
-	out->push_back(b);
+        out->push_back(b);
 
     } else {
       // run_cutoff may be e.g. 100, but we know from the if that the
@@ -142,16 +142,16 @@ bool RLE::DecompressEx(const vector<uint8> &in,
       const int antirun_length = control - run_cutoff + 1;
       
       if (i + antirun_length >= (int)in.size()) {
-	// printf("Antirun of length %d, i now %d, in.size() is %d\n",
-	// antirun_length, i, (int)in.size());
-	return false;
+        // printf("Antirun of length %d, i now %d, in.size() is %d\n",
+        // antirun_length, i, (int)in.size());
+        return false;
       }
 
       out->reserve(out->size() + antirun_length);
       
       for (int j = 0; j < antirun_length; j++) {
-	out->push_back(in[i]);
-	i++;
+        out->push_back(in[i]);
+        i++;
       }
     }
   }

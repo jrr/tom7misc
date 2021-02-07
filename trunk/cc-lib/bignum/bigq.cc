@@ -1,5 +1,5 @@
 /*
- * $Id: bigq.c,v 1.59 2019/06/28 13:02:28 tom7 Exp $
+ * $Id: bigq.c,v 1.60 2021/02/07 11:29:21 tom7 Exp $
  */
 
 /*
@@ -64,12 +64,12 @@ BqCreateInternal(const BigZ n, const BigZ d, BqCreateMode mode) {
         BigZ    cd;
 
         if (n == BZNULL || d == BZNULL) {
-	  return (BQNULL);
+          return (BQNULL);
         }
 
 #if     defined(BQ_POSITIVE_DENOMINATOR)
         if (BzGetSign(d) != BZ_PLUS) {
-	  return (BQNULL);
+          return (BQNULL);
         }
 #else
         if (BzGetSign(d) == BZ_ZERO) {
@@ -117,7 +117,7 @@ BqCreateInternal(const BigZ n, const BigZ d, BqCreateMode mode) {
 
         BqSetNumerator(q, cn);
         BqSetDenominator(q, cd);
-	
+        
         if (BzLength(cd) != (BigNumLength)1) {
                 BqNormalize(q);
         }
@@ -182,13 +182,13 @@ BqAdd(const BigQ a, const BigQ b) {
     BigZ d;
     BigZ tmp1;
     BigZ tmp2;
-		
+                
     /*
      * Compute numerator
      */
 
     // So somewhere in here the size gets huge?
-		
+                
     tmp1 = BzMultiply(an, bd);
     tmp2 = BzMultiply(ad, bn);
     n = BzAdd(tmp1, tmp2);

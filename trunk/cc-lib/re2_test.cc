@@ -20,9 +20,9 @@ void TestSimple() {
 
   string title, artist;
   CHECK(RE2::FullMatch("Blimps Go 90 by Guided by Voices",
-		       "(.+) by (.+)", &title, &artist) &&
-	title == "Blimps Go 90 by Guided" &&
-	artist == "Voices") << title << " / " << artist;
+                       "(.+) by (.+)", &title, &artist) &&
+        title == "Blimps Go 90 by Guided" &&
+        artist == "Voices") << title << " / " << artist;
 }
 
 

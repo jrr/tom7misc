@@ -14,8 +14,8 @@ using Chord = Guitar::Chord;
 int main(int argc, char **argv) {
   if (argc != 2) {
     fprintf(stderr, "Prints known fingerings for a chord.\n"
-	    "Usage (case sensitive):\n\n"
-	    "  finger C6add9\n\n");
+            "Usage (case sensitive):\n\n"
+            "  finger C6add9\n\n");
     return -1;
   }
   
@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
   vector<Fingering> fv = Guitar::GetFingerings(co.value());
   if (fv.empty()) {
     fprintf(stderr, "No known fingerings for %s\n",
-	    Guitar::ChordString(co.value()).c_str());
+            Guitar::ChordString(co.value()).c_str());
     return 01;
   }
   

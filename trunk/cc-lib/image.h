@@ -44,7 +44,7 @@ struct ImageRGBA {
   // If this includes any area outside the input image, fill with
   // fill_color.
   ImageRGBA Crop32(int x, int y, int w, int h,
-		   uint32 fill_color = 0x00000000) const;
+                   uint32 fill_color = 0x00000000) const;
 
   // Scale by a positive integer factor, crisp pixels.
   ImageRGBA ScaleBy(int scale) const;
@@ -67,38 +67,38 @@ struct ImageRGBA {
 
   // Blend a filled rectangle. Clips.
   void BlendRect(int x, int y, int w, int h,
-		 uint8 r, uint8 g, uint8 b, uint8 a);
+                 uint8 r, uint8 g, uint8 b, uint8 a);
   void BlendRect32(int x, int y, int w, int h, uint32 color);
 
   // Hollow box, one pixel width.
   // nullopt corner_color = color for a crisp box, but setting
   // the corners to 50% alpha makes a subtle roundrect effect.
   void BlendBox32(int x, int y, int w, int h,
-		  uint32 color, std::optional<uint32> corner_color);
+                  uint32 color, std::optional<uint32> corner_color);
   
   // Embedded 9x9 pixel font.
   void BlendText(int x, int y,
-		 uint8 r, uint8 g, uint8 b, uint8 a,
-		 const std::string &s);
+                 uint8 r, uint8 g, uint8 b, uint8 a,
+                 const std::string &s);
   void BlendText32(int x, int y, uint32 color, const std::string &s);
 
   // Same font, but scaled to (crisp) 2x2 pixels.
   void BlendText2x(int x, int y,
-		   uint8 r, uint8 g, uint8 b, uint8 a,
-		   const std::string &s);
+                   uint8 r, uint8 g, uint8 b, uint8 a,
+                   const std::string &s);
   void BlendText2x32(int x, int y, uint32 color, const std::string &s);
   
   // Clipped. Alpha blending.
   // This draws a crisp pixel line using Bresenham's algorithm.
   void BlendLine(int x1, int y1, int x2, int y2,
-		 uint8 r, uint8 g, uint8 b, uint8 a);
+                 uint8 r, uint8 g, uint8 b, uint8 a);
   void BlendLine32(int x1, int y1, int x2, int y2, uint32 color);
 
   // Clipped. Alpha blending.
   // Blends an anti-aliased line using Wu's algorithm; slower.
   // Endpoints are pixel coordinates, but can be sub-pixel.
   void BlendLineAA(float x1, float y1, float x2, float y2,
-		   uint8 r, uint8 g, uint8 b, uint8 a);
+                   uint8 r, uint8 g, uint8 b, uint8 a);
   void BlendLineAA32(float x1, float y1, float x2, float y2, uint32 color);
 
   // Clipped, alpha blending.
@@ -183,7 +183,7 @@ ImageRGBA::GetPixel(int x, int y) const {
 }
 
 void ImageRGBA::SetPixel(int x, int y,
-			 uint8 r, uint8 g, uint8 b, uint8 a) {
+                         uint8 r, uint8 g, uint8 b, uint8 a) {
   if (x < 0 || x >= width ||
       y < 0 || y >= height) return;
   int i = (y * width + x) * 4;

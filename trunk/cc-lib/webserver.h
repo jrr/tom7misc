@@ -109,7 +109,7 @@ struct WebServer {
   // ends in ".html". This is quite incomplete; beyond simple stuff
   // try apache2's module?
   static std::string GuessMIMEType(const std::string &filename,
-				   const std::string &contents);
+                                   const std::string &contents);
   // Basic, slow: Replace " < & etc. with HTML entities.
   static std::string HTMLEscape(const std::string &input);
   

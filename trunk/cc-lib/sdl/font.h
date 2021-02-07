@@ -15,49 +15,49 @@ struct Font {
   int width, height, styles, overlap;
 
   static Font *create(SDL_Surface *screen,
-		      const std::string &file,
-		      const std::string &charmap,
-		      int width,
-		      int height,
-		      int styles = 1,
-		      int overlap = 0,
-		      int dims = 2);
+                      const std::string &file,
+                      const std::string &charmap,
+                      int width,
+                      int height,
+                      int styles = 1,
+                      int overlap = 0,
+                      int dims = 2);
 
   // Same as create, but enlarge the pixels in the font to be size px x px.
   // All of the other parameters should be given in the original font size,
   // (as though calling create()).
   static Font *CreateX(int px,
-		       SDL_Surface *screen,
-		       const std::string &file,
-		       const std::string &charmap,
-		       int width,
-		       int height,
-		       int styles = 1,
-		       int overlap = 0,
-		       int dims = 2);
+                       SDL_Surface *screen,
+                       const std::string &file,
+                       const std::string &charmap,
+                       int width,
+                       int height,
+                       int styles = 1,
+                       int overlap = 0,
+                       int dims = 2);
   
   // Takes ownership of the font surface.
   static Font *create_from_surface(SDL_Surface *screen,
-				   SDL_Surface *font_surface,
-				   const std::string &charmap,
-				   int width,
-				   int height,
-				   int styles = 1,
-				   int overlap = 0,
-				   int dims = 2);
+                                   SDL_Surface *font_surface,
+                                   const std::string &charmap,
+                                   int width,
+                                   int height,
+                                   int styles = 1,
+                                   int overlap = 0,
+                                   int dims = 2);
 
   /* number of drawn characters, ignoring control codes.
      length(s) * (width-overlap) gives
      the screen width. */
   static unsigned int length(const std::string &s);
   static std::string substr(const std::string &s,
-			    unsigned int start,
-			    unsigned int len);
+                            unsigned int start,
+                            unsigned int len);
   /* len must be <= font::length(s) */
   static std::string prefix(const std::string & s,
-			    unsigned int len);
+                            unsigned int len);
   static std::string suffix(const std::string & s,
-			    unsigned int len);
+                            unsigned int len);
 
   /* similarly, pad a string out to n displayable
      characters, doing the right thing for

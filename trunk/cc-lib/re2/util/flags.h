@@ -11,10 +11,10 @@
 // https://gflags.github.io/gflags/
 
 #define DEFINE_FLAG(type, name, deflt, desc) \
-	namespace re2 { type FLAGS_##name = deflt; }
+        namespace re2 { type FLAGS_##name = deflt; }
 
 #define DECLARE_FLAG(type, name) \
-	namespace re2 { extern type FLAGS_##name; }
+        namespace re2 { extern type FLAGS_##name; }
 
 namespace re2 {
 template <typename T>

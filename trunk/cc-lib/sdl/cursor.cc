@@ -10,7 +10,7 @@ using namespace std;
 
 
 SDL_Cursor *Cursor::MakeCursor(int width, int height, int hot_x, int hot_y,
-			       const char *ascii_img) {
+                               const char *ascii_img) {
   if (width % 8) return nullptr;
   std::vector<Uint8> mask(width * height / 8, 0);
   std::vector<Uint8> data(width * height / 8, 0);
@@ -38,7 +38,7 @@ SDL_Cursor *Cursor::MakeCursor(int width, int height, int hot_x, int hot_y,
   }
   
   return SDL_CreateCursor(data.data(), mask.data(), width, height,
-			  hot_x, hot_y);
+                          hot_x, hot_y);
 }
 
 SDL_Cursor *Cursor::MakeArrow() {

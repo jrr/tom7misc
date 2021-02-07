@@ -16,16 +16,16 @@ static void phex(uint8_t *str) {
   printf("\n");
 }
 
-#define COMPARE(s, size)				\
-  do {							\
-    printf(s ": ");					\
-    if (0 == memcmp((char*) out, (char*) in, 16)) {	\
-      printf("OK\n");					\
-      return true;					\
-    } else {						\
-      printf("FAILURE!\n");				\
-      return false;					\
-    }							\
+#define COMPARE(s, size)                                \
+  do {                                                  \
+    printf(s ": ");                                     \
+    if (0 == memcmp((char*) out, (char*) in, 16)) {     \
+      printf("OK\n");                                   \
+      return true;                                      \
+    } else {                                            \
+      printf("FAILURE!\n");                             \
+      return false;                                     \
+    }                                                   \
   } while (false)
 
 
