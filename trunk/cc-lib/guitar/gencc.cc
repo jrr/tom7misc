@@ -20,6 +20,8 @@
 // guitar.cc!
 #include "guitar.h"
 
+using namespace std;
+
 #if !RAPIDJSON_HAS_CXX11_RANGE_FOR
 #error RAPIDJSON should be configured with ranged-for support!
 #endif
