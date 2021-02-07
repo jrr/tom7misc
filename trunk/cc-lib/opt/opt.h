@@ -26,10 +26,7 @@ struct Opt {
 	   int iters,
 	   int depth = 1,
 	   int attempts = 10);
-
-  // TODO: Should be possible to make a templated version that takes
-  // f(x, y, z, ...)!
-
+  
   // As above, but with n as a runtime value.
   static std::pair<std::vector<double>, double>
   Minimize(int n,
@@ -57,10 +54,8 @@ template<int N>
 std::pair<std::array<double, N>, double>
 Opt::Minimize(
     const std::function<double(const std::array<double, N> &)> &f,
-    // Bounds must be finite.
     const std::array<double, N> &lower_bound,
     const std::array<double, N> &upper_bound,
-    // Approximately, the number of times to call f.
     int iters,
     int depth,
     int attempts) {
@@ -80,5 +75,56 @@ Opt::Minimize(
   return {out, out_v};
 }
 
+#if 0
+// TODO: Should be possible to make a templated version that takes
+// f(x, y, z, ...)! I can write down this function signature (see below)
+// but I don't know any way to *call* the function with the correct number
+// of arguments (in this case pulled from some pointer).
 
+// Note: Caller probably has to either explicitly pass <double,
+// double> as template args or manually construct the std::function,
+// since with the current approach, it can't deduce what argument
+// type we're asking to construct the function<> at. Might be possible
+// to coax it with something like
+// template <class T, class... Ts, class = std::enable_if_t<(std::is_same_v<T, Ts> && ...)>
+// or maybe the homogeneous variadic functions proposal.
+
+// Pass a function that directly takes some number of double
+// arguments.  XXX docs
+template<class ...Doubles>
+static std::pair<std::array<double, sizeof...(Doubles)>, double>
+MinimizeF(const std::function<double(Doubles...)> &f,
+	  std::array<double, sizeof...(Doubles)> lower_bound,
+	  std::array<double, sizeof...(Doubles)> upper_bound,
+	  int iters,
+	  int depth = 1,
+	  int attempts = 10);
+
+  
+template<class ...Doubles>
+// std::pair<std::tuple<Doubles...>, double>
+void
+Opt::MinimizeF(const std::function<double(Doubles...)> &f,
+	       std::array<double, sizeof...(Doubles)> lower_bound,
+	       std::array<double, sizeof...(Doubles)> upper_bound,
+	       int iters,
+	       int depth,
+	       int attempts) {
+  constexpr int N = sizeof...(Doubles);
+
+  auto wrap_f = [](int n_, const double *args, void* data) -> double {
+      auto *f = (std::function<double(Doubles...)> *)data;
+      // XXX but how do I generate N args like args[0], args[1], ...?
+      return (*f)(... ? ...);
+    };
+
+  std::array<double, N> out;
+  double out_v = 0.0;
+  Opt::internal_minimize(N, +wrap_f, &f,
+			 lower_bound.data(), upper_bound.data(),
+			 out.data(), &out_v, iters, depth, attempts);
+  return {out, out_v};
+}
+#endif
+    
 #endif
