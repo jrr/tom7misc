@@ -1,31 +1,31 @@
 
-database escape {
+database escape =
 
-  table site {
-    /* there's just one */
-    key id. 
+  table site =
+    (* there's just one *)
+    key id
 
-    /* id of graveyard collection */
-    int graveyard.
-  }
+    (* id of graveyard collection *)
+    val graveyard : int
+  end
 
-  table user {
-    /* unique id */
-    key id.
-    
-    /* sequence numbers are secret to the player,
-       and stored in his player file. */
-    int seql.
-    int seqh.
+  table user =
+    (* unique id *)
+    key id
 
-    /* time that this player registered */
-    int joindate.
+    (* sequence numbers are secret to the player,
+       and stored in his player file. *)
+    val seql : int
+    val seqh : int
 
-    /* can be anything */
-    string name.
-    string lasthost.
+    (* time that this player registered *)
+    val joindate : int
 
-    /* Trust levels:
+    (* can be anything *)
+    val name : string
+    val lasthost : string
+
+    (* Trust levels:
 
        0: banned  (can't do anything)
        1: spurned (ratings don't count,
@@ -36,142 +36,142 @@ database escape {
                    mark comments as spoilers,
                    ??)
        4: admin   (delete any level)
-       */
-    int trust.
-  }
+       *)
+    val trust : int
+  end
 
-  table collection {
-    key id.
+  table collection =
+    key id
 
-    string name.
-    string fname.
+    val name : string
+    val fname : string
 
-    int minv.
-  }
+    val minv : int
+  end
 
-  /* subdirectories of collections.
+  (* subdirectories of collections.
      a collection may have 0 or more
-     of these */
-  table subdir {
-    key id.
+     of these *)
+  table subdir =
+    key id
 
-    /* only the last dir in the path;
-       never abc/def */
-    string fname.
-    string longidx.
+    (* only the last dir in the path;
+       never abc/def *)
+    val fname : string
+    val longidx : string
 
-    int colof.
+    val colof : int
 
-    /* 0 if subdir of root.
-       require subdir[n].colof = colof */
-    int parent.
-  }
+    (* 0 if subdir of root.
+       require subdir[n].colof = colof *)
+    val parent : int
+  end
 
-  table level {
-    key id.
+  table level =
+    key id
 
-    /* md5 hash of level */
-    string md.
+    (* md5 hash of level *)
+    val md : string
 
-    string title.
-    string author.
+    val title : string
+    val author : string
 
-    /* date */
-    int uploaded.
+    (* date *)
+    val uploaded : int
 
-    /* a player. */
-    int owner.
+    (* a player. *)
+    val owner : int
 
-    /* average ratings: as totals */
-    int nvotes.
-    int difficulty.
-    int style.
-    int rigidity.
+    (* average ratings: as totals *)
+    val nvotes : int
+    val difficulty : int
+    val style : int
+    val rigidity : int
 
-    /* totals */
-    int cooked.
-    int solved.
-  }
+    (* totals *)
+    val cooked : int
+    val solved : int
+  end
 
-  /* put a level in a collection */
-  table levelrel {
-    key id.
+  (* put a level in a collection *)
+  table levelrel =
+    key id
 
-    int col.
-    int subdir.
-    int lev.
-  }
+    val col : int
+    val subdir : int
+    val lev : int
+  end
 
-  /* ratings and comments on levels */
-  table lrating {
-    key id.
-    /* level */
-    int of.
-    /* user  */
-    int byuser.
+  (* ratings and comments on levels *)
+  table lrating =
+    key id
+    (* level *)
+    val of : int
+    (* user  *)
+    val byuser : int
 
-    /* rating stuff ... 
-       should range 0..10 inclusive. */
-    int difficulty.
-    int style.
-    int rigidity.
-    
-    bool solved.
+    (* rating stuff ...
+       should range 0..10 inclusive. *)
+    val difficulty : int
+    val style : int
+    val rigidity : int
 
-    /* false also if not solved */
-    bool cooked.
-  }
+    val solved : bool
 
-  table lcomment {
-    key id.
-    /* level */
-    int of.
-    /* user */
-    int byuser.
+    (* false also if not solved *)
+    val cooked : bool
+  end
 
-    int date.
+  table lcomment =
+    key id
+    (* level *)
+    val of : int
+    (* user *)
+    val byuser : int
 
-    bool spoiler.
-    /* is this an 'info only' comment? */
-    bool info.
+    val date : int
 
-    /* the comment ... */
-    blob comment.
-  }
+    val spoiler : bool
+    (* is this an 'info only' comment? *)
+    val info : bool
 
-  table solution {
-    key id.
+    (* the comment ... *)
+    val comment : blob
+  end
 
-    /* level */
-    int of.
+  table solution =
+    key id
 
-    string name.
-    string author.
-    int date.
+    (* level *)
+    val of : int
 
-    /* as ascii */
-    string md5.
+    val name : string
+    val author : string
+    val date : int
 
-    /* as base64 data */
-    blob moves.
-    int len.
+    (* as ascii *)
+    val md5 : string
 
-    /* if this is set, then this
+    (* as base64 data *)
+    val moves : blob
+    val len : int
+
+    (* if this is set, then this
        is just an attempt at the
        speed record. anything better
-       can replace it. */
-    bool speedrecord.
-  }
+       can replace it. *)
+    val speedrecord : bool
+  end
 
-  /* Generated summary posts. Each of these is displayed
-     straightforwardly by summaryrss. */
-  table summarypost {
-    key id.
-    /* as HTML */
-    blob title.
-    int date.
-    /* as HTML */
-    blob description.
-  }
+  (* Generated summary posts. Each of these is displayed
+     straightforwardly by summaryrss. *)
+  table summarypost =
+    key id
+    (* as HTML *)
+    val title : blob
+    val date : int
+    (* as HTML *)
+    val description : blob
+  end
 
-}
+end
