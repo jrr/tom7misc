@@ -8,26 +8,25 @@
    install this, but maybe the code is understandable. It's a bit like
    Standard ML with built-in databases. *)
 
-database tinyworld {
+database tinyworld =
+  table level =
+    key id
 
-  table level {
-    key id.
+    (* Up to 16 characters, a-z0-9 only. *)
+    val name : string
 
-    /* Up to 16 characters, a-z0-9 only. */
-    string name.
+    (* Text string of 1000 ascii characters 32-127. *)
+    val contents : blob
 
-    /* Text string of 1000 ascii characters 32-127. */
-    blob contents.
+    val createdate : int
+    val modifydate : int
+    val modifyip : blob
 
-    int createdate.
-    int modifydate.
-    blob modifyip.
-
-    /* XXX do something about locking. People should
-       probably not be able to edit the tutorial at least. */
-    bool locked.
-  }
-}
+    (* XXX do something about locking. People should
+       probably not be able to edit the tutorial at least. *)
+    val locked : bool
+  end
+end
 
 import "std.aah"
 import "cgi.aah"
