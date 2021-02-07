@@ -327,7 +327,6 @@
 (add-hook 'protobuf-mode-hook
   (lambda () (c-add-style "my-style" my-protobuf-style t)))
 
-(autoload 'aphasia-mode "aphasia" "Major mode for editing aphasia source code." t)
 (autoload 'sml-mode "sml-mode" "Major mode for editing ML programs." t)
 (autoload 'aaph-mode "aaph" "Major mode for editing aphasia 2 source." t)
 (autoload 'glsl-mode "glsl-mode" nil t)
@@ -335,10 +334,7 @@
 (require 'web-mode)
 
 (setq auto-mode-alist
-      (append '(("\\.a$" . aphasia-mode)
-                ("\\.db$" . aphasia-mode)
-                ("\\.ah$" . aphasia-mode)
-                ("\\.as$" . c-mode) ;; close enough...
+      (append '(("\\.as$" . c-mode) ;; close enough...
                 ("\\.cl$" . c-mode) ;; close enough...
                 ("\\.fsh$" . glsl-mode)
 		("\\.s?html$" . web-mode)
@@ -424,7 +420,7 @@
 ; provides timestamp and datestamp
 (require 'id)
 
-(defun tab-nonsense ()
+(defun tab-preferences ()
   "Sets my tab prefs."
   (progn
     (setq tab-width 2)
@@ -451,8 +447,8 @@
 
 (message "DOTEMACS 3")
 
-(add-hook 'text-mode-hook 'tab-nonsense)
-(add-hook 'fundamental-mode 'tab-nonsesne)
+(add-hook 'text-mode-hook 'tab-preferences)
+(add-hook 'fundamental-mode 'tab-preferences)
 
 (defun untabify-buffer (&optional noisy)
   "This untabifies the entire buffer, leaving the cursor where it is. (But destroying the mark.) Provide argument and no message will be printed."
@@ -469,7 +465,7 @@
 
 (defun save-without-tabs ()
   (progn
-    (add-hook 'local-write-file-hooks 'untabify-before-save)
+    (add-hook 'before-save-hook 'untabify-before-save)
     nil))
 
 ;; delete-trailing lines also removes the newline on the last line,
@@ -478,13 +474,9 @@
 
 (defun save-without-trailing-whitespace ()
   (progn
-    (add-hook 'local-write-file-hooks 'delete-trailing-whitespace)
+    (add-hook 'before-save-hook 'delete-trailing-whitespace)
     nil))
 
-; (setq sml-mode-hook nil)
-(add-hook 'sml-mode-hook 'save-without-tabs)
-(add-hook 'sml-mode-hook 'save-without-trailing-whitespace)
-(add-hook 'sml-mode-hook 'sml-set-tabs)
 
 (defun sml-set-tabs ()
   "Set up tab preferences for SML."
@@ -492,8 +484,10 @@
   ;; don't use tab characters to indent
   (setq indent-tabs-mode nil))
 
-(add-hook 'aaph-mode-hook 'save-without-trailing-whitespace)
-(add-hook 'aaph-mode-hook 'aaph-set-tabs)
+; (setq sml-mode-hook nil)
+(add-hook 'sml-mode-hook 'save-without-tabs)
+(add-hook 'sml-mode-hook 'save-without-trailing-whitespace)
+(add-hook 'sml-mode-hook 'sml-set-tabs)
 
 (defun aaph-set-tabs ()
   "Set up tab preferences for Aphasia 2."
@@ -501,15 +495,21 @@
   ;; don't use tab characters to indent
   (setq indent-tabs-mode nil))
 
-;; XXX move to aphasia mode
-(add-hook 'aphasia-mode-hook 'turn-on-font-lock)
-(add-hook 'aphasia-mode-hook 'save-without-trailing-whitespace)
+(add-hook 'aaph-mode-hook 'save-without-trailing-whitespace)
+(add-hook 'aaph-mode-hook 'aaph-set-tabs)
 
-(add-hook 'c-mode-hook 'save-without-tabs)
-(add-hook 'c-mode-hook 'save-without-trailing-whitespace)
-(add-hook 'cc-mode-hook 'save-without-tabs)
+(add-hook 'c-mode-hook 'tab-preferences)
 (add-hook 'c-mode-hook 'reset-keys)
+;; maybe set this up so it applies in directories where
+;; I have a clear preference and ownership?
+;; (add-hook 'c-mode-hook 'save-without-tabs)
+(add-hook 'c-mode-hook 'save-without-trailing-whitespace)
+
+(add-hook 'cc-mode-hook 'tab-preferences)
 (add-hook 'cc-mode-hook 'reset-keys)
+;; maybe set this up so it applies in directories where
+;; I have a clear preference and ownership?
+;; (add-hook 'cc-mode-hook 'save-without-tabs)
 (add-hook 'cc-mode-hook 'save-without-trailing-whitespace)
 
 (put 'downcase-region 'disabled nil)
