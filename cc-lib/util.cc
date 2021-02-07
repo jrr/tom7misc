@@ -137,28 +137,28 @@ struct LineReal : public line {
     if (dx > dy) {
       if (x0 == x1) return false;
       else {
-	if (frac >= 0) {
-	  y0 += stepy;
-	  frac -= dx;
-	}
-	x0 += stepx;
-	frac += dy;
-	cx = x0;
-	cy = y0;
-	return true;
+        if (frac >= 0) {
+          y0 += stepy;
+          frac -= dx;
+        }
+        x0 += stepx;
+        frac += dy;
+        cx = x0;
+        cy = y0;
+        return true;
       }
     } else {
       if (y0 == y1) return false;
       else {
-	if (frac >= 0) {
-	  x0 += stepx;
-	  frac -= dy;
-	}
-	y0 += stepy;
-	frac += dx;
-	cx = x0;
-	cy = y0;
-	return true;
+        if (frac >= 0) {
+          x0 += stepx;
+          frac -= dy;
+        }
+        y0 += stepy;
+        frac += dx;
+        cx = x0;
+        cy = y0;
+        return true;
       }
     }
   }
@@ -240,11 +240,11 @@ static T ReadAndCloseFile(FILE *f, const T *magic_opt) {
 
   #if READFILE_DEBUG
   printf("size_t is %d bytes, signed: %s\n",
-	 sizeof (size_t), std::is_signed<size_t>::value ? "yes" : "no");
+         sizeof (size_t), std::is_signed<size_t>::value ? "yes" : "no");
   printf("stat %d:\n"
-	 "  st_size: %llu\n (off_t is %d bytes, signed: %s)\n",
-	 fd, (uint64)st.st_size, sizeof (st.st_size),
-	 std::is_signed<decltype (st.st_size)>::value ? "yes" : "no");
+         "  st_size: %llu\n (off_t is %d bytes, signed: %s)\n",
+         fd, (uint64)st.st_size, sizeof (st.st_size),
+         std::is_signed<decltype (st.st_size)>::value ? "yes" : "no");
   #endif
   
   T ret;
@@ -265,7 +265,7 @@ static T ReadAndCloseFile(FILE *f, const T *magic_opt) {
 
   #if READFILE_DEBUG
   printf("next_pos is %lld; size_guess is %lld.\n",
-	 next_pos, size_guess);
+         next_pos, size_guess);
   #endif
 
   // In optimistic cases where the size_guess is correct,
@@ -293,7 +293,7 @@ static T ReadAndCloseFile(FILE *f, const T *magic_opt) {
     } else {
       #if READFILE_DEBUG
       printf("Buffer sized %lld; already big enough for guess %lld\n",
-	     (int64)ret.size(), size_guess);
+             (int64)ret.size(), size_guess);
       #endif
     }
 
@@ -305,7 +305,7 @@ static T ReadAndCloseFile(FILE *f, const T *magic_opt) {
     // threads).
     static constexpr int64 MAX_READ_SIZE = 1LL << 24;
     static_assert(MAX_READ_SIZE < ((1LL << 31) - 1),
-		  "Must fit in signed 32-bit gamut.");
+                  "Must fit in signed 32-bit gamut.");
     
     const int64 read_size =
       std::min(size_guess - next_pos, MAX_READ_SIZE);
@@ -331,7 +331,7 @@ static T ReadAndCloseFile(FILE *f, const T *magic_opt) {
     if (feof(f)) {
       #if READFILE_DEBUG
       printf("EOF. current ret size is %lld; resizing to %lld\n",
-	     (int64)ret.size(), next_pos);
+             (int64)ret.size(), next_pos);
       #endif
       // Should be no-op when we guessed correctly.
       ret.resize(next_pos);
@@ -379,7 +379,7 @@ vector<string> Util::ReadFileToLines(const string &f) {
 }
 
 bool Util::WriteLinesToFile(const string &fn,
-			    const std::vector<string> &lines) {
+                            const std::vector<string> &lines) {
   FILE *f = fopen(fn.c_str(), "wb");
   if (f == nullptr) return false;
 
@@ -435,7 +435,7 @@ static inline string PadWith(int n, string s, char c) {
     if ((int)s.length() < n) {
       s.reserve(n);
       while ((int)s.length() < n)
-	s.push_back(c);
+        s.push_back(c);
     }
     return s;
   } else {
@@ -531,7 +531,7 @@ bool Util::WriteFile(const string &fn, const string &s) {
 }
 
 bool Util::WriteFileBytes(const string &fn,
-			  const vector<uint8> &bytes) {
+                          const vector<uint8> &bytes) {
   FILE *f = fopen(fn.c_str(), "wb");
   if (!f) return false;
 
@@ -561,7 +561,7 @@ vector<uint64> Util::ReadUint64File(const string &filename) {
 }
 
 bool Util::WriteUint64File(const string &filename,
-			   const std::vector<uint64> &contents) {
+                           const std::vector<uint64> &contents) {
   vector<uint8> bytes;
   bytes.reserve(contents.size() * 8);
   for (uint64 w : contents) {
@@ -621,7 +621,7 @@ string Util::lcase(const string &in) {
   out.reserve(in.size());
   for (unsigned int i = 0; i < in.length(); i++) {
     if (in[i] >= 'A' &&
-	in[i] <= 'Z') out += in[i]|32;
+        in[i] <= 'Z') out += in[i]|32;
 
     else out += in[i];
   }
@@ -633,7 +633,7 @@ string Util::ucase(const string &in) {
   out.reserve(in.size());
   for (unsigned int i = 0; i < in.length(); i++) {
     if (in[i] >= 'a' &&
-	in[i] <= 'z') out += (in[i] & (~ 32));
+        in[i] <= 'z') out += (in[i] & (~ 32));
 
     else out += in[i];
   }
@@ -665,7 +665,7 @@ string Util::ensureext(string f, string ext) {
     return f + ext;
   else {
     if (f.substr(f.length() - ext.length(),
-		 ext.length()) != ext)
+                 ext.length()) != ext)
       return f + ext;
     else return f;
   }
@@ -768,10 +768,10 @@ string Util::chop(string &line) {
     if (line[i] != ' ') {
       string acc;
       for (unsigned int j = i; j < line.length(); j ++) {
-	if (line[j] == ' ') {
-	  line = line.substr(j, line.length() - j);
-	  return acc;
-	} else acc += line[j];
+        if (line[j] == ' ') {
+          line = line.substr(j, line.length() - j);
+          return acc;
+        } else acc += line[j];
       }
       line = "";
       return acc;
@@ -791,9 +791,9 @@ double Util::ParseDouble(const string &s, double default_value) {
   double d = strtod(ss.c_str(), &endptr);
 #if 0
   printf("[%s] %p + %zu = %p vs %p\n",
-	 ss.c_str(),
-	 ss.c_str(), ss.size(), ss.c_str() + ss.size(),
-	 endptr);
+         ss.c_str(),
+         ss.c_str(), ss.size(), ss.c_str() + ss.size(),
+         endptr);
 #endif
   if (endptr == ss.c_str() + ss.size()) {
     return d;
@@ -810,11 +810,11 @@ string Util::chopto(char c, string &line) {
       acc += line[i];
     } else {
       if (i < (line.length() - 1)) {
-	line = line.substr(i + 1, line.length() - (i + 1));
-	return acc;
+        line = line.substr(i + 1, line.length() - (i + 1));
+        return acc;
       } else {
-	line = "";
-	return acc;
+        line = "";
+        return acc;
       }
     }
   }
@@ -888,9 +888,9 @@ string Util::tempfile(const string &suffix) {
 
   do {
     sprintf(fname,
-	    "%d_%d_%d%s",
-	    tries, getpid(), random(),
-	    suffix.c_str());
+            "%d_%d_%d%s",
+            tries, getpid(), random(),
+            suffix.c_str());
     tries++;
   } while (ExistsFile(fname));
 
@@ -936,55 +936,55 @@ int Util::natural_compare(const string &l, const string &r) {
       int rc = (unsigned char)r[ir];
 
       if (lc >= '0' && lc <= '9') {
-	if (rc >= '0' && rc <= '9') {
-	  /* compare ints */
-	  int ll = 0;
-	  int rr = 0;
+        if (rc >= '0' && rc <= '9') {
+          /* compare ints */
+          int ll = 0;
+          int rr = 0;
 
-	  while (il < l.length() && l[il] >= '0' && l[il] <= '9') {
-	    ll *= 10;
-	    ll += (l[il] - '0');
-	    il ++;
-	  }
+          while (il < l.length() && l[il] >= '0' && l[il] <= '9') {
+            ll *= 10;
+            ll += (l[il] - '0');
+            il ++;
+          }
 
-	  while (ir < r.length() && r[ir] >= '0' && r[ir] <= '9') {
-	    rr *= 10;
-	    rr += (r[ir] - '0');
-	    ir ++;
-	  }
+          while (ir < r.length() && r[ir] >= '0' && r[ir] <= '9') {
+            rr *= 10;
+            rr += (r[ir] - '0');
+            ir ++;
+          }
 
-	  if (ll < rr) return -1;
-	  if (ll > rr) return 1;
-	  /* otherwise continue... */
+          if (ll < rr) return -1;
+          if (ll > rr) return 1;
+          /* otherwise continue... */
 
-	  il ++;
-	  ir ++;
-	} else {
-	  /* treat numbers larger than any char. */
-	  return 1;
-	}
+          il ++;
+          ir ++;
+        } else {
+          /* treat numbers larger than any char. */
+          return 1;
+        }
       } else {
-	if (rc >= '0' && rc <= '9') {
-	  return -1;
-	} else {
-	  /* compare chars */
-	  if ((rc|32) >= 'a' && (rc|32) <= 'z' &&
-	      (lc|32) >= 'a' && (rc|32) <= 'z' &&
-	      !caseless) {
+        if (rc >= '0' && rc <= '9') {
+          return -1;
+        } else {
+          /* compare chars */
+          if ((rc|32) >= 'a' && (rc|32) <= 'z' &&
+              (lc|32) >= 'a' && (rc|32) <= 'z' &&
+              !caseless) {
 
-	    /* letters are case-insensitive */
-	    if ((lc|32) < (rc|32)) return -1;
-	    if ((lc|32) > (rc|32)) return 1;
-	  } else {
-	    if (lc < rc) return -1;
-	    if (lc > rc) return 1;
-	  }
+            /* letters are case-insensitive */
+            if ((lc|32) < (rc|32)) return -1;
+            if ((lc|32) > (rc|32)) return 1;
+          } else {
+            if (lc < rc) return -1;
+            if (lc > rc) return 1;
+          }
 
-	  /* same so far. continue... */
+          /* same so far. continue... */
 
-	  il ++;
-	  ir ++;
-	}
+          il ++;
+          ir ++;
+        }
       }
 
     }
@@ -1030,7 +1030,7 @@ int Util::library_compare(const string &l, const string &r) {
   }
 
   return natural_compare (l.substr(idxl, l.length() - idxl),
-			  r.substr(idxr, r.length() - idxr));
+                          r.substr(idxr, r.length() - idxr));
 }
 
 /* XXX impossible to specify a spec for just ^ */
@@ -1048,10 +1048,10 @@ bool Util::matchspec(string spec, char c) {
     if (spec[i] == '-') {
       /* can't be first or last */
       if (i && i < (spec.length() - 1)) {
-	if (spec[i - 1] <= c &&
-	    spec[i + 1] >= c) return true;
-	/* skip dash and next char */
-	i ++;
+        if (spec[i - 1] <= c &&
+            spec[i + 1] >= c) return true;
+        /* skip dash and next char */
+        i ++;
       }
     }
   }
@@ -1089,8 +1089,8 @@ bool Util::remove(const string &f) {
        rename tmp  delme1234.exe
        exec(delme1234.exe "-replace" "escape.exe")
           (now, the program has to have a flag -replace
-	   that instructs it to replace escape.exe
-	   with itself, then exit)
+           that instructs it to replace escape.exe
+           with itself, then exit)
        .. hopefully exec will unlock the original
        process's executable!! */
 
@@ -1153,9 +1153,9 @@ bool Util::copy(const string &src, const string &dst) {
     x = (int)fread(buf, 1, BUF_SIZE, s);
     if (x > 0) {
       if ((signed)fwrite(buf, 1, x, d) < x) {
-	fclose(s);
-	fclose(d);
-	return false;
+        fclose(s);
+        fclose(d);
+        return false;
       }
     }
   } while (x == BUF_SIZE);
@@ -1188,7 +1188,7 @@ void Util::CreatePathFor(const string &f) {
   for (unsigned int i = 0; i < f.length();  i++) {
     if (f[i] == DIRSEPC) {
       /* initial / will cause s == "" for first
-	 appearance */
+         appearance */
       if (s != "") MakeDir(s);
     }
     s += f[i];
@@ -1201,7 +1201,7 @@ FILE *Util::fopenp(const string &f, const string &m) {
 }
 
 string Util::Join(const vector<string> &parts,
-		  const string &sep) {
+                  const string &sep) {
   if (parts.empty()) return "";
   if (parts.size() == 1) return parts[0];
   size_t result_len = 0;
@@ -1236,8 +1236,8 @@ vector<string> Util::Split(const string &s, char sep) {
 }
 
 string Util::Replace(string src,
-		     const string &findme,
-		     const string &rep) {
+                     const string &findme,
+                     const string &rep) {
   auto idx = src.length() - 1;
 
   if (findme.length() < 1) return src;
@@ -1307,9 +1307,9 @@ bool Util::launchurl(const string &url) {
 #if 0
 #ifdef OSX
   CFURLRef urlcfurl = CFURLCreateWithBytes(kCFAllocatorDefault,
-					   (const UInt8*)url.c_str(),
-					   (CFIndex)strlen(urlstring),
-					   kCFStringEncodingASCII, nullptr);
+                                           (const UInt8*)url.c_str(),
+                                           (CFIndex)strlen(urlstring),
+                                           kCFStringEncodingASCII, nullptr);
   if (urlcfurl) {
       OSStatus status = LSOpenCFURLRef(urlcfurl, nullptr);
       CFRelease(urlcfurl);
@@ -1321,7 +1321,7 @@ bool Util::launchurl(const string &url) {
 
 #ifdef WIN32
   return ((size_t)ShellExecute(nullptr, "open", url.c_str(),
-			       nullptr, nullptr, SW_SHOWNORMAL)) > 32;
+                               nullptr, nullptr, SW_SHOWNORMAL)) > 32;
 #endif
 
   /* otherwise.. */

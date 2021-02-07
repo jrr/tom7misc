@@ -78,7 +78,7 @@ static int BytesNeeded(const Format &f, int samplerate) {
 
 // Prevent dependency on util.
 static bool util_WriteFileBytes(const string &fn,
-				const vector<unsigned char> &bytes) {
+                                const vector<unsigned char> &bytes) {
   FILE * f = fopen(fn.c_str(), "wb");
   if (!f) return false;
 
@@ -92,7 +92,7 @@ static bool util_WriteFileBytes(const string &fn,
 
 // Write the header, including the data chunk header.
 static void WriteHeader(const Format &format, int rate,
-			vector<uint8> *bytes) {
+                        vector<uint8> *bytes) {
   auto wb = [&bytes](uint8 b) { bytes->push_back(b); };
   auto wid = [&wb](const char *s) {
     wb(s[0]);
@@ -141,7 +141,7 @@ void WriteData(const T& samples, vector<uint8> *bytes);
 
 template<>
 void WriteData(const vector<pair<float, float>> &samples,
-	       vector<uint8> *bytes) {
+               vector<uint8> *bytes) {
   auto w16 = [&bytes](int i) {
     bytes->push_back((uint8)(i & 255));
     bytes->push_back((uint8)((i >> 8) & 255));
@@ -158,7 +158,7 @@ void WriteData(const vector<pair<float, float>> &samples,
 
 template<>
 void WriteData(const vector<uint16> &samples,
-	       vector<uint8> *bytes) {
+               vector<uint8> *bytes) {
   auto w16 = [&bytes](int i) {
     bytes->push_back((uint8)(i & 255));
     bytes->push_back((uint8)((i >> 8) & 255));
@@ -171,8 +171,8 @@ void WriteData(const vector<uint16> &samples,
 
 template<class T>
 static int SaveGeneric(const string &filename,
-		       const vector<T> &samples,
-		       int samplerate) {
+                       const vector<T> &samples,
+                       int samplerate) {
   Format format = GetFormat(samples);
   vector<uint8> bytes;
   bytes.reserve(BytesNeeded(format, samplerate));
@@ -184,13 +184,13 @@ static int SaveGeneric(const string &filename,
 }
 
 bool WaveSave::SaveStereo(const string &filename,
-			  const vector<pair<float, float>> &samples,
-			  int samplerate) {
+                          const vector<pair<float, float>> &samples,
+                          int samplerate) {
   return SaveGeneric(filename, samples, samplerate);
 }
 
 bool WaveSave::SaveMono16(const string &filename,
-			  const vector<uint16> &samples,
-			  int samplerate) {
+                          const vector<uint16> &samples,
+                          int samplerate) {
   return SaveGeneric(filename, samples, samplerate);
 }

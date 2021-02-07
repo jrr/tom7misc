@@ -5,7 +5,7 @@
 
 // static
 void ColorUtil::HSVToRGB(float h, float s, float v,
-			 float *r, float *g, float *b) {
+                         float *r, float *g, float *b) {
   if (s == 0.0f) {
     *r = v;
     *g = v;
@@ -36,7 +36,7 @@ void ColorUtil::HSVToRGB(float h, float s, float v,
 
 // static
 void ColorUtil::RGBToLAB(float r, float g, float b,
-			 float *ll, float *aa, float *bb) {
+                         float *ll, float *aa, float *bb) {
   // First we need to un-compand the RGB triplet.
   // Technically there are different choices here, but sRGB is what we
   // really mean by RGB in this library.
@@ -79,7 +79,7 @@ void ColorUtil::RGBToLAB(float r, float g, float b,
 
 // static
 float ColorUtil::DeltaE(float l1, float a1, float b1,
-			float l2, float a2, float b2) {
+                        float l2, float a2, float b2) {
   const float dl = l1 - l2;
   const float da = a1 - a2;
   const float db = b1 - b2;

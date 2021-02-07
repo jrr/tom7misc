@@ -54,7 +54,7 @@ DECL_AND_SAVE(
       if (c >= 'a' && c <= 'z') return (c - 'a') + 14 + 26;
       return -1;
     });
-	      
+              
 static char NumChar(int n) {
   CHECK(n >= 0 && n < RADIX) << n;
   return ",-./"
@@ -177,11 +177,11 @@ static void Load() {
       CHECK(suffix_it.IsObject());
       const auto &suffix_obj = suffix_it.GetObject();
       CHECK(suffix_obj.HasMember("key") &&
-	    suffix_obj.HasMember("suffix") &&
-	    suffix_obj.HasMember("positions"));
+            suffix_obj.HasMember("suffix") &&
+            suffix_obj.HasMember("positions"));
       CHECK_EQ(suffix_obj["key"].GetString(), base);
       const string suffix =
-	NormalizeSuffix(suffix_obj["suffix"].GetString());
+        NormalizeSuffix(suffix_obj["suffix"].GetString());
       const auto &positions_obj = suffix_obj["positions"];
       CHECK(positions_obj.IsArray());
       const auto &positions_arr = positions_obj.GetArray();
@@ -193,51 +193,51 @@ static void Load() {
 
       // Now, each position...
       for (const auto &pos_it : positions_arr) {
-	CHECK(pos_it.IsObject());
-	const auto &pos_obj = pos_it.GetObject();
-	// Also included here:
-	//  capo: If true, then open fingering is played
-	//   at the base fret (where the capo is). Only
-	//   affects open fingering.
-	//   (XXX: Verify this. The SVGs at e.g.
-	//    https://tombatossals.github.io/react-chords/guitar/D/m11
-	//    suggest this, but it seems weird to me.)
-	//  barres: just informational; this is included
-	//   in the fingering.
-	//  fingers: which finger to use. don't tell me
-	//   which finger to use!!
-	//  midi: Probably the absolute midi note. Skips
-	//   muted strings, so not useful for this.
-	CHECK(pos_obj.HasMember("baseFret") &&
-	      pos_obj["baseFret"].IsNumber() &&
-	      pos_obj.HasMember("frets") &&
-	      pos_obj["frets"].IsArray());
+        CHECK(pos_it.IsObject());
+        const auto &pos_obj = pos_it.GetObject();
+        // Also included here:
+        //  capo: If true, then open fingering is played
+        //   at the base fret (where the capo is). Only
+        //   affects open fingering.
+        //   (XXX: Verify this. The SVGs at e.g.
+        //    https://tombatossals.github.io/react-chords/guitar/D/m11
+        //    suggest this, but it seems weird to me.)
+        //  barres: just informational; this is included
+        //   in the fingering.
+        //  fingers: which finger to use. don't tell me
+        //   which finger to use!!
+        //  midi: Probably the absolute midi note. Skips
+        //   muted strings, so not useful for this.
+        CHECK(pos_obj.HasMember("baseFret") &&
+              pos_obj["baseFret"].IsNumber() &&
+              pos_obj.HasMember("frets") &&
+              pos_obj["frets"].IsArray());
 
-	// Note that base_fret is 1 in home position. We compute
-	// a 0-based fret offset (added to any fingered fret)
-	// and the effective open fret (
-	const auto [fret_offset, open_fret] = [&]{
-	    const bool capo = pos_obj.HasMember("capo") &&
-	      pos_obj["capo"].GetBool();
-	    
-	    const int base_fret = pos_obj["baseFret"].GetInt();
-	    CHECK(base_fret > 0);
-	    return make_pair(base_fret - 1, capo ? base_fret : 0);
-	  }();
-	
-	vector<int> fingers;
-	fingers.reserve(6);
-	for (const auto &f : pos_obj["frets"].GetArray()) {
-	  CHECK(f.IsNumber());
-	  const int fn = f.GetInt();
-	  // fn of -1 means mute, 0 means open.
-	  if (fn == -1) fingers.push_back(-1);
-	  else if (fn == 0) fingers.push_back(open_fret);
-	  else fingers.push_back(fret_offset + fn);
-	}
-	CHECK_EQ(fingers.size(), 6);
+        // Note that base_fret is 1 in home position. We compute
+        // a 0-based fret offset (added to any fingered fret)
+        // and the effective open fret (
+        const auto [fret_offset, open_fret] = [&]{
+            const bool capo = pos_obj.HasMember("capo") &&
+              pos_obj["capo"].GetBool();
+            
+            const int base_fret = pos_obj["baseFret"].GetInt();
+            CHECK(base_fret > 0);
+            return make_pair(base_fret - 1, capo ? base_fret : 0);
+          }();
+        
+        vector<int> fingers;
+        fingers.reserve(6);
+        for (const auto &f : pos_obj["frets"].GetArray()) {
+          CHECK(f.IsNumber());
+          const int fn = f.GetInt();
+          // fn of -1 means mute, 0 means open.
+          if (fn == -1) fingers.push_back(-1);
+          else if (fn == 0) fingers.push_back(open_fret);
+          else fingers.push_back(fret_offset + fn);
+        }
+        CHECK_EQ(fingers.size(), 6);
 
-	for (int f : fingers) out += FingerChar(f);
+        for (int f : fingers) out += FingerChar(f);
       }
     }
   }
@@ -255,7 +255,7 @@ static void Load() {
 
   // TODO: Break into tidy lines?
   StringAppendF(&source, "\nstatic constexpr char DATA[] = \"%s\";\n",
-		out.c_str());
+                out.c_str());
 
   source += "#line 1 \"guitar-tail.cc\"\n";
   source += Util::ReadFile("guitar-tail.cc");

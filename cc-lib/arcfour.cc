@@ -11,7 +11,7 @@ using uint8 = uint8_t;
 static_assert (sizeof(uint8) == 1, "Char must be one byte.");
 
 static void Initialize(const uint8 (&kk)[256],
-		       uint8 (&ss)[256]) {
+                       uint8 (&ss)[256]) {
   uint8 i = 0, j = 0;
   for (int n = 256; n--;) {
     j += ss[i] + kk[i];

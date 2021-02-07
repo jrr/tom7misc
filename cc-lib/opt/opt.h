@@ -19,27 +19,27 @@ struct Opt {
   template<int N>
   static std::pair<std::array<double, N>, double>
   Minimize(const std::function<double(const std::array<double, N> &)> &f,
-	   // Bounds must be finite.
-	   const std::array<double, N> &lower_bound,
-	   const std::array<double, N> &upper_bound,
-	   // Approximately, the number of times to call f.
-	   int iters,
-	   int depth = 1,
-	   int attempts = 10);
+           // Bounds must be finite.
+           const std::array<double, N> &lower_bound,
+           const std::array<double, N> &upper_bound,
+           // Approximately, the number of times to call f.
+           int iters,
+           int depth = 1,
+           int attempts = 10);
   
   // As above, but with n as a runtime value.
   static std::pair<std::vector<double>, double>
   Minimize(int n,
-	   const std::function<double(const std::vector<double> &)> &f,
-	   const std::vector<double> &lower_bound,
-	   const std::vector<double> &upper_bound,
-	   int iters,
-	   int depth = 1,
-	   int attempts = 10);
+           const std::function<double(const std::vector<double> &)> &f,
+           const std::vector<double> &lower_bound,
+           const std::vector<double> &upper_bound,
+           int iters,
+           int depth = 1,
+           int attempts = 10);
 
 private:
   typedef double (*internal_func)(int N, const double* x,
-				  void* func_data);
+                                  void* func_data);
 
   static void internal_minimize(
       const int N, internal_func f, const void* data,
@@ -70,8 +70,8 @@ Opt::Minimize(
   std::array<double, N> out;
   double out_v = 0.0;
   Opt::internal_minimize(N, +wrap_f, &f,
-			 lower_bound.data(), upper_bound.data(),
-			 out.data(), &out_v, iters, depth, attempts);
+                         lower_bound.data(), upper_bound.data(),
+                         out.data(), &out_v, iters, depth, attempts);
   return {out, out_v};
 }
 
@@ -94,22 +94,22 @@ Opt::Minimize(
 template<class ...Doubles>
 static std::pair<std::array<double, sizeof...(Doubles)>, double>
 MinimizeF(const std::function<double(Doubles...)> &f,
-	  std::array<double, sizeof...(Doubles)> lower_bound,
-	  std::array<double, sizeof...(Doubles)> upper_bound,
-	  int iters,
-	  int depth = 1,
-	  int attempts = 10);
+          std::array<double, sizeof...(Doubles)> lower_bound,
+          std::array<double, sizeof...(Doubles)> upper_bound,
+          int iters,
+          int depth = 1,
+          int attempts = 10);
 
   
 template<class ...Doubles>
 // std::pair<std::tuple<Doubles...>, double>
 void
 Opt::MinimizeF(const std::function<double(Doubles...)> &f,
-	       std::array<double, sizeof...(Doubles)> lower_bound,
-	       std::array<double, sizeof...(Doubles)> upper_bound,
-	       int iters,
-	       int depth,
-	       int attempts) {
+               std::array<double, sizeof...(Doubles)> lower_bound,
+               std::array<double, sizeof...(Doubles)> upper_bound,
+               int iters,
+               int depth,
+               int attempts) {
   constexpr int N = sizeof...(Doubles);
 
   auto wrap_f = [](int n_, const double *args, void* data) -> double {
@@ -121,8 +121,8 @@ Opt::MinimizeF(const std::function<double(Doubles...)> &f,
   std::array<double, N> out;
   double out_v = 0.0;
   Opt::internal_minimize(N, +wrap_f, &f,
-			 lower_bound.data(), upper_bound.data(),
-			 out.data(), &out_v, iters, depth, attempts);
+                         lower_bound.data(), upper_bound.data(),
+                         out.data(), &out_v, iters, depth, attempts);
   return {out, out_v};
 }
 #endif

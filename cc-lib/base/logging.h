@@ -23,13 +23,13 @@ using std::endl;
 #include "base/macros.h"
 
 // Always-on checking
-#define CHECK(x)	if(x){}else LogMessageFatal(__FILE__, __LINE__).stream() << "Check failed: " #x "\n"
-#define CHECK_LT(x, y)	CHECK((x) < (y))
-#define CHECK_GT(x, y)	CHECK((x) > (y))
-#define CHECK_LE(x, y)	CHECK((x) <= (y))
-#define CHECK_GE(x, y)	CHECK((x) >= (y))
-#define CHECK_EQ(x, y)	CHECK((x) == (y))
-#define CHECK_NE(x, y)	CHECK((x) != (y))
+#define CHECK(x)        if(x){}else LogMessageFatal(__FILE__, __LINE__).stream() << "Check failed: " #x "\n"
+#define CHECK_LT(x, y)  CHECK((x) < (y))
+#define CHECK_GT(x, y)  CHECK((x) > (y))
+#define CHECK_LE(x, y)  CHECK((x) <= (y))
+#define CHECK_GE(x, y)  CHECK((x) >= (y))
+#define CHECK_EQ(x, y)  CHECK((x) == (y))
+#define CHECK_NE(x, y)  CHECK((x) != (y))
 #define CHECK_NOTNULL(x) CHECK((x) != nullptr)
 
 #ifndef NDEBUG

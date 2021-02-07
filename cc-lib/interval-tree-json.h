@@ -17,12 +17,12 @@ struct IntervalTreeJSON {
   using Interval = typename IT::Interval;
   using Node = typename IT::Node;
   IntervalTreeJSON(const IntervalTree<Idx, T, Bisect> &tree,
-		   const std::function<string(const Idx &idx)> &idxjs,
-		   const std::function<string(const T &t)> &tjs,
-		   int max_depth) : tree(tree), 
-				    idxjs(idxjs), 
-				    tjs(tjs), 
-				    max_depth(max_depth) {}
+                   const std::function<string(const Idx &idx)> &idxjs,
+                   const std::function<string(const T &t)> &tjs,
+                   int max_depth) : tree(tree), 
+                                    idxjs(idxjs), 
+                                    tjs(tjs), 
+                                    max_depth(max_depth) {}
 
   // A faithful representation of the interval tree as a JS expression
   // (not actual JSON). The template arguments are callable (e.g.
@@ -36,7 +36,7 @@ struct IntervalTreeJSON {
     } else {
       string out = "(function(){\n";
       for (const string &d : decls) {
-	out += d;
+        out += d;
       }
       out += "return ";
       out += s;
@@ -46,16 +46,16 @@ struct IntervalTreeJSON {
   }
 
   string ToJSONRec(std::vector<string> *decls,
-		   int depth,
-		   const Node *n) const {
+                   int depth,
+                   const Node *n) const {
     if (n == nullptr) return "null";
     string ret = (string)"{c:" + idxjs(n->center);
 
     auto Subtree = [this, &ret, decls, depth](const string &field,
-					      const Node *t) {
+                                              const Node *t) {
       if (t != nullptr) {
-	ret += (string)"," + field + ":";
-	ret += ToJSONRec(decls, depth + 1, t);
+        ret += (string)"," + field + ":";
+        ret += ToJSONRec(decls, depth + 1, t);
       }
     };
 
@@ -64,15 +64,15 @@ struct IntervalTreeJSON {
 
     auto Intervals =
       [this, &ret](const string &field,
-		   const std::multimap<Idx, Interval *> &mmap) {
+                   const std::multimap<Idx, Interval *> &mmap) {
       ret += (string)"," + field + ":[";
       bool first = true;
       for (const auto &p : mmap) {
-	if (!first) ret += ",";
-	ret += (string)"{s:" + idxjs(p.second->start) +
-	  ",e:" + idxjs(p.second->end) + ",t:" + tjs(p.second->t) +
-	  "}";
-	first = false;
+        if (!first) ret += ",";
+        ret += (string)"{s:" + idxjs(p.second->start) +
+          ",e:" + idxjs(p.second->end) + ",t:" + tjs(p.second->t) +
+          "}";
+        first = false;
       }
       ret += "]";
     };
@@ -93,7 +93,7 @@ struct IntervalTreeJSON {
   }
 
   string ToCompactJSON(const std::function<Idx(const Idx &l,
-					       const Idx &r)> minus) const {
+                                               const Idx &r)> minus) const {
     std::vector<string> decls;
     string s = ToCompactJSONRec(&decls, minus, 0, tree.root);
     if (decls.size() == 0) {
@@ -101,7 +101,7 @@ struct IntervalTreeJSON {
     } else {
       string out = "(function(){\n";
       for (const string &d : decls) {
-	out += d;
+        out += d;
       }
       out += "return ";
       out += s;
@@ -115,10 +115,10 @@ struct IntervalTreeJSON {
   // sorted by start position. The 't' data are not represented at
   // all.
   string ToCompactJSONRec(std::vector<string> *decls, 
-			  const std::function<Idx(const Idx &l,
-						  const Idx &r)> minus,
-			  int depth,
-			  const Node *n) const {
+                          const std::function<Idx(const Idx &l,
+                                                  const Idx &r)> minus,
+                          int depth,
+                          const Node *n) const {
     if (n == nullptr) return "null";
     string ret = "[";
     ret += ToCompactJSONRec(decls, minus, depth + 1, n->left);
@@ -129,7 +129,7 @@ struct IntervalTreeJSON {
       if (!first) ret += ",";
       Idx len = minus(p.second->end, p.second->start);
       ret += (string)"[" + idxjs(p.second->start) +
-	"," + idxjs(len) + "]";
+        "," + idxjs(len) + "]";
       first = false;
     }
     ret += "],";

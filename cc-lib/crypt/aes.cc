@@ -203,11 +203,11 @@ static void KeyExpansion(uint8 *round_key, const uint8 *Key) {
     // Is this AES256?
     if (KEY_WORDS == 8) {
       if (i % KEY_WORDS == 4) {
-	// Function Subword()
-	tempa[0] = getSBoxValue(tempa[0]);
-	tempa[1] = getSBoxValue(tempa[1]);
-	tempa[2] = getSBoxValue(tempa[2]);
-	tempa[3] = getSBoxValue(tempa[3]);
+        // Function Subword()
+        tempa[0] = getSBoxValue(tempa[0]);
+        tempa[1] = getSBoxValue(tempa[1]);
+        tempa[2] = getSBoxValue(tempa[2]);
+        tempa[3] = getSBoxValue(tempa[3]);
       }
     }
 
@@ -227,7 +227,7 @@ void AES<KEYBITS>::InitCtx(struct Ctx *ctx, const uint8 *key) {
 
 template<int KEYBITS>
 void AES<KEYBITS>::InitCtxIV(struct Ctx *ctx,
-			     const uint8 *key, const uint8 *iv) {
+                             const uint8 *key, const uint8 *iv) {
   KeyExpansion<KEY_WORDS, NUM_ROUNDS>(ctx->round_key, key);
   memcpy(ctx->iv, iv, BLOCKLEN);
 }
@@ -240,7 +240,7 @@ void AES<KEYBITS>::Ctx_set_iv(struct Ctx *ctx, const uint8 *iv) {
 // This function adds the round key to state.
 // The round key is added to the state by an XOR function.
 static void AddRoundKey(uint8 round, state_t *state,
-			const uint8 *round_key) {
+                        const uint8 *round_key) {
   for (uint8 i = 0; i < 4; ++i) {
     for (uint8 j = 0; j < 4; ++j) {
       (*state)[i][j] ^= round_key[(round * Nb * 4) + (i * Nb) + j];
@@ -318,10 +318,10 @@ static void MixColumns(state_t *state) {
 // vectorize the operation better this way.
 static constexpr uint8 Mul(uint8 x, uint8 y) {
   return (((y & 1) * x) ^
-	  ((y >> 1 & 1) * xtime(x)) ^
-	  ((y >> 2 & 1) * xtime(xtime(x))) ^
-	  ((y >> 3 & 1) * xtime(xtime(xtime(x)))) ^
-	  ((y >> 4 & 1) * xtime(xtime(xtime(xtime(x))))));
+          ((y >> 1 & 1) * xtime(x)) ^
+          ((y >> 2 & 1) * xtime(xtime(x))) ^
+          ((y >> 3 & 1) * xtime(xtime(xtime(x)))) ^
+          ((y >> 4 & 1) * xtime(xtime(xtime(xtime(x))))));
 }
 
 // MixColumns function mixes the columns of the state matrix. The
@@ -492,7 +492,7 @@ void AES<KEYBITS>::XcryptCTR(struct Ctx *ctx, uint8 *buf, uint32 length) {
 
       /* Increment iv and handle overflow */
       for (bi = BLOCKLEN - 1; bi >= 0; --bi) {
-	/* inc will overflow */
+        /* inc will overflow */
         if (ctx->iv[bi] == 255) {
           ctx->iv[bi] = 0;
           continue;

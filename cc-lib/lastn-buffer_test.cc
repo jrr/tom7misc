@@ -57,9 +57,9 @@ static void TestBasic() {
 
   int r = 0;
   ib.App([&r](int val){
-	   CHECK_EQ(val, r);
-	   r++;
-	 });
+           CHECK_EQ(val, r);
+           r++;
+         });
 }
 
 int main(int argc, char **argv) {

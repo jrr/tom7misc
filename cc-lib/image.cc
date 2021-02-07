@@ -33,15 +33,15 @@ struct EmbeddedFont {
   // SetPixel and ClearPixel called like SetPixel(x, y).
   template<class FS, class FC>
   static void Blit(int c, int x, int y,
-	           FS SetPixel, FC ClearPixel = [](int, int){}) {
+                   FS SetPixel, FC ClearPixel = [](int, int){}) {
     if (c < 0 || c >= 128) return;
     for (int sy = 0; sy < CHAR_HEIGHT; sy++) {
       for (int sx = 0; sx < CHAR_WIDTH; sx++) {
-	if (GetBit(c, sx, sy)) {
-	  SetPixel(x + sx, y + sy);
-	} else {
-	  ClearPixel(x + sx, y + sy);
-	}
+        if (GetBit(c, sx, sy)) {
+          SetPixel(x + sx, y + sy);
+        } else {
+          ClearPixel(x + sx, y + sy);
+        }
       }
     }
   }
@@ -109,9 +109,9 @@ struct EmbeddedFont {
 inline static constexpr std::tuple<uint8, uint8, uint8, uint8>
 Unpack32(uint32 color) {
   return {(uint8)((color >> 24) & 255),
-	  (uint8)((color >> 16) & 255),
-	  (uint8)((color >> 8) & 255),
-	  (uint8)(color & 255)};
+          (uint8)((color >> 16) & 255),
+          (uint8)((color >> 8) & 255),
+          (uint8)(color & 255)};
 }
 
 inline static constexpr uint32 Pack32(uint8 r, uint8 g, uint8 b, uint8 a) {
@@ -126,7 +126,7 @@ ImageRGBA *ImageRGBA::Load(const string &filename) {
   vector<uint8> ret;
   int width, height, bpp_unused;
   uint8 *stb_rgba = stbi_load(filename.c_str(),
-			      &width, &height, &bpp_unused, 4);
+                              &width, &height, &bpp_unused, 4);
   const int bytes = width * height * 4;
   ret.resize(bytes);
   if (stb_rgba == nullptr) return nullptr;
@@ -172,7 +172,7 @@ ImageRGBA::ImageRGBA(int width, int height)
 bool ImageRGBA::Save(const std::string &filename) const {
   CHECK((int)rgba.size() == width * height * 4);
   return !!stbi_write_png(filename.c_str(),
-			  width, height, 4, rgba.data(), 4 * width);
+                          width, height, 4, rgba.data(), 4 * width);
 }
 
 vector<uint8> ImageRGBA::SaveToVec() const {
@@ -193,7 +193,7 @@ bool ImageRGBA::SaveJPG(const std::string &filename, int quality) const {
   CHECK((int)rgba.size() == width * height * 4);
   CHECK(quality >= 0 && quality <= 100) << quality;
   return !!stbi_write_jpg(filename.c_str(),
-			  width, height, 4, rgba.data(), quality);
+                          width, height, 4, rgba.data(), quality);
 }
 
 ImageRGBA *ImageRGBA::Copy() const {
@@ -201,7 +201,7 @@ ImageRGBA *ImageRGBA::Copy() const {
 }
 
 ImageRGBA ImageRGBA::Crop32(int x, int y, int w, int h,
-			    uint32 fill_color) const {
+                            uint32 fill_color) const {
   CHECK(w > 0 && h > 0) << w << " " << h;
   const auto [r, g, b, a] = Unpack32(fill_color);
   
@@ -214,12 +214,12 @@ ImageRGBA ImageRGBA::Crop32(int x, int y, int w, int h,
       // Fill color if not in bounds
       uint8 sr = r, sg = g, sb = b, sa = a;
       if (sx >= 0 && sx < width &&
-	  sy >= 0 && sy < height) {
-	const int sbase = (sy * width + sx) << 2;
-	sr = rgba[sbase + 0];
-	sg = rgba[sbase + 1];
-	sb = rgba[sbase + 2];
-	sa = rgba[sbase + 3];	
+          sy >= 0 && sy < height) {
+        const int sbase = (sy * width + sx) << 2;
+        sr = rgba[sbase + 0];
+        sg = rgba[sbase + 1];
+        sb = rgba[sbase + 2];
+        sa = rgba[sbase + 3];   
       }
 
       const int base = (yy * w + xx) << 2;
@@ -240,11 +240,11 @@ ImageRGBA ImageRGBA::ScaleBy(int scale) const {
     for (int x = 0; x < width; x++) {
       const uint32 color = GetPixel32(x, y);
       for (int yy = 0; yy < scale; yy++) {
-	for (int xx = 0; xx < scale; xx++) {
-	  ret.SetPixel32(x * scale + xx,
-			 y * scale + yy,
-			 color);
-	}
+        for (int xx = 0; xx < scale; xx++) {
+          ret.SetPixel32(x * scale + xx,
+                         y * scale + yy,
+                         color);
+        }
       }
     }
   }
@@ -255,9 +255,9 @@ void ImageRGBA::Clear32(uint32 color) {
   // PERF: This can be optimized by writing 32 bits at a time,
   // but beware endianness, etc.
   Clear((color >> 24) & 255,
-	(color >> 16) & 255,
-	(color >> 8) & 255,
-	color & 255);
+        (color >> 16) & 255,
+        (color >> 8) & 255,
+        color & 255);
 }
 
 void ImageRGBA::Clear(uint8 r, uint8 g, uint8 b, uint8 a) {
@@ -271,7 +271,7 @@ void ImageRGBA::Clear(uint8 r, uint8 g, uint8 b, uint8 a) {
 
 // PERF: Make inline?
 void ImageRGBA::BlendPixel(int x, int y,
-			   uint8 r, uint8 g, uint8 b, uint8 a) {
+                           uint8 r, uint8 g, uint8 b, uint8 a) {
   if (x < 0 || x >= width ||
       y < 0 || y >= height) return;
   int i = (y * width + x) * 4;
@@ -314,7 +314,7 @@ void ImageRGBA::BlendPixel32(int x, int y, uint32 color) {
 }
 
 void ImageRGBA::BlendRect(int x, int y, int w, int h,
-			  uint8 r, uint8 g, uint8 b, uint8 a) {
+                          uint8 r, uint8 g, uint8 b, uint8 a) {
   // Easy to clip this to the screen. We could call an unclipped
   // version of BlendPixel here.
   if (y < 0) { w += y; y = 0; }
@@ -340,7 +340,7 @@ void ImageRGBA::BlendRect32(int x, int y, int w, int h, uint32 color) {
 }
 
 void ImageRGBA::BlendBox32(int x, int y, int w, int h,
-			   uint32 color, std::optional<uint32> cco) {
+                           uint32 color, std::optional<uint32> cco) {
   const int x1 = x + w - 1;
   const int y1 = y + h - 1;
 
@@ -381,8 +381,8 @@ void ImageRGBA::BlendText32(int x, int y, uint32 color, const string &s) {
 }
 
 void ImageRGBA::BlendText(int x, int y,
-			  uint8 r, uint8 g, uint8 b, uint8 a,
-			  const string &s) {
+                          uint8 r, uint8 g, uint8 b, uint8 a,
+                          const string &s) {
   BlendText32(x, y, Pack32(r, g, b, a), s);
 }
 
@@ -390,12 +390,12 @@ void ImageRGBA::BlendText2x32(int x, int y, uint32 color, const string &s) {
   for (int i = 0; i < (int)s.size(); i++) {
     // Here we draw to "0,0", and then this function scales and translates.
     auto SetPixel = [x, y, i, this, color](int px, int py) {
-	const int xx = x + (i * EmbeddedFont::CHAR_WIDTH * 2) + px * 2;
-	const int yy = y + py * 2;
-	this->BlendPixel32(xx, yy, color);
-	this->BlendPixel32(xx + 1, yy, color);
-	this->BlendPixel32(xx, yy + 1, color);
-	this->BlendPixel32(xx + 1, yy + 1, color);      
+        const int xx = x + (i * EmbeddedFont::CHAR_WIDTH * 2) + px * 2;
+        const int yy = y + py * 2;
+        this->BlendPixel32(xx, yy, color);
+        this->BlendPixel32(xx + 1, yy, color);
+        this->BlendPixel32(xx, yy + 1, color);
+        this->BlendPixel32(xx + 1, yy + 1, color);      
       };
 
     const uint8 c = s[i];
@@ -404,13 +404,13 @@ void ImageRGBA::BlendText2x32(int x, int y, uint32 color, const string &s) {
 }
 
 void ImageRGBA::BlendText2x(int x, int y,
-			    uint8 r, uint8 g, uint8 b, uint8 a,
-			    const string &s) {
+                            uint8 r, uint8 g, uint8 b, uint8 a,
+                            const string &s) {
   BlendText2x32(x, y, Pack32(r, g, b, a), s);
 }
 
 void ImageRGBA::BlendLine32(int x1, int y1, int x2, int y2,
-			    uint32 color) {
+                            uint32 color) {
   const auto [r, g, b, a] = Unpack32(color);
   for (const auto [x, y] : Line<int>{x1, y1, x2, y2}) {
     BlendPixel(x, y, r, g, b, a);
@@ -418,14 +418,14 @@ void ImageRGBA::BlendLine32(int x1, int y1, int x2, int y2,
 }
 
 void ImageRGBA::BlendLine(int x1, int y1, int x2, int y2,
-			  uint8 r, uint8 g, uint8 b, uint8 a) {
+                          uint8 r, uint8 g, uint8 b, uint8 a) {
   for (const auto [x, y] : Line<int>{x1, y1, x2, y2}) {
     BlendPixel(x, y, r, g, b, a);
   }
 }
 
 void ImageRGBA::BlendLineAA32(float x1, float y1, float x2, float y2,
-			      uint32 color) {
+                              uint32 color) {
   const auto [r, g, b, a] = Unpack32(color);
   auto Plot = [this, r, g, b, a](int x, int y, float f) {
       uint8 aa = f * a;
@@ -461,7 +461,7 @@ ImageA::ImageA(const vector<uint8> &alpha, int width, int height)
 }
 
 ImageA::ImageA(int width, int height) : width(width), height(height),
-					alpha(width * height, 0) {
+                                        alpha(width * height, 0) {
 }
 
 ImageA *ImageA::Copy() const {

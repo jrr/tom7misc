@@ -85,16 +85,16 @@ vector<SimpleDXF::Field> SimpleDXF::GetFields(const string &contents) {
     case ValueType::INT: {
       int64 value = 0LL;
       CHECK(RE2::FullMatch(value_line, integer_re, &value))
-	<< "Expected integer for code " << code << "; got:\n"
-	<< value_line;
+        << "Expected integer for code " << code << "; got:\n"
+        << value_line;
       fields.emplace_back(code, Value{value});
       break;
     }
     case ValueType::FLOAT: {
       double value = 0.0;
       CHECK(RE2::FullMatch(value_line, float_re, &value))
-	<< "Expected float for code " << code << "; got:\n"
-	<< value_line;
+        << "Expected float for code " << code << "; got:\n"
+        << value_line;
       fields.emplace_back(code, Value{value});
       break;
     }
@@ -126,12 +126,12 @@ string SimpleDXF::ValueString(const Value &value) {
 // Get the first field of the named section (after 0 SECTION; 2 NAME).
 // Returns -1 on failure.
 static int GetSectionStart(const vector<SimpleDXF::Field> &fields,
-			   const string_view &name) {
+                           const string_view &name) {
   for (int i = 0; i < (int)fields.size() - 1; i++) {
     if (fields[i].code == 0 &&
-	fields[i + 1].code == 2 &&
-	fields[i].value.s == "SECTION" &&
-	fields[i + 1].value.s == name) {
+        fields[i + 1].code == 2 &&
+        fields[i].value.s == "SECTION" &&
+        fields[i + 1].value.s == name) {
       return i + 2;
     }
   }
@@ -152,7 +152,7 @@ vector<SimpleDXF::Entity> SimpleDXF::GetEntities(
     if (fields[i].code == 0) {
       // Done!
       if (fields[i].value.s == "ENDSEC")
-	return entities;
+        return entities;
 
       // Otherwise, start a new entity.
       entities.push_back(Entity{fields[i].value.s, {}});
@@ -160,7 +160,7 @@ vector<SimpleDXF::Entity> SimpleDXF::GetEntities(
       current->fields[0].push_back(fields[i].value);
     } else {
       CHECK(current != nullptr) << "ENTITIES section doesn't start "
-	"with an entity? (code 0)";
+        "with an entity? (code 0)";
       current->fields[fields[i].code].push_back(fields[i].value);
     }
   }

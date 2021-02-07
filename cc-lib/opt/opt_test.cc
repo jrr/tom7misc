@@ -35,11 +35,11 @@ int main(int argc, char **argv) {
       Opt::Minimize<1>(Test1, {-1000.0}, {1000.0}, 1000);
     
     printf("Found minimum at f(%.5f) = %.5f\n"
-	   "(Expected f(%.5f) = %.5f)\n",
-	   args[0],
-	   v,
-	   -0.467979,
-	   Test1({-0.467979}));
+           "(Expected f(%.5f) = %.5f)\n",
+           args[0],
+           v,
+           -0.467979,
+           Test1({-0.467979}));
   }
     
   {
@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
     
     CHECK(vargs.size() == 1);
     printf("Vector version: f(%.5f) = %.5f\n",
-	   vargs[0], vv);
+           vargs[0], vv);
   }
 
   #if 0
@@ -60,16 +60,16 @@ int main(int argc, char **argv) {
 
     (void)
       Opt::MinimizeF(
-	  ff,
-	  {-1000.0, -1000.0},
-	  {+1000.0, +1000.0},
-	  1000,
-	  1, 10);
+          ff,
+          {-1000.0, -1000.0},
+          {+1000.0, +1000.0},
+          1000,
+          1, 10);
     /*
     
     auto [x, y] = args;
     printf("Bare function version 2D: f(%.5f, %.5f) = %.5f\n",
-	   x, y, v);
+           x, y, v);
     */
   }
   #endif

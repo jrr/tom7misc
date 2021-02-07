@@ -11,7 +11,7 @@ using uint8 = uint8_t;
 
 // Check that the next bytes of the arcfour stream are as expected.
 static void TestCase(const vector<uint8> &expected,
-		     ArcFour *rc) {
+                     ArcFour *rc) {
   for (int i = 0; i < (int)expected.size(); i++) {
     uint8 got = rc->Byte();
     CHECK_EQ(got, expected[i]) << i;

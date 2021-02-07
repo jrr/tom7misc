@@ -16,7 +16,7 @@ struct Cursor {
   // examples.
   // Cursor width must be a multiple of 8.
   static SDL_Cursor *MakeCursor(int width, int height, int hot_x, int hot_y,
-				const char *ascii_img);
+                                const char *ascii_img);
 
   // Built-in cursor data. These are all 32x32.
   // Standard arrow.

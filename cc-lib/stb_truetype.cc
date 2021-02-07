@@ -540,11 +540,11 @@ STBTT_DEF int stbtt_FindGlyphIndex(const stbtt_fontinfo *info, int unicode_codep
          stbtt_uint16 offset, start;
          stbtt_uint16 item = (stbtt_uint16) ((search - endCount) >> 1);
 
-	 // tom7 made this return 0 (failure) instead of asserting
+         // tom7 made this return 0 (failure) instead of asserting
          // STBTT_assert(unicode_codepoint <= ttUSHORT(data + endCount + 2*item));
-	 if (!(unicode_codepoint <= ttUSHORT(data + endCount + 2*item)))
-	   return 0;
-	 
+         if (!(unicode_codepoint <= ttUSHORT(data + endCount + 2*item)))
+           return 0;
+         
          start = ttUSHORT(data + index_map + 14 + segcount*2 + 2 + 2*item);
          if (unicode_codepoint < start)
             return 0;
@@ -831,11 +831,11 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
             }
          }
          else {
-	   // tom7 made this return an empty shape (probably leaking memory)
-	   // instead of asserting
-	   return 0;
-	   // @TODO handle matching point
-	   STBTT_assert(0);
+           // tom7 made this return an empty shape (probably leaking memory)
+           // instead of asserting
+           return 0;
+           // @TODO handle matching point
+           STBTT_assert(0);
          }
          if (flags & (1<<3)) { // WE_HAVE_A_SCALE
             mtx[0] = mtx[3] = ttSHORT(comp)/16384.0f; comp+=2;
@@ -2173,13 +2173,13 @@ static void stbtt__fill_active_edges_new(float *scanline, float *scanline_fill, 
                }
                y_crossing += dy * (x2 - (x1+1));
 
-	       if (!(STBTT_fabs(area) <= 1.01f)) {
-		 printf("area: %.5f * (%.5f - %.5f) = %.5f\n",
-			sign, y_crossing, sy0,
-			area);
-	       }
-	       STBTT_assert(STBTT_fabs(area) <= 1.01f);
-	       
+               if (!(STBTT_fabs(area) <= 1.01f)) {
+                 printf("area: %.5f * (%.5f - %.5f) = %.5f\n",
+                        sign, y_crossing, sy0,
+                        area);
+               }
+               STBTT_assert(STBTT_fabs(area) <= 1.01f);
+               
                scanline[x2] += area + sign * (1-((x2-x2)+(x_bottom-x2))/2) * (sy1-y_crossing);
 
                scanline_fill[x2] += sign * (sy1-sy0);
@@ -2257,15 +2257,15 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
 
    #if 0
    printf("rasterize: %dx%d(%d) bitmap  %d edges  %d subsample  %d offx  %d offy\n",
-	  result->w, result->h, result->stride,
-	  n, vsubsample, off_x, off_y);
+          result->w, result->h, result->stride,
+          n, vsubsample, off_x, off_y);
 
    for (i = 0; i < n; i++) {
      const stbtt__edge &ee = e[i];
      printf("  {%.8f,%.8f,  %.8f,%.8f,  %d,},\n",
-	    ee.x0, ee.y0,
-	    ee.x1, ee.y1,
-	    ee.invert);
+            ee.x0, ee.y0,
+            ee.x1, ee.y1,
+            ee.invert);
    }
    #endif
    
@@ -2326,23 +2326,23 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
 
       // now process all active edges
       if (active) {
-	#if 0
-	int num_active = 0;
-	for (stbtt__active_edge *tmp = active; tmp != nullptr; tmp = tmp->next)
-	  num_active++;
-	printf("    sl #%d, %d active\n", j, num_active);
-	for (stbtt__active_edge *tmp = active; tmp != nullptr; tmp = tmp->next) {
-	  printf("      fx %.5f fdx %.5f %.5f fdy   dir %.5f   sy %.5f ey %.5f\n",
-		 tmp->fx, tmp->fdx, tmp->fdy,
-		 tmp->direction,
-		 tmp->sy,
-		 tmp->ey);
-	}	
-	#endif
-	
-	stbtt__fill_active_edges_new(scanline, scanline2+1, result->w, active, scan_y_top);
+        #if 0
+        int num_active = 0;
+        for (stbtt__active_edge *tmp = active; tmp != nullptr; tmp = tmp->next)
+          num_active++;
+        printf("    sl #%d, %d active\n", j, num_active);
+        for (stbtt__active_edge *tmp = active; tmp != nullptr; tmp = tmp->next) {
+          printf("      fx %.5f fdx %.5f %.5f fdy   dir %.5f   sy %.5f ey %.5f\n",
+                 tmp->fx, tmp->fdx, tmp->fdy,
+                 tmp->direction,
+                 tmp->sy,
+                 tmp->ey);
+        }       
+        #endif
+        
+        stbtt__fill_active_edges_new(scanline, scanline2+1, result->w, active, scan_y_top);
       }
-	 
+         
       {
          float sum = 0;
          for (i=0; i < result->w; ++i) {
@@ -3527,32 +3527,32 @@ static float stbtt__cuberoot( float x )
 // x^3 + c*x^2 + b*x + a = 0
 static int stbtt__solve_cubic(float a, float b, float c, float* r)
 {
-	float s = -a / 3;
-	float p = b - a*a / 3;
-	float q = a * (2*a*a - 9*b) / 27 + c;
+        float s = -a / 3;
+        float p = b - a*a / 3;
+        float q = a * (2*a*a - 9*b) / 27 + c;
    float p3 = p*p*p;
-	float d = q*q + 4*p3 / 27;
-	if (d >= 0) {
-		float z = (float) STBTT_sqrt(d);
-		float u = (-q + z) / 2;
-		float v = (-q - z) / 2;
-		u = stbtt__cuberoot(u);
-		v = stbtt__cuberoot(v);
-		r[0] = s + u + v;
-		return 1;
-	} else {
-	   float u = (float) STBTT_sqrt(-p/3);
-	   float v = (float) STBTT_acos(-STBTT_sqrt(-27/p3) * q / 2) / 3; // p3 must be negative, since d is negative
-	   float m = (float) STBTT_cos(v);
+        float d = q*q + 4*p3 / 27;
+        if (d >= 0) {
+                float z = (float) STBTT_sqrt(d);
+                float u = (-q + z) / 2;
+                float v = (-q - z) / 2;
+                u = stbtt__cuberoot(u);
+                v = stbtt__cuberoot(v);
+                r[0] = s + u + v;
+                return 1;
+        } else {
+           float u = (float) STBTT_sqrt(-p/3);
+           float v = (float) STBTT_acos(-STBTT_sqrt(-27/p3) * q / 2) / 3; // p3 must be negative, since d is negative
+           float m = (float) STBTT_cos(v);
       float n = (float) STBTT_cos(v-3.141592/2)*1.732050808f;
-	   r[0] = s + u * 2 * m;
-	   r[1] = s - u * (m + n);
-	   r[2] = s - u * (m - n);
+           r[0] = s + u * 2 * m;
+           r[1] = s - u * (m + n);
+           r[2] = s - u * (m - n);
 
       //STBTT_assert( STBTT_fabs(((r[0]+a)*r[0]+b)*r[0]+c) < 0.05f);  // these asserts may not be safe at all scales, though they're in bezier t parameter units so maybe?
       //STBTT_assert( STBTT_fabs(((r[1]+a)*r[1]+b)*r[1]+c) < 0.05f);
       //STBTT_assert( STBTT_fabs(((r[2]+a)*r[2]+b)*r[2]+c) < 0.05f);
-   	return 3;
+        return 3;
    }
 }
 

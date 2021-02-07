@@ -16,10 +16,10 @@ int main(int argc, char **argv) {
     BigInt m("102030405060708090987654321");
     
     printf("Integer: %s %s %s\n%s\n",
-	   i.ToString().c_str(),
-	   j.ToString().c_str(),
-	   k.ToString().c_str(),
-	   m.ToString().c_str());
+           i.ToString().c_str(),
+           j.ToString().c_str(),
+           k.ToString().c_str(),
+           m.ToString().c_str());
     fflush(stdout);
   }
 
@@ -27,13 +27,13 @@ int main(int argc, char **argv) {
   for (int i = 0; i < 10000; i++) {
     // + 1/1, - 1/3, + 1/5
     BigRat term{(i & 1) ? -1 : 1,
-	i * 2 + 1};
+        i * 2 + 1};
     sum = BigRat::Plus(sum, term);
     if (i < 50) {
       BigRat tpi = BigRat::Times(sum, BigRat{4,1});
       printf("Approx pi: %s = %f\n",
-	     tpi.ToString().c_str(),
-	     tpi.ToDouble());
+             tpi.ToString().c_str(),
+             tpi.ToDouble());
       fflush(stdout);
     } else if (i % 1000 == 0) {
       printf("%d...\n", i);
@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 
   BigRat res = BigRat::Times(sum, BigRat(4, 1));
   printf("Final approx pi: %s\n",
-	 res.ToString().c_str());
+         res.ToString().c_str());
   fflush(stdout);
 
 

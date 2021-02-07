@@ -41,9 +41,9 @@ std::map<std::string, ip4> NetUtil::GetIP4Interfaces() {
       const uint32_t addr = ntohl(inet->sin_addr.s_addr);
 
       ret.emplace(name, make_tuple((addr >> 24) & 0xFF,
-				   (addr >> 16) & 0xFF,
-				   (addr >> 8) & 0xFF,
-				   addr & 0xFF));
+                                   (addr >> 16) & 0xFF,
+                                   (addr >> 8) & 0xFF,
+                                   addr & 0xFF));
       break;
     }
     default:
@@ -75,7 +75,7 @@ std::map<std::string, mac> NetUtil::GetMACAddresses() {
       const sockaddr_ll *ll = (const sockaddr_ll *)ifa->ifa_addr;
       const uint8_t *mac = &ll->sll_addr[0];
       ret.emplace(name, make_tuple(mac[0], mac[1], mac[2],
-				   mac[3], mac[4], mac[5]));
+                                   mac[3], mac[4], mac[5]));
       break;
     }
     default:

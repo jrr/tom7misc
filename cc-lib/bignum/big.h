@@ -193,15 +193,15 @@ BigRat::BigRat(const BigInt &numer, const BigInt &denom)
 // PERF: Should have BqCopy so that we don't need to re-normalize.
 BigRat::BigRat(const BigRat &other) :
   bigq(BqCreate(
-	   BqGetNumerator(other.bigq),
-	   BqGetDenominator(other.bigq))) {
+           BqGetNumerator(other.bigq),
+           BqGetDenominator(other.bigq))) {
 }
 BigRat &BigRat::operator =(const BigRat &other) {
   // Self-assignment does nothing.
   if (this == &other) return *this;
   BqDelete(bigq);
   bigq = BqCreate(BqGetNumerator(other.bigq),
-		  BqGetDenominator(other.bigq));
+                  BqGetDenominator(other.bigq));
   return *this;
 }
 BigRat &BigRat::operator =(BigRat &&other) {

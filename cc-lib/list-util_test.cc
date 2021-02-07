@@ -15,7 +15,7 @@ struct X {
 }
 
 static void CheckContents(const std::list<X> &l,
-			  const std::vector<int> &v) {
+                          const std::vector<int> &v) {
   auto itl = l.begin();
   auto itv = v.begin();
   for (;;) {

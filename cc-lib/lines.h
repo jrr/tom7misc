@@ -162,9 +162,9 @@ void Line<Int>::iterator::operator ++() {
 template<class Int, class Float, class Fn>
 void LineAA::Draw(Float x0, Float y0, Float x1, Float y1, Fn drawpixel) {
   static_assert(std::is_integral<Int>::value,
-		"LineAA<T,F> requires integral T.");
+                "LineAA<T,F> requires integral T.");
   static_assert(std::is_floating_point<Float>::value,
-		"LineAA<T,F> requires floating-point F.");
+                "LineAA<T,F> requires floating-point F.");
 
   // floor and round are each overloaded on float and double.
   auto ipart = [](Float x) -> Int { return Int(std::floor(x)); };
@@ -267,7 +267,7 @@ std::optional<std::pair<float, float>> LineIntersection(
 
     if (t >= 0.0f && t <= 1.0f) {
       return {{(float)p0x + (t * s1x),
-	       (float)p0y + (t * s1y)}};
+               (float)p0y + (t * s1y)}};
     }
   }
   return std::nullopt;
@@ -282,7 +282,7 @@ ClosestPointOnSegment(
     // Point to test
     float x, float y) {
   auto SqDist = [](float x0, float y0,
-		   float x1, float y1) {
+                   float x1, float y1) {
       const float dx = x1 - x0;
       const float dy = y1 - y0;
       return dx * dx + dy * dy;
@@ -335,15 +335,15 @@ std::vector<std::pair<Num, Num>> TesselateQuadraticBezier(
     int max_depth = 16) {
 
   static_assert(std::is_arithmetic<Num>::value,
-		"TesselateQuadraticBezier needs an integral or floating-point "
-		"template argument.");
+                "TesselateQuadraticBezier needs an integral or floating-point "
+                "template argument.");
   
   std::vector<std::pair<Num, Num>> out;
   std::function<void(Num, Num, Num, Num, Num, Num, int)> Rec =
     [&out, max_error_squared, &Rec](Num x0, Num y0,
-				    Num x1, Num y1,
-				    Num x2, Num y2,
-				    int max_depth) {
+                                    Num x1, Num y1,
+                                    Num x2, Num y2,
+                                    int max_depth) {
       // This is based on public-domain code from stb_truetype, thanks!
       
       // Midpoint of the curve.
@@ -365,11 +365,11 @@ std::vector<std::pair<Num, Num>> TesselateQuadraticBezier(
       const Num error = (dx * dx) + (dy * dy);
       
       if (error > max_error_squared && max_depth > 0) {
-	Rec(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2, mx, my, max_depth - 1);
-	Rec(mx, my, (x1 + x2) / 2, (y1 + y2) / 2, x2, y2, max_depth - 1);
+        Rec(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2, mx, my, max_depth - 1);
+        Rec(mx, my, (x1 + x2) / 2, (y1 + y2) / 2, x2, y2, max_depth - 1);
       } else {
-	// Otherwise, emit a straight line.
-	out.emplace_back(x2, y2);
+        // Otherwise, emit a straight line.
+        out.emplace_back(x2, y2);
       }
     };
   

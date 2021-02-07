@@ -36,7 +36,7 @@ static void TestReadFiles() {
   const string s1 = Util::ReadFile("util_test.cc");
   CHECK_EQ(reference, s1);
   const string s2 = Util::ReadFileMagic("util_test.cc",
-					"/* PLEASE KEEP THIS");
+                                        "/* PLEASE KEEP THIS");
   CHECK_EQ(reference, s2);
   CHECK_EQ("", Util::ReadFileMagic("util_test.cc", "WRONG"));
   CHECK_EQ("", Util::ReadFile(NONEXISTENT_FILE));
@@ -65,7 +65,7 @@ static void TestWhitespace() {
   CHECK_EQ("", Util::NormalizeWhitespace(" "));
   CHECK_EQ("", Util::NormalizeWhitespace(" \r\n \r \r"));
   CHECK_EQ("hello world", Util::NormalizeWhitespace("  \nhello \r\n \r "
-						    "\rworld  \r\r\n"));
+                                                    "\rworld  \r\r\n"));
   CHECK_EQ("hello world", Util::NormalizeWhitespace("hello world"));
   CHECK_EQ("hello world", Util::NormalizeWhitespace("\thello\tworld\t"));
   string s;
@@ -94,7 +94,7 @@ static void TestJoin() {
 
 static void TestSplit() {
   CHECK_EQ((vector<string>{"hello", "world"}),
-	   Util::Split("hello world", ' '));
+           Util::Split("hello world", ' '));
   CHECK_EQ((vector<string>{"", ""}), Util::Split(" ", ' '));  
   CHECK_EQ(vector<string>{""}, Util::Split("", 'x'));
 }
@@ -122,10 +122,10 @@ static void TestPrefixSuffix() {
     string s = "food processor";
     CHECK(!Util::TryStripPrefix("foods", &s));
     CHECK(Util::TryStripPrefix("foo", &s) &&
-	  s == "d processor");
+          s == "d processor");
     CHECK(!Util::TryStripSuffix("sord", &s));
     CHECK(Util::TryStripSuffix("sor", &s) &&
-	  s == "d proces");
+          s == "d proces");
   }
 
   {
@@ -133,10 +133,10 @@ static void TestPrefixSuffix() {
     string_view s = "food processor"sv;
     CHECK(!Util::TryStripPrefix("foods", &s));
     CHECK(Util::TryStripPrefix("foo", &s) &&
-	  s == "d processor");
+          s == "d processor");
     CHECK(!Util::TryStripSuffix("sord", &s));
     CHECK(Util::TryStripSuffix("sor", &s) &&
-	  s == "d proces");
+          s == "d proces");
   }
 }
 
@@ -187,11 +187,11 @@ static void TestFactorize() {
   CHECK((vector<int>{31337}) == Util::Factorize(31337));
   CHECK((vector<int>{3, 5, 11, 13}) == Util::Factorize(3 * 5 * 11 * 13));
   CHECK((vector<int>{3, 5, 5, 11, 13}) ==
-	Util::Factorize(3 * 5 * 5 * 11 * 13));  
+        Util::Factorize(3 * 5 * 5 * 11 * 13));  
   CHECK((vector<int>{3, 5, 5, 11, 11, 11}) ==
-	Util::Factorize(3 * 5 * 5 * 11 * 11 * 11));  
+        Util::Factorize(3 * 5 * 5 * 11 * 11 * 11));  
   CHECK((vector<int>{3, 5, 5, 11, 13, 31337}) ==
-	Util::Factorize(3 * 5 * 5 * 11 * 13 * 31337));  
+        Util::Factorize(3 * 5 * 5 * 11 * 13 * 31337));  
 }
 
 static void TestItos() {

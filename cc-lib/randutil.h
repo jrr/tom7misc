@@ -48,7 +48,7 @@ inline float RandFloat(ArcFour *rc) {
   uu = rc->Byte() | (uu << 8);
   uu = rc->Byte() | (uu << 8);
   return (float)((uu   & 0x7FFFFFFF) / 
-		 (double)0x7FFFFFFF);
+                 (double)0x7FFFFFFF);
 };
 
 inline double RandDouble(ArcFour *rc) {
@@ -64,7 +64,7 @@ inline double RandDouble(ArcFour *rc) {
   // PERF: Maybe could be multipling by the inverse?
   // It's a constant.
   return ((uu &   0x3FFFFFFFFFFFFFFFULL) / 
-	  (double)0x3FFFFFFFFFFFFFFFULL);
+          (double)0x3FFFFFFFFFFFFFFFULL);
 };
 
 // Sample in [0, 1).
@@ -193,9 +193,9 @@ struct RandomGaussian {
       // Generate a non-degenerate random point in the unit circle by
       // rejection sampling.
       do {
-	v1 = 2.0 * RandDouble(rc) - 1.0;
-	v2 = 2.0 * RandDouble(rc) - 1.0;
-	sqnorm = v1 * v1 + v2 * v2;
+        v1 = 2.0 * RandDouble(rc) - 1.0;
+        v2 = 2.0 * RandDouble(rc) - 1.0;
+        sqnorm = v1 * v1 + v2 * v2;
       } while (sqnorm >= 1.0 || sqnorm == 0.0);
       double multiplier = sqrt(-2.0 * log(sqnorm) / sqnorm);
       next = v2 * multiplier;
@@ -226,38 +226,38 @@ struct RandomGamma {
     } else if (shape < 1.0) {
       const double one_over_shape = 1.0 / shape;
       for (;;) {
-	const double u = RandDoubleNot1(rc);
-	const double v = Exponential();
-	if (u < 1.0 - shape) {
-	  const double x = pow(u, one_over_shape);
-	  if (x <= v) {
-	    return x;
-	  }
-	} else {
-	  const double y = -log((1.0 - u) / shape);
-	  const double x = pow(1.0 - shape + shape * y, one_over_shape);
-	  if (x <= v + y) {
-	    return x;
-	  }
-	}
+        const double u = RandDoubleNot1(rc);
+        const double v = Exponential();
+        if (u < 1.0 - shape) {
+          const double x = pow(u, one_over_shape);
+          if (x <= v) {
+            return x;
+          }
+        } else {
+          const double y = -log((1.0 - u) / shape);
+          const double x = pow(1.0 - shape + shape * y, one_over_shape);
+          if (x <= v + y) {
+            return x;
+          }
+        }
       }
     } else {
       const double b = shape - one_third;
       const double c = 1.0 / sqrt(9.0 * b);
       for (;;) {
-	double x, v;
-	do {
-	  x = rg.Next();
-	  v = 1.0 + c * x;
-	} while (v <= 0.0);
+        double x, v;
+        do {
+          x = rg.Next();
+          v = 1.0 + c * x;
+        } while (v <= 0.0);
 
-	const double v_cubed = v * v * v;
-	const double x_squared = x * x;
-	const double u = RandDoubleNot1(rc);
-	if (u < 1.0 - 0.0331 * x_squared * x_squared ||
-	    log(u) < 0.5 * x_squared + b * (1.0 - v_cubed - log(v_cubed))) {
-	  return b * v_cubed;
-	}
+        const double v_cubed = v * v * v;
+        const double x_squared = x * x;
+        const double u = RandDoubleNot1(rc);
+        if (u < 1.0 - 0.0331 * x_squared * x_squared ||
+            log(u) < 0.5 * x_squared + b * (1.0 - v_cubed - log(v_cubed))) {
+          return b * v_cubed;
+        }
       }
     }
   }
@@ -282,17 +282,17 @@ inline double RandomBeta(ArcFour *rc, double a, double b) {
       const double y = pow(v, 1.0 / b);
       const double x_plus_y = x + y;
       if (x_plus_y <= 1.0) {
-	if (x_plus_y > 0.0) {
-	  return x / x_plus_y;
-	} else {
-	  double log_x = log(u) / a;
-	  double log_y = log(v) / b;
-	  const double log_m = log_x > log_y ? log_x : log_y;
-	  log_x -= log_m;
-	  log_y -= log_m;
+        if (x_plus_y > 0.0) {
+          return x / x_plus_y;
+        } else {
+          double log_x = log(u) / a;
+          double log_y = log(v) / b;
+          const double log_m = log_x > log_y ? log_x : log_y;
+          log_x -= log_m;
+          log_y -= log_m;
 
-	  return exp(log_x - log(exp(log_x) + exp(log_y)));
-	}
+          return exp(log_x - log(exp(log_x) + exp(log_y)));
+        }
       }
     }
   } else {

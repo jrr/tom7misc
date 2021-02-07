@@ -100,28 +100,28 @@ struct Line {
     if (dx > dy) {
       if (x0 == x1) return false;
       else {
-	if (frac >= 0) {
-	  y0 += stepy;
-	  frac -= dx;
-	}
-	x0 += stepx;
-	frac += dy;
-	cx = x0;
-	cy = y0;
-	return true;
+        if (frac >= 0) {
+          y0 += stepy;
+          frac -= dx;
+        }
+        x0 += stepx;
+        frac += dy;
+        cx = x0;
+        cy = y0;
+        return true;
       }
     } else {
       if (y0 == y1) return false;
       else {
-	if (frac >= 0) {
-	  x0 += stepx;
-	  frac -= dy;
-	}
-	y0 += stepy;
-	frac += dx;
-	cx = x0;
-	cy = y0;
-	return true;
+        if (frac >= 0) {
+          x0 += stepx;
+          frac -= dy;
+        }
+        y0 += stepy;
+        frac += dx;
+        cx = x0;
+        cy = y0;
+        return true;
       }
     }
   }
@@ -129,7 +129,7 @@ struct Line {
 }  // namespace
 
 SDL_Surface *sdlutil::resize_canvas(SDL_Surface *s,
-				    int w, int h, Uint32 color) {
+                                    int w, int h, Uint32 color) {
   SDL_Surface *m = makesurface(w, h);
   if (!m) return nullptr;
 
@@ -137,7 +137,7 @@ SDL_Surface *sdlutil::resize_canvas(SDL_Surface *s,
     for (int x = 0; x < w; x++) {
       Uint32 c = color;
       if (y < s->h && x < s->w)
-	c = getpixel(s, x, y);
+        c = getpixel(s, x, y);
       setpixel(m, x, y, c);
     }
 
@@ -166,8 +166,8 @@ sdlutil::ByteOrder sdlutil::GetByteOrder(SDL_Surface *surf) {
     break;
   }
   fprintf(stderr,
-	  "GetByteOrder: Surface not 32BPP or something else is wrong. %d %d",
-	  surf->format->Ashift, surf->format->Rshift);
+          "GetByteOrder: Surface not 32BPP or something else is wrong. %d %d",
+          surf->format->Ashift, surf->format->Rshift);
   abort();
 }
 
@@ -181,44 +181,44 @@ static void CopyRGBA(const vector<Uint8> &rgba, SDL_Surface *surface) {
   case ByteOrder::ARGB:
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
-	const int pidx = (y * width + x);
-	const int idx = pidx * 4;
-	const Uint32 r = rgba[idx + 0], g = rgba[idx + 1],
-	  b = rgba[idx + 2], a = rgba[idx + 3];
-	p[pidx] = (a << 24) | (r << 16) | (g << 8) | b;
+        const int pidx = (y * width + x);
+        const int idx = pidx * 4;
+        const Uint32 r = rgba[idx + 0], g = rgba[idx + 1],
+          b = rgba[idx + 2], a = rgba[idx + 3];
+        p[pidx] = (a << 24) | (r << 16) | (g << 8) | b;
       }
     }
     break;
   case ByteOrder::RGBA:
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
-	const int pidx = (y * width + x);
-	const int idx = pidx * 4;
-	const Uint32 r = rgba[idx + 0], g = rgba[idx + 1],
-	  b = rgba[idx + 2], a = rgba[idx + 3];
-	p[pidx] = (r << 24) | (g << 16) | (b << 8) | a;
+        const int pidx = (y * width + x);
+        const int idx = pidx * 4;
+        const Uint32 r = rgba[idx + 0], g = rgba[idx + 1],
+          b = rgba[idx + 2], a = rgba[idx + 3];
+        p[pidx] = (r << 24) | (g << 16) | (b << 8) | a;
       }
     }
     break;
   case ByteOrder::ABGR:
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
-	const int pidx = (y * width + x);
-	const int idx = pidx * 4;
-	const Uint32 r = rgba[idx + 0], g = rgba[idx + 1],
-	  b = rgba[idx + 2], a = rgba[idx + 3];
-	p[pidx] = (a << 24) | (b << 16) | (g << 8) | r;
+        const int pidx = (y * width + x);
+        const int idx = pidx * 4;
+        const Uint32 r = rgba[idx + 0], g = rgba[idx + 1],
+          b = rgba[idx + 2], a = rgba[idx + 3];
+        p[pidx] = (a << 24) | (b << 16) | (g << 8) | r;
       }
     }
     break;
   case ByteOrder::BGRA:
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
-	const int pidx = (y * width + x);
-	const int idx = pidx * 4;
-	const Uint32 r = rgba[idx + 0], g = rgba[idx + 1],
-	  b = rgba[idx + 2], a = rgba[idx + 3];
-	p[pidx] = (b << 24) | (g << 16) | (r << 8) | a;
+        const int pidx = (y * width + x);
+        const int idx = pidx * 4;
+        const Uint32 r = rgba[idx + 0], g = rgba[idx + 1],
+          b = rgba[idx + 2], a = rgba[idx + 3];
+        p[pidx] = (b << 24) | (g << 16) | (r << 8) | a;
       }
     }
     break;
@@ -228,7 +228,7 @@ static void CopyRGBA(const vector<Uint8> &rgba, SDL_Surface *surface) {
 SDL_Surface *sdlutil::LoadImage(const string &filename) {
   int width, height, bpp;
   Uint8 *stb_rgba = stbi_load(filename.c_str(),
-			      &width, &height, &bpp, 4);
+                              &width, &height, &bpp, 4);
   if (!stb_rgba) return nullptr;
   
   vector<Uint8> rgba;
@@ -261,7 +261,7 @@ bool sdlutil::SavePNG(const string &filename, SDL_Surface *surf) {
     rgba.push_back(a);
   }
   return !!stbi_write_png(filename.c_str(),
-			  surf->w, surf->h, 4, rgba.data(), 4 * surf->w);
+                          surf->w, surf->h, 4, rgba.data(), 4 * surf->w);
 }
 
 SDL_Surface *sdlutil::duplicate(SDL_Surface *surf) {
@@ -295,7 +295,7 @@ void sdlutil::clearsurface(SDL_Surface *s, Uint32 color) {
 }
 
 void sdlutil::ClearSurface(SDL_Surface *s,
-			   Uint8 r, Uint8 g, Uint8 b, Uint8 a) {
+                           Uint8 r, Uint8 g, Uint8 b, Uint8 a) {
   Uint32 color = SDL_MapRGBA(s->format, r, g, b, a);
   SDL_FillRect(s, 0, color);
 }
@@ -327,28 +327,28 @@ Uint32 sdlutil::mix2(Uint32 ia, Uint32 ib) {
     /* really want 
         (ar / 255) * (aa / 255) +
         (br / 255) * (ba / 255)
-	-------------------------
-	(aa / 255) + (ba / 255)
+        -------------------------
+        (aa / 255) + (ba / 255)
 
-	to get r as a fraction. we then
-	multiply by 255 to get the output
-	as a byte.
-	
-	but this is:
+        to get r as a fraction. we then
+        multiply by 255 to get the output
+        as a byte.
+        
+        but this is:
 
         ar * (aa / 255) +
         br * (ba / 255)
-	-----------------------
-	(aa / 255) + (ba / 255)
+        -----------------------
+        (aa / 255) + (ba / 255)
 
-	which can be simplified to
-	
-	ar * aa + br * ba
-	-----------------
-	     aa + ba
+        which can be simplified to
+        
+        ar * aa + br * ba
+        -----------------
+             aa + ba
 
-	.. and doing the division last keeps
-	us from quantization errors.
+        .. and doing the division last keeps
+        us from quantization errors.
     */
     r = (ar * aa + br * ba) / (aa + ba);
     g = (ag * aa + bg * ba) / (aa + ba);
@@ -371,7 +371,7 @@ Uint32 sdlutil::mix4(Uint32 a, Uint32 b, Uint32 c, Uint32 d) {
 }
 
 Uint32 sdlutil::Mix4(const SDL_Surface *surf,
-		     Uint32 ai, Uint32 bi, Uint32 ci, Uint32 di) {
+                     Uint32 ai, Uint32 bi, Uint32 ci, Uint32 di) {
 
   Uint8 ar8, ag8, ab8, aa8;
   Uint8 br8, bg8, bb8, ba8;
@@ -408,7 +408,7 @@ Uint32 sdlutil::Mix4(const SDL_Surface *surf,
 }
 
 Uint32 sdlutil::Mix2(const SDL_Surface *surf,
-		     Uint32 ia, Uint32 ib) {
+                     Uint32 ia, Uint32 ib) {
   Uint8 ar8, ag8, ab8, aa8;
   Uint8 br8, bg8, bb8, ba8;
   SDL_GetRGBA(ia, surf->format, &ar8, &ag8, &ab8, &aa8);
@@ -431,28 +431,28 @@ Uint32 sdlutil::Mix2(const SDL_Surface *surf,
     /* really want 
         (ar / 255) * (aa / 255) +
         (br / 255) * (ba / 255)
-	-------------------------
-	(aa / 255) + (ba / 255)
+        -------------------------
+        (aa / 255) + (ba / 255)
 
-	to get r as a fraction. we then
-	multiply by 255 to get the output
-	as a byte.
-	
-	but this is:
+        to get r as a fraction. we then
+        multiply by 255 to get the output
+        as a byte.
+        
+        but this is:
 
         ar * (aa / 255) +
         br * (ba / 255)
-	-----------------------
-	(aa / 255) + (ba / 255)
+        -----------------------
+        (aa / 255) + (ba / 255)
 
-	which can be simplified to
-	
-	ar * aa + br * ba
-	-----------------
-	     aa + ba
+        which can be simplified to
+        
+        ar * aa + br * ba
+        -----------------
+             aa + ba
 
-	.. and doing the division last keeps
-	us from quantization errors.
+        .. and doing the division last keeps
+        us from quantization errors.
     */
     r = (ar * aa + br * ba) / (aa + ba);
     g = (ag * aa + bg * ba) / (aa + ba);
@@ -471,17 +471,17 @@ Uint32 sdlutil::mixfrac(Uint32 a, Uint32 b, float f) {
   Uint32 ofactor = 0x100 - factor;
 
   Uint32 o24 = (((a >> 24) & 0xFF) * factor +
-		((b >> 24) & 0xFF) * ofactor) >> 8;
+                ((b >> 24) & 0xFF) * ofactor) >> 8;
 
   Uint32 o16 = (((a >> 16) & 0xFF) * factor +
-		((b >> 16) & 0xFF) * ofactor) >> 8;
+                ((b >> 16) & 0xFF) * ofactor) >> 8;
 
   Uint32 o8 = (((a >> 8) & 0xFF) * factor +
-		((b >> 8) & 0xFF) * ofactor) >> 8;
+                ((b >> 8) & 0xFF) * ofactor) >> 8;
 
 
   Uint32 o = ((a & 0xFF) * factor +
-	      (b & 0xFF) * ofactor) >> 8;
+              (b & 0xFF) * ofactor) >> 8;
 
   return (o24 << 24) | (o16 << 16) | (o8 << 8) | o;
 }
@@ -657,11 +657,11 @@ SDL_Surface *sdlutil::GrowX(SDL_Surface *src, int px) {
       
       // Write px * px pixels.
       for (int yu = 0; yu < px; yu++) {
-	const int y2 = y * px + yu;
-	for (int xu = 0; xu < px; xu++) {
-	  const int x2 = x * px + xu;
-	  *(Uint32*)(pdest + 4 * (y2 * ww2 + x2)) = rgba;
-	}
+        const int y2 = y * px + yu;
+        for (int xu = 0; xu < px; xu++) {
+          const int x2 = x * px + xu;
+          *(Uint32*)(pdest + 4 * (y2 * ww2 + x2)) = rgba;
+        }
       }
     }
   }
@@ -681,17 +681,17 @@ SDL_Surface *sdlutil::makesurface(int w, int h, bool alpha) {
   SDL_Surface *ss = 0;
 #if 0
     SDL_CreateRGBSurface(SDL_HWSURFACE |
-			 (alpha?SDL_SRCALPHA:0),
-			 w, h, 32, 
-			 rmask, gmask, bmask,
-			 amask);
+                         (alpha?SDL_SRCALPHA:0),
+                         w, h, 32, 
+                         rmask, gmask, bmask,
+                         amask);
 #endif
 
   if (!ss) ss = SDL_CreateRGBSurface(SDL_SWSURFACE |
-				     (alpha?SDL_SRCALPHA:0),
-				     w, h, 32,
-				     rmask, gmask, bmask,
-				     amask);
+                                     (alpha?SDL_SRCALPHA:0),
+                                     w, h, 32,
+                                     rmask, gmask, bmask,
+                                     amask);
 
   if (ss && !alpha) SDL_SetAlpha(ss, 0, 255);
 
@@ -722,9 +722,9 @@ SDL_Surface *sdlutil::makealpharect(int w, int h, int r, int g, int b, int a) {
 }
 
 SDL_Surface *sdlutil::makealpharectgrad(int w, int h,
-					int r1, int b1, int g1, int a1,
-					int r2, int b2, int g2, int a2,
-					float bias) {
+                                        int r1, int b1, int g1, int a1,
+                                        int r2, int b2, int g2, int a2,
+                                        float bias) {
   SDL_Surface *ret = makesurface(w, h);
 
   if (!ret) return nullptr;
@@ -750,7 +750,7 @@ SDL_Surface *sdlutil::makealpharectgrad(int w, int h,
 }
 
 void sdlutil::fillrect(SDL_Surface *s, Uint32 color,
-		       int x, int y, int w, int h) {
+                       int x, int y, int w, int h) {
   SDL_Rect dst;
   dst.x = x;
   dst.y = y;
@@ -760,8 +760,8 @@ void sdlutil::fillrect(SDL_Surface *s, Uint32 color,
 }
 
 void sdlutil::FillRectRGB(SDL_Surface *s,
-			  int x, int y, int w, int h,
-			  Uint8 r, Uint8 g, Uint8 b) {
+                          int x, int y, int w, int h,
+                          Uint8 r, Uint8 g, Uint8 b) {
   SDL_Rect dst;
   dst.x = x;
   dst.y = y;
@@ -799,7 +799,7 @@ void sdlutil::outline(SDL_Surface *s, int n, int r, int g, int b, int a) {
 }
 
 void sdlutil::DrawCircle32(SDL_Surface *surf,
-			   int x0, int y0, int radius, Uint32 color) {
+                           int x0, int y0, int radius, Uint32 color) {
   // Only 32-bit!
   if (surf->format->BytesPerPixel != 4) return;
 
@@ -808,7 +808,7 @@ void sdlutil::DrawCircle32(SDL_Surface *surf,
   const int width = surf->w, height = surf->h;
   auto SetPixel = [color, bufp, stride, width, height](int x, int y) {
       if (x < 0 || y < 0 || x >= width || y >= height)
-	return;
+        return;
       bufp[y * stride + x] = color;
     };
 
@@ -859,7 +859,7 @@ SDL_Surface *sdlutil::makescreen(int w, int h) {
      -- Adam
   */
 
-  /* SDL_ANYFORMAT	
+  /* SDL_ANYFORMAT      
      "Normally, if a video surface of the requested bits-per-pixel (bpp) 
      is not available, SDL will emulate one with a shadow surface. 
      Passing SDL_ANYFORMAT prevents this and causes SDL to use the 
@@ -873,8 +873,8 @@ SDL_Surface *sdlutil::makescreen(int w, int h) {
 
   /* SDL_DOUBLEBUF only valid with SDL_HWSURFACE! */
   SDL_Surface *ret = SDL_SetVideoMode(w, h, 32,
-				      SDL_SWSURFACE |
-				      SDL_RESIZABLE);
+                                      SDL_SWSURFACE |
+                                      SDL_RESIZABLE);
   return ret;
 }
 
@@ -918,8 +918,8 @@ Uint32 sdlutil::getpixel(SDL_Surface *surface, int x, int y) {
 
     Uint8 *p =
       (Uint8 *) (((Uint8 *)surface->pixels) +  /* Start at top of RAM */
-		 (y * surface->pitch) +  /* Go down Y lines */
-		 (x * bpp));             /* Go in X pixels */
+                 (y * surface->pitch) +  /* Go down Y lines */
+                 (x * bpp));             /* Go in X pixels */
 
     /* Return the correctly-sized piece of data containing the
        pixel's value (an 8-bit palette value, or a 16-, 24- or 32-bit
@@ -933,9 +933,9 @@ Uint32 sdlutil::getpixel(SDL_Surface *surface, int x, int y) {
       /* Depending on the byte-order, it could be stored RGB or BGR! */
 
       if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
-	pixel = p[0] << 16 | p[1] << 8 | p[2];
+        pixel = p[0] << 16 | p[1] << 8 | p[2];
       else
-	pixel = p[0] | p[1] << 8 | p[2] << 16;
+        pixel = p[0] | p[1] << 8 | p[2] << 16;
     } else if (bpp == 4) {    /* 32-bit display */
       pixel = *(Uint32 *)p;
     }
@@ -957,8 +957,8 @@ void sdlutil::setpixel(SDL_Surface *surface, int x, int y, Uint32 px) {
 
     Uint8 *p =
       (Uint8 *) (((Uint8 *)surface->pixels) +  /* Start at top of RAM */
-		 (y * surface->pitch) +  /* Go down Y lines */
-		 (x * bpp));             /* Go in X pixels */
+                 (y * surface->pitch) +  /* Go down Y lines */
+                 (x * bpp));             /* Go in X pixels */
 
     /* Return the correctly-sized piece of data containing the
        pixel's value (an 8-bit palette value, or a 16-, 24- or 32-bit
@@ -973,19 +973,19 @@ void sdlutil::setpixel(SDL_Surface *surface, int x, int y, Uint32 px) {
 
       /* XX never tested */
       if (SDL_BYTEORDER == SDL_BIG_ENDIAN) {
-	p += 2;
-	for (int i = 0; i < 3; i++) {
-	  *p = px & 255;
-	  px >>= 8;
-	  p--;
-	}
+        p += 2;
+        for (int i = 0; i < 3; i++) {
+          *p = px & 255;
+          px >>= 8;
+          p--;
+        }
       }
       else {
-	for (int i = 0; i < 3; i++) {
-	  *p = px & 255;
-	  px >>= 8;
-	  p++;
-	}
+        for (int i = 0; i < 3; i++) {
+          *p = px & 255;
+          px >>= 8;
+          p++;
+        }
       }
     } else if (bpp == 4) {    /* 32-bit display */
       *(Uint32 *)p = px;
@@ -994,8 +994,8 @@ void sdlutil::setpixel(SDL_Surface *surface, int x, int y, Uint32 px) {
 }
 
 void sdlutil::drawline(SDL_Surface *screen, int x0, int y0,
-		       int x1, int y1, 
-		       Uint8 R, Uint8 G, Uint8 B) {
+                       int x1, int y1, 
+                       Uint8 R, Uint8 G, Uint8 B) {
   Line l{x0, y0, x1, y1};
 
   /* direct pixel access */
@@ -1026,8 +1026,8 @@ void sdlutil::drawline(SDL_Surface *screen, int x0, int y0,
 }
 
 void sdlutil::DrawClipLine32(SDL_Surface *screen, int x0, int y0,
-			     int x1, int y1, 
-			     Uint32 color) {
+                             int x1, int y1, 
+                             Uint32 color) {
   // Only 32-bit!
   if (screen->format->BytesPerPixel != 4) return;
 
@@ -1064,8 +1064,8 @@ void sdlutil::DrawClipLine32(SDL_Surface *screen, int x0, int y0,
 }
 
 void sdlutil::drawclipline(SDL_Surface *screen, int x0, int y0,
-			   int x1, int y1, 
-			   Uint8 R, Uint8 G, Uint8 B) {
+                           int x1, int y1, 
+                           Uint8 R, Uint8 G, Uint8 B) {
   /* PERF could maprgb once */
 
   /* PERF clipping can be much more efficient, but it is a
@@ -1099,7 +1099,7 @@ void sdlutil::drawclipline(SDL_Surface *screen, int x0, int y0,
 }
 
 bool sdlutil::clipsegment(float cx0, float cy0, float cx1, float cy1,
-			  float &x0, float &y0, float &x1, float &y1) {
+                          float &x0, float &y0, float &x1, float &y1) {
   // Cohen--Sutherland clipping.
   enum Code : Uint32 {
     LEFT = 1 << 0,
@@ -1133,17 +1133,17 @@ bool sdlutil::clipsegment(float cx0, float cy0, float cx1, float cy1,
       (float &x, float &y, Uint32 &code) {
       // (Beware that x aliases x0 or x1, etc.
       if (code & TOP) {
-	x = x0 + (x1 - x0) * (cy1 - y0) / (y1 - y0);
-	y = cy1;
+        x = x0 + (x1 - x0) * (cy1 - y0) / (y1 - y0);
+        y = cy1;
       } else if (code & BOTTOM) {
-	x = x0 + (x1 - x0) * (cy0 - y0) / (y1 - y0);
-	y = cy0;
+        x = x0 + (x1 - x0) * (cy0 - y0) / (y1 - y0);
+        y = cy0;
       } else if (code & LEFT) {
-	y = y0 + (y1 - y0) * (cx0 - x0) / (x1 - x0);
-	x = cx0;	
+        y = y0 + (y1 - y0) * (cx0 - x0) / (x1 - x0);
+        x = cx0;        
       } else if (code & RIGHT) {
-	y = y0 + (y1 - y0) * (cx1 - x0) / (x1 - x0);
-	x = cx1;
+        y = y0 + (y1 - y0) * (cx1 - x0) / (x1 - x0);
+        x = cx1;
       }
       // PERF can probably be rolled into branches above.
       code = GetCode(x, y);
@@ -1155,7 +1155,7 @@ bool sdlutil::clipsegment(float cx0, float cy0, float cx1, float cy1,
 }
 
 void sdlutil::drawbox(SDL_Surface *s, int x, int y, int w, int h,
-		      Uint8 r, Uint8 g, Uint8 b) {
+                      Uint8 r, Uint8 g, Uint8 b) {
   // PERF can unroll a lot of this. Also, straight lines can be
   // drawn much more easily than with Bresenham, and can be clipped
   // much more easily as well.
@@ -1170,7 +1170,7 @@ void sdlutil::drawbox(SDL_Surface *s, int x, int y, int w, int h,
 }
 
 void sdlutil::DrawBox32(SDL_Surface *s, int x, int y, int w, int h,
-			Uint32 rgba) {
+                        Uint32 rgba) {
   // PERF: Same as above.
   // Top
   DrawClipLine32(s, x, y, x + w - 1, y, rgba);
@@ -1186,7 +1186,7 @@ void sdlutil::DrawBox32(SDL_Surface *s, int x, int y, int w, int h,
 /* XXX change to use function pointer? */
 /* lock before calling */
 void sdlutil::drawpixel(SDL_Surface *screen, int x, int y,
-			Uint8 R, Uint8 G, Uint8 B) {
+                        Uint8 R, Uint8 G, Uint8 B) {
   Uint32 color = SDL_MapRGB(screen->format, R, G, B);
   switch (screen->format->BytesPerPixel) {
   case 1: // Assuming 8-bpp
@@ -1208,13 +1208,13 @@ void sdlutil::drawpixel(SDL_Surface *screen, int x, int y,
       Uint8 *bufp;
       bufp = (Uint8 *)screen->pixels + y*screen->pitch + x * 3;
       if (SDL_BYTEORDER == SDL_LIL_ENDIAN) {
-	bufp[0] = color;
-	bufp[1] = color >> 8;
-	bufp[2] = color >> 16;
+        bufp[0] = color;
+        bufp[1] = color >> 8;
+        bufp[2] = color >> 16;
       } else {
-	bufp[2] = color;
-	bufp[1] = color >> 8;
-	bufp[0] = color >> 16;
+        bufp[2] = color;
+        bufp[1] = color >> 8;
+        bufp[0] = color >> 16;
       }
     }
     break;
@@ -1229,7 +1229,7 @@ void sdlutil::drawpixel(SDL_Surface *screen, int x, int y,
 }
 
 void sdlutil::drawclippixel(SDL_Surface *screen, int x, int y,
-			    Uint8 R, Uint8 G, Uint8 B) {
+                            Uint8 R, Uint8 G, Uint8 B) {
   if (x < 0 || y < 0 || x >= screen->w || y >= screen->h)
     return;
   drawpixel(screen, x, y, R, G, B);
@@ -1285,14 +1285,14 @@ SDL_Surface *sdlutil::fliphoriz(SDL_Surface *src) {
 // Bresenham's algorithm, then drawing a horizontal line between the generated x coordinates
 // when they advance. ASSUMES bpp = 4.
 static void BresenhamTriangle32(SDL_Surface *surf,
-				int x1, int y1, int x2, int y23, int x3, Uint32 color) {
+                                int x1, int y1, int x2, int y23, int x3, Uint32 color) {
   Uint32 *bufp = (Uint32 *)surf->pixels;
   const int height = surf->h;
   const int width = surf->w;
   const int stride = surf->pitch >> 2;
   auto DrawHorizLine = [color, bufp, height, width, stride](int x1, int y, int x2) {
       if (y < 0 || y >= height)
-	return;
+        return;
 
       if (x2 < x1) std::swap(x1, x2);
 
@@ -1301,8 +1301,8 @@ static void BresenhamTriangle32(SDL_Surface *surf,
 
       Uint32 *p = &bufp[y * stride + x1];
       for (int i = 0; i < (x2 - x1); i++) {
-	*p = color;
-	p++;
+        *p = color;
+        p++;
       }
     };
 
@@ -1350,9 +1350,9 @@ static void BresenhamTriangle32(SDL_Surface *surf,
     // from each line until it catches up with the other one.
     while (e1 >= 0) {
       if (changed1)
-	tmpx1 += signx1;
+        tmpx1 += signx1;
       else
-	tmpy1 += signy1;
+        tmpy1 += signy1;
       e1 -= 2 * dx1;
     }
             
@@ -1365,17 +1365,17 @@ static void BresenhamTriangle32(SDL_Surface *surf,
 
     while (tmpy2 != tmpy1) {
       while (e2 >= 0) {
-	if (changed2)
-	  tmpx2 += signx2;
-	else
-	  tmpy2 += signy2;
-	e2 -= 2 * dx2;
+        if (changed2)
+          tmpx2 += signx2;
+        else
+          tmpy2 += signy2;
+        e2 -= 2 * dx2;
       }
 
       if (changed2)
-	tmpy2 += signy2;
+        tmpy2 += signy2;
       else
-	tmpx2 += signx2;
+        tmpx2 += signx2;
       
       e2 += 2 * dy2;
     }
@@ -1383,8 +1383,8 @@ static void BresenhamTriangle32(SDL_Surface *surf,
 }
 
 void sdlutil::FillTriangle32(SDL_Surface *surf,
-			     int x1, int y1, int x2, int y2, int x3, int y3,
-			     Uint32 color) {
+                             int x1, int y1, int x2, int y2, int x3, int y3,
+                             Uint32 color) {
   // Only 32-bit!
   if (surf->format->BytesPerPixel != 4) return;
 

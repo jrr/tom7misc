@@ -45,7 +45,7 @@ void BitBuffer::writebits(int n, unsigned int b) {
     if (bytes_needed > size) {
       int nsize = (size + 1) * 2;
       unsigned char *tmp =
-	(unsigned char *) malloc(nsize * sizeof (unsigned char));
+        (unsigned char *) malloc(nsize * sizeof (unsigned char));
       if (!tmp) abort();
       memset(tmp, 0, nsize);
       memcpy(tmp, data, size);

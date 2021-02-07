@@ -31,13 +31,13 @@ struct RLE {
   // anti-run of length 0 is strictly wasteful (of the next byte),
   // we treat every value as a run or anti-run of length value+1.
   static std::vector<uint8> CompressEx(const std::vector<uint8> &in,
-				       uint8 run_cutoff);
+                                       uint8 run_cutoff);
   // Returns true on success, clears and modifies out to contain the
   // decoded bytes. On failure, out will be in a valid but unspecified
   // state.
   static bool DecompressEx(const std::vector<uint8> &in,
-			   uint8 run_cutoff,
-			   std::vector<uint8> *out);
+                           uint8 run_cutoff,
+                           std::vector<uint8> *out);
 };
 
 #endif

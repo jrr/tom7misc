@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     auto [a, b, c, d] = std::get<0>(*opt);
     auto [e, f, g, h, i, j] = std::get<1>(*opt);
     printf("%d.%d.%d.%d  %02x:%02x:%02x:%02x:%02x:%02x\n", a, b, c, d,
-	   e, f, g, h, i, j);
+           e, f, g, h, i, j);
   } else {
     printf("(nullopt!)\n");
   }

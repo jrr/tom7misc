@@ -34,13 +34,13 @@ struct MD5Context {
 }
 
 #define GET_UINT32(b, i) \
-  (( (uint32) (b)[(i) + 3] << 24 )		\
-   | ( (uint32) (b)[(i) + 2] << 16 )		\
-   | ( (uint32) (b)[(i) + 1] <<  8 )		\
+  (( (uint32) (b)[(i) + 3] << 24 )              \
+   | ( (uint32) (b)[(i) + 2] << 16 )            \
+   | ( (uint32) (b)[(i) + 1] <<  8 )            \
    | ( (uint32) (b)[(i)    ]       ))
 
 
-#define PUT_UINT32(n, b, i) do {		\
+#define PUT_UINT32(n, b, i) do {                \
     (b)[(i)    ] = (uint8) ( (n)       );       \
     (b)[(i) + 1] = (uint8) ( (n) >>  8 );       \
     (b)[(i) + 2] = (uint8) ( (n) >> 16 );       \
@@ -78,8 +78,8 @@ static void md5_process( MD5Context *ctx, const uint8 *data ) {
 
 #define S(x,n) ((x << n) | ((x & 0xFFFFFFFF) >> (32 - n)))
 
-#define P(a, b, c, d, k, s, t) do {			\
-     a += F(b,c,d) + X[k] + t; a = S(a,s) + b;		\
+#define P(a, b, c, d, k, s, t) do {                     \
+     a += F(b,c,d) + X[k] + t; a = S(a,s) + b;          \
    } while (0)
 
   A = ctx->state[0];

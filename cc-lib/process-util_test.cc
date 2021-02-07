@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
       return 0;
     } else if (arg == "-longchild") {
       for (int i = 0; i < 555; i++) {
-	printf("%c", (i & 255));
+        printf("%c", (i & 255));
       }
       return 0;
     }
@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
       printf("running self: [%s]\n", cmd1.c_str());
     
       std::optional<string> reso =
-	ProcessUtil::GetOutput(cmd1);
+        ProcessUtil::GetOutput(cmd1);
 
       CHECK(reso.has_value());
       CHECK_EQ(reso.value(), "i am child (:\n");
@@ -40,13 +40,13 @@ int main(int argc, char **argv) {
       printf("running self: [%s]\n", cmd2.c_str());
     
       std::optional<string> reso =
-	ProcessUtil::GetOutput(cmd2);
+        ProcessUtil::GetOutput(cmd2);
 
       CHECK(reso.has_value());
       const string &res = reso.value();
       CHECK_EQ(res.size(), 555) << res.size() << "\n" << res;
       for (int i = 0; i < (int)res.size(); i++) {
-	CHECK_EQ(res[i], i & 255) << i;
+        CHECK_EQ(res[i], i & 255) << i;
       }
     }
     

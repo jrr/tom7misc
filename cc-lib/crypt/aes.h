@@ -6,8 +6,8 @@
 template<int KEYBITS>
 struct AES {
   static_assert(KEYBITS == 256 ||
-		KEYBITS == 192 ||
-		KEYBITS == 128, "only these values supported");
+                KEYBITS == 192 ||
+                KEYBITS == 128, "only these values supported");
   
   // Block length in bytes. Same for all variants.
   static constexpr int BLOCKLEN = 16;
@@ -36,7 +36,7 @@ struct AES {
   static void InitCtx(struct Ctx *ctx, const uint8_t *key);
 
   static void InitCtxIV(struct Ctx *ctx,
-			const uint8_t *key, const uint8_t *iv);
+                        const uint8_t *key, const uint8_t *iv);
   static void Ctx_set_iv(struct Ctx *ctx, const uint8_t *iv);
 
   // Buffer size is exactly BLOCKLEN bytes.

@@ -14,8 +14,8 @@ using Chord = Guitar::Chord;
 int main(int argc, char **argv) {
   if (argc != 2) {
     fprintf(stderr, "Prints the chord name for a fingering, if known.\n"
-	    "Usage:\n\n"
-	    "  name x32010\n\n");
+            "Usage:\n\n"
+            "  name x32010\n\n");
     return -1;
   }
 
@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
   auto OKChars = [](const string &s) {
     for (const char c : s)
       if (!Util::matchspec("0-9a-gx", c))
-	return false;
+        return false;
     return true;
   };
   
@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
   const string fing = Util::PadEx(6, (string)argv[1], 'x');
   if (fing.size() != 6 || !OKChars(fing)) {
     fprintf(stderr, "Expected a string with up to 6 characters, from "
-	    "0 (open), frets 1-9 or a-g (standing for 10+), or x for mute.\n");
+            "0 (open), frets 1-9 or a-g (standing for 10+), or x for mute.\n");
     return -1;
   }
 
@@ -44,11 +44,11 @@ int main(int argc, char **argv) {
   };
   
   Fingering f = make_tuple(F(fing[0]),
-			   F(fing[1]),
-			   F(fing[2]),
-			   F(fing[3]),
-			   F(fing[4]),
-			   F(fing[5]));
+                           F(fing[1]),
+                           F(fing[2]),
+                           F(fing[3]),
+                           F(fing[4]),
+                           F(fing[5]));
   
   std::optional<Chord> co = Guitar::NameFingering(f);
   if (co.has_value()) {
