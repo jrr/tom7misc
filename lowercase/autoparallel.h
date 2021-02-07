@@ -35,9 +35,9 @@ struct AutoParallelComp {
   // If cachefile is not the empty string, read old samples from
   // this file (if any), and write them periodically.
   explicit AutoParallelComp(int max_parallelism,
-			    int max_samples = 50,
-			    bool verbose = false,
-			    const std::string &cachefile = "") :
+                            int max_samples = 50,
+                            bool verbose = false,
+                            const std::string &cachefile = "") :
     max_parallelism(max_parallelism),
     max_samples(max_samples),
     verbose(verbose),
@@ -51,14 +51,14 @@ struct AutoParallelComp {
       last_save = save_timer.MS();
     }
     rc = std::make_unique<ArcFour>(
-	StringPrintf("apc%lld.%f", time(nullptr), last_save));
+        StringPrintf("apc%lld.%f", time(nullptr), last_save));
   }
 
   // with f(idx, value), ignoring result
   template<class T, class F>
   void ParallelAppi(const std::vector<T> &vec, const F &f) {
     auto ff = [&vec, &f](int64_t idx) {
-	(void)f(idx, vec[idx]);
+        (void)f(idx, vec[idx]);
       };
     ParallelComp(vec.size(), ff);
   }
@@ -67,7 +67,7 @@ struct AutoParallelComp {
   template<class T, class F>
   void ParallelApp(const std::vector<T> &vec, const F &f) {
     auto ff = [&vec, &f](int64_t idx) {
-	(void)f(vec[idx]);
+        (void)f(vec[idx]);
       };
     ParallelComp(vec.size(), ff);
   }
@@ -81,7 +81,7 @@ struct AutoParallelComp {
     std::vector<R> result(vec.size());
     R *data = result.data();
     auto run_write = [data, &f](int64_t idx, const T &arg) {
-	data[idx] = f(idx, arg);
+        data[idx] = f(idx, arg);
       };
     ParallelAppi(vec, run_write);
     return result;
@@ -119,29 +119,29 @@ struct AutoParallelComp {
       const double mean = experiments[i].current_mean;
       const double ms = gauss.Next() * stdev + mean;
       if (verbose) {
-	printf(
-	    " %d parallelism: %d samples, predict %.5f +/ %.5fms ~= %.5fms\n",
-	    i + 1, (int)experiments[i].sample_ms.size(), mean, stdev, ms);
+        printf(
+            " %d parallelism: %d samples, predict %.5f +/ %.5fms ~= %.5fms\n",
+            i + 1, (int)experiments[i].sample_ms.size(), mean, stdev, ms);
       }
       if (ms < best_ms) {
-	best_i = i;
-	best_ms = ms;
+        best_i = i;
+        best_ms = ms;
       }
     }
     
     auto Consider = [this, &best_i](int dx) {
-	int neighbor = best_i + dx;
-	if (neighbor < 0) return false;
-	if (neighbor >= max_parallelism) return false;
+        int neighbor = best_i + dx;
+        if (neighbor < 0) return false;
+        if (neighbor >= max_parallelism) return false;
 
-	int bsamples = experiments[best_i].sample_ms.size();
-	int nsamples = experiments[neighbor].sample_ms.size();
-	int diff = bsamples - nsamples;
-	if (diff <= 0) return false;
-	// The bigger the difference, the more likely we are to do this.
-	if (RandTo(rc.get(), bsamples) >= diff) return false;
-	best_i = neighbor;
-	return true;
+        int bsamples = experiments[best_i].sample_ms.size();
+        int nsamples = experiments[neighbor].sample_ms.size();
+        int diff = bsamples - nsamples;
+        if (diff <= 0) return false;
+        // The bigger the difference, the more likely we are to do this.
+        if (RandTo(rc.get(), bsamples) >= diff) return false;
+        best_i = neighbor;
+        return true;
       };
 
     // consider some jitter to nearby buckets if this one has a lot more samples.
@@ -151,16 +151,16 @@ struct AutoParallelComp {
     const int threads = best_i + 1;
     if (verbose) {
       printf("AutoParallelComp: Selected threads=%d (%.5f ms +/- %.5f)\n",
-	     threads,
-	     experiments[best_i].current_mean,
-	     experiments[best_i].current_stdev);
+             threads,
+             experiments[best_i].current_mean,
+             experiments[best_i].current_stdev);
     }
 
     Timer expt_timer;
     if (best_i == 0) {
       // Run in serial without any locking etc.
       for (int64_t i = 0; i < num; i++) {
-	(void)f(i);
+        (void)f(i);
       }
     } else {
       // Use unqualified version from threadutil.
@@ -174,12 +174,12 @@ struct AutoParallelComp {
       experiments[best_i].sample_ms.push_back(actual_ms);
       UpdateStatistics(&experiments[best_i]);
       if (verbose) {
-	printf("Got %.5fms. Set threads=%d to %d samples: %.5f +/- %.5f\n",
-	       actual_ms,
-	       best_i + 1,
-	       (int)experiments[best_i].sample_ms.size(),
-	       experiments[best_i].current_mean,
-	       experiments[best_i].current_stdev);
+        printf("Got %.5fms. Set threads=%d to %d samples: %.5f +/- %.5f\n",
+               actual_ms,
+               best_i + 1,
+               (int)experiments[best_i].sample_ms.size(),
+               experiments[best_i].current_mean,
+               experiments[best_i].current_stdev);
       }
       MaybeWriteCache();
     }
@@ -192,18 +192,18 @@ struct AutoParallelComp {
     int total_samples = 0;
     for (int i = 0; i < experiments.size(); i++) {
       if (!experiments[i].sample_ms.empty()) {
-	std::string line = StringPrintf("%d", i);
-	for (double s : experiments[i].sample_ms) {
-	  total_samples++;
-	  StringAppendF(&line, " %.7f", s);
-	}
-	lines.push_back(line);
+        std::string line = StringPrintf("%d", i);
+        for (double s : experiments[i].sample_ms) {
+          total_samples++;
+          StringAppendF(&line, " %.7f", s);
+        }
+        lines.push_back(line);
       }
     }
     Util::WriteLinesToFile(cachefile, lines);
     if (verbose) {
       printf("Wrote %d samples to %s.\n",
-	     total_samples, cachefile.c_str());
+             total_samples, cachefile.c_str());
     }
     // (Don't count the time it took to save, for pathological
     // cases..)
@@ -251,13 +251,13 @@ struct AutoParallelComp {
       int iavg = round(avgf * (HW - 1));
       int imax = round(maxf * (HW - 1));
       for (int x = 0; x < HW; x++) {
-	char c = ' ';
-	if (x == iavg) c = '*';
-	else if (x == imin) c = '<';
-	else if (x == imax) c = '>';
-	else if (x > imin && x < iavg) c = '-';
-	else if (x > iavg && x < imax) c = '-';
-	printf("%c", c);
+        char c = ' ';
+        if (x == iavg) c = '*';
+        else if (x == imin) c = '<';
+        else if (x == imax) c = '>';
+        else if (x > imin && x < iavg) c = '-';
+        else if (x > iavg && x < imax) c = '-';
+        printf("%c", c);
       }
       printf("\n");
     }
@@ -296,16 +296,16 @@ private:
       const int bucket = atoi(bucket_s.c_str());
       CHECK(bucket >= 0);
       if (bucket < experiments.size()) {
-	experiments[bucket].sample_ms.clear();
-	for (;;) {
-	  const string s = Util::chop(line);
-	  if (s.empty()) break;
-	  double ss = Util::ParseDouble(s);
-	  experiments[bucket].sample_ms.push_back(ss);
-	}
+        experiments[bucket].sample_ms.clear();
+        for (;;) {
+          const string s = Util::chop(line);
+          if (s.empty()) break;
+          double ss = Util::ParseDouble(s);
+          experiments[bucket].sample_ms.push_back(ss);
+        }
       } else {
-	printf("WARNING: Autoparallel discarding bucket %d "
-	       "from %s (out of range)\n", bucket, cachefile.c_str());
+        printf("WARNING: Autoparallel discarding bucket %d "
+               "from %s (out of range)\n", bucket, cachefile.c_str());
       }
     }
 
@@ -315,11 +315,11 @@ private:
     for (int i = 0; i < experiments.size(); i++) {
       UpdateStatistics(&experiments[i]);
       if (verbose) {
-	printf("  threads=%d with %d samples: %.5f +/- %.5f\n",
-	       i + 1,
-	       (int)experiments[i].sample_ms.size(),
-	       experiments[i].current_mean,
-	       experiments[i].current_stdev);
+        printf("  threads=%d with %d samples: %.5f +/- %.5f\n",
+               i + 1,
+               (int)experiments[i].sample_ms.size(),
+               experiments[i].current_mean,
+               experiments[i].current_stdev);
       }
     }
   }

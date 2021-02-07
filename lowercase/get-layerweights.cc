@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     const ImageRGBA img = ModelInfo::LayerWeights(*net, i, false);
 
     const string outfile = StringPrintf("%s-layer%d.png",
-					outputbase.c_str(), i);
+                                        outputbase.c_str(), i);
     img.Save(outfile);
     printf("Wrote %s.\n", outfile.c_str());
   }

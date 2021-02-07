@@ -38,8 +38,8 @@ struct FontProblem {
   // Fill the buffer (which must be big enough) with contours.
   // Returns true if successful.
   static bool FillVector(const TTF *ttf, int codepoint,
-			 const std::vector<int> &row_max_points,
-			 float *buffer);
+                         const std::vector<int> &row_max_points,
+                         float *buffer);
 
   // The first part of FillVector. Normalizes contours to Beziers and
   // puts their start point close to 0,0. Checks that the contours
@@ -47,8 +47,8 @@ struct FontProblem {
   // match row_max_points. Does not pad contours, however.
   // Returns true if successful.
   static bool GetRows(const TTF *ttf, int codepoint,
-		      const std::vector<int> &row_max_points,
-		      std::vector<TTF::Contour> *contours);
+                      const std::vector<int> &row_max_points,
+                      std::vector<TTF::Contour> *contours);
   
   static void FillExpectedVector(
       ArcFour *rc,
@@ -71,30 +71,30 @@ struct FontProblem {
   // with input and output layer starting with a fixed number of
   // rows of bezier-only paths.
   static void RenderVector(const std::string &font_filename,
-			   const Network &net,
-			   const std::vector<int> &row_max_points,
-			   const std::string &out_filename);    
+                           const Network &net,
+                           const std::vector<int> &row_max_points,
+                           const std::string &out_filename);    
 
   // Because this generates SDFs and runs two large networks, it's
   // significantly slower than the above.
   static void RenderSDF(const std::string &font_filename,
-			const Network &make_lowercase,
-			const Network &make_uppercase,
-			const SDFConfig &config,
-			// writes several files.
-			// "-uppercase.png" etc. is added.
-			const std::string &base_out_filename);
+                        const Network &make_lowercase,
+                        const Network &make_uppercase,
+                        const SDFConfig &config,
+                        // writes several files.
+                        // "-uppercase.png" etc. is added.
+                        const std::string &base_out_filename);
 
   // For a buffer beginning with an SDF of the appropriate size
   // (as floats 0-1), build the SDF image.
   static ImageA SDFGetImage(const SDFConfig &config,
-			    const std::vector<float> &buffer);
+                            const std::vector<float> &buffer);
 
   // Render tresholded image at high resolution, then downsample
   // to get an anti-aliased image.
   static ImageA SDFThresholdAA(uint8_t onedge_value,
-			       const ImageA &sdf,
-			       int scale = 2);
+                               const ImageA &sdf,
+                               int scale = 2);
   
   // Code for computing the error between a predicted vector shape ("loop")
   // and the expected one.
@@ -138,8 +138,8 @@ struct FontProblem {
     std::vector<int> groups;
   };
   static LoopAssignment BestLoopAssignment(ArcFour *rc,
-					   const std::vector<Point> &expected,
-					   const std::vector<Point> &actual);
+                                           const std::vector<Point> &expected,
+                                           const std::vector<Point> &actual);
 };
 
 #endif

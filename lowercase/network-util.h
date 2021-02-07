@@ -58,10 +58,10 @@ struct EZLayer {
       node.bias = layer->biases[node_idx];
       node.inputs.reserve(ipn);
       for (int idx = 0; idx < ipn; idx++) {
-	OneIndex oi;
-	oi.index = layer->indices[node_idx * ipn + idx];
-	oi.weight = layer->weights[node_idx * ipn + idx];
-	node.inputs.push_back(oi);
+        OneIndex oi;
+        oi.index = layer->indices[node_idx * ipn + idx];
+        oi.weight = layer->weights[node_idx * ipn + idx];
+        node.inputs.push_back(oi);
       }
     }
   }
@@ -81,9 +81,9 @@ struct EZLayer {
 
     for (int f : factors) {
       if (ww < hh)
-	ww *= f;
+        ww *= f;
       else
-	hh *= f;
+        hh *= f;
     }
 
     CHECK(ww * hh == num_nodes);
@@ -114,7 +114,7 @@ struct EZLayer {
     // size.
     auto CompareByIndex =
       [](const OneIndex &a, const OneIndex &b) {
-	return a.index < b.index;
+        return a.index < b.index;
       };
 
     for (Node &node : nodes) {
@@ -132,8 +132,8 @@ struct EZLayer {
       const Node &node = nodes[node_idx];
       layer->biases.push_back(node.bias);
       for (int i = 0; i < ipn; i++) {
-	layer->indices.push_back(node.inputs[i].index);
-	layer->weights.push_back(node.inputs[i].weight);
+        layer->indices.push_back(node.inputs[i].index);
+        layer->weights.push_back(node.inputs[i].weight);
       }
     }
   }

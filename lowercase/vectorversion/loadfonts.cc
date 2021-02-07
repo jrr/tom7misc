@@ -18,9 +18,9 @@ LoadFonts::LoadFonts(
     const vector<int> &row_max_points,
     int max_parallelism,
     int64 max_fonts) : max_parallelism(max_parallelism),
-		       max_fonts(max_fonts),
-		       ExitEarly(ExitEarly),
-		       row_max_points(row_max_points) {
+                       max_fonts(max_fonts),
+                       ExitEarly(ExitEarly),
+                       row_max_points(row_max_points) {
   fonts.reserve(max_fonts);
 
   init_thread.reset(new std::thread([this]() {
@@ -54,43 +54,43 @@ void LoadFonts::Init() {
   for (const auto &[filename, info] : font_db->Files()) {
     // XXX make the filtering criteria configurable
     if (info.type == FontDB::Type::SERIF ||
-	info.type == FontDB::Type::SANS) {
+        info.type == FontDB::Type::SANS) {
       if (CaseOK(info)) {
-	filenames_todo.push_back(filename);
+        filenames_todo.push_back(filename);
       }
     }
   }
 
   printf("%lld eligible fonts\n", (int64)filenames_todo.size());
   ParallelApp(filenames_todo,
-	      [this](const string &filename) {
-		if (ExitEarly()) return;
-		
-		TTF *ttf = new TTF{filename};
+              [this](const string &filename) {
+                if (ExitEarly()) return;
+                
+                TTF *ttf = new TTF{filename};
 
-		vector<float> v;
-		v.resize(
-		    FontProblem::BufferSizeForPoints(row_max_points));
-		
-		// Make sure ALL letters will fit in training data.
-		for (int c = 0; c < 26; c++) {
-		  int upper = 'A' + c;
-		  int lower = 'a' + c;
-		  if (!FontProblem::FillVector(ttf, upper, row_max_points,
-					       v.data()) ||
-		      !FontProblem::FillVector(ttf, lower, row_max_points,
-					       v.data())) {
-		    delete ttf;
-		    return;
-		  }
-		}
-		  
-		// XXX other filters
-		{
-		  WriteMutexLock ml(&fonts_m);
-		  fonts.push_back(ttf);
-		}
-	      }, max_parallelism);
+                vector<float> v;
+                v.resize(
+                    FontProblem::BufferSizeForPoints(row_max_points));
+                
+                // Make sure ALL letters will fit in training data.
+                for (int c = 0; c < 26; c++) {
+                  int upper = 'A' + c;
+                  int lower = 'a' + c;
+                  if (!FontProblem::FillVector(ttf, upper, row_max_points,
+                                               v.data()) ||
+                      !FontProblem::FillVector(ttf, lower, row_max_points,
+                                               v.data())) {
+                    delete ttf;
+                    return;
+                  }
+                }
+                  
+                // XXX other filters
+                {
+                  WriteMutexLock ml(&fonts_m);
+                  fonts.push_back(ttf);
+                }
+              }, max_parallelism);
 
   printf("Done loading %lld fonts\n", (int64)fonts.size());
 }

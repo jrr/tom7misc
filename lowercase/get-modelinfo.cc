@@ -34,12 +34,12 @@ int main(int argc, char **argv) {
   const int HEIGHT = HISTOH * num_histos;
 
   const ImageRGBA histos = ModelInfo::Histogram(*net, WIDTH, HEIGHT,
-						// {-0.0000001f},
-						// {+0.0000001f},
-						nullopt,
-						nullopt,
-						nullopt,
-						nullopt);
+                                                // {-0.0000001f},
+                                                // {+0.0000001f},
+                                                nullopt,
+                                                nullopt,
+                                                nullopt,
+                                                nullopt);
 
   char dates[128] = {};
   time_t tt = time(nullptr);
@@ -50,10 +50,10 @@ int main(int argc, char **argv) {
   strftime(dates, 127, "%d %b %Y  %H:%M", localtime(&tt));
   vector<string> lines = {
     StringPrintf("%s  round %lld   examples %lld   bytes %lld   real layers %d",
-		 dates,
-		 net->rounds, net->examples, net->Bytes(), net->num_layers),
+                 dates,
+                 net->rounds, net->examples, net->Bytes(), net->num_layers),
     StringPrintf("  Input: %dx%dx%d = %d",
-		 net->width[0], net->height[0], net->channels[0], net->num_nodes[0]),
+                 net->width[0], net->height[0], net->channels[0], net->num_nodes[0]),
   };
 
   for (int layer_idx = 0; layer_idx < net->num_layers; layer_idx++) {
@@ -66,9 +66,9 @@ int main(int argc, char **argv) {
     const char *types = layer.type == LAYER_DENSE ? "DENSE" :
       layer.type == LAYER_SPARSE ? "SPARSE" : "???";
     lines.push_back(
-	StringPrintf("Layer %d: %dx%dx%d = %d (%s). ipn %d",
-		     layer_idx, width, height, channels, num_nodes,
-		     types, ipn));
+        StringPrintf("Layer %d: %dx%dx%d = %d (%s). ipn %d",
+                     layer_idx, width, height, channels, num_nodes,
+                     types, ipn));
   }
 
   const int TOP = 20 * lines.size();

@@ -82,7 +82,7 @@ static void VacuumLayer(Network *net, int layer_idx) {
     };
 
   printf("Layer %d: Unpack %d nodes / %d indices per node\n",
-	 layer_idx, num_nodes, ipn);
+         layer_idx, num_nodes, ipn);
   fflush(stdout);
   CHECK(layer->indices.size() == layer->weights.size());
   CHECK(layer->indices.size() == ipn * num_nodes);
@@ -92,21 +92,21 @@ static void VacuumLayer(Network *net, int layer_idx) {
     for (int node_idx = 0; node_idx < num_nodes; node_idx++) {
       node_indices[node_idx].reserve(ipn);
       for (int idx = 0; idx < ipn; idx++) {
-	OneIndex oi;
-	oi.index = layer->indices[node_idx * ipn + idx];
-	oi.weight = layer->weights[node_idx * ipn + idx];
-	node_indices[node_idx].push_back(oi);
+        OneIndex oi;
+        oi.index = layer->indices[node_idx * ipn + idx];
+        oi.weight = layer->weights[node_idx * ipn + idx];
+        node_indices[node_idx].push_back(oi);
       }
       
       // Sort descending by weight.
       std::sort(node_indices[node_idx].begin(),
-		node_indices[node_idx].end(),
-		CompareByWeightDesc);
+                node_indices[node_idx].end(),
+                CompareByWeightDesc);
     }
   }
 
   printf("Layer %d: Truncate to threshold %.6f.\n", layer_idx,
-	 THRESHOLD);
+         THRESHOLD);
   int trunc_to = ipn;
   for (;;) {
     CHECK(trunc_to > 0) << "ALL of the weights for the entire "
@@ -119,13 +119,13 @@ static void VacuumLayer(Network *net, int layer_idx) {
     for (int node_idx = 0; node_idx < num_nodes; node_idx++) {
       float w = node_indices[node_idx][trunc_to - 1].weight;
       if (fabs(w) >= THRESHOLD) {
-	printf("Layer %d: Node %d has a weight "
-	       "of %.6f in column %d; done.\n",
-	       layer_idx,
-	       node_idx,
-	       w, trunc_to - 1);
-	ok = false;
-	break;
+        printf("Layer %d: Node %d has a weight "
+               "of %.6f in column %d; done.\n",
+               layer_idx,
+               node_idx,
+               w, trunc_to - 1);
+        ok = false;
+        break;
       }
     }
 
@@ -136,7 +136,7 @@ static void VacuumLayer(Network *net, int layer_idx) {
   }
 
   printf("Layer %d: Dropping %d of %d indices.\n",
-	 layer_idx, ipn - trunc_to, ipn);
+         layer_idx, ipn - trunc_to, ipn);
 
   // Put back in ascending index order; the network can be in
   // any order, but this is probably best for memory locality
@@ -197,17 +197,17 @@ static void VacuumNetwork(Network *net) {
       (num_nodes * ipn) * 4;
     
     printf("Layer %d has %d nodes, %d indices per node = %d, %.1fMB\n",
-	   i, num_nodes, ipn, num_nodes * ipn,
-	   bytes / (1024.0 * 1024.0));
+           i, num_nodes, ipn, num_nodes * ipn,
+           bytes / (1024.0 * 1024.0));
     fflush(stdout);
   }
   
   UnParallelComp(net->layers.size(),
-		 [net](int i) {
-		   if (VACUUM_LAYERS.find(i) != VACUUM_LAYERS.end())
-		     VacuumLayer(net, i);
-		 },
-		 24);
+                 [net](int i) {
+                   if (VACUUM_LAYERS.find(i) != VACUUM_LAYERS.end())
+                     VacuumLayer(net, i);
+                 },
+                 24);
 
   // We changed the number of indices per node, so we need to resize
   // the inverted indices (and recompute them).
@@ -230,13 +230,13 @@ int main(int argc, char **argv) {
   Timer model_timer;
   std::unique_ptr<Network> net{Network::ReadNetworkBinary(argv[1])};
   fprintf(stderr, "Loaded model in %.2fs\n",
-	  model_timer.MS() / 1000.0);
+          model_timer.MS() / 1000.0);
   fflush(stderr);
 
   Timer vacuum_timer;
   VacuumNetwork(net.get());
   fprintf(stderr, "Vacuumed model in %.2fs\n",
-	  vacuum_timer.MS() / 1000.0);
+          vacuum_timer.MS() / 1000.0);
   fflush(stderr);
 
   string outfile = argc > 2 ? argv[2] : "net-vacuumed.val";

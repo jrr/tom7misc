@@ -64,8 +64,8 @@ struct Network {
   // this uninitialized network is invalid, since the inverted indices
   // are not correct.
   Network(vector<int> num_nodes,
-	  vector<int> indices_per_node,
-	  vector<TransferFunction> transfer_functions);
+          vector<int> indices_per_node,
+          vector<TransferFunction> transfer_functions);
 
   // Size of network in RAM. Note that this includes the indices
   // and inverted indices for dense layers (which are indeed still stored)
@@ -210,7 +210,7 @@ private:
 // activation value of each node on each layer, plus the input itself.
 struct Stimulation {
   explicit Stimulation(const Network &net) : num_layers(net.num_layers),
-					     num_nodes(net.num_nodes) {
+                                             num_nodes(net.num_nodes) {
     values.resize(num_layers + 1);
     for (int i = 0; i < values.size(); i++)
       values[i].resize(num_nodes[i], 0.0f);
@@ -251,7 +251,7 @@ struct Stimulation {
 
 struct Errors {
   explicit Errors(const Network &net) : num_layers(net.num_layers),
-					num_nodes(net.num_nodes) {
+                                        num_nodes(net.num_nodes) {
     error.resize(num_layers);
     for (int i = 0; i < error.size(); i++) {
       error[i].resize(num_nodes[i + 1], 0.0f);

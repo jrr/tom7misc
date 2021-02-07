@@ -86,20 +86,20 @@ static void TestLoopAssignment() {
       // and groups = {4, 1, 5}.
 
       if (EXTRA_CHECKS) {
-	int total = 0;
-	for (int g : assn.groups) total += g;
-	CHECK(total == actual.size()) << total << " " << actual.size();
+        int total = 0;
+        for (int g : assn.groups) total += g;
+        CHECK(total == actual.size()) << total << " " << actual.size();
       }
 
       float err = 0.0f;
       int a = assn.point0;
       for (int e = 0; e < expected.size(); e++) {
-	int num = assn.groups[e];
-	for (int i = 0; i < num; i++) {
-	  err += DistanceAt(e, a);
-	  a++;
-	  if (a == actual.size()) a = 0;
-	}
+        int num = assn.groups[e];
+        for (int i = 0; i < num; i++) {
+          err += DistanceAt(e, a);
+          a++;
+          if (a == actual.size()) a = 0;
+        }
       }
       return err;
     };
@@ -108,10 +108,10 @@ static void TestLoopAssignment() {
   LoopAssignment correct(expected.size());
   correct.point0 = 24;
   correct.groups = { 4, 2, 1,
-		     2, 1, 3,
-		     1, 1, 2,
-		     1, 1, 1,
-		     1, 1, 3, };
+                     2, 1, 3,
+                     1, 1, 2,
+                     1, 1, 1,
+                     1, 1, 3, };
   CHECK_EQ(correct.groups.size(), expected.size());
 
   const float correct_score = Score(correct);
@@ -119,7 +119,7 @@ static void TestLoopAssignment() {
   auto ToString = [](const LoopAssignment &assn) {
       string ret = StringPrintf("Point0: %d groups:", assn.point0);
       for (int d : assn.groups)
-	StringAppendF(&ret, " %d", d);
+        StringAppendF(&ret, " %d", d);
       return ret;
     };
 
@@ -134,16 +134,16 @@ static void TestLoopAssignment() {
     float test_score = Score(test);
     if (test_score > 1.1 * correct_score) {
       printf("Bad score: round %d %.4f -> %4f. Assn: %s\n",
-	     i, correct_score, test_score, ToString(test).c_str());
+             i, correct_score, test_score, ToString(test).c_str());
     }
     /*
     CHECK(correct.point0 == test.point0 &&
-	  correct.groups == test.groups) << i << "\n" << ToString(test);
+          correct.groups == test.groups) << i << "\n" << ToString(test);
     */
   }
 
   printf("Done in %.3fms (%.5f/call)\n",
-	 benchtime, benchtime / (double)NUM_ROUNDS);
+         benchtime, benchtime / (double)NUM_ROUNDS);
 }
 
 int main(int argc, char **argv) {

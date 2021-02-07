@@ -32,14 +32,14 @@ static uint32 COLORS[NUM_COLORS] = {
 };
 
 static void DrawFloats(const vector<int> &row_max_points,
-		       const vector<float> &values,
-		       int startx, int starty,
-		       int nominal_char_size,
-		       ImageRGBA *img) {
-  
+                       const vector<float> &values,
+                       int startx, int starty,
+                       int nominal_char_size,
+                       ImageRGBA *img) {
+
   auto DrawPath = [nominal_char_size, img, startx, starty, &values](
       int idx, int num_pts, uint32 color) -> int {
-      
+
       // The startx/starty values (in the first two slots)
       // are now ignored. We draw a closed loop starting
       // with the last segment's endpoint.
@@ -47,32 +47,32 @@ static void DrawFloats(const vector<int> &row_max_points,
       float y = values[idx + 2 + (num_pts - 1) * 4 + 3];
 
       const double sqerr = 1.0f / (nominal_char_size *
-				   nominal_char_size);
-      
+                                   nominal_char_size);
+
       auto Line = [nominal_char_size,
-		   img, startx, starty, color](float x1, float y1,
-					       float x2, float y2) {
-	  img->BlendLine32(
-	      startx + x1 * nominal_char_size,
-	      starty + y1 * nominal_char_size,
-	      startx + x2 * nominal_char_size,
-	      starty + y2 * nominal_char_size,
-	      color);
-	};
+                   img, startx, starty, color](float x1, float y1,
+                                               float x2, float y2) {
+          img->BlendLine32(
+              startx + x1 * nominal_char_size,
+              starty + y1 * nominal_char_size,
+              startx + x2 * nominal_char_size,
+              starty + y2 * nominal_char_size,
+              color);
+        };
 
       for (int i = 0; i < num_pts; i++) {
-	float cx = values[idx + 2 + i * 4 + 0];
-	float cy = values[idx + 2 + i * 4 + 1];
-	float dx = values[idx + 2 + i * 4 + 2];
-	float dy = values[idx + 2 + i * 4 + 3];
+        float cx = values[idx + 2 + i * 4 + 0];
+        float cy = values[idx + 2 + i * 4 + 1];
+        float dx = values[idx + 2 + i * 4 + 2];
+        float dy = values[idx + 2 + i * 4 + 3];
 
-	for (const auto [xx, yy] :
-	       TesselateQuadraticBezier<double>(
-		   x, y, cx, cy, dx, dy, sqerr)) {
-	  Line(x, y, xx, yy);
-	  x = xx;
-	  y = yy;
-	}
+        for (const auto [xx, yy] :
+               TesselateQuadraticBezier<double>(
+                   x, y, cx, cy, dx, dy, sqerr)) {
+          Line(x, y, xx, yy);
+          x = xx;
+          y = yy;
+        }
       }
 
       return idx + 2 + (num_pts * 4);
@@ -86,9 +86,9 @@ static void DrawFloats(const vector<int> &row_max_points,
 }
 
 void FontProblem::RenderVector(const string &font_filename,
-			       const Network &net,
-			       const vector<int> &row_max_points,
-			       const string &out_filename) {
+                               const Network &net,
+                               const vector<int> &row_max_points,
+                               const string &out_filename) {
 
   static constexpr int WIDTH = 1920;
   static constexpr int HEIGHT = 1080;
@@ -96,12 +96,12 @@ void FontProblem::RenderVector(const string &font_filename,
   static constexpr int LETTER_WIDTH = 71; // 73;
   static constexpr int LETTER_X_MARGIN = 2;
   static constexpr int LETTER_HEIGHT = 84; // 73;
-  static constexpr int LETTER_Y_MARGIN = 2;  
+  static constexpr int LETTER_Y_MARGIN = 2;
   static constexpr int LEFT_MARGIN = 12;
   static constexpr int TOP_MARGIN = 28;
-  
+
   static constexpr int NUM_ITERS = 12;
-  
+
   TTF ttf{font_filename};
   ImageRGBA img{WIDTH, HEIGHT};
 
@@ -115,45 +115,45 @@ void FontProblem::RenderVector(const string &font_filename,
     Stimulation stim{net};
     // We assume the given font fits for evaluation!
     if (!FillVector(&ttf, codepoint, row_max_points,
-		    stim.values[0].data())) {
-      for (const TTF::Contour &contour : 
-	     TTF::MakeOnlyBezier(ttf.GetContours(codepoint))) {
-	printf("FAIL: contour length %d\n", (int)contour.paths.size());
+                    stim.values[0].data())) {
+      for (const TTF::Contour &contour :
+             TTF::MakeOnlyBezier(ttf.GetContours(codepoint))) {
+        printf("FAIL: contour length %d\n", (int)contour.paths.size());
       }
       CHECK(false) << "Eval font doesn't fit in input vector?? "
-		   << (char)codepoint;
+                   << (char)codepoint;
     }
-    
+
     for (int iter = 0; iter < NUM_ITERS; iter++) {
       const int starty =
-	TOP_MARGIN + iter * (LETTER_HEIGHT + LETTER_Y_MARGIN);
+        TOP_MARGIN + iter * (LETTER_HEIGHT + LETTER_Y_MARGIN);
       img.BlendRect32(startx, starty, LETTER_WIDTH, LETTER_HEIGHT,
-		      0x222222FF);
+                      0x222222FF);
 
       DrawFloats(row_max_points,
-		 stim.values[0],
-		 startx, starty,
-		 LETTER_HEIGHT,
-		 &img);
+                 stim.values[0],
+                 startx, starty,
+                 LETTER_HEIGHT,
+                 &img);
 
       // (XXX Don't bother if this is the last round)
       if (iter == NUM_ITERS - 1)
-	break;
+        break;
 
       net.RunForward(&stim);
-      
+
       vector<float> *input = &stim.values[0];
       const vector<float> &output = stim.values[stim.values.size() - 1];
 
       for (int i = 0; i < input->size(); i++) {
-	(*input)[i] = output[i];
+        (*input)[i] = output[i];
       }
     }
   }
 
   img.BlendText2x32(LEFT_MARGIN, 4, 0xCCCCCCFF,
-		    StringPrintf("Round %lld   Examples %lld   Bytes %lld",
-				 net.rounds, net.examples, net.Bytes()));
+                    StringPrintf("Round %lld   Examples %lld   Bytes %lld",
+                                 net.rounds, net.examples, net.Bytes()));
   img.Save(out_filename);
 }
 
@@ -164,7 +164,7 @@ static void SDFFillVector(
     const ImageA &sdf,
     vector<float> *buffer) {
   CHECK(sdf.Width() == config.sdf_size);
-  CHECK(sdf.Height() == config.sdf_size); 
+  CHECK(sdf.Height() == config.sdf_size);
   CHECK(buffer->size() >= config.sdf_size * config.sdf_size);
 
   int idx = 0;
@@ -175,15 +175,13 @@ static void SDFFillVector(
   }
 }
 
-// XXX this should roundf, right?
 static uint8 FloatByte(float f) {
-  if (f <= 0.0f) return 0;
-  if (f >= 1.0f) return 255;
-  else return f * 255.0;
+  int x = roundf(f * 255.0f);
+  return std::clamp(x, 0, 255);
 }
 
 ImageA FontProblem::SDFGetImage(const SDFConfig &config,
-				const vector<float> &buffer) {
+                                const vector<float> &buffer) {
   CHECK(buffer.size() >= config.sdf_size * config.sdf_size);
   ImageA img(config.sdf_size, config.sdf_size);
   for (int y = 0; y < config.sdf_size; y++) {
@@ -195,15 +193,15 @@ ImageA FontProblem::SDFGetImage(const SDFConfig &config,
 }
 
 ImageA FontProblem::SDFThresholdAA(uint8 onedge_value,
-				   const ImageA &sdf,
-				   int scale) {
+                                   const ImageA &sdf,
+                                   int scale) {
   if (scale == 1) {
     // No need for resampling step.
     ImageA ret(sdf.Height(), sdf.Width());
     for (int y = 0; y < ret.Height(); y++) {
       for (int x = 0; x < ret.Width(); x++) {
-	uint8 v = sdf.GetPixel(x, y);
-	ret.SetPixel(x, y, v >= onedge_value ? 0xFF : 0x00);
+        uint8 v = sdf.GetPixel(x, y);
+        ret.SetPixel(x, y, v >= onedge_value ? 0xFF : 0x00);
       }
     }
     return ret;
@@ -213,16 +211,16 @@ ImageA FontProblem::SDFThresholdAA(uint8 onedge_value,
     ImageA ret(sdf.Height(), sdf.Width());
     for (int y = 0; y < sdf.Height(); y++) {
       for (int x = 0; x < sdf.Width(); x++) {
-	uint32 count = 0;
-	for (int xo = 0; xo < scale; xo++) {
-	  for (int yo = 0; yo < scale; yo++) {
-	    uint8 v = big.GetPixel(x * scale + xo, y * scale + yo);
-	    if (v >= onedge_value) count += 0xFF;
-	  }
-	}
+        uint32 count = 0;
+        for (int xo = 0; xo < scale; xo++) {
+          for (int yo = 0; yo < scale; yo++) {
+            uint8 v = big.GetPixel(x * scale + xo, y * scale + yo);
+            if (v >= onedge_value) count += 0xFF;
+          }
+        }
 
-	count /= (scale * scale);
-	ret.SetPixel(x, y, count);
+        count /= (scale * scale);
+        ret.SetPixel(x, y, count);
       }
     }
     return ret;
@@ -236,146 +234,147 @@ void FontProblem::RenderSDF(
     const SDFConfig &config,
     const std::string &base_out_filename) {
   Timer timer;
-  
+
   static constexpr int WIDTH = 1920;
   static constexpr int HEIGHT = 1080;
 
   static constexpr int LETTER_WIDTH = 64;
   static constexpr int LETTER_X_MARGIN = 2;
   static constexpr int LETTER_HEIGHT = 64;
-  static constexpr int LETTER_Y_MARGIN = 2;  
+  static constexpr int LETTER_Y_MARGIN = 2;
   static constexpr int LEFT_MARGIN = 12;
   static constexpr int TOP_MARGIN = 28;
-  
+
   static constexpr int NUM_ITERS = 12;
-  
+
   TTF ttf{font_filename};
 
   static constexpr char CHARS[] =
     "abcdefghijklmnopqrstuvwxyz"
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  
+
   vector<ImageA> letters;
   letters.resize(26 * 2);
   ParallelComp(26 * 2,
-	       [&config, &font_filename, &ttf, &letters](int64_t idx) {
-		 int c = CHARS[idx];
-		 CHECK(c != 0);
-		 std::optional<ImageA> sdf =
-		   ttf.GetSDF(c, config.sdf_size,
-			      config.pad_top, config.pad_bot, config.pad_left,
-			      config.onedge_value, config.falloff_per_pixel);
-		 CHECK(sdf.has_value()) << font_filename << "char " << (char)c;
-		 letters[idx] = std::move(sdf.value());
-	       }, 13);
+               [&config, &font_filename, &ttf, &letters](int64_t idx) {
+                 int c = CHARS[idx];
+                 CHECK(c != 0);
+                 std::optional<ImageA> sdf =
+                   ttf.GetSDF(c, config.sdf_size,
+                              config.pad_top, config.pad_bot, config.pad_left,
+                              config.onedge_value, config.falloff_per_pixel);
+                 CHECK(sdf.has_value()) << font_filename << "char " << (char)c;
+                 letters[idx] = std::move(sdf.value());
+               }, 13);
 
   printf("Generated SDFs for %s in %.2fs\n", font_filename.c_str(), timer.MS() / 1000.0);
 
   auto Iterative = [&config, &letters](const Network &net, bool lowercasing,
-				       const string &outfile) {
+                                       const string &outfile) {
       ImageRGBA img{WIDTH, HEIGHT};
       img.Clear32(0x000000FF);
 
       std::mutex loss_m;
       double total_loss = 0.0;
-      
+
       // This runs in parallel, so be careful that drawing accesses disjoint
       // pixels per letter.
       ParallelComp
-	(26,
-	 [&config, &letters, &net, lowercasing,
-	  &img, &loss_m, &total_loss](int64_t letter) {
-	   double letter_loss = 0.0;
-	   const int startx =
-	     LEFT_MARGIN + (LETTER_WIDTH + LETTER_X_MARGIN) * letter;
+        (26,
+         [&config, &letters, &net, lowercasing,
+          &img, &loss_m, &total_loss](int64_t letter) {
+           double letter_loss = 0.0;
+           const int startx =
+             LEFT_MARGIN + (LETTER_WIDTH + LETTER_X_MARGIN) * letter;
 
-	   [[maybe_unused]]
-	     const int codepoint = (lowercasing ? 'A' : 'z') + letter;
-	   const int letter_idx = (lowercasing ? 26 : 0) + letter;
-	   const int expected_idx = (lowercasing ? 0 : 26) + letter;
-	   Stimulation stim{net};
-	   SDFFillVector(config, letters[letter_idx], &stim.values[0]);
+           [[maybe_unused]]
+             const int codepoint = (lowercasing ? 'A' : 'z') + letter;
+           const int letter_idx = (lowercasing ? 26 : 0) + letter;
+           const int expected_idx = (lowercasing ? 0 : 26) + letter;
+           Stimulation stim{net};
+           SDFFillVector(config, letters[letter_idx], &stim.values[0]);
 
-	   // fill just the input portion; don't worry about the 26 letter predictors
-	   vector<float> expected;
-	   expected.resize(stim.values[0].size());
-	   SDFFillVector(config, letters[expected_idx], &expected);
-	
-	   for (int iter = 0; iter < NUM_ITERS; iter++) {
-	     const int starty =
-	       TOP_MARGIN + iter * (LETTER_HEIGHT + LETTER_Y_MARGIN);
-	     /*
-	       img.BlendRect32(startx, starty, LETTER_WIDTH, LETTER_HEIGHT,
-	       0x222222FF);
-	     */
+           // fill just the input portion; don't worry about the 26 letter predictors
+           vector<float> expected;
+           expected.resize(stim.values[0].size());
+           SDFFillVector(config, letters[expected_idx], &expected);
 
-	     ImageA sdf = SDFGetImage(config, stim.values[0]);
+           for (int iter = 0; iter < NUM_ITERS; iter++) {
+             const int starty =
+               TOP_MARGIN + iter * (LETTER_HEIGHT + LETTER_Y_MARGIN);
+             /*
+               img.BlendRect32(startx, starty, LETTER_WIDTH, LETTER_HEIGHT,
+               0x222222FF);
+             */
 
-	     // img.BlendImage(startx, starty, sdf.GreyscaleRGBA());
-	     ImageA thresh_lowest = SDFThresholdAA(config.onedge_value * 0.95, sdf, 4);
-	     ImageA thresh_low = SDFThresholdAA(config.onedge_value * 0.975, sdf, 4);
-	     ImageA thresh_hi = SDFThresholdAA(config.onedge_value, sdf, 4);
-	     img.BlendImage(startx, starty, thresh_lowest.AlphaMaskRGBA(0x44, 0x00, 0x00));
-	     img.BlendImage(startx, starty, thresh_low.AlphaMaskRGBA(0x66, 0x22, 0x9F));
-	     img.BlendImage(startx, starty, thresh_hi.AlphaMaskRGBA(0xFF, 0xFF, 0xFF));
+             ImageA sdf = SDFGetImage(config, stim.values[0]);
 
-	     // (XXX Don't bother if this is the last round)
-	     if (iter == NUM_ITERS - 1)
-	       break;
-	     
-	     net.RunForward(&stim);
-	     
-	     vector<float> *input = &stim.values[0];
-	     const vector<float> &output = stim.values[stim.values.size() - 1];
+             // img.BlendImage(startx, starty, sdf.GreyscaleRGBA());
+             ImageA thresh_lowest = SDFThresholdAA(config.onedge_value * 0.95, sdf, 4);
+             ImageA thresh_low = SDFThresholdAA(config.onedge_value * 0.975, sdf, 4);
+             ImageA thresh_hi = SDFThresholdAA(config.onedge_value, sdf, 4);
+             img.BlendImage(startx, starty, thresh_lowest.AlphaMaskRGBA(0x44, 0x00, 0x00));
+             img.BlendImage(startx, starty, thresh_low.AlphaMaskRGBA(0x66, 0x22, 0x9F));
+             img.BlendImage(startx, starty, thresh_hi.AlphaMaskRGBA(0xFF, 0xFF, 0xFF));
 
-	     // We only have expected results (from the original font) for the
-	     // first iteration.
-	     if (iter == 0) {
-	       CHECK(output.size() >= expected.size());
-	       for (int i = 0; i < expected.size(); i++) {
-		 letter_loss += fabs(output[i] - expected[i]);
-	       }
-	     }
-	     
-	     for (int i = 0; i < input->size(); i++) {
-	       (*input)[i] = output[i];
-	     }
-	   }
+             // (Don't bother if this is the last round)
+             if (iter == NUM_ITERS - 1)
+               break;
 
-	   {
-	     MutexLock ml(&loss_m);
-	     total_loss += letter_loss;
-	   }
-	 }, 4);
+             net.RunForward(&stim);
 
-      img.BlendText2x32(LEFT_MARGIN, 4, 0xAAAACCFF,
-			StringPrintf("Round %lld   Examples %lld   Bytes %lld  Loss %.4f  (Make %s)",
-				     net.rounds, net.examples, net.Bytes(),
-				     total_loss,
-				     lowercasing ? "lowercase" : "uppercase"));
+             vector<float> *input = &stim.values[0];
+             const vector<float> &output = stim.values[stim.values.size() - 1];
+
+             // We only have expected results (from the original font) for the
+             // first iteration.
+             if (iter == 0) {
+               CHECK(output.size() >= expected.size());
+               for (int i = 0; i < expected.size(); i++) {
+                 letter_loss += fabs(output[i] - expected[i]);
+               }
+             }
+
+             for (int i = 0; i < input->size(); i++) {
+               (*input)[i] = output[i];
+             }
+           }
+
+           {
+             MutexLock ml(&loss_m);
+             total_loss += letter_loss;
+           }
+         }, 4);
+
+      img.BlendText2x32(
+          LEFT_MARGIN, 4, 0xAAAACCFF,
+          StringPrintf("Round %lld   Examples %lld   Bytes %lld  Loss %.4f  (Make %s)",
+                       net.rounds, net.examples, net.Bytes(),
+                       total_loss,
+                       lowercasing ? "lowercase" : "uppercase"));
 
       img.Save(outfile);
     };
-  
+
   // These are slow so do them in parallel.
   std::thread lthread(
       [&]() {
-	Iterative(make_lowercase, true, base_out_filename + ".lower.png");
+        Iterative(make_lowercase, true, base_out_filename + ".lower.png");
       });
   Iterative(make_uppercase, false, base_out_filename + ".upper.png");
   lthread.join();
   printf("Evaluated (to %s.(upp,low)er.png) in %.2fs\n",
-	 base_out_filename.c_str(), timer.MS() / 1000.0);
+         base_out_filename.c_str(), timer.MS() / 1000.0);
 }
 
 
 bool FontProblem::GetRows(const TTF *ttf, int codepoint,
-			  const std::vector<int> &row_max_points,
-			  std::vector<TTF::Contour> *contours) {
+                          const std::vector<int> &row_max_points,
+                          std::vector<TTF::Contour> *contours) {
   *contours =
     TTF::MakeOnlyBezier(
-	TTF::NormalizeOrder(ttf->GetContours(codepoint),
-			    0.0f, 0.0f));
+        TTF::NormalizeOrder(ttf->GetContours(codepoint),
+                            0.0f, 0.0f));
 
   // Only room for three contours.
   if (contours->size() > row_max_points.size())
@@ -396,7 +395,7 @@ bool FontProblem::GetRows(const TTF *ttf, int codepoint,
       return false;
     }
   }
-  
+
   // We need something to put in rows if there are fewer than
   // the maximum number of contours.
   // We treat this as an empty path starting at 0,0.
@@ -409,8 +408,8 @@ bool FontProblem::GetRows(const TTF *ttf, int codepoint,
 }
 
 bool FontProblem::FillVector(const TTF *ttf, int codepoint,
-			     const std::vector<int> &row_max_points,
-			     float *buffer) {
+                             const std::vector<int> &row_max_points,
+                             float *buffer) {
 
   std::vector<TTF::Contour> contours;
   if (!GetRows(ttf, codepoint, row_max_points, &contours))
@@ -424,28 +423,28 @@ bool FontProblem::FillVector(const TTF *ttf, int codepoint,
   // rotation.
 
   auto PopulateRow = [buffer](int row_start,
-			      // Not including start position.
-			      int max_pts,
-			      const Contour &contour) {
+                              // Not including start position.
+                              int max_pts,
+                              const Contour &contour) {
       constexpr int HDR = 2;
       buffer[row_start + 0] = contour.startx;
       buffer[row_start + 1] = contour.starty;
       for (int i = 0; i < max_pts; i++) {
-	// When we run out of real points, pad with degenerate
-	// zero-length curves at the start point.
-	float cx = i < contour.paths.size() ?
-		       contour.paths[i].cx : contour.startx;
-	float cy = i < contour.paths.size() ?
-		       contour.paths[i].cy : contour.starty;
-	float x = i < contour.paths.size() ?
-		      contour.paths[i].x : contour.startx;
-	float y = i < contour.paths.size() ?
-		      contour.paths[i].y : contour.starty;
+        // When we run out of real points, pad with degenerate
+        // zero-length curves at the start point.
+        float cx = i < contour.paths.size() ?
+                       contour.paths[i].cx : contour.startx;
+        float cy = i < contour.paths.size() ?
+                       contour.paths[i].cy : contour.starty;
+        float x = i < contour.paths.size() ?
+                      contour.paths[i].x : contour.startx;
+        float y = i < contour.paths.size() ?
+                      contour.paths[i].y : contour.starty;
 
-	buffer[row_start + HDR + i * 4 + 0] = cx;
-	buffer[row_start + HDR + i * 4 + 1] = cy;
-	buffer[row_start + HDR + i * 4 + 2] = x;
-	buffer[row_start + HDR + i * 4 + 3] = y;
+        buffer[row_start + HDR + i * 4 + 0] = cx;
+        buffer[row_start + HDR + i * 4 + 1] = cy;
+        buffer[row_start + HDR + i * 4 + 2] = x;
+        buffer[row_start + HDR + i * 4 + 3] = y;
       }
 
       return row_start + HDR + 4 * max_pts;
@@ -473,12 +472,12 @@ void FontProblem::FillExpectedVector(
     printf(" %d", i);
   }
   printf("\n%d contours, %d predicted, %d buffer",
-	 (int)expected_contours.size(),
-	 (int)predicted.size(),
-	 (int)buffer->size());
+         (int)expected_contours.size(),
+         (int)predicted.size(),
+         (int)buffer->size());
   fflush(stdout);
   #endif
-  
+
   if (EXTRA_CHECKS) {
     // Mark as -inf so we can check everything gets initialized.
     int size = BufferSizeForPoints(row_max_points);
@@ -487,7 +486,7 @@ void FontProblem::FillExpectedVector(
       (*buffer)[i] = -std::numeric_limits<float>::infinity();
     }
   }
-  
+
   CHECK_EQ(expected_contours.size(), row_max_points.size());
   // Each row is independent.
   for (int row = 0; row < row_max_points.size(); row++) {
@@ -500,7 +499,7 @@ void FontProblem::FillExpectedVector(
     int start_idx = 0;
     for (int j = 0; j < row; j++)
       start_idx += 2 + row_max_points[j] * 4;
-    
+
     // The path can actually be empty. In this case the
     // values should all be zero.
     if (contour.paths.empty()) {
@@ -509,16 +508,16 @@ void FontProblem::FillExpectedVector(
       (*buffer)[start_idx + 1] = predicted[start_idx + 1];
 
       for (int a = 0; a < row_max_points[row]; a++) {
-	const int idx = start_idx + 2 + a * 4;
-	(*buffer)[idx + 0] = 0.0f;
-	(*buffer)[idx + 1] = 0.0f;
-	(*buffer)[idx + 2] = 0.0f;
-	(*buffer)[idx + 3] = 0.0f;	
+        const int idx = start_idx + 2 + a * 4;
+        (*buffer)[idx + 0] = 0.0f;
+        (*buffer)[idx + 1] = 0.0f;
+        (*buffer)[idx + 2] = 0.0f;
+        (*buffer)[idx + 3] = 0.0f;
       }
-	
+
       continue;
     }
-    
+
     // Otherwise, the font is expected to be a closed loop.
     // We then ignore the start point.
     CHECK(contour.paths.back().x == contour.startx);
@@ -529,7 +528,7 @@ void FontProblem::FillExpectedVector(
     for (int j = 0; j < contour.paths.size(); j++) {
       CHECK(j < contour.paths.size());
       expected.emplace_back(contour.paths[j].x,
-			    contour.paths[j].y);
+                            contour.paths[j].y);
     }
 
     // And now the actual points, from the predictions.
@@ -542,16 +541,16 @@ void FontProblem::FillExpectedVector(
       CHECK(idx + 3 < predicted.size());
       // Skip the control points for this step.
       actual.emplace_back(predicted[idx + 2],
-			  predicted[idx + 3]);
+                          predicted[idx + 3]);
     }
 
     CHECK(expected.size() <= actual.size())
       << expected.size() << " " << actual.size();
 
-    // printf("  BestLoopAssignment...\n"); fflush(stdout);    
+    // printf("  BestLoopAssignment...\n"); fflush(stdout);
     LoopAssignment assn = BestLoopAssignment(rc, expected, actual);
     // printf("  Got assn...\n"); fflush(stdout);
-    
+
     // Now we want to populate the "expected" results in the
     // output buffer, but rotated and padded to be favorable to the
     // order that was predicted.
@@ -565,20 +564,20 @@ void FontProblem::FillExpectedVector(
     // Output parallels the structure of the prediction.
     // The location of the endpoint in the buffer.
     auto PointIdx = [start_idx](int a) {
-	return start_idx +
-	  // skip start points
-	  2 +
-	  // control*2, coord*2
-	  (4 * a) + 2;
+        return start_idx +
+          // skip start points
+          2 +
+          // control*2, coord*2
+          (4 * a) + 2;
       };
 
     // The location of the control point leading into the
     // point a.
     auto ControlIdx = [start_idx](int a) {
-	return start_idx +
-	  // skip start points
-	  2 +
-	  (4 * a) + 0;
+        return start_idx +
+          // skip start points
+          2 +
+          (4 * a) + 0;
       };
 
     // a will be the index into the actual points.
@@ -592,37 +591,37 @@ void FontProblem::FillExpectedVector(
       CHECK_EQ(expected[e].first, contour.paths[e].x);
       CHECK_EQ(expected[e].second, contour.paths[e].y);
       const float expected_x = contour.paths[e].x;
-      const float expected_y = contour.paths[e].y;      
+      const float expected_y = contour.paths[e].y;
       const float expected_cx = contour.paths[e].cx;
       const float expected_cy = contour.paths[e].cy;
-      
+
       const int num = assn.groups[e];
       for (int i = 0; i < num; i++) {
-	CHECK(a >= 0 && a < actual.size()) << a;
-	// The expected location of the point is just the
-	// point it's mapped to.
-	const int pidx = PointIdx(a);
-	(*buffer)[pidx + 0] = expected_x;
-	(*buffer)[pidx + 1] = expected_y;
+        CHECK(a >= 0 && a < actual.size()) << a;
+        // The expected location of the point is just the
+        // point it's mapped to.
+        const int pidx = PointIdx(a);
+        (*buffer)[pidx + 0] = expected_x;
+        (*buffer)[pidx + 1] = expected_y;
 
-	const int cidx = ControlIdx(a);
-	if (i == 0) {
-	  // The first point in each group gets a proper
-	  // control point. It is the control point from
-	  // the corresponding expected point.
-	  (*buffer)[cidx + 0] = expected_cx;
-	  (*buffer)[cidx + 1] = expected_cy;
-	} else {
-	  // Duplicates should just use the point itself
-	  // as the control point, since they represent a
-	  // 0-length curve.
-	  (*buffer)[cidx + 0] = expected_x;
-	  (*buffer)[cidx + 1] = expected_y;
-	}
+        const int cidx = ControlIdx(a);
+        if (i == 0) {
+          // The first point in each group gets a proper
+          // control point. It is the control point from
+          // the corresponding expected point.
+          (*buffer)[cidx + 0] = expected_cx;
+          (*buffer)[cidx + 1] = expected_cy;
+        } else {
+          // Duplicates should just use the point itself
+          // as the control point, since they represent a
+          // 0-length curve.
+          (*buffer)[cidx + 0] = expected_x;
+          (*buffer)[cidx + 1] = expected_y;
+        }
 
-	// Advance actual index and wrap around.
-	a++;
-	if (a == actual.size()) a = 0;
+        // Advance actual index and wrap around.
+        a++;
+        if (a == actual.size()) a = 0;
       }
 
       // printf("  ... finished contour\n"); fflush(stdout);
@@ -634,8 +633,8 @@ void FontProblem::FillExpectedVector(
     int size = BufferSizeForPoints(row_max_points);
     CHECK(buffer->size() >= size);
     for (int i = 0; i < size; i++) {
-      CHECK((*buffer)[i] != 
-	    -std::numeric_limits<float>::infinity()) << i;
+      CHECK((*buffer)[i] !=
+            -std::numeric_limits<float>::infinity()) << i;
     }
   }
 }
@@ -673,8 +672,8 @@ static float SqDistance(const Point &a, const Point &b) {
 
 FontProblem::LoopAssignment
 FontProblem::BestLoopAssignment(ArcFour *rc,
-				const vector<Point> &expected,
-				const vector<Point> &actual) {
+                                const vector<Point> &expected,
+                                const vector<Point> &actual) {
   const int num_expected = expected.size();
   const int num_actual = actual.size();
 
@@ -696,7 +695,7 @@ FontProblem::BestLoopAssignment(ArcFour *rc,
       const float dist = sqrtf(SqDistance(expected[e], actual[a]));
       DistanceAt(e, a) = dist;
       if (dist < closest_dist) {
-	ca = a;
+        ca = a;
       }
     }
     CHECK(ca >= 0) << ca;
@@ -709,30 +708,30 @@ FontProblem::BestLoopAssignment(ArcFour *rc,
       //        0       1 2
       //        x       y z      <- expected
       //    a b c d e f g h i j  <- actual
-      //    0 1 2 3 4 5 6 7 8 9 
+      //    0 1 2 3 4 5 6 7 8 9
       // This would be represented with point0 = 2,
       // and groups = {4, 1, 5}.
 
       if (EXTRA_CHECKS) {
-	int total = 0;
-	for (int g : assn.groups) total += g;
-	CHECK(total == actual.size()) << total << " " << actual.size();
+        int total = 0;
+        for (int g : assn.groups) total += g;
+        CHECK(total == actual.size()) << total << " " << actual.size();
       }
 
       float err = 0.0f;
       int a = assn.point0;
       for (int e = 0; e < expected.size(); e++) {
-	int num = assn.groups[e];
-	for (int i = 0; i < num; i++) {
-	  err += DistanceAt(e, a);
-	  a++;
-	  if (a == actual.size()) a = 0;
-	}
+        int num = assn.groups[e];
+        for (int i = 0; i < num; i++) {
+          err += DistanceAt(e, a);
+          a++;
+          if (a == actual.size()) a = 0;
+        }
       }
       return err;
     };
 
-  
+
   static constexpr int NUM_ATTEMPTS = 10;
 
   // Overall best seen.
@@ -751,67 +750,67 @@ FontProblem::BestLoopAssignment(ArcFour *rc,
       // the extra so that the sum is the same size as expected.
       int extra = actual.size() - expected.size();
       while (extra--)
-	assn.groups[RandTo32(rc, assn.groups.size())]++;
+        assn.groups[RandTo32(rc, assn.groups.size())]++;
 
 
       float current_score = Score(assn);
       bool improved = false;
       do {
-	improved = false;
-	// Iteratively try to improve by moving points to neighbors.
-	for (int i = 0; i < assn.groups.size(); i++) {
-	  const int next_i = i < assn.groups.size() - 1 ? i + 1 : 0;
+        improved = false;
+        // Iteratively try to improve by moving points to neighbors.
+        for (int i = 0; i < assn.groups.size(); i++) {
+          const int next_i = i < assn.groups.size() - 1 ? i + 1 : 0;
 
-	  // PERF: This inner loop could be much more efficient if
-	  // we updated the score incrementally (it should only affect
-	  // the two points), but it's fiddly.
-	  
-	  // Move point forward.
-	  if (assn.groups[i] > 1) {
-	    assn.groups[i]--;
-	    assn.groups[next_i]++;
-	    // float new_score = ScorePlus(current_score, assn, i, next_i);
-	    float new_score = Score(assn);
-	    if (new_score < current_score) {
-	      improved = true;
-	      current_score = new_score;
-	      // No point in trying to move mass backward then, because
-	      // we just put it there.
-	      continue;
-	    } else {
-	      // Undo.
-	      assn.groups[i]++;
-	      assn.groups[next_i]--;
-	    }
-	  }
+          // PERF: This inner loop could be much more efficient if
+          // we updated the score incrementally (it should only affect
+          // the two points), but it's fiddly.
 
-	  // And backward.
-	  if (assn.groups[next_i] > 1) {
-	    assn.groups[i]++;
-	    assn.groups[next_i]--;
+          // Move point forward.
+          if (assn.groups[i] > 1) {
+            assn.groups[i]--;
+            assn.groups[next_i]++;
+            // float new_score = ScorePlus(current_score, assn, i, next_i);
+            float new_score = Score(assn);
+            if (new_score < current_score) {
+              improved = true;
+              current_score = new_score;
+              // No point in trying to move mass backward then, because
+              // we just put it there.
+              continue;
+            } else {
+              // Undo.
+              assn.groups[i]++;
+              assn.groups[next_i]--;
+            }
+          }
 
-	    float new_score = Score(assn);
-	    if (new_score < current_score) {
-	      improved = true;
-	      current_score = new_score;
-	    } else {
-	      // Undo.
-	      assn.groups[i]--;
-	      assn.groups[next_i]++;
-	    }
-	  }
-	}
+          // And backward.
+          if (assn.groups[next_i] > 1) {
+            assn.groups[i]++;
+            assn.groups[next_i]--;
+
+            float new_score = Score(assn);
+            if (new_score < current_score) {
+              improved = true;
+              current_score = new_score;
+            } else {
+              // Undo.
+              assn.groups[i]--;
+              assn.groups[next_i]++;
+            }
+          }
+        }
 
       } while (improved);
 
 
       // Local maximum.
       if (current_score < best_error) {
-	best_assignment = assn;
-	best_error = current_score;
+        best_assignment = assn;
+        best_error = current_score;
       }
     }
   }
-    
+
   return best_assignment;
 }

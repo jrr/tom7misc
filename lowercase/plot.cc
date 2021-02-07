@@ -75,12 +75,12 @@ static std::function<float(int, float)> GetRemap() {
 
   auto Remap = [](int i, float x) {
       if (i < SDF_SIZE) {
-	// PERF could probably simplify this!
-	if (x < ax) return x * s;
-	if (x < bx) return ay + (x - ax) * interesting_slope;
-	return by + (x - bx) * s;
+        // PERF could probably simplify this!
+        if (x < ax) return x * s;
+        if (x < bx) return ay + (x - ax) * interesting_slope;
+        return by + (x - bx) * s;
       } else {
-	return x;
+        return x;
       }
     };
 
