@@ -84,12 +84,21 @@ struct FontProblem {
                         // writes several files.
                         // "-uppercase.png" etc. is added.
                         const std::string &base_out_filename);
-
+  
   // For a buffer beginning with an SDF of the appropriate size
   // (as floats 0-1), build the SDF image.
   static ImageA SDFGetImage(const SDFConfig &config,
                             const std::vector<float> &buffer);
 
+  // Compute an SDF from a bitmap image. The image should be
+  // square and significantly larger than the SDF size, or
+  // else the results will probably be quite bad. Not efficient.
+  //
+  // The padding in the SDFConfig has no effect.
+  // Input image is treated as a 1-bit bitmap (zero/nonzero).
+  static ImageA SDFFromBitmap(const SDFConfig &config,
+                              const ImageA &img);
+  
   // Render tresholded image at high resolution, then downsample
   // to get an anti-aliased image.
   static ImageA SDFThresholdAA(uint8_t onedge_value,

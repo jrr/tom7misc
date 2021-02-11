@@ -814,3 +814,87 @@ FontProblem::BestLoopAssignment(ArcFour *rc,
 
   return best_assignment;
 }
+
+// Call 1 white and 0 black, with this image being a white letter on
+// a black background.
+//
+// Putting aside efficiency, this is easier than the same computation
+// from vectors. For each pixel in the output, find its corresponding
+// point in the input bitmap. Get that color. Now, find the closest
+// pixel of the opposite color (treating the outside edge as black).
+// This gives us the distance to the edge. The sign is determined by
+// the color of the start pixel.
+ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
+                                  const ImageA &img) {
+
+  const int sdf_size = config.sdf_size;
+  CHECK(img.Width() == img.Height());
+  const int size = img.Width();
+  const float scale = size / (float)sdf_size;
+  printf("%d img to %d SDF; Scale: %.3f\n",
+         size,
+         sdf_size,
+         scale);
+  
+  // true = white = inside letter
+  auto Color = [&img, size](int x, int y) {
+      // XXX or an explicit bounds test outside?
+      if (x < 0 || y < 0 || x >= size || y >= size) return false;
+      return img.GetPixel(x, y) > 0;
+    };
+  
+  // PERF: It basically comes down to wanting this fast function from
+  // a pixel to its closest pixel of the opposite color. Couple ideas
+  // for doing this faster:
+  //  
+  //  - use a quadtree, which lets us reject a lot of the space
+  //    quickly
+  //  - fill in the table, but when we reach a pixel with a known
+  //    value (that's the same color as us; otherwise we'd be done
+  //    anyway), we can use its closest pixel to establish a new
+  //    bound using the triangle inequality.
+
+  auto GetDistanceTo = [&Color, size](int x, int y, bool c) -> float {
+      // PERF insane to do this by searching the whole array!!
+      int min_sqdist = size * size * 2;
+      for (int yy = -1; yy <= size; yy++) {
+        const int dy = y - yy;
+        const int dys = dy * dy;
+
+        // PERF would be easy to stop now if dys is already
+        // larger than min_sqdist
+        
+        for (int xx = -1; xx <= size; xx++) {
+          if (Color(xx, yy) == c) {
+            const int dx = x - xx;
+            const int dxs = dx * dx;
+            if (dys + dxs < min_sqdist)
+              min_sqdist = dys + dxs;
+          }
+        }
+      }
+      return sqrtf(min_sqdist);
+    };
+  
+  const float oscale = 1.0f / scale;
+  ImageA sdf(sdf_size, sdf_size);
+  for (int sy = 0; sy < sdf_size; sy++) {
+    for (int sx = 0; sx < sdf_size; sx++) {
+      // Sample the center of the pixel.
+      int ix = roundf((sx + 0.5f) * scale);
+      int iy = roundf((sy + 0.5f) * scale);
+
+      bool color = Color(ix, iy);
+
+      const float dist = GetDistanceTo(ix, iy, !color);
+      // Distance in sdf space.
+      const float sdf_dist = dist * oscale * config.falloff_per_pixel;
+
+      const float signed_dist = color ? sdf_dist : -sdf_dist;
+      int value = roundf((float)config.onedge_value + signed_dist);
+      sdf.SetPixel(sx, sy, std::clamp(value, 0, 255));
+    }
+  }
+
+  return sdf;
+}
