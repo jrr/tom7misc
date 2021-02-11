@@ -351,3 +351,9 @@ std::vector<TTF::NativeContour> TTF::GetNativeContours(int codepoint) const {
   stbtt_FreeShape(&font, vertices);
   return out;
 }
+
+// TODO: Guts of GetGlyphSDF working on Contours, so that we
+// can interactively make fonts and then make predictions from them.
+// It looks basically tractable. Ideally, we would share the code
+// with GetSDF.
+
