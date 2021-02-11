@@ -229,8 +229,17 @@ ImageRGBA ModelInfo::Histogram(
 // Aesthetic mode
 static inline uint32 GetWeightColor(float f, bool diagnostic_mode) {
   auto MapV = [diagnostic_mode](float f) -> uint8 {
-      float ff = sqrtf(f);
-      if (diagnostic_mode) ff = sqrtf(ff);
+      float ff = 0.0f;
+      if (diagnostic_mode) {
+        ff = sqrtf(f);
+      } else {
+        if (f > 0.25f) {
+          ff = 1.0f;
+        } else {
+          ff = 4.0f * f;
+          ff = sqrtf(sqrtf(ff));
+        }
+      }
       int v = roundf(255.0f * ff);
       if (v > 255) return 255;
       if (v < 0) return 0;
@@ -238,7 +247,7 @@ static inline uint32 GetWeightColor(float f, bool diagnostic_mode) {
     };
 
   // XXX from vacuum - configurable or remove?
-  static constexpr float THRESHOLD = 0.00001f;  
+  static constexpr float THRESHOLD = 0.00001f;
   if (diagnostic_mode && f == 0) {
     return 0xFFFF00FF;
   } else if (diagnostic_mode && fabs(f) < THRESHOLD) {
@@ -259,7 +268,7 @@ ImageRGBA ModelInfo::LayerWeights(const Network &net, int layer_idx,
   const int prev_nodes = net.num_nodes[layer_idx];
   const int num_nodes = net.num_nodes[layer_idx + 1];
   const int ipn = layer.indices_per_node;
-  
+
   //     <--- this layer's nodes --->
   // ^
   // |
@@ -276,7 +285,7 @@ ImageRGBA ModelInfo::LayerWeights(const Network &net, int layer_idx,
 
   const uint32 missing_weight_color =
     diagnostic_mode ? 0x000060FF : 0x000000FF;
-  
+
   constexpr int WEIGHTSX = LEFT;
   constexpr int WEIGHTSY = TOP;
   img.Clear32(0x000000FF);
@@ -284,7 +293,7 @@ ImageRGBA ModelInfo::LayerWeights(const Network &net, int layer_idx,
                   missing_weight_color);
 
   vector<bool> has_reference(prev_nodes, false);
-  
+
   for (int x = 0; x < num_nodes; x++) {
     const int start = x * ipn;
     for (int i = 0; i < ipn; i++) {
@@ -309,10 +318,10 @@ ImageRGBA ModelInfo::LayerWeights(const Network &net, int layer_idx,
       }
     }
   }
-  
+
   img.BlendText32(LEFT, 2, 0xCCCCCCFF,
                   StringPrintf("<--   Layer %d's nodes (%d)  ipn=%d  -->",
                                layer_idx, num_nodes, ipn));
-  
+
   return img;
 }

@@ -31,13 +31,22 @@ using int64 = int64_t;
 // never change this. Remove such nodes.
 static constexpr bool CULL_UNREFERENCED_NODES = true;
 
-// If activation never exceeds this amount, remove the node.
+// If activation never exceeds an amount, remove the node.
+// Thresholds are absolute values.
 static constexpr bool CULL_WEAK_NODES = true;
-static constexpr float THRESHOLD = 0.00001f;
+// Any node below this activation threshold is removed. Set
+// to 0 to disable this approach.
+static constexpr float ABSOLUTE_THRESHOLD = 0.00001f;
+// Alternatively (or additionally), rank all nodes by their
+// activation amount, and use that to remove this proportion
+// of least-activated nodes. The network always shrinks. Set
+// to 0 to disable.
+static constexpr float RANK_THRESHOLD = 0.05f;
+
 
 // Layers to cull, in the given order. Pretty much the same as running
 // cull.exe sequentially.
-static constexpr std::initializer_list<int> CULL_LAYERS = {0, 1, 2, 3};
+static constexpr std::initializer_list<int> CULL_LAYERS = {2};
 
 // How many random inputs to try. Approximate since we do the same number
 // per thread.
@@ -65,13 +74,12 @@ static void Accumulate(const Stimulation &actual, Stimulation *maxes) {
   }
 }
 
-
-// TODO: Here we only randomize the input layer and check what gets
-// stimulated downstream. This may be a little dangerous because we
-// fail to activate some rare but useful feature (imagine a successfully
-// trained network that's recognizing faces) -- it may never appear
-// in random inputs. Perhaps it would make more sense to randomize
-// each layer just to check how the next layer gets activated.
+// Instead of using random inputs, it would probably be better to use
+// actual training examples. Imagine a successfully trained network
+// that's recognizing faces for examples; faces are unlikely to
+// actually appear in random data.
+// As an additional conservativity, we can randomly stimulate internal
+// layers too.
 static Stimulation RandomlyStimulate(ArcFour *rc, const Network &net) {
   // If true, sometimes replace a hidden layer's activations with
   // random noise. Don't accumulate that of course, but use it to
@@ -79,7 +87,7 @@ static Stimulation RandomlyStimulate(ArcFour *rc, const Network &net) {
   // this, rare features can sometimes be incorrectly detected as dead
   // because we never found an input that activates them.
   static constexpr bool RERANDOMIZE = true;
-  
+
   static constexpr int THREADS = 17;
   static_assert(THREADS > 1, "thread 0 is used for special patterns");
   static constexpr int SAMPLES_PER_THREAD = NUM_SAMPLES / THREADS;
@@ -95,7 +103,7 @@ static Stimulation RandomlyStimulate(ArcFour *rc, const Network &net) {
             net.RunForward(r);
             Accumulate(*r, &m);
           };
-        
+
         if (idx == 0) {
           Stimulation r(net);
           // All on.
@@ -107,7 +115,8 @@ static Stimulation RandomlyStimulate(ArcFour *rc, const Network &net) {
 
           // Checkerboards of various scales.
           // Reasonable to assume some spatial meaning for
-          // the input layer,
+          // the input layer, and in fact makefeatures explicitly
+          // generates such features.
           const int w = net.width[0];
           const int h = net.height[0];
           CHECK(net.channels[0] == 1) <<
@@ -139,7 +148,7 @@ static Stimulation RandomlyStimulate(ArcFour *rc, const Network &net) {
               }
             }
           }
-          
+
         } else {
           // General case is uniformly random.
           for (int i = 0; i < SAMPLES_PER_THREAD; i++) {
@@ -148,13 +157,14 @@ static Stimulation RandomlyStimulate(ArcFour *rc, const Network &net) {
               v = RandDouble(rc);
 
             // (no reason to accumulate the input layer)
-            
-            for (int src_layer = 0; src_layer < r.values.size() - 1; src_layer++) {
+
+            for (int src_layer = 0; src_layer < r.values.size() - 1;
+                 src_layer++) {
               net.RunForwardLayer(&r, src_layer);
               AccumulateLayer(r, &m, src_layer + 1);
 
-              // If rerandomization is on, just replace the destination layer with
-              // random noise.
+              // If rerandomization is on, just replace the
+              // destination layer with random noise.
               if (RERANDOMIZE && rc->Byte() < 64) {
                 for (float &v : r.values[src_layer + 1]) {
                   // Here, activation ranges from -1 to 1?
@@ -162,7 +172,7 @@ static Stimulation RandomlyStimulate(ArcFour *rc, const Network &net) {
                 }
               }
             }
-                                  
+
             Acc(&r);
           }
         }
@@ -170,7 +180,7 @@ static Stimulation RandomlyStimulate(ArcFour *rc, const Network &net) {
       }, THREADS);
 
   for (ArcFour *rc : rcs) delete rc;
-  
+
   Stimulation total(net);
   for (const Stimulation &m : maxes) Accumulate(m, &total);
   return total;
@@ -189,15 +199,32 @@ CullLayer(ArcFour *rc,
   EZLayer ez(*net, layer_idx);
   CHECK(max_activation.size() == ez.nodes.size());
 
+  // Sort all the activations so that we can compute the
+  // relative threshold by rank.
+  vector<float> ranked_activations = max_activation;
+  for (float f : ranked_activations) CHECK(std::isfinite(f));
+  std::sort(ranked_activations.begin(),
+            ranked_activations.end());
+  int rank_idx = RANK_THRESHOLD * ranked_activations.size();
+  float computed_threshold = ABSOLUTE_THRESHOLD;
+  if (rank_idx >= 0 && rank_idx < ranked_activations.size()) {
+    computed_threshold = ranked_activations[rank_idx];
+    printf("Absolute threshold %.5f, rank threshold %.5f\n",
+           ABSOLUTE_THRESHOLD, computed_threshold);
+  }
+
   std::unordered_map<int, int> remapping;
-  int removed_weak = 0, removed_unreferenced = 0;
+  int removed_weak = 0, removed_rank = 0, removed_unreferenced = 0;
   {
     vector<EZLayer::Node> out;
     out.reserve(ez.nodes.size());
     for (int i = 0; i < ez.nodes.size(); i++) {
-      if (CULL_WEAK_NODES && max_activation[i] < THRESHOLD) {
+      if (CULL_WEAK_NODES && max_activation[i] < ABSOLUTE_THRESHOLD) {
         // Discarded because it doesn't reach the activation threshold.
         removed_weak++;
+      } else if (CULL_WEAK_NODES && max_activation[i] < computed_threshold) {
+        // Discarded because it was among the weakest nodes.
+        removed_rank++;
       } else if (CULL_UNREFERENCED_NODES &&
                  unreferenced_nodes.find(i) != unreferenced_nodes.end()) {
         removed_unreferenced++;
@@ -211,11 +238,13 @@ CullLayer(ArcFour *rc,
   }
 
   ez.MakeWidthHeight();
-  printf("Removed %d weak and %d unreferenced nodes. New size %dx%d = %d.\n",
-         removed_weak, removed_unreferenced, ez.width, ez.height, ez.nodes.size());
+  printf("Removed %d weak, %d low-rank, and %d unreferenced nodes.\n"
+         "New size %dx%d = %d.\n",
+         removed_weak, removed_rank, removed_unreferenced,
+         ez.width, ez.height, ez.nodes.size());
 
   ez.Repack(net, layer_idx);
-  
+
   return remapping;
 }
 
@@ -243,7 +272,7 @@ static void FixupLayer(ArcFour *rc, Network *net, int layer_idx,
   }
 
   ez.ipn -= min_deleted;
-  
+
   printf("We deleted at least %d input(s) from every node. ipn now %d\n",
          min_deleted, ez.ipn);
 
@@ -283,15 +312,17 @@ static void FixupLayer(ArcFour *rc, Network *net, int layer_idx,
 
     node.inputs = std::move(new_inputs);
   }
-    
+
   ez.Repack(net, layer_idx);
 }
 
 // Return the node indices on the indicated layer that have no
 // references at all (because of sparsity) on the following layer.
 // This can happen as a result of vacuuming, for example.
-static std::unordered_set<int> GetUnreferenced(const Network &net, int src_layer_idx) {
-  CHECK(src_layer_idx >= 0 && src_layer_idx < net.layers.size()) << src_layer_idx;
+static std::unordered_set<int> GetUnreferenced(const Network &net,
+                                               int src_layer_idx) {
+  CHECK(src_layer_idx >= 0 && src_layer_idx < net.layers.size()) <<
+    src_layer_idx;
   // Treat the final layer as completely referenced (i.e., externally).
   if (src_layer_idx == net.layers.size() - 1) return {};
 
@@ -300,7 +331,7 @@ static std::unordered_set<int> GetUnreferenced(const Network &net, int src_layer
   CHECK(layer_idx >= 0 && layer_idx < net.layers.size());
   const Network::Layer &layer = net.layers[layer_idx];
   const int src_nodes = net.num_nodes[layer_idx];
-  
+
   vector<bool> has_reference(src_nodes, false);
   for (const uint32 idx : layer.indices) {
     CHECK(idx < has_reference.size());
@@ -308,7 +339,7 @@ static std::unordered_set<int> GetUnreferenced(const Network &net, int src_layer
   }
 
   std::unordered_set<int> unreferenced;
-  
+
   for (int i = 0; i < src_nodes; i++) {
     if (!has_reference[i]) {
       unreferenced.insert(i);
@@ -341,12 +372,12 @@ static void CullNetworkAt(ArcFour *rc, Network *net,
   Timer stimulate_timer;
   // PERF could skip this if we're not culling weak nodes?
   const Stimulation max_stim = RandomlyStimulate(rc, *net);
-  
+
   // TODO: Also allow loading this same thing from the training
   // process (could be via an image?). The random stimulation has
   // shown weakness at triggering activations of non-dead nodes
   // in simple tests.
-  
+
   fprintf(stderr, "[Cull layer %d] Randomly stimulated in %.2fs\n",
           cull_layer,
           stimulate_timer.MS() / 1000.0);
@@ -388,19 +419,20 @@ static void CullNetworkAt(ArcFour *rc, Network *net,
 
     img.Save(stimulation_filename.value());
   }
-  
-  const std::unordered_set<int> unreferenced = GetUnreferenced(*net, cull_layer);
+
+  const std::unordered_set<int> unreferenced =
+    GetUnreferenced(*net, cull_layer);
   if (!unreferenced.empty())
     printf("[Cull layer %d] There are %d unreferenced nodes\n", cull_layer,
            unreferenced.size());
-  
+
   // If missing from the remapping, it is deleted.
   const std::unordered_map<int, int> remapping =
     CullLayer(rc, net, cull_layer, max_stim.values[cull_layer + 1],
               unreferenced);
   if (cull_layer + 1 < net->layers.size())
     FixupLayer(rc, net, cull_layer + 1, remapping);
-  
+
   // We changed the number of indices per node, so we need to resize
   // the inverted indices (and recompute them).
   net->ReallocateInvertedIndices();
@@ -418,7 +450,7 @@ static void CullNetworkAt(ArcFour *rc, Network *net,
 int main(int argc, char **argv) {
 
   CHECK(argc >= 2) << "\n\nUsage:\ncull.exe net.val [output.val]";
-  
+
   Timer model_timer;
   std::unique_ptr<Network> net{Network::ReadNetworkBinary(argv[1])};
   fprintf(stderr, "Loaded model in %.2fs\n",
@@ -429,7 +461,7 @@ int main(int argc, char **argv) {
                           (int64)time(nullptr),
                           net->rounds,
                           net->Bytes()));
-  
+
   bool first = true;
   for (int cull_layer : CULL_LAYERS) {
     CHECK(cull_layer >= 0 && cull_layer < net->layers.size());

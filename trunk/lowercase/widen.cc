@@ -46,15 +46,18 @@ static constexpr Dimension DIMENSION = Dimension::ONE_DIMENSIONAL;
 // safest to do some tuning after each widen operation.
 // Not clear if widening from top to bottom or bottom to top is
 // better, or whether that matters?
-static constexpr int WIDEN_LAYER = 3;
+static constexpr int WIDEN_LAYER = 2;
 
 // On the next layer, we'll add some indices (increasing
 // indices_per_node) to reference only these new added
 // nodes. This is the rate at which nodes are referenced
 // by each node in the next layer.
-
+//
+// TODO: Instead of just adding ipn, consider claiming
+// existing inputs with almost 0 weight?
+//
 // FIXME: Need to handle DENSE layers!
-static constexpr float ADD_INDEX_RATE = 0.15f;
+static constexpr float ADD_INDEX_RATE = 0.10f;
 static_assert(ADD_INDEX_RATE > 0.0f,
               "no point to add nodes if not references");
 static_assert(ADD_INDEX_RATE <= 1.0f,
@@ -65,6 +68,11 @@ static_assert(ADD_INDEX_RATE <= 1.0f,
 // already has significant training, this should probably
 // be very small. (Should experiment with this?)
 static constexpr double INITIAL_WEIGHT = 0.1; // 00001;
+
+// If true, biases for new nodes are set to the negative of the their
+// total input weights, so that a uniformly random stimulation has an
+// expected activation of 0.0.
+static constexpr bool CANCELING_BIAS = false;
 
 [[maybe_unused]]
 static float Uniform(ArcFour *rc) {
@@ -90,15 +98,16 @@ static float NewUseWeight(ArcFour *rc) {
 
 // Get num input indices from the previous layer for a single new
 // node. They must be distinct. They don't have to be random.
-static vector<int> GetInputIndices(ArcFour *rc, int previous_layer_size, int num) {
-  // Always add from the last 200 nodes, which are some
-  // generated features.
+static vector<int> GetInputIndices(ArcFour *rc, int previous_layer_size,
+                                   int num) {
+  // when adding indices, increase the probability of selecting
+  // ones from the end.
+  // XXXXXXXX make these proper config values
+  static constexpr int NUM_LAST = 166;
+  static constexpr uint8 P_LAST = 140;
 
   std::unordered_set<int> indices;
   indices.reserve(num);
-  // XXXXXXXX make this a proper config value
-  static constexpr int NUM_LAST = 185;
-  static constexpr uint8 P_LAST = 140;
   int idx = previous_layer_size - 1;
   for (int i = 0; i < NUM_LAST && indices.size() < num; i++) {
     CHECK(idx >= 0);
@@ -161,7 +170,7 @@ WidenLayer3D(ArcFour *rc, Network *net, int layer_idx) {
   const int height = net->height[layer_idx + 1];
   const int channels = net->channels[layer_idx + 1];
   CHECK(width * height * channels == num_nodes);
-  
+
   printf("Layer %d: Unpack %dx%dx%d = %d nodes w/ %d ipn\n",
          layer_idx,
          width,
@@ -172,7 +181,7 @@ WidenLayer3D(ArcFour *rc, Network *net, int layer_idx) {
   CHECK(layer->indices.size() == layer->weights.size());
   CHECK(layer->indices.size() == ipn * num_nodes);
   CHECK(layer->biases.size() == num_nodes);
-  
+
   // rows of cols of channels
   vector<vector<vector<Node>>> nodes;
   nodes.resize(height);
@@ -211,17 +220,21 @@ WidenLayer3D(ArcFour *rc, Network *net, int layer_idx) {
       // nodes for each channel from the same "pixel", but we currently
       // do not do that.
       Node node;
-      node.bias = 0.0f;
       node.inputs.reserve(ipn);
-      
+
       vector<int> indices = GetInputIndices(rc, previous_layer_size, ipn);
-      
+
+      double total_weight = 0.0;
       for (int i = 0; i < ipn; i++) {
         OneIndex oi;
         oi.index = indices[i];
-        oi.weight = NewNodeInputWeight(rc);
+        double weight = NewNodeInputWeight(rc);
+        oi.weight = weight;
         node.inputs.push_back(oi);
+        total_weight += weight;
       }
+
+      node.bias = CANCELING_BIAS ? -total_weight : 0.0;
 
       return node;
     };
@@ -262,14 +275,14 @@ WidenLayer3D(ArcFour *rc, Network *net, int layer_idx) {
   default:
     LOG(FATAL) << "Unknown dimension?";
   }
-  
+
   // Now convert back.
 
   const int new_width = nodes[0].size();
   const int new_height = nodes.size();
   const int new_channels = channels;
   const int new_num_nodes = new_width * new_height * new_channels;
-  
+
   // Put inputs back in ascending order by index, to improve
   // locality of memory access.
   {
@@ -300,7 +313,7 @@ WidenLayer3D(ArcFour *rc, Network *net, int layer_idx) {
 
   vector<int> added_indices;
   vector<int> rewritten_indices(num_nodes, -1);
-  
+
   // Now re-pack!
   layer->indices.clear();
   layer->weights.clear();
@@ -362,19 +375,23 @@ WidenLayer1D(ArcFour *rc, Network *net, int layer_idx) {
   // node indices. (alternatively, use makefeatures and from_network!)
   auto NewNode = [&rc, &ez, previous_layer_size]() {
       EZLayer::Node node;
-      node.bias = 0.0f;
       node.inputs.reserve(ez.ipn);
 
       vector<int> indices = GetInputIndices(rc, previous_layer_size, ez.ipn);
-      
+
+      double total_weight = 0.0;
       for (int i = 0; i < ez.ipn; i++) {
         CHECK(i < indices.size());
         CHECK(indices[i] >= 0 && indices[i] < previous_layer_size);
         EZLayer::OneIndex oi;
         oi.index = indices[i];
-        oi.weight = NewNodeInputWeight(rc);
+        double weight = NewNodeInputWeight(rc);
+        oi.weight = weight;
         node.inputs.push_back(oi);
+        total_weight += weight;
       }
+
+      node.bias = CANCELING_BIAS ? -total_weight : 0.0;
 
       return node;
     };
@@ -388,7 +405,7 @@ WidenLayer1D(ArcFour *rc, Network *net, int layer_idx) {
   rewritten_indices.reserve(old_num_nodes);
   for (int i = 0; i < old_num_nodes; i++)
     rewritten_indices.push_back(i);
-  
+
   vector<int> added_indices;
   const int add_nodes = std::max((int)roundf(old_num_nodes * ADD_NODE_FRAC), 1);
   printf("1D: %d + %d becomes %d nodes\n", old_num_nodes, add_nodes,
@@ -399,22 +416,23 @@ WidenLayer1D(ArcFour *rc, Network *net, int layer_idx) {
   }
 
   ez.MakeWidthHeight();
-  
+
   ez.Repack(net, layer_idx);
-  
+
   return {rewritten_indices, added_indices};
 }
 
 // Like 1D, but just copies features from another network (typically
 // a fake one produced by makefeatures.exe).
 static std::pair<vector<int>, vector<int>>
-WidenFromNetwork(ArcFour *rc, Network *net, int layer_idx, const string &srcfile) {
-  std::unique_ptr<Network> srcnet{Network::ReadNetworkBinary(srcfile)};  
-  
+WidenFromNetwork(ArcFour *rc, Network *net, int layer_idx,
+                 const string &srcfile) {
+  std::unique_ptr<Network> srcnet{Network::ReadNetworkBinary(srcfile)};
+
   EZLayer ez(*net, layer_idx);
 
   EZLayer ezsrc(*srcnet, layer_idx);
-  
+
   // Add nodes to the end.
 
   const int previous_layer_size = net->num_nodes[layer_idx];
@@ -428,13 +446,13 @@ WidenFromNetwork(ArcFour *rc, Network *net, int layer_idx, const string &srcfile
 
   const int old_num_nodes = ez.nodes.size();
   const int add_nodes = ezsrc.nodes.size();
-  
+
   // Existing nodes keep the same indices.
   vector<int> rewritten_indices;
   rewritten_indices.reserve(old_num_nodes);
   for (int i = 0; i < old_num_nodes; i++)
     rewritten_indices.push_back(i);
-  
+
   vector<int> added_indices;
   printf("From network: %d + %d becomes %d nodes\n", old_num_nodes, add_nodes,
          old_num_nodes + add_nodes);
@@ -445,9 +463,9 @@ WidenFromNetwork(ArcFour *rc, Network *net, int layer_idx, const string &srcfile
   }
 
   ez.MakeWidthHeight();
-  
+
   ez.Repack(net, layer_idx);
-  
+
   return {rewritten_indices, added_indices};
 }
 
@@ -458,7 +476,7 @@ WidenLayer(ArcFour *rc, Network *net, int layer_idx) {
   switch (DIMENSION) {
   case Dimension::WIDTH:
   case Dimension::HEIGHT:
-    return WidenLayer3D(rc, net, layer_idx);    
+    return WidenLayer3D(rc, net, layer_idx);
   case Dimension::ONE_DIMENSIONAL:
     return WidenLayer1D(rc, net, layer_idx);
   case Dimension::FROM_NETWORK:
@@ -482,14 +500,14 @@ static void RemapAndAdd(ArcFour *rc, Network *net, int layer_idx,
   const int ipn = layer->indices_per_node;
 
   CHECK(layer->type != LAYER_DENSE) << "Unimplemented";
-  
+
   CHECK(added_indices.size() > 0);
   const int add_ipn =
     std::max((int)(ADD_INDEX_RATE * added_indices.size()), 1);
 
   printf("Layer %d: ipn %d + %d = %d.\n",
          layer_idx, ipn, add_ipn, ipn + add_ipn);
-  
+
   struct OneIndex {
     uint32_t index = 0u;
     float weight = 0.0f;
@@ -498,7 +516,7 @@ static void RemapAndAdd(ArcFour *rc, Network *net, int layer_idx,
   // We keep shuffling this array so that it's a random permutation of
   // the added indices.
   vector<int> shuffled_indices = added_indices;
-  
+
   CHECK(layer->indices.size() == layer->weights.size());
   CHECK(layer->indices.size() == ipn * num_nodes);
   vector<vector<OneIndex>> node_indices;
@@ -536,7 +554,7 @@ static void RemapAndAdd(ArcFour *rc, Network *net, int layer_idx,
     };
 
   const int new_ipn = ipn + add_ipn;
-  
+
   for (vector<OneIndex> &indices : node_indices) {
     CHECK(indices.size() == new_ipn);
     std::sort(indices.begin(), indices.end(), CompareByIndex);
@@ -565,12 +583,12 @@ static void WidenNetwork(Network *net) {
                           (int64)time(nullptr),
                           net->rounds,
                           net->Bytes()));
-  
+
   // Each node in the network is fed weighted inputs from the previous
   // layer; these are called "indices" in this code. (We store them
   // sparsely, so they are actually the indices of the nodes on the
   // previous layer.)
-  
+
   // The network format requires the same number of indices for each
   // node on a layer. So we're going to shrink that number across
   // all nodes, such that we drop (only) indices whose weights are
@@ -588,7 +606,7 @@ static void WidenNetwork(Network *net) {
       num_nodes * 4 +
       // Weights
       (num_nodes * ipn) * 4;
-    
+
     printf("Layer %d has %d nodes, %d indices per node = %d, %.1fMB\n",
            i, num_nodes, ipn, num_nodes * ipn,
            bytes / (1024.0 * 1024.0));
@@ -610,7 +628,7 @@ static void WidenNetwork(Network *net) {
 
   // We changed the number of indices per node, so we need to resize
   // the inverted indices (and recompute them).
-  net->ReallocateInvertedIndices();  
+  net->ReallocateInvertedIndices();
 
   printf("Recompute inverted indices...\n");
   fflush(stdout);
@@ -624,7 +642,7 @@ static void WidenNetwork(Network *net) {
 
 int main(int argc, char **argv) {
   CHECK(argc >= 2) << "\n\nUsage:\nwiden.exe net.val [output.val]";
-  
+
   Timer model_timer;
   std::unique_ptr<Network> net{Network::ReadNetworkBinary(argv[1])};
   fprintf(stderr, "Loaded model in %.2fs\n",
@@ -639,7 +657,7 @@ int main(int argc, char **argv) {
 
   string outfile = argc > 2 ? argv[2] : "net-widened.val";
   Network::SaveNetworkBinary(*net, outfile);
-  
+
   return 0;
 }
 
