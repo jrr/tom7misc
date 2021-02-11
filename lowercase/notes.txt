@@ -117,7 +117,7 @@ the future to save some time training?)
  - use sigmoid in output layer
  - "Tom initialization"
  - decay weights 0.9995f
- - 
+ -
 
 9 Jan 2021
 
@@ -363,7 +363,7 @@ halving the training rate did not create some kinda miracle!
 
 at 1.08M rounds, vacuumed (0.00001) and culled with (only) the new
 unreferenced-node criterion, mostly to test that this doesn't mess up
-the network due to some bugs. It seems fine. 
+the network due to some bugs. It seems fine.
 This only affects the last layer. On other layers we've kept every node
 alive because we insert nodes with nontrivial weights (and uniform
 random indices) in the new widen operation. Probably we'd have to wait
@@ -382,7 +382,7 @@ At 1.20M, added 100 features from makefeatures.exe to net0 (but not net1 yet).
 Then 1.206M, same for net1.
 
 Not much seems to be happening here overnight, so at 1278649, increased
-training rate again (by doubling rate_high), 
+training rate again (by doubling rate_high),
 
 
 overnight, eps 283.5, averaged last 100 rounds. boinc is running
@@ -497,7 +497,7 @@ nonlinear error:
  - everything looks normal.
  - I don't really perceive a difference in the visualization of the error
    values, but maybe that's not that surprising. Maybe would be worth looking
-   at the same example side by side. 
+   at the same example side by side.
 
 Note that the total error computation for UI and tsv export is actually based
 on diffs done on the CPU, so it's unaffected by the remapping change. So error
@@ -535,4 +535,22 @@ that does anything good.
 
 ... all seems well the next day. It seems to me that eps is not obviously
 reduced by these widening operations; still around 250 eps here. I guess
-that is lower than I saw right after adding a new layer. 
+that is lower than I saw right after adding a new layer.
+
+Round 1767085: still making progress. I don't like these big dead
+zones that were I think mistakes in the original input assignment. So,
+added a new mode to cull.exe that can just remove the X% weakest nodes
+(computing the threshold dynamically). Removed the weakest 5% from the
+first three layers. Expect this to hurt the error a little but should
+give us budget for some more useful widening. (If error doesn't
+increase at all, should consider being more aggressive...)
+
+culled 5% again; didn't seem to make any difference in error and
+it's still slowly converging (round 1.847M).
+
+tried a bit more aggressive culling and widening, but the error
+got bad. it may have been the new CANCELING_BIAS param in widen.exe
+which has some non-obvious consequence (maybe the bias can get
+too big and the gradient explodes? maybe I just typo'd something
+when running these operations?)
+
