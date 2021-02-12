@@ -173,6 +173,7 @@ static void BenchmarkBitmapSDF() {
       FontProblem::SDFFromBitmap(FontProblem::SDFConfig(), input);
     double onems = onerun.MS();
     total_ms += onems;
+    if (i == 0) bitmap_sdf.GreyscaleRGBA().Save("test-actual.png");
     CheckExpected(bitmap_sdf);
     printf("%.2f\n", onems);
   }
