@@ -884,19 +884,28 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
   auto GetDistanceTo = [&Color, size](int x, int y, bool c) -> float {
       // PERF insane to do this by searching the whole array!!
       int min_sqdist = size * size * 2;
+
       for (int yy = -1; yy <= size; yy++) {
-        const int dy = y - yy;
+        const int dy = yy - y;
         const int dys = dy * dy;
 
-        // PERF would be easy to stop now if dys is already
-        // larger than min_sqdist
+        // If dy is getting bigger and we already found a pixel
+        // closer than this distance, we can't improve.
+        if (dy > 0 && dys >= min_sqdist) break;
         
         for (int xx = -1; xx <= size; xx++) {
+          const int dx = xx - x;
+          const int dxs = dx * dx;
+          // can do a similar test here but it is not
+          // faster
+          // if (dx > 0 && dys + dxs >= min_sqdist) break;
+          
           if (Color(xx, yy) == c) {
-            const int dx = x - xx;
-            const int dxs = dx * dx;
-            if (dys + dxs < min_sqdist)
+            if (dys + dxs < min_sqdist) {
               min_sqdist = dys + dxs;
+              // we will not find a closer point in this row!
+              if (dx > 0) break;
+            }
           }
         }
       }

@@ -24,24 +24,26 @@ static void Gen(const FontProblem::SDFConfig &config,
                 const string &filename) {
   const int sdf_size = config.sdf_size;
   const int SLOT = sdf_size * 4;
+  const int XSLOT = SLOT;
+  const int YSLOT = SLOT + 24;
   
-  ImageRGBA out(SLOT * 6, SLOT + 24);
+  ImageRGBA out(XSLOT * 6, 3 * YSLOT);
   out.Clear32(0x000000FF);
   
-  out.BlendImage(SLOT * 2, 0, sdf.GreyscaleRGBA().ScaleBy(4));
+  out.BlendImage(XSLOT * 2, YSLOT, sdf.GreyscaleRGBA().ScaleBy(4));
   
   ImageA thresh = FontProblem::SDFThresholdAA(config.onedge_value,
                                               sdf.ResizeBilinear(sdf_size * 4,
                                                                  sdf_size * 4),
                                               // oversampling: quality param
                                               3);
-  out.BlendImage(SLOT * 3, 0, thresh.GreyscaleRGBA());
+  out.BlendImage(XSLOT * 3, YSLOT, thresh.GreyscaleRGBA());
 
-  auto RunTo = [&config, &out, sdf_size, SLOT, &sdf](
-      const Network &net, int startx, int starty) {
+  auto RunTo = [&config, &out, sdf_size, SLOT, XSLOT, YSLOT](
+      const Network &net, const ImageA &sdf, int startx, int starty) {
       const auto [out_sdf, pred] =
         FontProblem::RunSDFModel(net, config, sdf);
-      out.BlendImage(startx, 0, out_sdf.GreyscaleRGBA().ScaleBy(4));
+      out.BlendImage(startx, starty, out_sdf.GreyscaleRGBA().ScaleBy(4));
 
       vector<pair<uint8, uint32>> layers =
         {{(uint8)(config.onedge_value * 0.95), 0x440000FF},
@@ -51,7 +53,7 @@ static void Gen(const FontProblem::SDFConfig &config,
           out_sdf.ResizeBilinear(sdf_size * 4, sdf_size * 4),
           layers,
           4);
-      out.BlendImage(startx + SLOT, 0, out_thresh);  
+      out.BlendImage(startx + XSLOT, starty, out_thresh);  
 
       // Letter predictors.
       // TODO: Show actual values or bar chart?
@@ -67,10 +69,14 @@ static void Gen(const FontProblem::SDFConfig &config,
                       v, v, 0xFF, 0xFF,
                       s);
       }
+      return out_sdf;
     };
   
-  RunTo(make_lowercase, 0, 0);
-  RunTo(make_uppercase, SLOT * 4, 0);  
+  ImageA lsdf = RunTo(make_lowercase, sdf, 0, YSLOT);
+  ImageA usdf = RunTo(make_uppercase, sdf, SLOT * 4, YSLOT);
+
+  (void)RunTo(make_uppercase, lsdf, 0, 0);
+  (void)RunTo(make_lowercase, usdf, SLOT * 4, YSLOT * 2);
   
   out.Save(filename);
 }
@@ -83,7 +89,7 @@ int main(int argc, char **argv) {
   {
     TTF ttf("helvetica.ttf");
     std::optional<ImageA> sdf =    
-      ttf.GetSDF('g', config.sdf_size,
+      ttf.GetSDF('G', config.sdf_size,
                  config.pad_top, config.pad_bot, config.pad_left,
                  config.onedge_value, config.falloff_per_pixel);
     CHECK(sdf.has_value());
