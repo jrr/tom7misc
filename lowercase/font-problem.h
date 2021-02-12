@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #include "ttf.h"
 
@@ -31,6 +32,11 @@ struct FontProblem {
     uint8_t onedge_value = 220u;
     float falloff_per_pixel = 15.0f;
   };
+
+  static inline uint8_t FloatByte(float f) {
+    const int x = roundf(f * 255.0f);
+    return std::clamp(x, 0, 255);
+  }
   
   // Size of e.g. the input feature vector.
   static int BufferSizeForPoints(const std::vector<int> &row_max_points);
@@ -99,11 +105,33 @@ struct FontProblem {
   static ImageA SDFFromBitmap(const SDFConfig &config,
                               const ImageA &img);
   
-  // Render tresholded image at high resolution, then downsample
-  // to get an anti-aliased image.
+  // Render tresholded image at high resolution (each dimension scaled
+  // by scale), then downsample to get an anti-aliased image. Output
+  // image is the same size as the input sdf, so typically this follows
+  // upscaling the SDF with bilinear resampling.
   static ImageA SDFThresholdAA(uint8_t onedge_value,
                                const ImageA &sdf,
                                int scale = 2);
+
+  // Run the model on a single SDF. Returns the resulting SDF and
+  // the letter predictors (nominally in [0,1]).
+  static std::pair<ImageA, std::array<float, 26>>
+  RunSDFModel(const Network &net,
+              const SDFConfig &config,
+              const ImageA &sdf_input);
+
+
+  // Threshold the sdf at multiple values and emit an anti-aliased,
+  // layered image. The layers should have increasing threshold
+  // values (first field) and only the RGB channels of the color
+  // (second second) are used. Typical to include config.onedge_value
+  // as one of them!
+  // scale is a oversampling quality param.
+  static ImageRGBA ThresholdImageMulti(
+      const ImageA &sdf,
+      const std::vector<std::pair<uint8_t, uint32_t>> &layers,
+      int scale = 4);
+
   
   // Code for computing the error between a predicted vector shape ("loop")
   // and the expected one.

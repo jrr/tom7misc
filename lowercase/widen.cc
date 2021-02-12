@@ -46,7 +46,7 @@ static constexpr Dimension DIMENSION = Dimension::ONE_DIMENSIONAL;
 // safest to do some tuning after each widen operation.
 // Not clear if widening from top to bottom or bottom to top is
 // better, or whether that matters?
-static constexpr int WIDEN_LAYER = 2;
+static constexpr int WIDEN_LAYER = 3;
 
 // On the next layer, we'll add some indices (increasing
 // indices_per_node) to reference only these new added
