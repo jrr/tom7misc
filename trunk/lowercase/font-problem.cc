@@ -884,36 +884,41 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
   auto GetSqDistanceTo = [&Color, size](int x, int y, bool c,
                                         int squared_bound) -> int {
       // PERF insane to do this by searching the whole array!!
-      int min_sqdist = size * size * 2; // squared_bound;
+      int min_sqdist = squared_bound;
 
       // we want to also search 1 pixel beyond the edge
       int ysize = std::max(size - y, y + 1);
       int xsize = std::max(size - x, x + 1);
       
       // Instead of scanning from top to bottom, use larger and larger
-      // offsets but try both positive and negative.
-      
+      // offsets but try both positive and negative. Goal is to be
+      // able to exit when the pixels being tested must be outside
+      // our current bound.
       for (int dy = 0; dy <= ysize; dy++) {
         const int dys = dy * dy;
         // dy is always getting bigger; if we already found a pixel
         // closer than this distance, just counting the vertical,
         // we can't improve.
         if (dys >= min_sqdist) break;
-        
-        for (int dx = 0; dx <= xsize; dx++) {
-          const int dxs = dx * dx;
-          // can do a similar test here but it is not
-          // faster?
-          if (dys + dxs >= min_sqdist) break;
 
-          // now apply dy and dx in both directions.
-          // Note this harmlessly tests pixels twice when dy or dx is
-          // 0, but it seems better to avoid the branching?
+        // We'll explore dy and dx in both direction. 
+        // Note this harmlessly tests pixels twice when dy or dx is
+        // 0, but it seems better to avoid the branching?
+        // Seems to be a better tradeoff to do the outer loop out
+        // here so we can skip the entire x loop sometimes (when
+        // outside the image entirely).
+        for (int sy : {-dy, +dy}) {
+          int yy = y + sy;
+          if (yy < -1 || yy > size) continue;
 
-          for (int sy : {-dy, +dy}) {
+          for (int dx = 0; dx <= xsize; dx++) {
+            const int dxs = dx * dx;
+            // can do a similar test here but it is not
+            // faster?
+            if (dys + dxs >= min_sqdist) break;
+
             // might be faster to check bounds here rather
-            // than in Color...
-            const int yy = y + sy;
+            // than in Color, although it gets a bit gross.
             for (int sx : {-dx, +dx}) {
               const int xx = x + sx;
               if (Color(xx, yy) == c) {
@@ -925,8 +930,7 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
           }
         }
       }
-      CHECK(min_sqdist <= squared_bound) << min_sqdist << " vs "
-                                         << squared_bound;
+
       return min_sqdist;
     };
   
@@ -939,6 +943,9 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
     // for the same color). But use "infinite"
     // distance as we start the row.
     int sq_bound = MAX_BOUND;
+    // Can't use the bound if searching for a different color.
+    // We could keep one bound for each color though, along
+    // with its position?
     bool last_color = false;
     for (int sx = 0; sx < sdf_size; sx++) {
       // Sample the center of the pixel.
@@ -964,9 +971,10 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
       // us, so we use the triangle inequality: Worst case bound is that
       // our closest pixel is that same one, and all three points are
       // on the same line. (PERF we do already have sqdist and could
-      // precompute scale^2). Added +1 to this distance since we actually
+      // precompute scale^2). Added +2 to this distance since we actually
       // round the coordinates to the nearest integer, which can cause
-      // the distance to be larger than 'scale'. Bleh.
+      // the distance to be actually more than 'scale', bleh. There are
+      // two roundings here, but each introduces at most 0.5, so 1.
       sq_bound = ceilf((dist + scale + 1) * (dist + scale + 1));
       
       last_color = color;
