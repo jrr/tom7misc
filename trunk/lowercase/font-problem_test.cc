@@ -1,6 +1,7 @@
 
 #include "font-problem.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -8,6 +9,7 @@
 #include "base/logging.h"
 #include "arcfour.h"
 #include "timer.h"
+#include "image.h"
 
 using namespace std;
 
@@ -146,9 +148,42 @@ static void TestLoopAssignment() {
          benchtime, benchtime / (double)NUM_ROUNDS);
 }
 
-int main(int argc, char **argv) {
-  TestLoopAssignment();
+static void BenchmarkBitmapSDF() {
+  std::unique_ptr<ImageRGBA> input_rgba(ImageRGBA::Load("testletter.png"));
+  std::unique_ptr<ImageRGBA> expected(ImageRGBA::Load("expectedsdf.png"));
+  auto CheckExpected = [&expected](const ImageA &sdf) {
+      ImageRGBA bitmap_sdf = sdf.GreyscaleRGBA();
+      CHECK(bitmap_sdf.Width() == expected->Width());
+      CHECK(bitmap_sdf.Height() == expected->Height());
+      for (int y = 0; y < bitmap_sdf.Height(); y++) {
+        for (int x = 0; x < bitmap_sdf.Width(); x++) {
+          CHECK(expected->GetPixel32(x, y) == bitmap_sdf.GetPixel32(x, y));
+        }
+      }
+    };
+      
+  CHECK(input_rgba.get() != nullptr);
+  ImageA input = input_rgba->Red();
 
+  double total_ms = 0.0;
+  static constexpr int TIMES = 10;
+  for (int i = 0; i < TIMES; i++) {
+    Timer onerun;
+    ImageA bitmap_sdf =
+      FontProblem::SDFFromBitmap(FontProblem::SDFConfig(), input);
+    double onems = onerun.MS();
+    total_ms += onems;
+    CheckExpected(bitmap_sdf);
+    printf("%.2f\n", onems);
+  }
+
+  printf("Average time: %.4f sec\n", total_ms / (TIMES * 1000.0));
+}
+  
+int main(int argc, char **argv) {
+  // TestLoopAssignment();
+  BenchmarkBitmapSDF();
+  
   printf("OK\n");
   return 0;
 }
