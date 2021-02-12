@@ -175,11 +175,6 @@ static void SDFFillVector(
   }
 }
 
-static uint8 FloatByte(float f) {
-  int x = roundf(f * 255.0f);
-  return std::clamp(x, 0, 255);
-}
-
 ImageA FontProblem::SDFGetImage(const SDFConfig &config,
                                 const vector<float> &buffer) {
   CHECK(buffer.size() >= config.sdf_size * config.sdf_size);
@@ -267,7 +262,8 @@ void FontProblem::RenderSDF(
                  letters[idx] = std::move(sdf.value());
                }, 13);
 
-  printf("Generated SDFs for %s in %.2fs\n", font_filename.c_str(), timer.MS() / 1000.0);
+  printf("Generated SDFs for %s in %.2fs\n",
+         font_filename.c_str(), timer.MS() / 1000.0);
 
   auto Iterative = [&config, &letters](const Network &net, bool lowercasing,
                                        const string &outfile) {
@@ -294,11 +290,13 @@ void FontProblem::RenderSDF(
            Stimulation stim{net};
            SDFFillVector(config, letters[letter_idx], &stim.values[0]);
 
-           // fill just the input portion; don't worry about the 26 letter predictors
+           // fill just the input portion; don't worry about the 26
+           // letter predictors
            vector<float> expected;
            expected.resize(stim.values[0].size());
            SDFFillVector(config, letters[expected_idx], &expected);
 
+           
            for (int iter = 0; iter < NUM_ITERS; iter++) {
              const int starty =
                TOP_MARGIN + iter * (LETTER_HEIGHT + LETTER_Y_MARGIN);
@@ -307,15 +305,43 @@ void FontProblem::RenderSDF(
                0x222222FF);
              */
 
+           // In this iterated eval, the uppercase values definitely
+           // get much larger than the onedge value, and maybe
+           // symmetrically for the lowercasing. So we could imagine
+           // some kind of scaling of the SDF's brightness is
+           // happening in both directions. I guess the real training
+           // examples should dampen this from getting out of control,
+           // but there are stable ways for the uppercasing and
+           // lowercasing networks to just agree on some scaling
+           // outside of the "real" examples. Anyway, we may find
+           // that the shapes are more interesting if we tune the
+           // threshold when iterating. This is probably best done
+           // on the native floats than the uint8s though.
+           
+           // {(uint8)(config.onedge_value * 1.05), 0xFFFF00FF}
+
+           auto GetLayers = [&config, lowercasing, letter, iter]() {
+               // Could tweak this separtely for upper- and lowercase
+               // models, iteration number...
+               // float th1 = pow(0.95, iter);
+               // float th2 = pow(0.975, iter);
+               float th1 = 0.95;
+               float th2 = 0.975f;
+               
+               return vector<pair<uint8, uint32>>
+                 {{(uint8)(config.onedge_value * th1), 0x440000FF},
+                  {(uint8)(config.onedge_value * th2), 0x66229FFF},
+                  {(uint8)(config.onedge_value), 0xFFFFFFFF}};
+             };
+           
+           const vector<pair<uint8, uint32>> layers = GetLayers();
+
+             
              ImageA sdf = SDFGetImage(config, stim.values[0]);
 
-             // img.BlendImage(startx, starty, sdf.GreyscaleRGBA());
-             ImageA thresh_lowest = SDFThresholdAA(config.onedge_value * 0.95, sdf, 4);
-             ImageA thresh_low = SDFThresholdAA(config.onedge_value * 0.975, sdf, 4);
-             ImageA thresh_hi = SDFThresholdAA(config.onedge_value, sdf, 4);
-             img.BlendImage(startx, starty, thresh_lowest.AlphaMaskRGBA(0x44, 0x00, 0x00));
-             img.BlendImage(startx, starty, thresh_low.AlphaMaskRGBA(0x66, 0x22, 0x9F));
-             img.BlendImage(startx, starty, thresh_hi.AlphaMaskRGBA(0xFF, 0xFF, 0xFF));
+             ImageRGBA thresh = ThresholdImageMulti(sdf, layers, 4);
+
+             img.BlendImage(startx, starty, thresh);
 
              // (Don't bother if this is the last round)
              if (iter == NUM_ITERS - 1)
@@ -348,10 +374,11 @@ void FontProblem::RenderSDF(
 
       img.BlendText2x32(
           LEFT_MARGIN, 4, 0xAAAACCFF,
-          StringPrintf("Round %lld   Examples %lld   Bytes %lld  Loss %.4f  (Make %s)",
-                       net.rounds, net.examples, net.Bytes(),
-                       total_loss,
-                       lowercasing ? "lowercase" : "uppercase"));
+          StringPrintf(
+              "Round %lld   Examples %lld   Bytes %lld  Loss %.4f  (Make %s)",
+              net.rounds, net.examples, net.Bytes(),
+              total_loss,
+              lowercasing ? "lowercase" : "uppercase"));
 
       img.Save(outfile);
     };
@@ -844,7 +871,7 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
     };
   
   // PERF: It basically comes down to wanting this fast function from
-  // a pixel to its closest pixel of the opposite color. Couple ideas
+  // a pixel to its closest pixel of the opposite color.
   // for doing this faster:
   //  
   //  - use a quadtree, which lets us reject a lot of the space
@@ -881,9 +908,18 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
   for (int sy = 0; sy < sdf_size; sy++) {
     for (int sx = 0; sx < sdf_size; sx++) {
       // Sample the center of the pixel.
-      int ix = roundf((sx + 0.5f) * scale);
-      int iy = roundf((sy + 0.5f) * scale);
+      // (This seems to work worse--shifts the
+      // image relative to what we get if we
+      // generate an SDF from the vector data for
+      // the same image. Models unfortunately seem
+      // to be very sensitive to position, too.)
+      // int ix = roundf((sx + 0.5f) * scale);
+      // int iy = roundf((sy + 0.5f) * scale);
 
+      // .. so sample the top-left corner of the pixel.
+      int ix = roundf((float)sx * scale);
+      int iy = roundf((float)sy * scale);
+      
       bool color = Color(ix, iy);
 
       const float dist = GetDistanceTo(ix, iy, !color);
@@ -897,4 +933,40 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
   }
 
   return sdf;
+}
+
+
+std::pair<ImageA, std::array<float, 26>>
+FontProblem::RunSDFModel(const Network &net,
+                         const SDFConfig &config,
+                         const ImageA &sdf_input) {
+  const int sdf_size = config.sdf_size;
+  Stimulation stim{net};
+  SDFFillVector(config, sdf_input, &stim.values[0]);
+  net.RunForward(&stim);
+  const std::vector<float> &output = stim.values.back();
+  CHECK(output.size() >= sdf_size * sdf_size + 26);
+  ImageA sdf_output = SDFGetImage(config, output);
+  std::array<float, 26> letters;
+  for (int i = 0; i < 26; i++)
+    letters[i] = output[sdf_size * sdf_size + i];
+  return make_pair(sdf_output, letters);
+}
+
+
+ImageRGBA FontProblem::ThresholdImageMulti(
+    const ImageA &sdf,
+    const std::vector<pair<uint8, uint32>> &layers,
+    int scale) {
+  ImageRGBA out(sdf.Width(), sdf.Height());
+
+  for (const auto &[onedge_value, color] : layers) {
+    ImageA thresh = SDFThresholdAA(onedge_value, sdf, scale);
+    const uint8 r = 0xFF & (color >> 24);
+    const uint8 g = 0xFF & (color >> 16);
+    const uint8 b = 0xFF & (color >> 8);    
+    out.BlendImage(0, 0, thresh.AlphaMaskRGBA(r, g, b));
+  }
+
+  return out;
 }

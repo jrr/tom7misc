@@ -554,3 +554,5 @@ which has some non-obvious consequence (maybe the bias can get
 too big and the gradient explodes? maybe I just typo'd something
 when running these operations?)
 
+
+at round 1.927M, widened layer 3 again by 10%
