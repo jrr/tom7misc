@@ -17,66 +17,117 @@ using uint8 = uint8_t;
 using uint32 = uint32_t;
 using int64 = int64_t;
 
-static void Gen(const FontProblem::SDFConfig &config,
-                const Network &make_lowercase,
-                const Network &make_uppercase,
-                const ImageA &sdf,
-                const string &filename) {
-  const int sdf_size = config.sdf_size;
-  const int SLOT = sdf_size * 4;
-  const int XSLOT = SLOT;
-  const int YSLOT = SLOT + 24;
-  
-  ImageRGBA out(XSLOT * 6, 3 * YSLOT);
-  out.Clear32(0x000000FF);
-  
-  out.BlendImage(XSLOT * 2, YSLOT, sdf.GreyscaleRGBA().ScaleBy(4));
-  
-  ImageA thresh = FontProblem::SDFThresholdAA(config.onedge_value,
-                                              sdf.ResizeBilinear(sdf_size * 4,
-                                                                 sdf_size * 4),
-                                              // oversampling: quality param
-                                              3);
-  out.BlendImage(XSLOT * 3, YSLOT, thresh.GreyscaleRGBA());
+struct GenResult {
+  GenResult(int w, int h) :
+    input(w, h),
+    low(w, h),
+    low_up(w, h),
+    up(w, h),
+    up_low(w, h) {}
 
-  auto RunTo = [&config, &out, sdf_size, SLOT, XSLOT, YSLOT](
-      const Network &net, const ImageA &sdf, int startx, int starty) {
+  ImageRGBA input;
+  std::array<float, 26> low_pred;
+  std::array<float, 26> up_pred;  
+  ImageRGBA low;
+  ImageRGBA low_up;
+  ImageRGBA up;
+  ImageRGBA up_low;
+};
+
+static GenResult GenImages(const FontProblem::SDFConfig &config,
+                           const Network &make_lowercase,
+                           const Network &make_uppercase,
+                           const ImageA &sdf,
+                           int scale) {
+  // TODO: Quality params
+  // TODO: Threshold/gamma params
+  const int quality = 3;
+  const int sdf_size = config.sdf_size;
+  const int THRESHOFF = sdf_size * scale;
+
+  // SDF and then thresholded image, side by side
+  GenResult result(sdf_size * scale * 2, sdf_size * scale);
+  result.input.BlendImage(0, 0, sdf.GreyscaleRGBA().ScaleBy(scale));
+  ImageA thresh = FontProblem::SDFThresholdAA(
+      config.onedge_value,
+      sdf.ResizeBilinear(sdf_size * scale,
+                         sdf_size * scale),
+      quality);
+  result.input.BlendImage(THRESHOFF, 0, thresh.GreyscaleRGBA());
+
+  auto RunTo = [&config, scale, quality, sdf_size, THRESHOFF](
+      const Network &net, const ImageA &sdf, ImageRGBA *out,
+      std::array<float, 26> *pred_out) {
       const auto [out_sdf, pred] =
         FontProblem::RunSDFModel(net, config, sdf);
-      out.BlendImage(startx, starty, out_sdf.GreyscaleRGBA().ScaleBy(4));
+      out->BlendImage(0, 0, out_sdf.GreyscaleRGBA().ScaleBy(scale));
 
       vector<pair<uint8, uint32>> layers =
         {{(uint8)(config.onedge_value * 0.95), 0x440000FF},
          {(uint8)(config.onedge_value * 0.975), 0x66229FFF},
          {(uint8)(config.onedge_value), 0xFFFFFFFF}};
       ImageRGBA out_thresh = FontProblem::ThresholdImageMulti(
-          out_sdf.ResizeBilinear(sdf_size * 4, sdf_size * 4),
+          out_sdf.ResizeBilinear(sdf_size * scale, sdf_size * scale),
           layers,
-          4);
-      out.BlendImage(startx + XSLOT, starty, out_thresh);  
+          quality);
+      out->BlendImage(THRESHOFF, 0, out_thresh);  
 
       // Letter predictors.
-      // TODO: Show actual values or bar chart?
-      // Show negative predictions or >1 too
-      const int pred_x = startx + SLOT;
-      const int pred_y = starty + SLOT + 2;
-      for (int i = 0; i < 26; i++) {
-        const uint8 v = FontProblem::FloatByte(pred[i]);
-        string s = "A";
-        s[0] += i;
-        out.BlendText(pred_x + 9 * (i % 13),
-                      pred_y + (i / 13) * 10,
-                      v, v, 0xFF, 0xFF,
-                      s);
-      }
+      if (pred_out != nullptr) *pred_out = pred;
       return out_sdf;
     };
   
-  ImageA lsdf = RunTo(make_lowercase, sdf, 0, YSLOT);
-  ImageA usdf = RunTo(make_uppercase, sdf, SLOT * 4, YSLOT);
+  ImageA lsdf = RunTo(make_lowercase, sdf, &result.low, &result.low_pred);
+  ImageA usdf = RunTo(make_uppercase, sdf, &result.up, &result.up_pred);
 
-  (void)RunTo(make_uppercase, lsdf, 0, 0);
-  (void)RunTo(make_lowercase, usdf, SLOT * 4, YSLOT * 2);
+  (void)RunTo(make_uppercase, lsdf, &result.low_up, nullptr);
+  (void)RunTo(make_lowercase, usdf, &result.up_low, nullptr);
+  return result;
+}
+
+
+static void Gen(const FontProblem::SDFConfig &config,
+                const Network &make_lowercase,
+                const Network &make_uppercase,
+                const ImageA &sdf,
+                const string &filename) {
+  const int SCALE = 5;
+  
+  GenResult result = GenImages(config, make_lowercase, make_uppercase,
+                               sdf, SCALE);
+
+  // All should be the same size.
+  const int TILEW = result.input.Width();
+  const int IMGH = result.input.Height();
+  // Room for predictors at bottom.
+  const int TILEH = IMGH + 24;
+  
+  ImageRGBA out(TILEW * 3, 3 * TILEH);
+  out.Clear32(0x000000FF);
+
+  out.BlendImage(TILEW, TILEH, result.input);
+  out.BlendImage(0, TILEH, result.low);
+  out.BlendImage(0, 0, result.low_up);
+  out.BlendImage(TILEW * 2, TILEH, result.up);
+  out.BlendImage(TILEW * 2, TILEH * 2, result.up_low);
+
+  auto DrawPreds = [&out](int startx, int starty,
+                          const std::array<float, 26> &preds) {
+      for (int i = 0; i < 26; i++) {
+        const uint8 v = FontProblem::FloatByte(preds[i]);
+        string s = "A";
+        s[0] += i;
+        out.BlendText(startx + 9 * (i % 13),
+                      starty + (i / 13) * 10,
+                      v, v, 0xFF, 0xFF,
+                      s);
+      }
+    };
+
+  
+  // and the predictors  
+  DrawPreds(TILEW / 2, TILEH + IMGH + 2, result.low_pred);
+  DrawPreds(2 * TILEW + TILEW / 2, 2 * TILEH + IMGH + 2, result.up_pred);  
   
   out.Save(filename);
 }
@@ -94,7 +145,7 @@ int main(int argc, char **argv) {
                  config.onedge_value, config.falloff_per_pixel);
     CHECK(sdf.has_value());
     vector_sdf = sdf.value();
-    const int BSIZE = 1000;
+    const int BSIZE = 800;
 
     {
       ImageRGBA bitmap = FontProblem::SDFThresholdAA(
