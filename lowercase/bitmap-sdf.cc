@@ -17,75 +17,6 @@ using uint8 = uint8_t;
 using uint32 = uint32_t;
 using int64 = int64_t;
 
-struct GenResult {
-  GenResult(int w, int h) :
-    input(w, h),
-    low(w, h),
-    low_up(w, h),
-    up(w, h),
-    up_low(w, h) {}
-
-  ImageRGBA input;
-  std::array<float, 26> low_pred;
-  std::array<float, 26> up_pred;  
-  ImageRGBA low;
-  ImageRGBA low_up;
-  ImageRGBA up;
-  ImageRGBA up_low;
-};
-
-static GenResult GenImages(const FontProblem::SDFConfig &config,
-                           const Network &make_lowercase,
-                           const Network &make_uppercase,
-                           const ImageA &sdf,
-                           int scale) {
-  // TODO: Quality params
-  // TODO: Threshold/gamma params
-  const int quality = 3;
-  const int sdf_size = config.sdf_size;
-  const int THRESHOFF = sdf_size * scale;
-
-  // SDF and then thresholded image, side by side
-  GenResult result(sdf_size * scale * 2, sdf_size * scale);
-  result.input.BlendImage(0, 0, sdf.GreyscaleRGBA().ScaleBy(scale));
-  ImageA thresh = FontProblem::SDFThresholdAA(
-      config.onedge_value,
-      sdf.ResizeBilinear(sdf_size * scale,
-                         sdf_size * scale),
-      quality);
-  result.input.BlendImage(THRESHOFF, 0, thresh.GreyscaleRGBA());
-
-  auto RunTo = [&config, scale, quality, sdf_size, THRESHOFF](
-      const Network &net, const ImageA &sdf, ImageRGBA *out,
-      std::array<float, 26> *pred_out) {
-      const auto [out_sdf, pred] =
-        FontProblem::RunSDFModel(net, config, sdf);
-      out->BlendImage(0, 0, out_sdf.GreyscaleRGBA().ScaleBy(scale));
-
-      vector<pair<uint8, uint32>> layers =
-        {{(uint8)(config.onedge_value * 0.95), 0x440000FF},
-         {(uint8)(config.onedge_value * 0.975), 0x66229FFF},
-         {(uint8)(config.onedge_value), 0xFFFFFFFF}};
-      ImageRGBA out_thresh = FontProblem::ThresholdImageMulti(
-          out_sdf.ResizeBilinear(sdf_size * scale, sdf_size * scale),
-          layers,
-          quality);
-      out->BlendImage(THRESHOFF, 0, out_thresh);  
-
-      // Letter predictors.
-      if (pred_out != nullptr) *pred_out = pred;
-      return out_sdf;
-    };
-  
-  ImageA lsdf = RunTo(make_lowercase, sdf, &result.low, &result.low_pred);
-  ImageA usdf = RunTo(make_uppercase, sdf, &result.up, &result.up_pred);
-
-  (void)RunTo(make_uppercase, lsdf, &result.low_up, nullptr);
-  (void)RunTo(make_lowercase, usdf, &result.up_low, nullptr);
-  return result;
-}
-
-
 static void Gen(const FontProblem::SDFConfig &config,
                 const Network &make_lowercase,
                 const Network &make_uppercase,
@@ -93,9 +24,10 @@ static void Gen(const FontProblem::SDFConfig &config,
                 const string &filename) {
   const int SCALE = 5;
   
-  GenResult result = GenImages(config, make_lowercase, make_uppercase,
-                               sdf, SCALE);
-
+  FontProblem::GenResult result =
+    FontProblem::GenImages(config, make_lowercase, make_uppercase,
+                           sdf, SCALE);
+  
   // All should be the same size.
   const int TILEW = result.input.Width();
   const int IMGH = result.input.Height();
@@ -138,9 +70,9 @@ int main(int argc, char **argv) {
 
   ImageA vector_sdf;
   {
-    TTF ttf("helvetica.ttf");
+    TTF ttf("times.ttf");
     std::optional<ImageA> sdf =    
-      ttf.GetSDF('G', config.sdf_size,
+      ttf.GetSDF('T', config.sdf_size,
                  config.pad_top, config.pad_bot, config.pad_left,
                  config.onedge_value, config.falloff_per_pixel);
     CHECK(sdf.has_value());
