@@ -132,6 +132,32 @@ struct FontProblem {
       const std::vector<std::pair<uint8_t, uint32_t>> &layers,
       int scale = 4);
 
+
+  struct GenResult {
+    GenResult(int w, int h) :
+      input(w, h),
+      low(w, h),
+      low_up(w, h),
+      up(w, h),
+      up_low(w, h) {}
+
+    ImageRGBA input;
+    std::array<float, 26> low_pred;
+    std::array<float, 26> up_pred;  
+    ImageRGBA low;
+    ImageRGBA low_up;
+    ImageRGBA up;
+    ImageRGBA up_low;
+  };
+
+  // Generate 5 images (scaled according to the parameter): The
+  // input SDF, the predicted uppercase and lowercase,
+  // uppercase(lowercase) and lowercase(uppercase).
+  static GenResult GenImages(const FontProblem::SDFConfig &config,
+                             const Network &make_lowercase,
+                             const Network &make_uppercase,
+                             const ImageA &sdf,
+                             int scale);
   
   // Code for computing the error between a predicted vector shape ("loop")
   // and the expected one.
