@@ -883,12 +883,11 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
 
   auto GetSqDistanceTo = [&Color, size](int x, int y, bool c,
                                         int squared_bound) -> int {
-      // PERF insane to do this by searching the whole array!!
       int min_sqdist = squared_bound;
 
       // we want to also search 1 pixel beyond the edge
-      int ysize = std::max(size - y, y + 1);
-      int xsize = std::max(size - x, x + 1);
+      const int ysize = std::max(size - y, y + 1);
+      const int xsize = std::max(size - x, x + 1);
       
       // Instead of scanning from top to bottom, use larger and larger
       // offsets but try both positive and negative. Goal is to be
@@ -930,23 +929,29 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
           }
         }
       }
-
+      // CHECK(min_sqdist <= squared_bound) << min_sqdist << " vs " << squared_bound;
       return min_sqdist;
     };
   
   const float oscale = 1.0f / scale;
   ImageA sdf(sdf_size, sdf_size);
+
+  // As we populate the SDF, we can use the previous computed pixel
+  // (that was searching for the same color) to give us a bound on the
+  // search. OK for this to span rows, although then the bounds get
+  // momentarily bad. Start with "infinite" though.
+  const int MAX_DIST = size * 2;  
+  struct Last {
+    // Position of the last pixel for which we
+    // got a distance, for the given color.
+    int x, y;
+    // The actual distance we computed for that pixel.
+    float dist;
+  };
+  std::array<Last, 2> last = {Last{.x = 0, .y = 0, .dist = (float)MAX_DIST},
+                              Last{.x = 0, .y = 0, .dist = (float)MAX_DIST}};
+
   for (int sy = 0; sy < sdf_size; sy++) {
-    const int MAX_BOUND = size * size * 2;
-    // On each row, we can use the previous computed pixel
-    // to give us a bound on the search (if we're searching
-    // for the same color). But use "infinite"
-    // distance as we start the row.
-    int sq_bound = MAX_BOUND;
-    // Can't use the bound if searching for a different color.
-    // We could keep one bound for each color though, along
-    // with its position?
-    bool last_color = false;
     for (int sx = 0; sx < sdf_size; sx++) {
       // Sample the center of the pixel.
       // (This seems to work worse--shifts the
@@ -963,21 +968,25 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
       
       const bool color = Color(ix, iy);
 
-      const int sqdist = GetSqDistanceTo(ix, iy, !color,
-                                         color == last_color ?
-                                         sq_bound : MAX_BOUND);
-      const float dist = sqrtf(sqdist);
-      // Set up bound for next pixel. This pixel is distance 'scale' from
-      // us, so we use the triangle inequality: Worst case bound is that
-      // our closest pixel is that same one, and all three points are
-      // on the same line. (PERF we do already have sqdist and could
-      // precompute scale^2). Added +2 to this distance since we actually
-      // round the coordinates to the nearest integer, which can cause
-      // the distance to be actually more than 'scale', bleh. There are
-      // two roundings here, but each introduces at most 0.5, so 1.
-      sq_bound = ceilf((dist + scale + 1) * (dist + scale + 1));
+      // Whatever we computed for the last pixel of the same color
+      // gives us a bound using the triangle inequality (worst case
+      // is our distance to that pixel, plus its distance to the
+      // goal).
+      Last &prev = last[color ? 1 : 0];
+      int dx = ix - prev.x;
+      int dy = iy - prev.y;
+      float bound = prev.dist + sqrtf(dx * dx + dy * dy);     
+      int sq_bound = ceilf(bound * bound);
+      // printf("dx %d dy %d prev %.2f bound %.2f sq %d\n",
+      // dx, dy, prev.dist, bound, sq_bound);
       
-      last_color = color;
+      const int sqdist = GetSqDistanceTo(ix, iy, !color, sq_bound);
+      const float dist = sqrtf(sqdist);
+
+      // Save distance for next time we search this color.
+      prev.x = ix;
+      prev.y = iy;
+      prev.dist = dist;
 
       // Distance in sdf space.
       const float sdf_dist = dist * oscale * config.falloff_per_pixel;
