@@ -755,8 +755,10 @@ int main(int argc, char **argv) {
     // (supposedly it can refresh at 0.5Hz).
 
     for (auto &p : onewire.probes) {
-      int32 millidegs_c = 0;
-      if (p.second.Temperature(&millidegs_c)) {
+      uint32 unsigned_millidegs_c = 0;
+      if (p.second.Temperature(&unsigned_millidegs_c)) {
+        // XXX figure out if these go negative, or what
+        int32 millidegs_c = unsigned_millidegs_c;
         string s = db.WriteValue(p.first, millidegs_c);
         readings++;
         double elapsed = time(nullptr) - start;
@@ -797,13 +799,15 @@ int main(int argc, char **argv) {
         WebServer::GetCounter("negative temps")->Increment();
       }
 
-      int32 millidegs_c = temp * 1000.0f;
-      string s = db.WriteValue(am2315_temp_code, millidegs_c);
-      if (VERBOSE)
-        printf("%s (%s): %u\n", am2315_temp_code.c_str(), s.c_str(),
-               millidegs_c);
-      WebServer::GetCounter(s + " last")->SetTo(millidegs_c);
-      WebServer::GetCounter(s + " #")->Increment();
+      {
+        int32 millidegs_c = temp * 1000.0f;
+        string s = db.WriteValue(am2315_temp_code, millidegs_c);
+        if (VERBOSE)
+          printf("%s (%s): %u\n", am2315_temp_code.c_str(), s.c_str(),
+                 millidegs_c);
+        WebServer::GetCounter(s + " last")->SetTo(millidegs_c);
+        WebServer::GetCounter(s + " #")->Increment();
+      }
 
       usleep(500000);
       float rh = 0.0f;
@@ -813,16 +817,18 @@ int main(int argc, char **argv) {
         continue;
       }
 
-      // rh nominally ranges from 0 to 100.
-      // here we convert to basis points (0 to 10,000).
-      // we have bp = (rh / 100) * 10000 = rh * 100.
-      int32 rh_bp = rh * 100;
-      string s = db.WriteValue(am2315_humidity_code, rh_bp);
-      if (VERBOSE)
-        printf("%s (%s): %u\n", am2315_humidity_code.c_str(), s.c_str(),
-               rh_bp);
-      WebServer::GetCounter(s + " last")->SetTo(rh_bp);
-      WebServer::GetCounter(s + " #")->Increment();
+      {
+        // rh nominally ranges from 0 to 100.
+        // here we convert to basis points (0 to 10,000).
+        // we have bp = (rh / 100) * 10000 = rh * 100.
+        int32 rh_bp = rh * 100;
+        string s = db.WriteValue(am2315_humidity_code, rh_bp);
+        if (VERBOSE)
+          printf("%s (%s): %u\n", am2315_humidity_code.c_str(), s.c_str(),
+                 rh_bp);
+        WebServer::GetCounter(s + " last")->SetTo(rh_bp);
+        WebServer::GetCounter(s + " #")->Increment();
+      }
 
       usleep(500000);
     }

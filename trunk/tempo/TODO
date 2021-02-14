@@ -1,6 +1,6 @@
-- Make negative temperatures work -- this will surely be possible
-  outdoors and perhaps in the attic as well. (Check what range
-  onewire supports, but AM2315 can do -40 to 125 C)
+- Negative temperatures are implemented for AM2315, but see
+  what the OneWire supports and make sure it works correctly?
+  (Might not practically matter with my setup.)
 - Perhaps try to figure out the hardware versions so that you can
   get e.g. the graph from a faster machine?
 - See 7.2.1 in AM2315 datasheet; we may want to track the time since
