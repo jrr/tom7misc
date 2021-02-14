@@ -35,10 +35,10 @@ static uint16 CRC16(const uint8 *bytes, int len) {
     crc ^= bytes[i];
     for (int j = 0; j < 8; j++) {
       if (crc & 0x0001) {
-	crc >>= 1;
-	crc ^= 0xA001;
+        crc >>= 1;
+        crc ^= 0xA001;
       } else {
-	crc >>= 1;
+        crc >>= 1;
       }
     }
   }
@@ -64,10 +64,10 @@ static bool WriteVec(const std::vector<uint8> &msg) {
 }
 
 static bool ReadReg(uint8 reg, uint8 *ret_buf,
-		    uint8 length, const char **err = nullptr) {
+                    uint8 length, const char **err = nullptr) {
   const char *err_unused;
   if (err == nullptr) err = &err_unused;
-  
+
   // "wake up sensor".
   // CircuitPython code does one write and a wait of 10ms here,
   // but I found that the first wakeup often fails. Doing it twice
@@ -86,7 +86,7 @@ static bool ReadReg(uint8 reg, uint8 *ret_buf,
   usleep(10000); // 10ms
 
   vector<uint8> buf(2 + length + 2);
-  
+
   // read register
   if (!WriteVec({CMD_READREG, reg, length})) {
     *err = "readreg command write";
@@ -121,16 +121,16 @@ static bool ReadReg(uint8 reg, uint8 *ret_buf,
 
   for (int i = 0; i < length; i++)
     ret_buf[i] = buf[i + 2];
-  
+
   return true;
 }
-  
+
 bool AM2315::ReadTemp(float *temp, const char **err) {
   uint8 result_buf[2];
   if (!ReadReg(REG_TEMP, &result_buf[0], 2, err))
     return false;
   uint16 result = (result_buf[0] << 8) | result_buf[1];
-  
+
   // XXX literal port from python.
   // it is probably wrong because 0 has two representations?
   // just replace this with int16??
@@ -149,7 +149,7 @@ bool AM2315::ReadRH(float *rh, const char **err) {
   if (!ReadReg(REG_HUM, &result_buf[0], 2, err))
     return false;
   uint16 result = (result_buf[0] << 8) | result_buf[1];
-  
+
   *rh = ((float)result) * 0.1f;
   return true;
 }

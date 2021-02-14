@@ -1,6 +1,6 @@
 
-#ifndef __TEMPO_AM2315_H
-#define __TEMPO_AM2315_H
+#ifndef _TEMPO_AM2315_H
+#define _TEMPO_AM2315_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,7 +30,7 @@ struct AM2315 {
   // In degrees C.
   static bool ReadTemp(float *temp, const char **err = nullptr);
   // In % RH.
-  static bool ReadRH(float *rh, const char **err = nullptr);  
+  static bool ReadRH(float *rh, const char **err = nullptr);
 
   static bool ReadInfo(Info *info, const char **err);
 };

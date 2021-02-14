@@ -17,7 +17,7 @@ OneWire::OneWire() {
     string testread = Util::ReadFile(fullpath);
     if (!testread.empty()) {
       CHECK(probes.find(file) == probes.end())
-	<< file << " duplicate?";
+        << file << " duplicate?";
       probes[file].fullpath = fullpath;
       printf("  ... OK\n");
     } else {

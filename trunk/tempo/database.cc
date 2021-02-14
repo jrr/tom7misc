@@ -77,7 +77,7 @@ Database::Database() {
       // The key is human readable as a compromise for usability, but
       // since it's used as the primary key we drop the colons.
       mac_key = StringPrintf("%02x%02x%02x" "%02x%02x%02x",
-			     a, b, c,  d, e, f);
+                             a, b, c,  d, e, f);
     }
 
     printf("MAC %s. IP %s.\n", mac_key.c_str(), ipaddress.c_str());
@@ -89,10 +89,10 @@ Database::Database() {
   // plenty...
   rc = std::make_unique<ArcFour>(
       StringPrintf("%s-%s-%s-%lld",
-		   config["location"].c_str(),
-		   ipaddress.c_str(),
-		   mac_key.c_str(),
-		   time(nullptr)));
+                   config["location"].c_str(),
+                   ipaddress.c_str(),
+                   mac_key.c_str(),
+                   time(nullptr)));
 
   while (!Connect()) {
     printf("Couldn't connect to database...\n");
@@ -106,14 +106,14 @@ Database::Database() {
   {
     const int64 now = time(nullptr);
     string qs = StringPrintf(
-	"replace into device (mac, lastseen, ipaddress, location, rev, packages) "
-	"values (\"%s\", %llu, \"%s\", \"%s\", \"%d\", \"%s\")",
-	mac_key.c_str(),
-	now,
-	ipaddress.c_str(),
-	Escape(config["location"]).c_str(),
-	SVN_REVISION,
-	"?");
+        "replace into device (mac, lastseen, ipaddress, location, rev, packages) "
+        "values (\"%s\", %llu, \"%s\", \"%s\", \"%d\", \"%s\")",
+        mac_key.c_str(),
+        now,
+        ipaddress.c_str(),
+        Escape(config["location"]).c_str(),
+        SVN_REVISION,
+        "?");
     Query q = conn.query(qs);
     CHECK(q.exec()) << "Couldn't register device in database?\n" << qs;
   }
@@ -127,7 +127,7 @@ Database::Database() {
     const int id = res[i]["id"];
     const int type = res[i]["type"];
     CHECK(type == TEMPERATURE ||
-	  type == HUMIDITY) << "Unsupported probe type " << type;
+          type == HUMIDITY) << "Unsupported probe type " << type;
     const char *code = res[i]["code"];
     const char *name = res[i]["name"];
     const char *desc = res[i]["description"];
@@ -180,9 +180,9 @@ bool Database::Connect() {
   CHECK(!user.empty()) << "Specify in " << configfile;
 
   return conn.connect(database_name.c_str(),
-		      server.c_str(),
-		      user.c_str(),
-		      password.c_str());
+                      server.c_str(),
+                      user.c_str(),
+                      password.c_str());
 }
 
 const Database::Probe *Database::GetProbe(const string &code) {
@@ -228,19 +228,19 @@ void Database::PeriodicThread() {
     if (update_packages_p.ShouldRun()) {
       UpdatePackages();
     }
-    
+
     {
       MutexLock ml(&database_m);
       if (ping_p.ShouldRun()) {
-	Ping();
+        Ping();
       }
 
       if (write_p.ShouldRun()) {
-	Write();
+        Write();
       }
 
       if (update_seen_p.ShouldRun()) {
-	UpdateLastSeen();
+        UpdateLastSeen();
       }
 
       if (should_die) return;
@@ -257,19 +257,19 @@ void Database::PeriodicThread() {
 void Database::UpdatePackages() {
   std::optional<string> pkgo =
     ProcessUtil::GetOutput(
-	"sudo apt list --upgradable | tail --lines=+2 | wc -l");
+        "sudo apt list --upgradable | tail --lines=+2 | wc -l");
   string res = "error";
   if (pkgo.has_value()) res = Util::NormalizeWhitespace(pkgo.value());
   {
     MutexLock ml(&database_m);
     string qs =
       StringPrintf("update tempo.device "
-		   "set packages = \"%s\" "
-		   "where mac = \"%s\"",
-		   // XXX should sqlescape, though we don't
-		   // expect wc -l to output anything escapable.
-		   res.c_str(),
-		   mac_key.c_str());
+                   "set packages = \"%s\" "
+                   "where mac = \"%s\"",
+                   // XXX should sqlescape, though we don't
+                   // expect wc -l to output anything escapable.
+                   res.c_str(),
+                   mac_key.c_str());
     Query q = conn.query(qs);
     if (!q.exec())
       failed->Increment();
@@ -281,9 +281,9 @@ void Database::UpdateLastSeen() {
   int64 now = time(nullptr);
   string qs =
     StringPrintf("update tempo.device "
-		 "set lastseen = %llu "
-		 "where mac = \"%s\"",
-		 now, mac_key.c_str());
+                 "set lastseen = %llu "
+                 "where mac = \"%s\"",
+                 now, mac_key.c_str());
   Query q = conn.query(qs);
   if (!q.exec())
     failed->Increment();
@@ -309,7 +309,7 @@ void Database::Write() {
   for (const auto [t, id, microdegs_c, sample_key] : batch) {
     if (!first) qs.push_back(',');
     StringAppendF(&qs, " row(%llu, %d, %d, %u)",
-		  t, id, microdegs_c, sample_key);
+                  t, id, microdegs_c, sample_key);
     first = false;
   }
 
@@ -340,14 +340,14 @@ Database::AllReadingsIn(int64 time_start, int64 time_end) {
     MutexLock ml(&database_m);
 
     string qs = StringPrintf("select timestamp, value "
-			     "from tempo.reading "
-			     "where probeid = %d "
-			     "and timestamp >= %lld "
-			     "and timestamp <= %lld "
-			     "order by timestamp",
-			     probe.id,
-			     time_start,
-			     time_end);
+                             "from tempo.reading "
+                             "where probeid = %d "
+                             "and timestamp >= %lld "
+                             "and timestamp <= %lld "
+                             "order by timestamp",
+                             probe.id,
+                             time_start,
+                             time_end);
     Query q = conn.query(qs);
     StoreQueryResult res = q.store();
     if (!res) {
@@ -370,7 +370,7 @@ Database::AllReadingsIn(int64 time_start, int64 time_end) {
 
 std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>>
 Database::SmartReadingsIn(int64 time_start, int64 time_end,
-			  const std::set<int> &probes_included) {
+                          const std::set<int> &probes_included) {
 
   // Goal here is to select a random subset of the data in the
   // mysql query itself, so that the pi doesn't have to process much
@@ -391,7 +391,7 @@ Database::SmartReadingsIn(int64 time_start, int64 time_end,
     if (!probes_included.empty()) {
       // If we have a probes list, skip this probe if it's not in there.
       if (probes_included.find(probe.id) == probes_included.end()) {
-	continue;
+        continue;
       }
     }
 
@@ -407,27 +407,27 @@ Database::SmartReadingsIn(int64 time_start, int64 time_end,
     }
 
     string qs = StringPrintf("select probeid, timestamp, value "
-			     "from tempo.reading "
-			     "where probeid = %d "
-			     "and timestamp >= %lld "
-			     "and timestamp <= %lld "
-			     "and %s "
-			     "order by timestamp",
-			     probe.id,
-			     time_start,
-			     time_end,
-			     sample_exp.c_str());
+                             "from tempo.reading "
+                             "where probeid = %d "
+                             "and timestamp >= %lld "
+                             "and timestamp <= %lld "
+                             "and %s "
+                             "order by timestamp",
+                             probe.id,
+                             time_start,
+                             time_end,
+                             sample_exp.c_str());
     fprintf(stderr,
-	    "[probe %d]\n"
-	    "seconds: %.1f\n"
-	    "est samples in period: %.1f\n"
-	    "sample rate: %.2f\n"
-	    "qs: %s\n",
-	    probe.id,
-	    seconds,
-	    est_samples_in_period,
-	    sample_rate,
-	    qs.c_str());
+            "[probe %d]\n"
+            "seconds: %.1f\n"
+            "est samples in period: %.1f\n"
+            "sample rate: %.2f\n"
+            "qs: %s\n",
+            probe.id,
+            seconds,
+            est_samples_in_period,
+            sample_rate,
+            qs.c_str());
 
     const auto query_start = std::chrono::steady_clock::now();
     MutexLock ml(&database_m);
@@ -450,9 +450,9 @@ Database::SmartReadingsIn(int64 time_start, int64 time_end,
     // recursively) if there are intervals with no samples. This can happen
     // when a device is offline for some time, for example.
     fprintf(stderr, "[%lld ms] Rows in db result: %lld\n",
-	    (int64)std::chrono::duration_cast<std::chrono::milliseconds>(
-		query_end - query_start).count(),
-	    (int64)res.num_rows());
+            (int64)std::chrono::duration_cast<std::chrono::milliseconds>(
+                query_end - query_start).count(),
+            (int64)res.num_rows());
 
     vector<pair<int64, uint32>> vec;
     vec.reserve(res.num_rows());
@@ -483,11 +483,11 @@ Database::LastReading() {
     MutexLock ml(&database_m);
 
     string qs = StringPrintf("select timestamp, value "
-			     "from tempo.reading "
-			     "where probeid = %d "
-			     "order by timestamp desc "
-			     "limit 1",
-			     probe.id);
+                             "from tempo.reading "
+                             "where probeid = %d "
+                             "order by timestamp desc "
+                             "limit 1",
+                             probe.id);
     Query q = conn.query(qs);
     StoreQueryResult res = q.store();
     if (!res || res.num_rows() != 1) {

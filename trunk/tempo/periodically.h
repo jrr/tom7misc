@@ -2,8 +2,8 @@
 // For use in polling loops. Keeps track of a "next time to run"
 // and tells the caller when it should run. Not thread-safe.
 
-#ifndef __TEMPO_PERIODICALLY_H
-#define __TEMPO_PERIODICALLY_H
+#ifndef _TEMPO_PERIODICALLY_H
+#define _TEMPO_PERIODICALLY_H
 
 #include <cstdint>
 #include <time.h>

@@ -5,8 +5,8 @@
 // some configuration, but since tempo is likely to only
 // be used by me, this is the simplest way to do it.
 
-#ifndef __TEMPO_LOGIC_H
-#define __TEMPO_LOGIC_H
+#ifndef _TEMPO_LOGIC_H
+#define _TEMPO_LOGIC_H
 
 struct Database;
 
