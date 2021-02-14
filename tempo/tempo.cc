@@ -118,7 +118,7 @@ struct PreServer {
 
     std::chrono::duration<double> server_uptime =
       std::chrono::steady_clock::now() - server_start_time;
-    
+
     r.body = StringPrintf(
 	"pre-server uptime: %.1f sec\n"
 	"status: %s\n"
@@ -128,7 +128,7 @@ struct PreServer {
 	SysInfoString().c_str());
     return r;
   }
-  
+
   ~PreServer() {
     printf("Shut down PreServer..\n");
     server->Stop();
@@ -140,7 +140,7 @@ struct PreServer {
     MutexLock ml(&m);
     status = s;
   }
-  
+
 private:
   std::mutex m;
   string status = "constructed";
@@ -186,7 +186,7 @@ struct Server {
 		       [this](const WebServer::Request &req) {
 			 return Devices(req);
 		       });
-    
+
     // Fallback handler.
     // TODO: Make a good default home-page here?
     server->AddHandler("/",
@@ -208,7 +208,7 @@ struct Server {
   }
 
   std::chrono::time_point<std::chrono::steady_clock> server_start_time;
-  
+
   const vector<std::tuple<float, float, float, float>> f_ramp = {
     { -30.0f, 0.85f, 0.85f, 1.0f},
     {  32.0f, 0.15f, 0.15f, 1.0f},
@@ -237,7 +237,7 @@ struct Server {
 	return make_tuple(r, g, b);
       }
     }
-      
+
     for (int i = 1; i < ramp.size(); i++) {
       const auto now = ramp[i];
       const auto [px, pr, pg, pb] = prev;
@@ -269,7 +269,7 @@ struct Server {
 			(uint8)(g * 255.0f),
 			(uint8)(b * 255.0f));
   }
-  
+
   string GetHumidityRGB(float f) {
     const auto [r, g, b] = LinearRamp(f, rh_ramp);
     return StringPrintf("#%02x%02x%02x",
@@ -283,10 +283,13 @@ struct Server {
     r.code = 200;
     r.status = "OK";
     r.content_type = "text/plain; charset=UTF-8";
+    // Allow this harmless request from anywhere, which I use
+    // for local port-scanning.
+    r.extra_headers = {{"Access-Control-Allow-Origin", "*"}};
 
     std::chrono::duration<double> server_uptime =
       std::chrono::steady_clock::now() - server_start_time;
-    
+
     r.body = StringPrintf(
 	"tempo uptime: %.1f sec\n"
 	"%s",
@@ -294,7 +297,7 @@ struct Server {
 	SysInfoString().c_str());
     return r;
   }
-  
+
   WebServer::Response Diagram(const WebServer::Request &request) {
     vector<pair<Database::Probe, pair<int64, uint32>>> temps =
       db->LastReading();
@@ -365,7 +368,7 @@ struct Server {
 	}
       }
     }
-    
+
     // TODO: Dynamic size
     int width = 1920;
     int height = 1080;
@@ -580,7 +583,7 @@ struct Server {
     return r;
   }
 
-  
+
   WebServer::Response Table(const WebServer::Request &request) {
     vector<pair<Database::Probe, pair<int64, uint32>>> temps =
       db->LastReading();
@@ -682,15 +685,15 @@ int main(int argc, char **argv) {
   Database db;
   preserver->SetStatus("DB ready");
   preserver.reset();
-  
+
   Server server(&db);
-  
+
   OneWire onewire;
   WebServer::GetCounter("onewire probes found")->
     IncrementBy((int64)onewire.probes.size());
 
   Logic logic;
-  
+
   // One or zero of these. This is a dual-probe device, so
   // we make a separate code for the temperature (_t) and humidity (_h)
   // sensors.
@@ -735,13 +738,13 @@ int main(int argc, char **argv) {
     // probes attached.
     if (run_logic_p.ShouldRun())
       logic.Periodic(&db);
-    
+
     // PERF: All the onewire probes share a bus that can be read
     // at about 1Hz. So round-robin on these makes sense. But if
     // we have both an AM2315 sensor and onewire sensors on the same
     // device at some point, we may want to read the AM2315 more often
     // (supposedly it can refresh at 0.5Hz).
-    
+
     for (auto &p : onewire.probes) {
       uint32 microdegs_c = 0;
       if (p.second.Temperature(&microdegs_c)) {
@@ -793,7 +796,7 @@ int main(int argc, char **argv) {
 	WebServer::GetCounter(s + " last")->SetTo(microdegs_c);
 	WebServer::GetCounter(s + " #")->Increment();
       }
-      
+
       usleep(500000);
       float rh = 0.0f;
       if (!AM2315::ReadRH(&rh, &err)) {
@@ -812,7 +815,7 @@ int main(int argc, char **argv) {
 	       rh_bp);
       WebServer::GetCounter(s + " last")->SetTo(rh_bp);
       WebServer::GetCounter(s + " #")->Increment();
-	
+
       usleep(500000);
     }
   }
