@@ -57,6 +57,11 @@ Database::Database() {
   config = Util::ReadFileToMap(configfile);
 
   {
+    // TODO: IP address can change during startup,
+    // from something like 169.254.* to 10.0.0.*.
+    // https://en.wikipedia.org/wiki/Link-local_address
+    // (Have seen this in practice.)
+    // Why don't we periodically update the IP?
     const auto iface = NetUtil::BestGuessIPWithMAC();
     CHECK(iface.has_value()) << "Unable to determine IP / MAC address!";
     // Used as the primary key in the device table.
