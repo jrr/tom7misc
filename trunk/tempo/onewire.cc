@@ -28,7 +28,7 @@ OneWire::OneWire() {
   printf("Found %d probe(s).\n", (int)probes.size());
 }
 
-bool OneWire::Probe::Temperature(uint32 *microdeg_c) {
+bool OneWire::Probe::Temperature(uint32 *millideg_c) {
   // This is coming from the /proc filesystem, but still,
   // this is a very bizarre format. Two lines, like so:
   // 1c 01 4b 46 7f ff 04 10 e8 : crc=e8 YES
@@ -47,6 +47,6 @@ bool OneWire::Probe::Temperature(uint32 *microdeg_c) {
   if (te == string::npos) return false;
   const uint32 reading = atoi(&data[te + 2]);
   last_reading = reading;
-  *microdeg_c = reading;
+  *millideg_c = reading;
   return true;
 }

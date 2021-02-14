@@ -16,15 +16,14 @@
 #include "../cc-lib/webserver.h"
 #include "../cc-lib/arcfour.h"
 
-using namespace std;
-
 // Manages database connection.
 struct Database final {
   using Connection = mysqlpp::Connection;
   using Query = mysqlpp::Query;
   using StoreQueryResult = mysqlpp::StoreQueryResult;
+  using string = std::string;
 
-  // All probes store integer data but we interpret/display
+  // All probes store signed integer data but we interpret/display
   // it differently depending on the type.
   enum ProbeType {
     INVALID = 0,
@@ -62,26 +61,26 @@ struct Database final {
 
   // code should be like "28-000009ffbb20" for onewire.
   // Returns the probe's name.
-  // For temperature readings, integer value is in microdegrees Celsius.
+  // For temperature readings, integer value is in millidegrees Celsius.
   // For humidity readings, integer value is in basis points, ranging
   //     from 0 (= 0% RH) to 10,000 (= 100% RH).
   // Values are batched up to reduce database writes.
-  string WriteValue(const string &code, uint32_t value);
+  string WriteValue(const string &code, int32_t value);
 
   // Get all the readings (collated by probe) in the given interval.
-  vector<pair<Probe, vector<pair<int64_t, uint32_t>>>>
+  std::vector<std::pair<Probe, std::vector<std::pair<int64_t, int32_t>>>>
   AllReadingsIn(int64_t time_start, int64_t time_end);
 
   // Get some readings (collated by probe) in the given interval. If
   // the probes set is non-empty, only return for the probes whose ids
   // appear in the set. Tries to reduce the number of values (assuming
   // we get about 1 read per second).
-  vector<pair<Probe, vector<pair<int64_t, uint32_t>>>>
+  std::vector<std::pair<Probe, std::vector<std::pair<int64_t, int32_t>>>>
   SmartReadingsIn(int64_t time_start, int64_t time_end,
 		  const std::set<int> &probes_included);
 
   // Get all the readings (collated by probe) in the given interval.
-  vector<pair<Probe, pair<int64_t, uint32_t>>> LastReading();
+  std::vector<std::pair<Probe, std::pair<int64_t, int32_t>>> LastReading();
 
   // Read all the devices from the database.
   struct Device {
@@ -113,7 +112,7 @@ private:
   std::unique_ptr<ArcFour> rc;
   bool should_die = false;
   // timestamp, probe, value, sample_key
-  vector<tuple<int64_t, int, uint32_t, uint16_t>> batch;
+  std::vector<std::tuple<int64_t, int, int32_t, uint16_t>> batch;
   std::thread periodic_thread;
   string mac_key, ipaddress;
   bool Connect();
