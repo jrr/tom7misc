@@ -9,13 +9,12 @@
 - Install unattended-upgrades on each device.
 - Probeid can probably be smallint unsigned not null. You can just change
   column types with alter table, no sweat.
-- In devices list, show number of pending apt updates?
-  sudo apt install apt-config-auto-update
-  sudo apt list --upgradable | tail --lines=+2 | wc -l
-  (or just unattended-upgrades?)
+- Improve separation of stuff like pending packages, svn revision, and
+  IP address from database.cc.
+- Make it possible to manually turn off fan. Use POST for state-changing
+  operations!
 - Periodically thin out old readings using the sample key. Probably we
-  can just delete large values for the sample key, since we sample with
-  <.
+  can just delete large values for the sample key, since we sample with <.
 - Fix wifi restart commands (ifup is deprecated/not working)
 - AM2315 code seems to use 50% CPU? why?
 

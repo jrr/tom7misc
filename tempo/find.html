@@ -1,0 +1,148 @@
+<!doctype html>
+
+<!-- When I lose power, the probes get new IPs assigned.
+     This was intended to be a little standalone file that
+     could port scan the local network to find them.
+     I enabled CORS policy on /info so that these requests
+     can succeed, although it turns out it's easy to tell
+     whether something lives at the URL based just on the
+     amount of time before the connection fails. (Could be
+     a somewhat surprising information leak / user
+     fingerprinting technique?)
+-->
+
+<script>
+
+ function makeElement(what, cssclass, elt) {
+   let e = document.createElement(what);
+   if (cssclass)
+     e.setAttribute('class', cssclass);
+   if (elt)
+     elt.appendChild(e);
+   return e;
+ }
+ function IMG(cssclass, elt) { return makeElement('IMG', cssclass, elt); }
+ function DIV(cssclass, elt) { return makeElement('DIV', cssclass, elt); }
+ function SPAN(cssclass, elt) { return makeElement('SPAN', cssclass, elt); }
+ function BR(cssclass, elt) { return makeElement('BR', cssclass, elt); }
+ function TABLE(cssclass, elt) { return makeElement('TABLE', cssclass, elt); }
+ function TR(cssclass, elt) { return makeElement('TR', cssclass, elt); }
+ function TD(cssclass, elt) { return makeElement('TD', cssclass, elt); }
+ function TEXT(contents, elt) {
+   let e = document.createTextNode(contents);
+   if (elt)
+     elt.appendChild(e);
+   return e;
+ }
+
+ let octets = new Array(256);
+ const Load = () => {
+   let table = document.getElementById('tab');
+   for (let y = 0; y < 16; y++) {
+     let tr = TR('', table);
+     for (let x = 0; x < 16; x++) {
+       let octet = y * 16 + x;
+       let td = TD('', tr);
+       TEXT('.' + octet, DIV('ip', td));
+       let elt = DIV('time', td);
+       elt.innerHTML = '?';
+       let emoji = DIV('emoji', td);
+       emoji.innerHTML = '&nbsp;';
+       octets[octet] = {
+         // ui elements
+         td: td, elt: elt, emoji: emoji,
+         // xmlhttpqrequest object
+         req: null,
+         // time that request actually began
+         start: null
+       };
+     }
+   }
+
+   for (let octet = 0; octet < 256; octet++) {
+     let req = new XMLHttpRequest();
+     octets[octet].req = req;
+     req.onreadystatechange = () => {
+       let o = octets[octet];
+       let msg = '?' + req.readyState;
+       if (req.readyState == 1) {
+         o.start = +new Date();
+         msg = 'START';
+       } else if (req.readyState == 4) {
+         if (req.status == 200) {
+           // Could inspect the result here, but assume if we
+           // had a successful GET of /info that this is
+           // a tempo device.
+           o.emoji.innerHTML =
+             `<a href="http://10.0.0.${octet}:8080/devices">` +
+             // Thermometer emoji
+             '\uD83C\uDF21\uFE0F</a>';
+         } else if (req.status == 404) {
+           // no-entry emoji
+           o.emoji.innerHTML = '\uD83D\uDEAB';
+         }
+         let elapsed = (+new Date()) - o.start;
+         if (elapsed < 2000) {
+           o.td.style.background = '#cfc';
+         } else {
+           o.td.style.background = '#fcc';
+         }
+         msg = '' + elapsed;
+       }
+
+       octets[octet].elt.innerHTML = msg;
+     };
+     req.ontimeout = () => {
+       // (we don't seem to get this message?)
+       // clock emoji
+       octets[octet].emoji.innerHTML = '\uD83D\uDD51';
+     };
+     req.open("GET", `http://10.0.0.${octet}:8080/info`, true);
+     req.send(null);
+   }
+ }
+
+</script>
+
+<style>
+ body {
+   font: 13px Verdana,Arial,Helvetica
+ }
+
+ table {
+   border-collapse: collapse;
+ }
+
+ a {
+   text-decoration: none;
+   cursor: pointer;
+ }
+
+ td {
+   width: 40px;
+   height: 40px;
+   text-align: center;
+   border: 1px solid #eee;
+   padding: 6px;
+ }
+
+ div.ip {
+   font-weight: bold;
+   color: rgba(0, 0, 0, 0.8);
+ }
+ div.time {
+   color: rgba(0, 0, 0, 0.5);
+ }
+ div.emoji {
+   font-size: 16px;
+ }
+
+</style>
+
+<body onload="Load()">
+
+  <table id="tab"></tab>
+
+</body>
+
+
