@@ -23,8 +23,9 @@ struct OneWire {
     // time.
     std::string fullpath;
     uint32_t last_reading = 0;
-
-    bool Temperature(uint32_t *microdeg_c);
+    // TODO: Is it possible for this to read negative? Tempo now
+    // supports it.
+    bool Temperature(uint32_t *millideg_c);
   };
 
   // Key here is the hexadecimal code like 28-0417c13c18ff.

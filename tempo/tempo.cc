@@ -34,6 +34,7 @@ using namespace std;
 using uint8 = uint8_t;
 using uint16 = uint16_t;
 using uint32 = uint32_t;
+using int32 = int32_t;
 using uint64 = uint64_t;
 
 static constexpr bool VERBOSE = false;
@@ -299,7 +300,7 @@ struct Server {
   }
 
   WebServer::Response Diagram(const WebServer::Request &request) {
-    vector<pair<Database::Probe, pair<int64, uint32>>> temps =
+    vector<pair<Database::Probe, pair<int64, int32>>> temps =
       db->LastReading();
     WebServer::Response r;
     r.code = 200;
@@ -373,9 +374,12 @@ struct Server {
     int width = 1920;
     int height = 1080;
 
-    // in microdegs c
-    constexpr double min_temp =   0000.0;
-    constexpr double max_temp = 100000.0;
+    // TODO: Dynamic scale when temperatures get really low...
+    // in millidegs c
+    // constexpr double min_temp =   0000.0;
+    // constexpr double max_temp = 100000.0;
+    constexpr double min_temp = -20000.0;
+    constexpr double max_temp =  90000.0;
     constexpr double temp_width = max_temp - min_temp;
 
     // in basis points
@@ -385,7 +389,7 @@ struct Server {
 
     // XXX todo timing info
     auto db_start = std::chrono::steady_clock::now();
-    std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>> temps =
+    std::vector<pair<Database::Probe, vector<pair<int64, int32>>>> temps =
       db->SmartReadingsIn(time_start, time_end, probes_included);
     auto db_end = std::chrono::steady_clock::now();
 
@@ -394,10 +398,13 @@ struct Server {
     graph.Clear32(0x000000FF);
 
     // Grid line every 10 F.
-    for (int degs = 40; degs <= 200; degs += 10) {
-      double microdegsc = (degs - 32) * (5.0f / 9.0f) * 1000.0f;
-      double fy = 1.0f - ((microdegsc - min_temp) / temp_width);
+    // Perhaps should compute this dynamically?
+    for (int degs = 0; degs <= 200; degs += 10) {
+      double millidegsc = (degs - 32) * (5.0f / 9.0f) * 1000.0f;
+      double fy = 1.0f - ((millidegsc - min_temp) / temp_width);
       const int y = fy * height;
+      // Can be outside the image; these will clip...
+      // (PERF but we could be smarter about it)
       for (int x = 0; x < width; x++) {
         graph.SetPixel32(x, y, 0x272727FF);
       }
@@ -406,10 +413,12 @@ struct Server {
 
       // Wherever we plotted the line, compute what RH this is.
       float rhbp = min_rh + rh_width * (1.0 - fy);
-      string label_rh = StringPrintf("%d%%",
-                                     // instead, round?
-                                     (int)((rhbp / 10000.0f) * 100.0f));
-      graph.BlendText32(width - (9 * 5), y + 2, 0x777777FF, label_rh);
+      if (rhbp >= 0.0 && rhbp <= 100.0) {
+        string label_rh = StringPrintf("%d%%",
+                                       // instead, round?
+                                       (int)((rhbp / 10000.0f) * 100.0f));
+        graph.BlendText32(width - (9 * 5), y + 2, 0x777777FF, label_rh);
+      }
     }
 
 
@@ -585,7 +594,7 @@ struct Server {
 
 
   WebServer::Response Table(const WebServer::Request &request) {
-    vector<pair<Database::Probe, pair<int64, uint32>>> temps =
+    vector<pair<Database::Probe, pair<int64, int32>>> temps =
       db->LastReading();
     WebServer::Response r;
     r.code = 200;
@@ -746,17 +755,17 @@ int main(int argc, char **argv) {
     // (supposedly it can refresh at 0.5Hz).
 
     for (auto &p : onewire.probes) {
-      uint32 microdegs_c = 0;
-      if (p.second.Temperature(&microdegs_c)) {
-        string s = db.WriteValue(p.first, microdegs_c);
+      int32 millidegs_c = 0;
+      if (p.second.Temperature(&millidegs_c)) {
+        string s = db.WriteValue(p.first, millidegs_c);
         readings++;
         double elapsed = time(nullptr) - start;
         if (VERBOSE)
-          printf("%s (%s): %u  (%.2f/sec)\n",
-                 p.first.c_str(), s.c_str(), microdegs_c,
+          printf("%s (%s): %d  (%.2f/sec)\n",
+                 p.first.c_str(), s.c_str(), millidegs_c,
                  readings / elapsed);
         // Perf could save these in probe struct?
-        WebServer::GetCounter(s + " last")->SetTo(microdegs_c);
+        WebServer::GetCounter(s + " last")->SetTo(millidegs_c);
         WebServer::GetCounter(s + " #")->Increment();
       } else {
         printf("%s: ERROR\n", p.first.c_str());
@@ -785,17 +794,16 @@ int main(int argc, char **argv) {
       }
 
       if (temp < 0.0f) {
-        printf("TODO: Negative temperatures not yet supported!\n");
-        WebServer::GetCounter("negative temp")->Increment();
-      } else {
-        uint32_t microdegs_c = temp * 1000.0f;
-        string s = db.WriteValue(am2315_temp_code, microdegs_c);
-        if (VERBOSE)
-          printf("%s (%s): %u\n", am2315_temp_code.c_str(), s.c_str(),
-                 microdegs_c);
-        WebServer::GetCounter(s + " last")->SetTo(microdegs_c);
-        WebServer::GetCounter(s + " #")->Increment();
+        WebServer::GetCounter("negative temps")->Increment();
       }
+
+      int32 millidegs_c = temp * 1000.0f;
+      string s = db.WriteValue(am2315_temp_code, millidegs_c);
+      if (VERBOSE)
+        printf("%s (%s): %u\n", am2315_temp_code.c_str(), s.c_str(),
+               millidegs_c);
+      WebServer::GetCounter(s + " last")->SetTo(millidegs_c);
+      WebServer::GetCounter(s + " #")->Increment();
 
       usleep(500000);
       float rh = 0.0f;
@@ -808,7 +816,7 @@ int main(int argc, char **argv) {
       // rh nominally ranges from 0 to 100.
       // here we convert to basis points (0 to 10,000).
       // we have bp = (rh / 100) * 10000 = rh * 100.
-      uint32_t rh_bp = rh * 100;
+      int32 rh_bp = rh * 100;
       string s = db.WriteValue(am2315_humidity_code, rh_bp);
       if (VERBOSE)
         printf("%s (%s): %u\n", am2315_humidity_code.c_str(), s.c_str(),

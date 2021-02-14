@@ -22,7 +22,7 @@
 using namespace std;
 using uint8 = uint8_t;
 using uint16 = uint16_t;
-using uint32 = uint32_t;
+using int32 = int32_t;
 using uint64 = uint64_t;
 using int64 = int64_t;
 
@@ -191,7 +191,7 @@ const Database::Probe *Database::GetProbe(const string &code) {
   return &it->second;
 }
 
-string Database::WriteValue(const string &code, uint32_t value) {
+string Database::WriteValue(const string &code, int32 value) {
   MutexLock ml(&database_m);
   auto it = probes.find(code);
   if (it == probes.end()) {
@@ -306,10 +306,10 @@ void Database::Write() {
     "values ";
 
   bool first = true;
-  for (const auto [t, id, microdegs_c, sample_key] : batch) {
+  for (const auto [t, id, millidegs_c, sample_key] : batch) {
     if (!first) qs.push_back(',');
     StringAppendF(&qs, " row(%llu, %d, %d, %u)",
-                  t, id, microdegs_c, sample_key);
+                  t, id, millidegs_c, sample_key);
     first = false;
   }
 
@@ -329,12 +329,12 @@ void Database::Write() {
 
 }
 
-std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>>
+std::vector<pair<Database::Probe, vector<pair<int64, int32>>>>
 Database::AllReadingsIn(int64 time_start, int64 time_end) {
   // This can be done as one query of course, but we can make
   // smaller queries by performing a separate one for each probe.
   // (Not obvious which way is better?)
-  std::vector<pair<Probe, vector<pair<int64, uint32>>>> out;
+  std::vector<pair<Probe, vector<pair<int64, int32>>>> out;
   for (const auto &p : probes) {
     const Probe &probe = p.second;
     MutexLock ml(&database_m);
@@ -355,12 +355,12 @@ Database::AllReadingsIn(int64 time_start, int64 time_end) {
       continue;
     }
 
-    vector<pair<int64, uint32>> vec;
+    vector<pair<int64, int32>> vec;
     vec.reserve(res.num_rows());
     for (size_t i = 0; i < res.num_rows(); i++) {
       const int64 id = res[i]["timestamp"];
-      const uint32 microdegsc = res[i]["value"];
-      vec.emplace_back(id, microdegsc);
+      const int32 millidegs_c = res[i]["value"];
+      vec.emplace_back(id, millidegs_c);
     }
     out.emplace_back(probe, std::move(vec));
   }
@@ -368,7 +368,7 @@ Database::AllReadingsIn(int64 time_start, int64 time_end) {
   return out;
 }
 
-std::vector<pair<Database::Probe, vector<pair<int64, uint32>>>>
+std::vector<pair<Database::Probe, vector<pair<int64, int32>>>>
 Database::SmartReadingsIn(int64 time_start, int64 time_end,
                           const std::set<int> &probes_included) {
 
@@ -385,7 +385,7 @@ Database::SmartReadingsIn(int64 time_start, int64 time_end,
 
   const double sample_rate = target_samples / est_samples_in_period;
 
-  std::vector<pair<Probe, vector<pair<int64, uint32>>>> out;
+  std::vector<pair<Probe, vector<pair<int64, int32>>>> out;
   for (const auto &p : probes) {
     const Probe &probe = p.second;
     if (!probes_included.empty()) {
@@ -454,12 +454,12 @@ Database::SmartReadingsIn(int64 time_start, int64 time_end,
                 query_end - query_start).count(),
             (int64)res.num_rows());
 
-    vector<pair<int64, uint32>> vec;
+    vector<pair<int64, int32>> vec;
     vec.reserve(res.num_rows());
     for (size_t i = 0; i < res.num_rows(); i++) {
       const int64 id = res[i]["timestamp"];
-      const uint32 microdegsc = res[i]["value"];
-      vec.emplace_back(id, microdegsc);
+      const int32 millidegs_c = res[i]["value"];
+      vec.emplace_back(id, millidegs_c);
     }
 
     out.emplace_back(probe, std::move(vec));
@@ -475,9 +475,9 @@ std::optional<Database::Probe> Database::ProbeById(int id) const {
   return {};
 }
 
-vector<pair<Database::Probe, pair<int64_t, uint32_t>>>
+vector<pair<Database::Probe, pair<int64, int32>>>
 Database::LastReading() {
-  vector<pair<Database::Probe, pair<int64_t, uint32_t>>> out;
+  vector<pair<Database::Probe, pair<int64, int32>>> out;
   for (const auto &p : probes) {
     const Probe &probe = p.second;
     MutexLock ml(&database_m);
@@ -496,8 +496,8 @@ Database::LastReading() {
     }
 
     const int64 id = res[0]["timestamp"];
-    const uint32 microdegsc = res[0]["value"];
-    out.emplace_back(probe, make_pair(id, microdegsc));
+    const int32 millidegs_c = res[0]["value"];
+    out.emplace_back(probe, make_pair(id, millidegs_c));
   }
 
   return out;
