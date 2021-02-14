@@ -405,19 +405,24 @@ struct Server {
       const int y = fy * height;
       // Can be outside the image; these will clip...
       // (PERF but we could be smarter about it)
+      const uint32 line_color =
+        degs < 32 ? 0x101047FF : degs > 120 ? 0x371010FF : 0x272727FF;
+      const uint32 label_color =
+        degs < 32 ? 0x555588FF : degs > 120 ? 0x885555FF : 0x777777FF;
+
       for (int x = 0; x < width; x++) {
-        graph.SetPixel32(x, y, 0x272727FF);
+        graph.SetPixel32(x, y, line_color);
       }
       string label_temp = StringPrintf("%d F", degs);
-      graph.BlendText32(3, y + 2, 0x777777FF, label_temp);
+      graph.BlendText32(3, y + 2, label_color, label_temp);
 
       // Wherever we plotted the line, compute what RH this is.
-      float rhbp = min_rh + rh_width * (1.0 - fy);
-      if (rhbp >= 0.0 && rhbp <= 100.0) {
-        string label_rh = StringPrintf("%d%%",
-                                       // instead, round?
-                                       (int)((rhbp / 10000.0f) * 100.0f));
-        graph.BlendText32(width - (9 * 5), y + 2, 0x777777FF, label_rh);
+      const float rhbp = min_rh + rh_width * (1.0 - fy);
+      const int rhpct = roundf((rhbp / 10000.0f) * 100.0f);
+      if (rhpct >= 0 && rhpct <= 100) {
+        const string label_rh = StringPrintf("%d%%", rhpct);
+        const int ww = rhpct < 10 ? 9 * 4 : 9 * 5;
+        graph.BlendText32(width - ww, y + 2, 0x777777FF, label_rh);
       }
     }
 
