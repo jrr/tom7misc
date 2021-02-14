@@ -4,19 +4,19 @@ cd ~
 
 if grep XKBLAYOUT=.us. /etc/default/keyboard;
 then
-	echo US Keyboard OK.
+        echo US Keyboard OK.
 else
-	echo Switch from GB to US keyboard.
-	sudo sed --in-place 's/XKBLAYOUT="gb"/XKBLAYOUT="us"/g' /etc/default/keyboard
+        echo Switch from GB to US keyboard.
+        sudo sed --in-place 's/XKBLAYOUT="gb"/XKBLAYOUT="us"/g' /etc/default/keyboard
 fi
 
 if grep FONTFACE=.TerminusBold. /etc/default/console-setup;
 then
-	echo Console font/size OK.
+        echo Console font/size OK.
 else
-	echo Set to low-res fonts for TV use.
-	sudo sed --in-place 's/FONTFACE=.*/FONTFACE="TerminusBold"/g' /etc/default/console-setup
-	sudo sed --in-place 's/FONTSIZE=.*/FONTSIZE="14x28"/g' /etc/default/console-setup
+        echo Set to low-res fonts for TV use.
+        sudo sed --in-place 's/FONTFACE=.*/FONTFACE="TerminusBold"/g' /etc/default/console-setup
+        sudo sed --in-place 's/FONTSIZE=.*/FONTSIZE="14x28"/g' /etc/default/console-setup
 fi
 
 # TODO: Also modify /etc/default/locale ?

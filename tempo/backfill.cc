@@ -37,10 +37,10 @@ int main(int argc, char **argv) {
 
   for (int64 lo = START; lo < END; lo += STRIDE) {
     printf("update tempo.reading set sample_key = "
-	   "((id * 31337) ^ (probeid * 82129) + (timestamp * 257)) "
-	   "mod 65521 where timestamp between %lld and %lld;\n",
-	   lo, lo + STRIDE);
+           "((id * 31337) ^ (probeid * 82129) + (timestamp * 257)) "
+           "mod 65521 where timestamp between %lld and %lld;\n",
+           lo, lo + STRIDE);
   }
-    
+
   return 0;
 }

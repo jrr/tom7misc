@@ -1,6 +1,6 @@
 
-#ifndef __TEMPO_ONEWIRE_H
-#define __TEMPO_ONEWIRE_H
+#ifndef _TEMPO_ONEWIRE_H
+#define _TEMPO_ONEWIRE_H
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,4 +1,7 @@
 
+#ifndef _TEMPO_DATABASE_H
+#define _TEMPO_DATABASE_H
+
 #include <string>
 #include <map>
 #include <mutex>
@@ -28,7 +31,7 @@ struct Database final {
     TEMPERATURE = 1,
     HUMIDITY = 2,
   };
-  
+
   struct Probe {
     int id = 0;
     ProbeType type = INVALID;
@@ -39,7 +42,7 @@ struct Database final {
 
   std::mutex database_m; // Coarse locking.
   WebServer::Counter *written = nullptr;
-  WebServer::Counter *notwritten = nullptr;  
+  WebServer::Counter *notwritten = nullptr;
   WebServer::Counter *batches = nullptr;
   WebServer::Counter *failed = nullptr;
   map<string, string> config;
@@ -52,11 +55,11 @@ struct Database final {
 
   Database();
   ~Database();
-    
+
   // Returns a pointer to the probe or nullptr if not found.
   // (Note that the pointer can be invalidated by map operations.)
   const Probe *GetProbe(const string &code);
-  
+
   // code should be like "28-000009ffbb20" for onewire.
   // Returns the probe's name.
   // For temperature readings, integer value is in microdegrees Celsius.
@@ -76,7 +79,7 @@ struct Database final {
   vector<pair<Probe, vector<pair<int64_t, uint32_t>>>>
   SmartReadingsIn(int64_t time_start, int64_t time_end,
 		  const std::set<int> &probes_included);
-  
+
   // Get all the readings (collated by probe) in the given interval.
   vector<pair<Probe, pair<int64_t, uint32_t>>> LastReading();
 
@@ -90,7 +93,7 @@ struct Database final {
     string packages;
   };
   vector<Device> GetDevices();
-  
+
 private:
   // Write the batch to the database now (if possible). Must hold lock.
   void Write();
@@ -100,13 +103,13 @@ private:
   // Ping the server, and try to reconnect if it fails.
   // Automatically called every few minutes by the periodic thread.
   void Ping();
-  
+
   // Runs in the background and does periodic tasks, like Write.
   void PeriodicThread();
 
   // (linear time...)
   std::optional<Probe> ProbeById(int id) const;
-  
+
   std::unique_ptr<ArcFour> rc;
   bool should_die = false;
   // timestamp, probe, value, sample_key
@@ -115,4 +118,5 @@ private:
   string mac_key, ipaddress;
   bool Connect();
 };
-  
+
+#endif
