@@ -44,9 +44,9 @@ struct Database final {
   WebServer::Counter *notwritten = nullptr;
   WebServer::Counter *batches = nullptr;
   WebServer::Counter *failed = nullptr;
-  map<string, string> config;
+  std::map<string, string> config;
   // Indexed by hex code.
-  map<string, Probe> probes;
+  std::map<string, Probe> probes;
   const string configfile = "database-config.txt";
   const string database_name = "tempo";
 
@@ -91,7 +91,7 @@ struct Database final {
     string rev;
     string packages;
   };
-  vector<Device> GetDevices();
+  std::vector<Device> GetDevices();
 
 private:
   // Write the batch to the database now (if possible). Must hold lock.

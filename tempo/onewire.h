@@ -25,7 +25,7 @@ struct OneWire {
     uint32_t last_reading = 0;
     // TODO: Is it possible for this to read negative? Tempo now
     // supports it.
-    bool Temperature(uint32_t *millideg_c);
+    bool Temperature(uint32_t *millidegs_c);
   };
 
   // Key here is the hexadecimal code like 28-0417c13c18ff.
