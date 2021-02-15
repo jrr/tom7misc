@@ -5,6 +5,8 @@
 
 #include "base/stringprintf.h"
 #include "base/logging.h"
+#include "arcfour.h"
+#include "randutil.h"
 
 using namespace std;
 
@@ -56,7 +58,7 @@ static void TestIntersection() {
                           2, 3,   3, 2).has_value());
   CHECK(!LineIntersection(2.0f, 1.0f,   5.0f, 2.0f,
                           2.0f, 3.0f,   3.0f, 2.0f).has_value());
-  
+
   // Trivial cross at 0.
   auto z = LineIntersection(0, -1,  0, 1,
                             -1, 0,  1, 0);
@@ -83,19 +85,38 @@ static void TestIntersection() {
     CHECK(fabs(x - 2.5f) < EPSILON) << x;
     CHECK(fabs(y - 2.5f) < EPSILON) << y;
   }
+}
 
+// Using PointLineDistance as a reference.
+static void TestVertHoriz() {
+  static constexpr float EPSILON = 0.0001f;
+  ArcFour rc{"lines_test"};
+  for (int i = 0; i < 10000; i++) {
+    float a = RandDouble(&rc) * 100.0f - 50.0f;
+    float b = RandDouble(&rc) * 100.0f - 50.0f;
+    float c = RandDouble(&rc) * 100.0f - 50.0f;
+    float x = RandDouble(&rc) * 100.0f - 50.0f;
+    float y = RandDouble(&rc) * 100.0f - 50.0f;
+
+    float dh = PointLineDistance(a, b, c, b, x, y);
+    float dht = PointHorizLineDistance(a, b, c, x, y);
+    CHECK(fabsf(dh - dht) < EPSILON) << dh << " vs " << dht;
+    float dv = PointLineDistance(a, b, a, c, x, y);
+    float dvt = PointVertLineDistance(a, b, c, x, y);
+    CHECK(fabsf(dv - dvt) < EPSILON) << dv << " vs " << dvt;
+  }
 }
 
 int main() {
-  // ArcFour rc{"lines_test"};
 
   TestBresenham();
   TestWu();
   TestIntersection();
+  TestVertHoriz();
 
   // TODO: Test point-line distance stuff.
-  
+
   printf("OK, but need to manually check the Bresenham and Wu results\n");
-  
+
   return 0;
 }

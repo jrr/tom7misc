@@ -45,7 +45,7 @@ class Line {
   };
   iterator begin() const;
   iterator end() const;
-  
+
  private:
   // All members morally const.
   const Int x0, y0, x1, y1;
@@ -171,7 +171,7 @@ void LineAA::Draw(Float x0, Float y0, Float x1, Float y1, Fn drawpixel) {
   auto round = [](Float x) -> Float { return std::round(x); };
   auto fpart = [](Float x) -> Float { return x - std::floor(x); };
   auto rfpart = [fpart](Float x) -> Float { return Float(1.0f) - fpart(x); };
- 
+
   const bool steep = std::abs(y1 - y0) > std::abs(x1 - x0);
   if (steep) {
     std::swap(x0,y0);
@@ -181,11 +181,11 @@ void LineAA::Draw(Float x0, Float y0, Float x1, Float y1, Fn drawpixel) {
     std::swap(x0,x1);
     std::swap(y0,y1);
   }
- 
+
   const Float dx = x1 - x0;
   const Float dy = y1 - y0;
   const Float gradient = (dx == 0) ? 1 : dy / dx;
- 
+
   Int xpx11;
   Float intery;
   {
@@ -203,7 +203,7 @@ void LineAA::Draw(Float x0, Float y0, Float x1, Float y1, Fn drawpixel) {
     }
     intery = yend + gradient;
   }
- 
+
   Int xpx12;
   {
     const Float xend = round(x1);
@@ -219,7 +219,7 @@ void LineAA::Draw(Float x0, Float y0, Float x1, Float y1, Fn drawpixel) {
       drawpixel(xpx12, ypx12 + 1, fpart(yend) * xgap);
     }
   }
- 
+
   if (steep) {
     for (Int x = xpx11 + 1; x < xpx12; x++) {
       drawpixel(ipart(intery), x, rfpart(intery));
@@ -259,7 +259,7 @@ std::optional<std::pair<float, float>> LineIntersection(
   const auto l1 = p0x - p2x;
   const auto l2 = p0y - p2y;
   const float denom = s1x * s2y - s2x * s1y;
-  
+
   const float s = (s1x * l2 - s1y * l1) / denom;
 
   if (s >= 0.0f && s <= 1.0f) {
@@ -287,7 +287,7 @@ ClosestPointOnSegment(
       const float dy = y1 - y0;
       return dx * dx + dy * dy;
     };
-  
+
   const float sqlen = SqDist(x0, y0, x1, y1);
   if (sqlen == 0.0) {
     // Degenerate case where line segment is just a point,
@@ -318,11 +318,59 @@ inline float PointLineDistance(
   return sqrtf(dx * dx + dy * dy);
 }
 
+// Same, but for a line that's known to be horizontal.
+inline float PointHorizLineDistance(
+    // Line segment
+    float x0, float y0, float x1, /* y1 = y0 */
+    // Point to test
+    float x, float y) {
+  // Put in order so that x0 < x1.
+  if (x0 > x1) std::swap(x0, x1);
+  const float dy = y0 - y;
+  if (x <= x0) {
+    // Distance is to left left.
+    const float dx = x0 - x;
+    return sqrtf(dx * dx + dy * dy);
+  } else if (x >= x1) {
+    // To right vertex.
+    const float dx = x1 - x;
+    return sqrtf(dx * dx + dy * dy);
+  } else {
+    // Perpendicular to segment itself.
+    return fabsf(dy);
+  }
+}
+
+// ... and vertical.
+inline float PointVertLineDistance(
+    // Line segment
+    float x0, float y0, /* x1 = x0 */ float y1,
+    // Point to test
+    float x, float y) {
+  // Put in order so that y0 < y1.
+  if (y0 > y1) std::swap(y0, y1);
+  const float dx = x0 - x;
+  if (y <= y0) {
+    // Distance is to top vertex.
+    const float dy = y0 - y;
+    return sqrtf(dx * dx + dy * dy);
+  } else if (y >= y1) {
+    // To bottom corner.
+    const float dy = y1 - y;
+    return sqrtf(dx * dx + dy * dy);
+  } else {
+    // Perpendicular to segment itself.
+    return fabsf(dx);
+  }
+}
+
+
 // Return a vector of endpoints, not including the start point (but
 // including the end), to draw as individual line segments in order to
 // approximate the given quadratic Bezier curve.
 
-// Num should work as integral (then all math is integral) or floating-point types.
+// Num should work as integral (then all math is integral) or
+// floating-point types.
 template<class Num = float>
 std::vector<std::pair<Num, Num>> TesselateQuadraticBezier(
     // starting vertex
@@ -337,7 +385,7 @@ std::vector<std::pair<Num, Num>> TesselateQuadraticBezier(
   static_assert(std::is_arithmetic<Num>::value,
                 "TesselateQuadraticBezier needs an integral or floating-point "
                 "template argument.");
-  
+
   std::vector<std::pair<Num, Num>> out;
   std::function<void(Num, Num, Num, Num, Num, Num, int)> Rec =
     [&out, max_error_squared, &Rec](Num x0, Num y0,
@@ -345,7 +393,7 @@ std::vector<std::pair<Num, Num>> TesselateQuadraticBezier(
                                     Num x2, Num y2,
                                     int max_depth) {
       // This is based on public-domain code from stb_truetype, thanks!
-      
+
       // Midpoint of the curve.
       // ("Midpoint" here likely means t/2, not the geometric midpoint?
       // So this might be overly conservative, in that we might have
@@ -358,12 +406,12 @@ std::vector<std::pair<Num, Num>> TesselateQuadraticBezier(
       // Midpoint of a straight line.
       const Num lx = (x0 + x2) / 2;
       const Num ly = (y0 + y2) / 2;
-      
+
       // Error.
       const Num dx = lx - mx;
       const Num dy = ly - my;
       const Num error = (dx * dx) + (dy * dy);
-      
+
       if (error > max_error_squared && max_depth > 0) {
         Rec(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2, mx, my, max_depth - 1);
         Rec(mx, my, (x1 + x2) / 2, (y1 + y2) / 2, x2, y2, max_depth - 1);
@@ -372,7 +420,7 @@ std::vector<std::pair<Num, Num>> TesselateQuadraticBezier(
         out.emplace_back(x2, y2);
       }
     };
-  
+
   Rec(x0, y0, x1, y1, x2, y2, max_depth);
   return out;
 }
