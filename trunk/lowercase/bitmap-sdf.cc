@@ -23,17 +23,17 @@ static void Gen(const FontProblem::SDFConfig &config,
                 const ImageA &sdf,
                 const string &filename) {
   const int SCALE = 5;
-  
+
   FontProblem::GenResult result =
     FontProblem::GenImages(config, make_lowercase, make_uppercase,
                            sdf, SCALE);
-  
+
   // All should be the same size.
   const int TILEW = result.input.Width();
   const int IMGH = result.input.Height();
   // Room for predictors at bottom.
   const int TILEH = IMGH + 24;
-  
+
   ImageRGBA out(TILEW * 3, 3 * TILEH);
   out.Clear32(0x000000FF);
 
@@ -56,14 +56,14 @@ static void Gen(const FontProblem::SDFConfig &config,
       }
     };
 
-  
-  // and the predictors  
+
+  // and the predictors
   DrawPreds(TILEW / 2, TILEH + IMGH + 2, result.low_pred);
-  DrawPreds(2 * TILEW + TILEW / 2, 2 * TILEH + IMGH + 2, result.up_pred);  
-  
+  DrawPreds(2 * TILEW + TILEW / 2, 2 * TILEH + IMGH + 2, result.up_pred);
+
   out.Save(filename);
 }
-  
+
 
 int main(int argc, char **argv) {
   FontProblem::SDFConfig config;
@@ -71,8 +71,8 @@ int main(int argc, char **argv) {
   ImageA vector_sdf;
   {
     TTF ttf("times.ttf");
-    std::optional<ImageA> sdf =    
-      ttf.GetSDF('T', config.sdf_size,
+    std::optional<ImageA> sdf =
+      ttf.GetSDF('O', config.sdf_size,
                  config.pad_top, config.pad_bot, config.pad_left,
                  config.onedge_value, config.falloff_per_pixel);
     CHECK(sdf.has_value());
@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
       tpl.BlendRect32(0, 0, BSIZE, pt * BSIZE, 0x003300FF);
       tpl.BlendRect32(0, BSIZE - pb * BSIZE,
                       BSIZE, pb * BSIZE, 0x003300FF);
-      
+
       ImageRGBA bitmap = FontProblem::SDFThresholdAA(
           config.onedge_value,
           sdf.value().ResizeBilinear(BSIZE, BSIZE),
@@ -109,14 +109,14 @@ int main(int argc, char **argv) {
     }
 
   }
-  
-  std::unique_ptr<Network> make_lowercase, make_uppercase;  
+
+  std::unique_ptr<Network> make_lowercase, make_uppercase;
   make_lowercase.reset(Network::ReadNetworkBinary("net0.val"));
   make_uppercase.reset(Network::ReadNetworkBinary("net1.val"));
-  
+
   CHECK(make_lowercase.get() != nullptr);
-  CHECK(make_uppercase.get() != nullptr);  
-  
+  CHECK(make_uppercase.get() != nullptr);
+
   std::unique_ptr<ImageRGBA> input_rgba(ImageRGBA::Load("bitmapletter.png"));
   // Threshold input at >127, so that template markings can
   // remain in the image.
@@ -134,10 +134,10 @@ int main(int argc, char **argv) {
   // XXXXXX
   // ImageA sdf = bitmap_sdf;
   // sdf = vector_sdf;
-  
-  Gen(config, *make_lowercase, *make_uppercase, vector_sdf, "vector-sdf.png");
-  Gen(config, *make_lowercase, *make_uppercase, bitmap_sdf, "bitmap-sdf.png");  
 
-  
+  Gen(config, *make_lowercase, *make_uppercase, vector_sdf, "vector-sdf.png");
+  Gen(config, *make_lowercase, *make_uppercase, bitmap_sdf, "bitmap-sdf.png");
+
+
   return 0;
 }

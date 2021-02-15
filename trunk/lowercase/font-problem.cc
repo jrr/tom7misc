@@ -296,7 +296,7 @@ void FontProblem::RenderSDF(
            expected.resize(stim.values[0].size());
            SDFFillVector(config, letters[expected_idx], &expected);
 
-           
+
            for (int iter = 0; iter < NUM_ITERS; iter++) {
              const int starty =
                TOP_MARGIN + iter * (LETTER_HEIGHT + LETTER_Y_MARGIN);
@@ -317,7 +317,7 @@ void FontProblem::RenderSDF(
            // that the shapes are more interesting if we tune the
            // threshold when iterating. This is probably best done
            // on the native floats than the uint8s though.
-           
+
            // {(uint8)(config.onedge_value * 1.05), 0xFFFF00FF}
 
            auto GetLayers = [&config, lowercasing, letter, iter]() {
@@ -327,16 +327,16 @@ void FontProblem::RenderSDF(
                // float th2 = pow(0.975, iter);
                float th1 = 0.95;
                float th2 = 0.975f;
-               
+
                return vector<pair<uint8, uint32>>
                  {{(uint8)(config.onedge_value * th1), 0x440000FF},
                   {(uint8)(config.onedge_value * th2), 0x66229FFF},
                   {(uint8)(config.onedge_value), 0xFFFFFFFF}};
              };
-           
+
            const vector<pair<uint8, uint32>> layers = GetLayers();
 
-             
+
              ImageA sdf = SDFGetImage(config, stim.values[0]);
 
              ImageRGBA thresh = ThresholdImageMulti(sdf, layers, 4);
@@ -858,22 +858,23 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
   CHECK(img.Width() == img.Height());
   const int size = img.Width();
   const float scale = size / (float)sdf_size;
-  printf("%d img to %d SDF; Scale: %.3f\n",
-         size,
-         sdf_size,
-         scale);
-  
+  if (false)
+    printf("%d img to %d SDF; Scale: %.3f\n",
+           size,
+           sdf_size,
+           scale);
+
   // true = white = inside letter
   auto Color = [&img, size](int x, int y) {
       // XXX or an explicit bounds test outside?
       if (x < 0 || y < 0 || x >= size || y >= size) return false;
       return img.GetPixel(x, y) > 0;
     };
-  
+
   // PERF: It basically comes down to wanting this fast function from
   // a pixel to its closest pixel of the opposite color.
   // for doing this faster:
-  //  
+  //
   //  - use a quadtree, which lets us reject a lot of the space
   //    quickly
   //  - fill in the table, but when we reach a pixel with a known
@@ -888,7 +889,7 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
       // we want to also search 1 pixel beyond the edge
       const int ysize = std::max(size - y, y + 1);
       const int xsize = std::max(size - x, x + 1);
-      
+
       // Instead of scanning from top to bottom, use larger and larger
       // offsets but try both positive and negative. Goal is to be
       // able to exit when the pixels being tested must be outside
@@ -900,7 +901,7 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
         // we can't improve.
         if (dys >= min_sqdist) break;
 
-        // We'll explore dy and dx in both direction. 
+        // We'll explore dy and dx in both direction.
         // Note this harmlessly tests pixels twice when dy or dx is
         // 0, but it seems better to avoid the branching?
         // Seems to be a better tradeoff to do the outer loop out
@@ -932,7 +933,7 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
       // CHECK(min_sqdist <= squared_bound) << min_sqdist << " vs " << squared_bound;
       return min_sqdist;
     };
-  
+
   const float oscale = 1.0f / scale;
   ImageA sdf(sdf_size, sdf_size);
 
@@ -940,7 +941,7 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
   // (that was searching for the same color) to give us a bound on the
   // search. OK for this to span rows, although then the bounds get
   // momentarily bad. Start with "infinite" though.
-  const int MAX_DIST = size * 2;  
+  const int MAX_DIST = size * 2;
   struct Last {
     // Position of the last pixel for which we
     // got a distance, for the given color.
@@ -965,7 +966,7 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
       // .. so sample the top-left corner of the pixel.
       int ix = roundf((float)sx * scale);
       int iy = roundf((float)sy * scale);
-      
+
       const bool color = Color(ix, iy);
 
       // Whatever we computed for the last pixel of the same color
@@ -975,11 +976,11 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
       Last &prev = last[color ? 1 : 0];
       int dx = ix - prev.x;
       int dy = iy - prev.y;
-      float bound = prev.dist + sqrtf(dx * dx + dy * dy);     
+      float bound = prev.dist + sqrtf(dx * dx + dy * dy);
       int sq_bound = ceilf(bound * bound);
       // printf("dx %d dy %d prev %.2f bound %.2f sq %d\n",
       // dx, dy, prev.dist, bound, sq_bound);
-      
+
       const int sqdist = GetSqDistanceTo(ix, iy, !color, sq_bound);
       const float dist = sqrtf(sqdist);
 
@@ -1029,7 +1030,7 @@ ImageRGBA FontProblem::ThresholdImageMulti(
     ImageA thresh = SDFThresholdAA(onedge_value, sdf, scale);
     const uint8 r = 0xFF & (color >> 24);
     const uint8 g = 0xFF & (color >> 16);
-    const uint8 b = 0xFF & (color >> 8);    
+    const uint8 b = 0xFF & (color >> 8);
     out.BlendImage(0, 0, thresh.AlphaMaskRGBA(r, g, b));
   }
 
@@ -1073,13 +1074,13 @@ FontProblem::GenResult FontProblem::GenImages(
           out_sdf.ResizeBilinear(sdf_size * scale, sdf_size * scale),
           layers,
           quality);
-      out->BlendImage(THRESHOFF, 0, out_thresh);  
+      out->BlendImage(THRESHOFF, 0, out_thresh);
 
       // Letter predictors.
       if (pred_out != nullptr) *pred_out = pred;
       return out_sdf;
     };
-  
+
   ImageA lsdf = RunTo(make_lowercase, sdf, &result.low, &result.low_pred);
   ImageA usdf = RunTo(make_uppercase, sdf, &result.up, &result.up_pred);
 
