@@ -255,7 +255,7 @@ static constexpr int OUTPUT_LAYER_SIZE =
 // factor of 2), but less principled.
 // This seemed to help with reducing runaway, and does produce a
 // sparser model, but one of the most effective improvements I ever
-// got was from turning this *off*. 
+// got was from turning this *off*.
 static constexpr bool DECAY = false;
 static constexpr float DECAY_FACTOR = 0.999995;
 
@@ -279,14 +279,14 @@ static string GetRemap() {
   //                    s2
   // 1 |               b-`/
   //   |               |/
-  // o |              /| 
-  // u |            / |  
+  // o |              /|
+  // u |            / |
   // t |          /  |  interesting
   // p |        /   |   slope
   // u |      /   .-a
   // t |    /  .-`
   //   |  / .-` s1
-  //   |/.-`  
+  //   |/.-`
   // 0 +------------|--|---
   //   0   input    a  b  1
   //     input
@@ -309,7 +309,7 @@ static string GetRemap() {
   static_assert(bx < 1.0f);
   static_assert(bx > ax);
   static_assert(interesting_slope > 0.0f);
-  
+
   static constexpr float w = bx - ax;
   static constexpr float h = interesting_slope * w;
 
@@ -329,8 +329,8 @@ static string GetRemap() {
   static constexpr float ay = ax * s;
   static constexpr float by = ay + h;
   static_assert(ay > 0.0f && ay < 1.0f);
-  static_assert(by > 0.0f && by < 1.0f);  
-  
+  static_assert(by > 0.0f && by < 1.0f);
+
   // Finally, the remapping function is just a piecewise linear
   // function. For the lowercase problem, we only apply it for
   // the SDF pixels.
@@ -353,7 +353,7 @@ static string GetRemap() {
          "by: %.9f\n"
          "s: %.9f\n",
          ax, bx, ay, by, s);
-  
+
   return StringPrintf(
       "#define REMAP(i, x) "
       "((i < %d) ? "
@@ -720,7 +720,7 @@ struct SetOutputErrorCL {
     // This only runs on one layer, the output. But we do need to have the
     // transfer function's derivative.
     string base_src = Util::ReadFile("setoutputerror.cl");
-    
+
     const TransferFunction transfer_function =
       net.layers.back().transfer_function;
 
@@ -741,7 +741,7 @@ struct SetOutputErrorCL {
       kernel_src += "#define REMAP(i, x) x";
     }
     kernel_src += "\n";
-    
+
     kernel_src += base_src;
 
     Printf("Compile:\n%s\n", kernel_src.c_str());
@@ -969,7 +969,7 @@ struct BackwardLayerCL {
 struct DecayWeightsCL {
   DecayWeightsCL(CL *cl, const Network &net) : cl(cl) {
     string base_src = Util::ReadFile("decayweights.cl");
-    
+
     string kernel_src;
     StringAppendF(&kernel_src, "\n#define DECAY_FACTOR %.9ff\n", DECAY_FACTOR);
     kernel_src += base_src;
@@ -1029,7 +1029,7 @@ struct DecayWeightsCL {
     const int layer;
   };
 
-  
+
   CL *cl = nullptr;
   cl_program program;
   cl_kernel kernel;
@@ -1403,7 +1403,7 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
         (*vec)[i] = f;
       }
     };
-  
+
   // This must access rc serially.
   vector<ArcFour *> rcs;
   for (int i = 0; i < net->num_layers; i++) rcs.push_back(Substream(rc, i));
@@ -1530,8 +1530,8 @@ static ImageRGBA RenderLayer(const Network &net,
     }
   }
   #endif
-  
-  
+
+
   const auto render_style = net.renderstyle[layer];
   switch (render_style) {
 
@@ -1542,7 +1542,7 @@ static ImageRGBA RenderLayer(const Network &net,
     out.BlendImage(SDF_SIZE * 2, 0, letter);
     return out;
   }
-    
+
   case RENDERSTYLE_SDF26: {
     int alphabet_width = 26 * EmbeddedFont::CHAR_WIDTH;
     // 2xSDF, aa letter, 2x error for sdf part
@@ -1553,7 +1553,7 @@ static ImageRGBA RenderLayer(const Network &net,
     auto [sdf, letter] = MakeSDF(values);
     out.BlendImage(0, 0, sdf);
     out.BlendImage(SDF_SIZE * 2, 0, letter);
-    
+
     if (opt_error != nullptr) {
       ImageRGBA sdf_error = MakeSDFError(*opt_error);
       out.BlendImage(SDF_SIZE * 4, 0, sdf_error);
@@ -1582,7 +1582,7 @@ static ImageRGBA RenderLayer(const Network &net,
     ImageRGBA out(width, height);
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
-        
+
         int cidx = (y * width + x) * channels;
 
         switch (channels) {
@@ -1620,7 +1620,7 @@ static ImageRGBA RenderLayer(const Network &net,
     int width = net.width[layer];
     int height = net.height[layer];
     int channels = net.channels[layer];
-    
+
     int ww = width * channels;
 
     // If the aspect ratio is too crazy, ignore the width
@@ -1635,7 +1635,7 @@ static ImageRGBA RenderLayer(const Network &net,
         else height++;
       }
     }
-    
+
     ImageRGBA out(ww, height);
 
     for (int y = 0; y < height; y++) {
@@ -1668,7 +1668,7 @@ struct UI {
 
   void SetTakeScreenshot(int model_idx) {
     if (model_idx != 0) return;
-    
+
     WriteMutexLock ml(&video_export_m);
     take_screenshot = true;
     dirty = true;
@@ -1676,7 +1676,7 @@ struct UI {
 
   void ExportRound(int model_idx, int r) {
     if (model_idx != 0) return;
-    
+
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       current_round = r;
@@ -1686,7 +1686,7 @@ struct UI {
 
   void ExportExamplesPerSec(int model_idx, double eps) {
     if (model_idx != 0) return;
-    
+
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       examples_per_second = eps;
@@ -1696,7 +1696,7 @@ struct UI {
 
   void ExportLearningRate(int model_idx, double rl) {
     if (model_idx != 0) return;
-    
+
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       current_learning_rate = rl;
@@ -1706,7 +1706,7 @@ struct UI {
 
   void ExportNetworkToVideo(int model_idx, const Network &net) {
     if (model_idx != 0) return;
-    
+
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       if (current_network == nullptr) {
@@ -1720,7 +1720,7 @@ struct UI {
 
   void ExportStimulusToVideo(int model_idx, int example_id, const Stimulation &stim) {
     if (model_idx != 0) return;
-    
+
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       CHECK_GE(example_id, 0);
@@ -1733,7 +1733,7 @@ struct UI {
   void ExportExpectedToVideo(int model_idx, int example_id,
                              const vector<float> &expected) {
     if (model_idx != 0) return;
-    
+
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       CHECK_GE(example_id, 0);
@@ -1745,7 +1745,7 @@ struct UI {
 
   void ExportErrorsToVideo(int model_idx, int example_id, const Errors &err) {
     if (model_idx != 0) return;
-    
+
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       CHECK_GE(example_id, 0);
@@ -1757,7 +1757,7 @@ struct UI {
 
   void ExportTotalErrorToVideo(int model_idx, double t) {
     if (model_idx != 0) return;
-    
+
     WriteMutexLock ml(&video_export_m);
     if (allow_updates) {
       current_total_error = t;
@@ -1777,7 +1777,7 @@ struct UI {
     int mousex = 0, mousey = 0;
     int vlayer = 0, voffset = 0;
     bool histo_mode = true;
-    
+
     while (!ReadWithLock(&train_should_die_m, &train_should_die)) {
       {
         ReadMutexLock ml(&video_export_m);
@@ -1810,7 +1810,7 @@ struct UI {
               break;
 
             int max_width = 4;
-            
+
             const Stimulation &stim = current_stimulations[s];
             const Errors &err = current_errors[s];
             const vector<float> &expected = current_expected[s];
@@ -1818,7 +1818,7 @@ struct UI {
             // These are not filled in atomically, so it's possible
             // that we have stimulations but not expected values yet.
             if (expected.empty()) continue;
-            
+
             // Skip if not yet set. These get initialized to empty
             // sentinels and then updated by the training thread
             // periodically.
@@ -1832,7 +1832,7 @@ struct UI {
             CHECK(expected.size() == current_network->num_nodes.back());
 
             static constexpr int MIN_WIDTH = SDF_SIZE * 4;
-            
+
             int ystart = 24;
             for (int layer_idx = 0; layer_idx < stim.values.size(); layer_idx++) {
 
@@ -1863,9 +1863,9 @@ struct UI {
                 sdlutil::drawclipline(screen, xstart + 8, ystart + 2, xstart + 32, ystart + 2,
                                       0x77, 0x77, 0x77);
               }
-                
+
               ystart += 5;
-              
+
             }
 
             xstart += max_width + 4;
@@ -1877,7 +1877,7 @@ struct UI {
                   ModelInfo::Histogram(*current_network, 1920, 600);
                 BlitImage(histo, 0, SCREENH - 600);
               }
-              
+
             } else {
               if (vlayer >= 0) {
                 double tot = 0.0;
@@ -1918,7 +1918,7 @@ struct UI {
                                  StringPrintf("^%d%.9f ^%d%c%.10f",
                                               c, v, signcolor, signchar, mag));
                     } else {
-                      CHECK(i >= 0 && i < vals.size());             
+                      CHECK(i >= 0 && i < vals.size());
                       font->draw(xstart, yz,
                                  StringPrintf("^%d%.9f", c, v));
                     }
@@ -1965,7 +1965,7 @@ struct UI {
               voffset = current_network->num_nodes[vlayer] - VIEW_STIM_SIZE;
             }
           }
-            
+
           dirty = true;
         };
 
@@ -2006,7 +2006,7 @@ struct UI {
             FixupV();
             break;
           }
-            
+
           case SDLK_DOWN: {
             WriteMutexLock ml(&video_export_m);
             voffset += VIEW_STIM_SIZE;
@@ -2026,12 +2026,12 @@ struct UI {
             dirty = true;
             break;
           }
-            
+
           case SDLK_v: {
             WriteMutexLock ml(&video_export_m);
             // Allow vlayer to go to -1 (off), but wrap around
             // below that.
-            
+
             if (current_network != nullptr) {
               vlayer++;
               FixupV();
@@ -2073,7 +2073,7 @@ static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
   [[maybe_unused]]
   constexpr int SDF_THREE_QUARTERS = SDF_SIZE * 0.75;
   [[maybe_unused]]
-  constexpr int SDF_THREE_HALVES = SDF_SIZE + (SDF_SIZE >> 1);  
+  constexpr int SDF_THREE_HALVES = SDF_SIZE + (SDF_SIZE >> 1);
 
   const vector<int> width_config =
     { SDF_SIZE,
@@ -2081,7 +2081,7 @@ static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
       SDF_SIZE,
       SDF_THREE_HALVES,
       OUTPUT_LAYER_SIZE, };
- 
+
   // If zero, automatically factor to make square-ish.
   const vector<int> height_config =
     { SDF_SIZE,
@@ -2101,7 +2101,7 @@ static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
 
   const int num_layers = indices_per_node_config.size();
 
-  // Everything is single-channel here.  
+  // Everything is single-channel here.
   const vector<int> channels(num_layers + 1, 1);
 
   // All use leaky relu
@@ -2111,12 +2111,12 @@ static std::unique_ptr<Network> CreateInitialNetwork(ArcFour *rc) {
     LEAKY_RELU,
     LEAKY_RELU,
   };
-  
+
   const vector<uint32_t> renderstyle = {
     RENDERSTYLE_SDF,
     RENDERSTYLE_FLAT,
     RENDERSTYLE_FLAT,
-    RENDERSTYLE_FLAT,    
+    RENDERSTYLE_FLAT,
     RENDERSTYLE_SDF26,
   };
 
@@ -2243,7 +2243,7 @@ struct Training {
   static_assert(EVAL_INPUTS_PER_ROUND < EXAMPLES_PER_ROUND);
   static_assert(EVAL_INPUTS_PER_ROUND >= 0);
   static_assert(EXAMPLES_PER_ROUND > 0);
-  
+
   // Write a screenshot of the UI (to show training progress for
   // videos, etc.) every time the network does this many rounds.
   static constexpr int SCREENSHOT_ROUND_EVERY = 250;
@@ -2252,8 +2252,8 @@ struct Training {
   // other stuff to disk. XXX: Do this based on time, since round
   // speed can vary a lot based on other parameters!
   static constexpr int VERBOSE_ROUND_EVERY = 500;
-  
-  
+
+
   explicit Training(int model_index) :
     model_index(model_index),
     model_filename(StringPrintf("net%d.val", model_index)),
@@ -2300,7 +2300,7 @@ struct Training {
     backwardlayer = make_unique<BackwardLayerCL>(global_cl, *net);
     decayweights = make_unique<DecayWeightsCL>(global_cl, *net);
     updateweights = make_unique<UpdateWeightsCL>(global_cl, *net);
-    
+
     net_gpu = make_unique<NetworkGPU>(global_cl, net.get());
 
     Printf("Network uses %.2fMB of storage (without overhead).\n",
@@ -2333,11 +2333,11 @@ struct Training {
     forward_comp = std::make_unique<AutoParallelComp>(32, 50, false,
                                                       StringPrintf("autoparallel.%s.fwd.txt",
                                                                    experiment.c_str()));
-        
+
     error_comp = std::make_unique<AutoParallelComp>(32, 50, false,
                                                     StringPrintf("autoparallel.%s.err.txt",
                                                                  experiment.c_str()));
-    
+
     backward_comp = std::make_unique<AutoParallelComp>(32, 50, false,
                                                        StringPrintf("autoparallel.%s.bwd.txt",
                                                                     experiment.c_str()));
@@ -2352,7 +2352,7 @@ struct Training {
 
   RollingAverage eps_average{1000};
   // RollingAverage err_average{100};
-  
+
   // Run one training round. Might stall if starved for examples.
   // Will exit early if global train_should_die becomes true.
   void RunRound() {
@@ -2378,7 +2378,7 @@ struct Training {
     // maximum increment to +/- 1.0f, which is not particularly principled
     // but does seem to help prevent runaway.
 
-    constexpr int TARGET_ROUNDS = 3000000;
+    constexpr int TARGET_ROUNDS = 2020000;
     auto Linear =
       [](double start, double end, double round_target, double input) {
         if (input < 0.0) return start;
@@ -2387,12 +2387,14 @@ struct Training {
         return (end * f) + start * (1.0 - f);
       };
     // constexpr float LEARNING_RATE_HIGH = 0.10f;
-    constexpr float LEARNING_RATE_HIGH = 0.0075f;
-    constexpr float LEARNING_RATE_LOW = 0.000125f;
+    // constexpr float LEARNING_RATE_HIGH = 0.0075f;
+    constexpr float LEARNING_RATE_HIGH = 0.00075f;
+    // constexpr float LEARNING_RATE_LOW = 0.000125f;
+    constexpr float LEARNING_RATE_LOW = 0.0000000001f;
     const float round_learning_rate =
       Linear(LEARNING_RATE_HIGH, LEARNING_RATE_LOW, TARGET_ROUNDS, net->rounds);
     Printf("%.2f%% of target rounds\n", (100.0 * net->rounds) / TARGET_ROUNDS);
-    
+
     CHECK(!std::isnan(round_learning_rate));
     if (true || VERBOSE > 2) Printf("Learning rate: %.4f\n", round_learning_rate);
 
@@ -2410,7 +2412,7 @@ struct Training {
     }
 
     if (ShouldDie()) return;
-    
+
     if (VERBOSE > 2) Printf("Export network:\n");
     ui->ExportRound(model_index, net->rounds);
     ui->ExportLearningRate(model_index, round_learning_rate);
@@ -2458,7 +2460,7 @@ struct Training {
 
           if (examples.size() >= target_num)
             return;
-          
+
           if (VERBOSE > 0)
             Printf("Blocked grabbing %s examples (still need %d)...\n",
                    type,
@@ -2474,9 +2476,9 @@ struct Training {
     GetExamples(&eval_queue_m, &eval_queue,
                 EXAMPLES_PER_ROUND, "eval");
     if (ShouldDie()) return;
-    
+
     CHECK(examples.size() == EXAMPLES_PER_ROUND);
-    
+
     setup_ms += setup_timer.MS();
 
     if (false && CHECK_NANS /* && net->rounds == 3 */) {
@@ -2577,7 +2579,7 @@ struct Training {
                    examples[idx].input.clear();
                    examples[idx].output.clear();
                  }, 2);
-    
+
     // Compute total error (average per training example).
     if (rounds_executed % EXPORT_EVERY == 0) {
       CHECK_EQ(examples.size(), training.size());
@@ -2620,7 +2622,7 @@ struct Training {
                                       example_idx,
                                       examples[example_idx].output);
           }
-          
+
           // PERF we could have loaded this a lot earlier
           training[example_idx]->LoadExpected(examples[example_idx].output);
           SetOutputErrorCL::Context sc{setoutputerror.get(), net_gpu.get()};
@@ -2664,7 +2666,7 @@ struct Training {
     if (ShouldDie()) return;
 
     if (VERBOSE > 2) Printf("Decay weights:\n");
-    
+
     if (DECAY) {
       // PERF: This doesn't depend on training and so it could happen any time
       // after the forward pass, in parallel with other work.
@@ -2677,7 +2679,7 @@ struct Training {
           });
       decay_ms += decay_timer.MS();
     }
-    
+
     if (VERBOSE > 2) Printf("Update weights:\n");
     Timer update_timer;
 
@@ -2724,7 +2726,7 @@ struct Training {
 
     const double round_eps = EXAMPLES_PER_ROUND / (round_ms / 1000.0);
     eps_average.AddSample(round_eps);
-    
+
     ui->ExportExamplesPerSec(model_index, eps_average.Average());
     double measured_ms =
       setup_ms + stimulation_init_ms + eval_ms +
@@ -2733,7 +2735,7 @@ struct Training {
       backward_ms + /* bc init should be part of that */
       decay_ms +
       update_ms;
-    
+
     if (VERBOSE > 1)
       Printf("Round time: %.1fs. (%.1f eps)\n"
              "%.1fms total measured (%.1f%%),\n"
@@ -2746,7 +2748,7 @@ struct Training {
              "%.1fms in error for output layer (%.1f%%),\n"
              "%.1fms in bc init (%.1f%%),\n"
              "%.1fms in backwards pass (%.1f%%),\n"
-             "%.1fms in decay weights (%.1f%%),\n"           
+             "%.1fms in decay weights (%.1f%%),\n"
              "%.1fms in updating weights (%.1f%%),\n",
              round_ms / 1000.0, round_eps,
              measured_ms / denom, Pct(measured_ms),
@@ -2761,11 +2763,11 @@ struct Training {
              backward_ms / denom, Pct(backward_ms),
              decay_ms / denom, Pct(decay_ms),
              update_ms / denom, Pct(update_ms));
-    
+
 
     rounds_executed++;
   }
-  
+
   // Generate training examples in another thread and feed them to AddExampleToQueue.
   // To avoid overloading, throttle while WantsExamples is false.
   bool WantsExamples() {
@@ -2806,14 +2808,14 @@ struct Training {
   int64 NumberOfRounds() {
     return net->rounds;
   }
-  
+
   ~Training() {
     for (TrainingRoundGPU *trg : training)
       delete trg;
     training.clear();
   }
 
-  // Not thread safe.  
+  // Not thread safe.
   void Save() {
     CHECK(net_gpu.get() != nullptr && net.get() != nullptr) << "Never initialized!";
     net_gpu->ReadFromGPU();
@@ -2830,7 +2832,7 @@ struct Training {
 
   // Not thread safe.
   std::pair<int64, double> GetRecentError() const { return recent_error; }
-  
+
 private:
   // Try to keep twice that in the queue all the time.
   static constexpr int EXAMPLE_QUEUE_TARGET =
@@ -2842,7 +2844,7 @@ private:
   // too ahead of ourselves.
   static constexpr int EVAL_OUTPUT_TARGET =
     EVAL_INPUTS_PER_ROUND + (EVAL_INPUTS_PER_ROUND >> 1);
-  
+
   static string GetRandomSeed(int idx) {
     const string start_seed = StringPrintf("%d  %lld  %d",
                                            getpid(),
@@ -2855,14 +2857,14 @@ private:
   inline bool ShouldDie() {
     return ReadWithLock(&train_should_die_m, &train_should_die);
   }
-  
+
   const int model_index = 0;
   const string model_filename;
   ArcFour rc;
   vector<ArcFour> example_rc;
   std::unique_ptr<Network> net;
   int64 rounds_executed = 0;
-  
+
   // Separate kernels per training instance, since they can be specialized
   // to the network's parameters.
   std::unique_ptr<ForwardLayerCL> forwardlayer;
@@ -2915,7 +2917,7 @@ static void MakeTrainingExamplesThread(
   string seed = StringPrintf("make ex %lld", (int64)time(nullptr));
   ArcFour rc(seed);
   rc.Discard(2000);
-  
+
   CHECK(load_fonts != nullptr) << "LoadFonts must be created first.";
   // First, pause until we have enough fonts.
   for (;;) {
@@ -2955,8 +2957,8 @@ static void MakeTrainingExamplesThread(
       // indices into Font::sdfs, which is a-z then A-Z.
       const int input_idx = lowercase_input ? letter : 26 + letter;
       const int output_idx = lowercase_input ? 26 + letter : letter;
-      
-      example->input.resize(SDF_SIZE * SDF_SIZE);      
+
+      example->input.resize(SDF_SIZE * SDF_SIZE);
       FillSDF(example->input.data(), f.sdfs[input_idx]);
 
       if (include_output) {
@@ -2972,10 +2974,10 @@ static void MakeTrainingExamplesThread(
         for (float f : example->input) { CHECK(!std::isnan(f)); }
         for (float f : example->output) { CHECK(!std::isnan(f)); }
       }
-      
+
       return true;
     };
-  
+
   // These are symmetric, so call this function twice.
   auto GenExample = [&rc, make_lowercase, make_uppercase, &PopulateExampleFromFont](
       bool lowercasing) -> bool {
@@ -2985,7 +2987,7 @@ static void MakeTrainingExamplesThread(
       bool did_something = false;
 
       if (me->WantsExamples()) {
-        
+
         // Generate regular example from training data.
         {
           TrainingExample example;
@@ -3020,7 +3022,7 @@ static void MakeTrainingExamplesThread(
               if (new_input[i] > 1.0f) new_input[i] = 1.0f;
               if (std::isnan(new_input[i])) new_input[i] = 0.0f;
             }
-            
+
             // Copy old input over SDF portion of output now.
             for (int i = 0; i < SDF_SIZE * SDF_SIZE; i++) {
               example.output[i] = example.input[i];
@@ -3035,7 +3037,7 @@ static void MakeTrainingExamplesThread(
           }
         }
 
-        did_something = true;   
+        did_something = true;
       }
 
       if (me->WantsEvalInputs()) {
@@ -3058,7 +3060,7 @@ static void MakeTrainingExamplesThread(
 
       return did_something;
     };
-  
+
   while (!ReadWithLock(&train_should_die_m, &train_should_die)) {
     // These two are symmetric.
     bool did_something = false;
@@ -3143,7 +3145,7 @@ int SDL_main(int argc, char **argv) {
   // Aliases for convenience.
   Training *make_lowercase = training[0];
   Training *make_uppercase = training[1];
-  
+
   // Start generating examples in another thread and feeding them to
   // the two training instances.
   std::thread examples_thread{
@@ -3155,12 +3157,12 @@ int SDL_main(int argc, char **argv) {
 
   // XXX
   constexpr int MAX_ROUNDS = 999'999'999;
-  
+
   std::thread train_thread{
     [&training, make_lowercase, make_uppercase, &error_history]() {
 
       int64 last_error_round[2] = {0, 0};
-      
+
       while (!ReadWithLock(&train_should_die_m, &train_should_die)) {
 
         // Pause if exclusive app is running.
@@ -3178,7 +3180,7 @@ int SDL_main(int argc, char **argv) {
           WriteWithLock(&train_should_die_m, &train_should_die, true);
           break;
         }
-        
+
         static constexpr int ALLOWED_GAP = 2;
 
         Printf("lowercase rounds %lld, uppercase %lld\n",
@@ -3222,15 +3224,15 @@ int SDL_main(int argc, char **argv) {
               }
             }
           };
-        
+
         RecordError(0);
-        RecordError(1); 
+        RecordError(1);
 
         // XXXXXXX slow-mo for debugging
-        // std::this_thread::sleep_for(5000ms); 
+        // std::this_thread::sleep_for(5000ms);
       }
     }};
-  
+
   ui->Loop();
 
   Printf("Killing train thread (might need to wait for round to finish)...\n");
@@ -3238,12 +3240,12 @@ int SDL_main(int argc, char **argv) {
   // Finish training round before deleting the objects.
   train_thread.join();
   for (Training *t : training) t->Save();
-  
+
   for (Training *t : training) delete t;
   examples_thread.join();
 
   error_history.Save();
-  
+
   Printf("Train is dead; now UI exiting.\n");
 
   SDL_Quit();

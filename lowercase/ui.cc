@@ -117,6 +117,8 @@ struct UI {
   void DrawSDF();
   void DrawDrawing();
 
+  void ClearDrawing();
+  
   // Draw line into drawing. Coordinates are relative to drawing, but may
   // be outside it.
   void DrawThick(int x0, int y0, int x1, int y1, Uint32 color);
@@ -166,8 +168,8 @@ struct UI {
   std::optional<FontProblem::LoopAssignment> looptest_assignment;
 
   static constexpr FontProblem::SDFConfig SDF_CONFIG{};
-  std::unique_ptr<const Network> make_uppercase;
   std::unique_ptr<const Network> make_lowercase;  
+  std::unique_ptr<const Network> make_uppercase;
   static constexpr int DRAWING_X = 591;
   static constexpr int DRAWING_Y = 32;
   static constexpr int DRAWING_SIZE = 800;
@@ -203,7 +205,7 @@ void UI::ResultThread() {
           uint32 px = 0xFF00 & sdlutil::getpixel(drawing, x, y);
           // PERF and if we're not copying, we could just
           // generate the 1bpp image here?
-          bitmap.SetPixel(x, y, px > 0 ? 255 : 0);
+          bitmap.SetPixel(x, y, px > 0x7F00 ? 255 : 0);
         }
       }
       copy_ms = copy_timer.MS();
@@ -216,7 +218,7 @@ void UI::ResultThread() {
     // Do work. Lock not held.
     ImageA sdf = FontProblem::SDFFromBitmap(SDF_CONFIG, bitmap);
     FontProblem::GenResult result =
-      FontProblem::GenImages(SDF_CONFIG, *make_uppercase, *make_lowercase,
+      FontProblem::GenImages(SDF_CONFIG, *make_lowercase, *make_uppercase,
                              sdf, 5);
     double result_ms = result_timer.MS();
     
@@ -508,8 +510,17 @@ UI::UI() {
   printf("Loaded networks.\n");
   
   drawing = sdlutil::makesurface(DRAWING_SIZE, DRAWING_SIZE, true);
-  sdlutil::ClearSurface(drawing, 0, 0, 0, 0xFF);
+  ClearDrawing();
   CHECK(drawing != nullptr);
+}
+
+void UI::ClearDrawing() {
+  sdlutil::ClearSurface(drawing, 0, 0, 0, 0xFF);
+  {
+    std::unique_lock<std::mutex> guard(result_m);
+    result_dirty = true;
+  }
+  result_cv.notify_all();
 }
 
 void UI::SetType(Type t) {
@@ -964,9 +975,15 @@ void UI::Loop() {
           SetDirty();
           break;
 
-        case SDLK_c:
-          SetFlag(Flag::SAME_CASE, false);
+        case SDLK_c: {
+          if (mode == Mode::DRAW) {
+            ClearDrawing();
+            SetDirty();
+          } else {
+            SetFlag(Flag::SAME_CASE, false);
+          }
           break;
+        }
         case SDLK_x:
           SetFlag(Flag::SAME_CASE, true);
           break;
@@ -1398,6 +1415,22 @@ void UI::DrawDrawing() {
       // std::array<float, 26> up_pred;  
     }
   }
+
+  constexpr int pad_top =
+    (SDF_CONFIG.pad_top / (float)SDF_CONFIG.sdf_size) * DRAWING_SIZE;
+  constexpr int pad_left =
+    (SDF_CONFIG.pad_left / (float)SDF_CONFIG.sdf_size) * DRAWING_SIZE;
+  constexpr int pad_bottom =
+    (1.0f - SDF_CONFIG.pad_bot / (float)SDF_CONFIG.sdf_size) * DRAWING_SIZE;
+  sdlutil::drawline(screen, pad_left + DRAWING_X, DRAWING_Y - 4,
+                    pad_left + DRAWING_X, DRAWING_Y + DRAWING_SIZE + 4,
+                    0x00, 0x00, 0xFF);
+  sdlutil::drawline(screen, DRAWING_X - 4, DRAWING_Y + pad_top,
+                    DRAWING_X + DRAWING_SIZE + 4, DRAWING_Y + pad_top,
+                    0xFF, 0x00, 0x00);
+  sdlutil::drawline(screen, DRAWING_X - 4, DRAWING_Y + pad_bottom,
+                    DRAWING_X + DRAWING_SIZE + 4, DRAWING_Y + pad_bottom,
+                    0xFF, 0x00, 0x00);
 }
 
 void UI::Draw() {
