@@ -455,6 +455,34 @@ void ImageRGBA::BlendImage(int x, int y, const ImageRGBA &other) {
   }
 }
 
+template<class F>
+inline static ImageA Extract(const ImageRGBA &img, const F &f) {
+  ImageA ret(img.Width(), img.Height());
+  for (int y = 0; y < img.Height(); y++) {
+    for (int x = 0; x < img.Width(); x++) {
+      const auto [r, g, b, a] = img.GetPixel(x, y);
+      ret.SetPixel(x, y, f(r, g, b, a));
+    }
+  }
+  return ret;
+}
+
+ImageA ImageRGBA::Red() const {
+  return Extract(*this, [](uint8 r, uint8 g, uint8 b, uint8 a) { return r; });
+}
+
+ImageA ImageRGBA::Green() const {
+  return Extract(*this, [](uint8 r, uint8 g, uint8 b, uint8 a) { return g; });
+}
+
+ImageA ImageRGBA::Blue() const {
+  return Extract(*this, [](uint8 r, uint8 g, uint8 b, uint8 a) { return b; });
+}
+
+ImageA ImageRGBA::Alpha() const {
+  return Extract(*this, [](uint8 r, uint8 g, uint8 b, uint8 a) { return a; });
+}
+
 ImageA::ImageA(const vector<uint8> &alpha, int width, int height)
     : width(width), height(height), alpha(alpha) {
   CHECK((int)alpha.size() == width * height);

@@ -12,6 +12,8 @@
 
 #include "base/logging.h"
 
+struct ImageA;
+
 // 4-channel image in R-G-B-A order.
 // uint32s are represented like 0xRRGGBBAA irrespective of native
 // byte order.
@@ -104,6 +106,12 @@ struct ImageRGBA {
   // Clipped, alpha blending.
   void BlendImage(int x, int y, const ImageRGBA &other);
 
+  // Extract single channel.
+  ImageA Red() const;
+  ImageA Green() const;
+  ImageA Blue() const;
+  ImageA Alpha() const;  
+  
 private:
   int width, height;
   // Size width * height * 4.
