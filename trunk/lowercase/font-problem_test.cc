@@ -10,6 +10,8 @@
 #include "arcfour.h"
 #include "timer.h"
 #include "image.h"
+#include "arcfour.h"
+#include "randutil.h"
 
 using namespace std;
 
@@ -26,7 +28,7 @@ static void TestLoopAssignment() {
   ArcFour rc{"test"};
 
   using LoopAssignment = FontProblem::LoopAssignment;
-  
+
   const std::vector<Point> expected = {
     {309,461},
     {389,318},
@@ -76,14 +78,14 @@ static void TestLoopAssignment() {
   auto DistanceAt = [&actual, &expected](int e, int a) {
       return sqrtf(SqDistance(expected[e], actual[a]));
     };
-  
+
   auto Score = [&actual, &expected, &DistanceAt](
       const LoopAssignment &assn) -> float {
       // here we have like
       //        0       1 2
       //        x       y z      <- expected
       //    a b c d e f g h i j  <- actual
-      //    0 1 2 3 4 5 6 7 8 9 
+      //    0 1 2 3 4 5 6 7 8 9
       // This would be represented with point0 = 2,
       // and groups = {4, 1, 5}.
 
@@ -106,7 +108,7 @@ static void TestLoopAssignment() {
       return err;
     };
 
-  
+
   LoopAssignment correct(expected.size());
   correct.point0 = 24;
   correct.groups = { 4, 2, 1,
@@ -117,7 +119,7 @@ static void TestLoopAssignment() {
   CHECK_EQ(correct.groups.size(), expected.size());
 
   const float correct_score = Score(correct);
-  
+
   auto ToString = [](const LoopAssignment &assn) {
       string ret = StringPrintf("Point0: %d groups:", assn.point0);
       for (int d : assn.groups)
@@ -128,7 +130,7 @@ static void TestLoopAssignment() {
   double benchtime = 0.0;
   const int NUM_ROUNDS = 10000;
   for (int i = 0; i < NUM_ROUNDS; i++) {
-    Timer bench;  
+    Timer bench;
     LoopAssignment test =
       FontProblem::BestLoopAssignment(&rc, expected, actual);
     benchtime += bench.MS();
@@ -148,20 +150,24 @@ static void TestLoopAssignment() {
          benchtime, benchtime / (double)NUM_ROUNDS);
 }
 
+static void CheckSameBitmap(const ImageRGBA &expected,
+                            const ImageRGBA &actual) {
+  CHECK(actual.Width() == expected.Width());
+  CHECK(actual.Height() == expected.Height());
+  for (int y = 0; y < actual.Height(); y++) {
+    for (int x = 0; x < actual.Width(); x++) {
+      CHECK(expected.GetPixel32(x, y) == actual.GetPixel32(x, y));
+    }
+  }
+}
+
 static void BenchmarkBitmapSDF() {
   std::unique_ptr<ImageRGBA> input_rgba(ImageRGBA::Load("testletter.png"));
   std::unique_ptr<ImageRGBA> expected(ImageRGBA::Load("expectedsdf.png"));
   auto CheckExpected = [&expected](const ImageA &sdf) {
-      ImageRGBA bitmap_sdf = sdf.GreyscaleRGBA();
-      CHECK(bitmap_sdf.Width() == expected->Width());
-      CHECK(bitmap_sdf.Height() == expected->Height());
-      for (int y = 0; y < bitmap_sdf.Height(); y++) {
-        for (int x = 0; x < bitmap_sdf.Width(); x++) {
-          CHECK(expected->GetPixel32(x, y) == bitmap_sdf.GetPixel32(x, y));
-        }
-      }
+      CheckSameBitmap(*expected, sdf.GreyscaleRGBA());
     };
-      
+
   CHECK(input_rgba.get() != nullptr);
   ImageA input = input_rgba->Red();
 
@@ -180,11 +186,65 @@ static void BenchmarkBitmapSDF() {
 
   printf("Average time: %.4f sec\n", total_ms / (TIMES * 1000.0));
 }
-  
+
+std::initializer_list<uint64> TEST_PATTERNS = {
+  0b00000000'00000000'00000000'00000000'00000000'00000000'00000000'00000000ULL,
+  0b11111111'11111111'11111111'11111111'11111111'11111111'11111111'11111111ULL,
+  0b00000000'00000000'00000000'00000000'00000000'00000000'00000000'00000001ULL,
+  0b00000000'00000000'00000000'00000000'00000000'00000000'00000000'10000000ULL,
+  0b10000000'00000000'00000000'00000000'00000000'00000000'00000000'00000000ULL,
+  0b00000001'00000000'00000000'00000000'00000000'00000000'00000000'00000000ULL,
+  0b10000001'00000000'00000000'00000000'00000000'00000000'00000000'10000001ULL,
+  0b11111111'10000001'10000001'10000001'10000001'10000001'10000001'11111111ULL,
+  0b11111111'10000001'10000001'10000001'10000001'10000001'10000001'10000001ULL,
+  0b10000001'10000001'10000001'00001001'10010001'10001001'10000001'10000001ULL,
+};
+
+static void Test8x8SDF() {
+  // This routine targets this specific config.
+  static constexpr FontProblem::SDFConfig CONFIG = {
+    .sdf_size = 36,
+    .pad_top = 2,
+    .pad_bot = 9,
+    .pad_left = 9,
+    .onedge_value = 220u,
+    .falloff_per_pixel = 15.0f,
+  };
+
+  auto Try64 = [](uint64 x) {
+      FontProblem::Image8x8 bimg;
+      bimg.bits = x;
+
+      ImageA img(18, 18);
+      img.Clear(0);
+      for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
+          if (bimg.GetPixel(x, y)) {
+            img.SetPixel(x + 4, y + 6, 0xFF);
+          }
+        }
+      }
+      ImageA expected = FontProblem::SDFFromBitmap(CONFIG, img);
+      ImageA actual = FontProblem::SDF36From8x8(bimg);
+      CheckSameBitmap(expected.GreyscaleRGBA(),
+                      actual.GreyscaleRGBA());
+    };
+
+
+  for (uint64 x : TEST_PATTERNS)
+    Try64(x);
+
+  ArcFour rc("test8x8");
+  for (int i = 0; i < 1000; i++)
+    Try64(Rand64(&rc));
+}
+
 int main(int argc, char **argv) {
   // TestLoopAssignment();
-  BenchmarkBitmapSDF();
-  
+  // BenchmarkBitmapSDF();
+
+  Test8x8SDF();
+
   printf("OK\n");
   return 0;
 }

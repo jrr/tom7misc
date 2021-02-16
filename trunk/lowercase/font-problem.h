@@ -37,10 +37,10 @@ struct FontProblem {
     const int x = roundf(f * 255.0f);
     return std::clamp(x, 0, 255);
   }
-  
+
   // Size of e.g. the input feature vector.
   static int BufferSizeForPoints(const std::vector<int> &row_max_points);
-  
+
   // Fill the buffer (which must be big enough) with contours.
   // Returns true if successful.
   static bool FillVector(const TTF *ttf, int codepoint,
@@ -55,7 +55,7 @@ struct FontProblem {
   static bool GetRows(const TTF *ttf, int codepoint,
                       const std::vector<int> &row_max_points,
                       std::vector<TTF::Contour> *contours);
-  
+
   static void FillExpectedVector(
       ArcFour *rc,
       // Config; both the expected and predicted must match.
@@ -68,8 +68,8 @@ struct FontProblem {
       // Floats are written to the beginning of this vector, which
       // must be large enough.
       std::vector<float> *buffer);
-      
-  
+
+
   // Runs the given eval on the CPU, for a specific font.
   // Generates an image to the given filename.
   //
@@ -79,7 +79,7 @@ struct FontProblem {
   static void RenderVector(const std::string &font_filename,
                            const Network &net,
                            const std::vector<int> &row_max_points,
-                           const std::string &out_filename);    
+                           const std::string &out_filename);
 
   // Because this generates SDFs and runs two large networks, it's
   // significantly slower than the above.
@@ -90,7 +90,7 @@ struct FontProblem {
                         // writes several files.
                         // "-uppercase.png" etc. is added.
                         const std::string &base_out_filename);
-  
+
   // For a buffer beginning with an SDF of the appropriate size
   // (as floats 0-1), build the SDF image.
   static ImageA SDFGetImage(const SDFConfig &config,
@@ -104,7 +104,30 @@ struct FontProblem {
   // Input image is treated as a 1-bit bitmap (zero/nonzero).
   static ImageA SDFFromBitmap(const SDFConfig &config,
                               const ImageA &img);
-  
+
+  // A tiny bitmap, like a letter. Intended for 8x8 bitmaps,
+  // but can be used for any size <= 8x8.
+  struct Image8x8 {
+    inline void SetPixel(int x, int y, bool v) {
+      int b = y * 8 + x;
+      if (v) {
+        bits |= ((uint64_t)1 << b);
+      } else {
+        bits &= ~((uint64_t)1 << b);
+      }
+    }
+    inline bool GetPixel(int x, int y) {
+      int b = y * 8 + x;
+      return (bits >> b) & 1;
+    }
+    uint64_t bits = 0;
+  };
+
+  // Specific to the 36x36 bitmap problem I mostly worked with;
+  // tuned for speed. The 8x8 bitmap is placed at 4,6, which
+  // empirically seems to be the "right" place for it.
+  static ImageA SDF36From8x8(Image8x8 bits);
+
   // Render tresholded image at high resolution (each dimension scaled
   // by scale), then downsample to get an anti-aliased image. Output
   // image is the same size as the input sdf, so typically this follows
@@ -143,7 +166,7 @@ struct FontProblem {
 
     ImageRGBA input;
     std::array<float, 26> low_pred;
-    std::array<float, 26> up_pred;  
+    std::array<float, 26> up_pred;
     ImageRGBA low;
     ImageRGBA low_up;
     ImageRGBA up;
@@ -158,7 +181,7 @@ struct FontProblem {
                              const Network &make_uppercase,
                              const ImageA &sdf,
                              int scale);
-  
+
   // Code for computing the error between a predicted vector shape ("loop")
   // and the expected one.
   //
@@ -173,7 +196,7 @@ struct FontProblem {
   // Bezier control points), including the error's derivative.
   //
   // XXX docs are out of date
-  // Takes an expected loop and actual loop as a series of points 
+  // Takes an expected loop and actual loop as a series of points
   // (for this code, we can just think of the edges as straight lines).
   // Finds a mapping from each expected point to some actual point,
   // such that:

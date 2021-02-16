@@ -59,7 +59,7 @@ static void Gen(const FontProblem::SDFConfig &config,
 
   // and the predictors
   DrawPreds(TILEW / 2, TILEH + IMGH + 2, result.low_pred);
-  DrawPreds(2 * TILEW + TILEW / 2, 2 * TILEH + IMGH + 2, result.up_pred);
+  DrawPreds(2 * TILEW + TILEW / 2, 1 * TILEH + IMGH + 2, result.up_pred);
 
   out.Save(filename);
 }
@@ -118,6 +118,7 @@ int main(int argc, char **argv) {
   CHECK(make_uppercase.get() != nullptr);
 
   std::unique_ptr<ImageRGBA> input_rgba(ImageRGBA::Load("bitmapletter.png"));
+  CHECK(input_rgba.get() != nullptr);
   // Threshold input at >127, so that template markings can
   // remain in the image.
   ImageA input(input_rgba->Width(), input_rgba->Height());
@@ -131,13 +132,30 @@ int main(int argc, char **argv) {
   ImageA bitmap_sdf = FontProblem::SDFFromBitmap(config, input);
   printf("Took %.3f sec\n", sdf_timer.MS() / 1000.0);
 
+  FontProblem::Image8x8 pix;
+  for (int i = 0; i < 64; i++) {
+    char *c =
+      "  ###   "
+      "  ###   "
+      " ## ##  "
+      " ## ##  "
+      "####### "
+      "##   ## "
+      "##   ## "
+      "##   ## ";
+    int y = i / 8;
+    int x = i % 8;
+    pix.SetPixel(x, y, c[i] == '#');
+  }
+  ImageA pixel_sdf = FontProblem::SDF36From8x8(pix);
+
   // XXXXXX
   // ImageA sdf = bitmap_sdf;
   // sdf = vector_sdf;
 
   Gen(config, *make_lowercase, *make_uppercase, vector_sdf, "vector-sdf.png");
   Gen(config, *make_lowercase, *make_uppercase, bitmap_sdf, "bitmap-sdf.png");
-
+  Gen(config, *make_lowercase, *make_uppercase, pixel_sdf, "pixel-sdf.png");
 
   return 0;
 }
