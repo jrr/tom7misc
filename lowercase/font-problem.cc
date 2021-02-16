@@ -930,7 +930,8 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
           }
         }
       }
-      // CHECK(min_sqdist <= squared_bound) << min_sqdist << " vs " << squared_bound;
+      // CHECK(min_sqdist <= squared_bound) <<
+      //     min_sqdist << " vs " << squared_bound;
       return min_sqdist;
     };
 
@@ -1000,6 +1001,155 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
 
   return sdf;
 }
+
+
+ImageA FontProblem::SDF36From8x8(Image8x8 img) {
+  constexpr int sdf_size = 36;
+  // nominal size of image.
+  constexpr int size = 18;
+
+  constexpr float FALLOFF_PER_PIXEL = 15.0f;
+  constexpr uint8 ONEDGE = 220u;
+  constexpr float scale = size / (float)sdf_size;
+
+  constexpr int LEFT = 4;
+  constexpr int TOP = 6;
+  constexpr int WIDTH = 8;
+  constexpr int HEIGHT = 8;
+  if (false)
+    printf("%d img to %d SDF; Scale: %.3f\n",
+           size,
+           sdf_size,
+           scale);
+
+  // true = white = inside letter
+  auto Color = [&img](int x, int y) {
+      // XXX or an explicit bounds test outside?
+      if (x < LEFT || y < TOP ||
+          x >= (LEFT + WIDTH) ||
+          y >= (TOP + HEIGHT)) return false;
+      return img.GetPixel(x - LEFT, y - TOP) > 0;
+    };
+
+
+  // Only need to search from LEFT - 1 to LEFT - 1 + WIDTH + 2, etc.
+  auto GetSqDistanceTo = [&Color, size](int x, int y, bool c,
+                                        int squared_bound) -> int {
+      int min_sqdist = squared_bound;
+
+      // min and max (inclusive) ranges to search for pixels.
+      const int min_x = LEFT - 1;
+      const int max_x = LEFT + WIDTH + 1;
+      const int min_y = TOP - 1;
+      const int max_y = TOP + HEIGHT + 1;
+
+      // we do a symmetric expansion, but only need to cover the
+      // rectangle above. find the maximum axis-aligned distance to
+      // any of those points from x/y.
+      const int xsize = std::max(abs(x - min_x), abs(x - max_x));
+      const int ysize = std::max(abs(y - min_y), abs(y - max_y));
+      // Instead of scanning from top to bottom, use larger and larger
+      // offsets but try both positive and negative. Goal is to be
+      // able to exit when the pixels being tested must be outside
+      // our current bound.
+      for (int dy = 0; dy <= ysize; dy++) {
+        const int dys = dy * dy;
+        // dy is always getting bigger; if we already found a pixel
+        // closer than this distance, just counting the vertical,
+        // we can't improve.
+        if (dys >= min_sqdist) break;
+
+        // We'll explore dy and dx in both direction.
+        // Note this harmlessly tests pixels twice when dy or dx is
+        // 0, but it seems better to avoid the branching?
+        // Seems to be a better tradeoff to do the outer loop out
+        // here so we can skip the entire x loop sometimes (when
+        // outside the image entirely).
+        for (int sy : {-dy, +dy}) {
+          int yy = y + sy;
+          if (yy < TOP - 1 || yy > TOP + HEIGHT) continue;
+
+          for (int dx = 0; dx <= xsize; dx++) {
+            const int dxs = dx * dx;
+            // can do a similar test here but it is not
+            // faster?
+            if (dys + dxs >= min_sqdist) break;
+
+            // might be faster to check bounds here rather
+            // than in Color, although it gets a bit gross.
+            for (int sx : {-dx, +dx}) {
+              const int xx = x + sx;
+              if (Color(xx, yy) == c) {
+                if (dys + dxs < min_sqdist) {
+                  min_sqdist = dys + dxs;
+                }
+              }
+            }
+          }
+        }
+      }
+      // CHECK(min_sqdist <= squared_bound) <<
+      //     min_sqdist << " vs " << squared_bound;
+      return min_sqdist;
+    };
+
+  constexpr float oscale = 1.0f / scale;
+  ImageA sdf(sdf_size, sdf_size);
+
+  // As we populate the SDF, we can use the previous computed pixel
+  // (that was searching for the same color) to give us a bound on the
+  // search. OK for this to span rows, although then the bounds get
+  // momentarily bad. Start with "infinite" though.
+  const int MAX_DIST = size * 2;
+  struct Last {
+    // Position of the last pixel for which we
+    // got a distance, for the given color.
+    int x, y;
+    // The actual distance we computed for that pixel.
+    float dist;
+  };
+  std::array<Last, 2> last = {Last{.x = 0, .y = 0, .dist = (float)MAX_DIST},
+                              Last{.x = 0, .y = 0, .dist = (float)MAX_DIST}};
+
+  for (int sy = 0; sy < sdf_size; sy++) {
+    for (int sx = 0; sx < sdf_size; sx++) {
+      int ix = roundf((float)sx * scale);
+      int iy = roundf((float)sy * scale);
+
+      const bool color = Color(ix, iy);
+
+      // Whatever we computed for the last pixel of the same color
+      // gives us a bound using the triangle inequality (worst case
+      // is our distance to that pixel, plus its distance to the
+      // goal).
+      Last &prev = last[color ? 1 : 0];
+      int dx = ix - prev.x;
+      int dy = iy - prev.y;
+      float bound = prev.dist + sqrtf(dx * dx + dy * dy);
+      int sq_bound = ceilf(bound * bound);
+      // printf("dx %d dy %d prev %.2f bound %.2f sq %d\n",
+      // dx, dy, prev.dist, bound, sq_bound);
+
+      const int sqdist = GetSqDistanceTo(ix, iy, !color, sq_bound);
+      const float dist = sqrtf(sqdist);
+
+      // Save distance for next time we search this color.
+      prev.x = ix;
+      prev.y = iy;
+      prev.dist = dist;
+
+      // Distance in sdf space.
+      const float sdf_dist = dist * oscale * FALLOFF_PER_PIXEL;
+
+      const float signed_dist = color ? sdf_dist : -sdf_dist;
+      int value = roundf((float)ONEDGE + signed_dist);
+      sdf.SetPixel(sx, sy, std::clamp(value, 0, 255));
+    }
+  }
+
+  return sdf;
+}
+
 
 
 std::pair<ImageA, std::array<float, 26>>

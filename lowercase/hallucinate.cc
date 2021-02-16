@@ -373,10 +373,104 @@ static ImageA DrawBitmapShapes(const Network &net,
   return MakeSDF(best);
 }
 
+// Draw polygons, even-odd mode.
+static ImageA DrawPoly(const Network &net,
+                       int target_letter) {
+  constexpr int sdf_size = SDF_CONFIG.sdf_size;
+  constexpr int NUM_VERTICES = 16;
+
+  constexpr int VERTEX_SIZE = 2;
+
+  constexpr int N = NUM_VERTICES * VERTEX_SIZE;
+
+  // Unlike the above, arguments are in [0, sdf_size].
+  auto MakeSDF = [](const std::vector<double> &inputs) {
+      ImageA sdf(sdf_size, sdf_size);
+
+      // Draw the shapes.
+      for (int y = 0; y < sdf_size; y++) {
+        for (int x = 0; x < sdf_size; x++) {
+
+          // In even-odd mode, the distance to any edge (each one
+          // is a transition.)
+          float min_dist = sdf_size * sdf_size * 2;
+
+
+          bool odd = false;
+          int jdx = NUM_VERTICES - 1;
+          for (int idx = 0; idx < NUM_VERTICES; idx++) {
+            float ix = inputs[VERTEX_SIZE * idx + 0];
+            float iy = inputs[VERTEX_SIZE * idx + 1];
+            float jx = inputs[VERTEX_SIZE * jdx + 0];
+            float jy = inputs[VERTEX_SIZE * jdx + 1];
+
+            if ((iy > y) != (jy > y)) {
+              if (x < ((jx - ix) * (y - iy) / (jy - iy) + ix)) {
+                odd = !odd;
+              }
+            }
+
+            min_dist = std::min(PointLineDistance(ix, iy, jx, jy, x, y),
+                                min_dist);
+
+            jdx = idx;
+          }
+
+          float pixel_dist = odd ? min_dist : -min_dist;
+          float falloff = SDF_CONFIG.falloff_per_pixel * pixel_dist;
+          uint8 v = std::clamp((int)roundf(SDF_CONFIG.onedge_value + falloff),
+                               0, 255);
+          sdf.SetPixel(x, y, v);
+        }
+      }
+
+      return sdf;
+    };
+
+  int num_calls = 0;
+  std::function<double(const std::vector<double> &inputs)> IsLetter =
+    [&net, target_letter, &MakeSDF, &num_calls](
+        const std::vector<double> &inputs) -> double {
+
+      ImageA sdf = MakeSDF(inputs);
+      const auto [out_sdf, pred] =
+        FontProblem::RunSDFModel(net, SDF_CONFIG, sdf);
+
+      double penalty =
+        LetterPenalty(target_letter,
+                      [&pred](int i) {
+                        return pred[i];
+                      });
+
+      num_calls++;
+      if (num_calls % 1000 == 0)
+        printf("[%c] %d calls, penalty: %.4f\n",
+               target_letter + 'a', num_calls, penalty);
+
+      return penalty;
+    };
+
+  // Keep away from edges.
+  const std::vector<double> lbs(N, 0.05 * sdf_size);
+  const std::vector<double> ubs(N, 0.95 * sdf_size);
+  Timer optimize_timer;
+  const auto [best, penalty] =
+    Opt::Minimize(N,
+                  IsLetter,
+                  lbs,
+                  ubs,
+                  5000,
+                  2,
+                  200);
+  double opt_ms = optimize_timer.MS();
+
+  printf("Result penalty %.5f in %.2f\n", penalty, opt_ms / 1000.0);
+  CHECK(best.size() == N);
+  return MakeSDF(best);
+}
 
 // Generate an SDF by generating the SDF directly from
-// some parameterized shapes. Should be equivalent to the
-// above but just faster.
+// some parameterized shapes. EVEN_ODD mode only.
 static ImageA DrawSDFShapes(const Network &net,
                             int target_letter) {
   constexpr int sdf_size = SDF_CONFIG.sdf_size;
@@ -397,13 +491,6 @@ static ImageA DrawSDFShapes(const Network &net,
 
   constexpr int N = BOX_START + NUM_BOXES * BOX_SIZE;
 
-  // EVEN_ODD works fine, but I think >0 mode needs some other approach...
-  // the interior segments should be ignored for distance sake. It can't
-  // just be an operation over independent SDFs either (imagine two
-  // rectangles that are very slightly overlapping). I think I'd need
-  // to do some CSG stuff before computing this.
-  constexpr bool EVEN_ODD = true;
-
   // Unlike the above, arguments are in [0, sdf_size].
   auto MakeSDF = [](const std::vector<double> &inputs) {
       ImageA sdf(sdf_size, sdf_size);
@@ -415,9 +502,6 @@ static ImageA DrawSDFShapes(const Network &net,
           // In even-odd mode, the distance to any edge (each one
           // is a transition.)
           float min_dist = sdf_size * sdf_size * 2;
-          // In nonzero mode, we compute the signed distance
-          // as we go.
-          float signed_dist = 0.0f;
           int count_inside = 0;
           for (int i = 0; i < NUM_TRIANGLES; i++) {
             float x0 = inputs[TRIANGLE_START + i * TRIANGLE_SIZE + 0];
@@ -429,31 +513,12 @@ static ImageA DrawSDFShapes(const Network &net,
 
             bool inside = PointInside(x0, y0, x1, y1, x2, y2, x, y);
 
-            if (EVEN_ODD) {
-              min_dist = std::min({
-                  PointLineDistance(x0, y0, x1, y1, x, y),
-                  PointLineDistance(x1, y1, x2, y2, x, y),
-                  PointLineDistance(x2, y2, x0, y0, x, y),
-                  min_dist});
-              if (inside) count_inside++;
-            } else {
-              // inside any?
-              if (inside) {
-                // We're inside so distance will be non-negative.
-                signed_dist = std::max({
-                  PointLineDistance(x0, y0, x1, y1, x, y),
-                  PointLineDistance(x1, y1, x2, y2, x, y),
-                  PointLineDistance(x2, y2, x0, y0, x, y),
-                  signed_dist});
-              } else {
-                // Otherwise, non-positive.
-                signed_dist = std::min({
-                    -PointLineDistance(x0, y0, x1, y1, x, y),
-                    -PointLineDistance(x1, y1, x2, y2, x, y),
-                    -PointLineDistance(x2, y2, x0, y0, x, y),
-                    -signed_dist});
-              }
-            }
+            min_dist = std::min({
+                PointLineDistance(x0, y0, x1, y1, x, y),
+                PointLineDistance(x1, y1, x2, y2, x, y),
+                PointLineDistance(x2, y2, x0, y0, x, y),
+                min_dist});
+            if (inside) count_inside++;
           }
 
           for (int i = 0; i < NUM_CIRCLES; i++) {
@@ -469,18 +534,10 @@ static ImageA DrawSDFShapes(const Network &net,
 
             bool inside = dist < r;
 
-            if (EVEN_ODD) {
-              min_dist = std::min({
-                  fabs(dist - r),
-                  min_dist});
-              if (inside) count_inside++;
-            } else {
-              if (inside) {
-                signed_dist = std::max(dist, signed_dist);
-              } else {
-                signed_dist = std::min(-dist, signed_dist);
-              }
-            }
+            min_dist = std::min({
+                fabs(dist - r),
+                min_dist});
+            if (inside) count_inside++;
           }
 
           for (int i = 0; i < NUM_BOXES; i++) {
@@ -505,25 +562,11 @@ static ImageA DrawSDFShapes(const Network &net,
                 PointHorizLineDistance(x1, y1, x0, x, y),
                 PointVertLineDistance(x0, y1, y0, x, y)});
 
-            if (EVEN_ODD) {
-              min_dist = std::min(dist, min_dist);
-              if (inside) count_inside++;
-            } else {
-              if (inside) {
-                signed_dist = std::max(dist, signed_dist);
-              } else {
-                signed_dist = std::min(-dist, signed_dist);
-              }
-            }
+            min_dist = std::min(dist, min_dist);
+            if (inside) count_inside++;
           }
 
-          float pixel_dist = 0.0f;
-          if (EVEN_ODD) {
-            pixel_dist = (0 == (count_inside & 1)) ? -min_dist : min_dist;
-          } else {
-            pixel_dist = signed_dist;
-          }
-
+          float pixel_dist = (0 == (count_inside & 1)) ? -min_dist : min_dist;
           float falloff = SDF_CONFIG.falloff_per_pixel * pixel_dist;
           uint8 v = std::clamp((int)roundf(SDF_CONFIG.onedge_value + falloff),
                                0, 255);
@@ -579,6 +622,72 @@ static ImageA DrawSDFShapes(const Network &net,
   return MakeSDF(best);
 }
 
+// Generate random 8x8 bitmap images.
+static ImageA Random8x8(const Network &net,
+                        int target_letter) {
+  constexpr int N = 8 * 8;
+
+  auto MakeSDF = [](const std::vector<double> &inputs) {
+      FontProblem::Image8x8 img8;
+      for (int i = 0; i < 64; i++) {
+        int y = i / 8;
+        int x = i % 8;
+        img8.SetPixel(x, y, inputs[i] > 0.5);
+      }
+      return FontProblem::SDF36From8x8(img8);
+    };
+
+  int num_calls = 0;
+  double sdf_time = 0.0;
+  double run_time = 0.0;
+  std::function<double(const std::vector<double> &inputs)> IsLetter =
+    [&net, target_letter, &MakeSDF, &num_calls,
+     &sdf_time, &run_time](
+        const std::vector<double> &inputs) -> double {
+
+      Timer sdf_timer;
+      ImageA sdf = MakeSDF(inputs);
+      sdf_time += sdf_timer.MS();
+      Timer run_timer;
+      const auto [out_sdf, pred] =
+        FontProblem::RunSDFModel(net, SDF_CONFIG, sdf);
+      run_time += run_timer.MS();
+
+      double penalty =
+        LetterPenalty(target_letter,
+                      [&pred](int i) {
+                        return pred[i];
+                      });
+
+      num_calls++;
+      if (num_calls % 1000 == 0)
+        printf("[%c] %d calls, penalty: %.4f\n",
+               target_letter + 'a', num_calls, penalty);
+
+      return penalty;
+    };
+
+  // Just trying to sample a vector of bools here. Is there a
+  // more clever way?
+  const std::vector<double> lbs(N, 0.0);
+  const std::vector<double> ubs(N, 1.0);
+  Timer optimize_timer;
+  const auto [best, penalty] =
+    Opt::Minimize(N,
+                  IsLetter,
+                  lbs,
+                  ubs,
+                  1000,
+                  2, 50);
+  double opt_ms = optimize_timer.MS();
+
+  printf("Result penalty %.5f in %.2f\n", penalty, opt_ms / 1000.0);
+  printf("SDF time %.2f ms/run, run time %.2f ms/run\n",
+         sdf_time / num_calls, run_time / num_calls);
+  CHECK(best.size() == N);
+  return MakeSDF(best);
+}
+
 
 
 int main(int argc, char **argv) {
@@ -594,19 +703,23 @@ int main(int argc, char **argv) {
   std::unique_ptr<Network> net;
   net.reset(Network::ReadNetworkBinary(model_file));
 
-  Timer all_timer;
   std::mutex text_m;
+  Timer all_timer;
   string text = StringPrintf("From model %s, find %s\n",
                              model_file.c_str(),
                              FIND_MAX ? "max" : "perfect");
+  int num_complete = 0;
 
   ParallelComp(
-      26,
-      [&net, &text_m, &text](int target_letter) {
+      // 26,
+      6,
+      [&net, &text_m, &all_timer, &text, &num_complete](int target_letter) {
         Timer letter_timer;
         // ImageA best_sdf = DirectOptimizeSDF(*net, target_letter);
         // ImageA best_sdf = DrawBitmapShapes(*net, target_letter);
-        ImageA best_sdf = DrawSDFShapes(*net, target_letter);
+        // ImageA best_sdf = DrawSDFShapes(*net, target_letter);
+        // ImageA best_sdf = DrawPoly(*net, target_letter);
+        ImageA best_sdf = Random8x8(*net, target_letter);
 
         // Pass same net twice, we'll just use the "lowercase"
         FontProblem::GenResult result =
@@ -637,8 +750,14 @@ int main(int argc, char **argv) {
 
         {
           MutexLock ml(&text_m);
-          printf("*** FINISHED '%c' in %.2f sec ***\n",
-                 c, letter_ms / 1000.0);
+          num_complete++;
+          int left = 26 - num_complete;
+          double ms_per = all_timer.MS() / num_complete;
+          double ms_eta = left * ms_per;
+          printf("*** FINISHED '%c' in %.2f sec [ETA %.2f sec] ***\n",
+                 c,
+                 letter_ms / 1000.0,
+                 ms_eta / 1000.0);
           StringAppendF(&text, "- %c in %.2f sec -\n",
                         c, letter_ms / 1000.0);
           for (int i = 0; i < 26; i++) {
