@@ -147,6 +147,10 @@ int main(int argc, char **argv) {
     int x = i % 8;
     pix.SetPixel(x, y, c[i] == '#');
   }
+  printf("Num pixels: %d\n"
+         "Num edges: %d\n",
+         pix.PixelsOn(),
+         pix.Edges());
   ImageA pixel_sdf = FontProblem::SDF36From8x8(pix);
 
   // XXXXXX

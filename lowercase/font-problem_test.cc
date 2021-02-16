@@ -239,11 +239,40 @@ static void Test8x8SDF() {
     Try64(Rand64(&rc));
 }
 
+static void Test8x8() {
+  FontProblem::Image8x8 pix;
+  int onpixels = 0;
+  for (int i = 0; i < 64; i++) {
+    char *c =
+      "  ###   "
+      "  ###   "
+      " ## ##  "
+      " ## ##  "
+      "####### "
+      "##   ## "
+      "##   ## "
+      "##   ## ";
+    int y = i / 8;
+    int x = i % 8;
+    bool on = c[i] == '#';
+    pix.SetPixel(x, y, on);
+    if (on) onpixels++;
+
+    {
+      int pon = pix.PixelsOn();
+      CHECK_EQ(pix.PixelsOn(), onpixels) << pon << " vs " << onpixels;
+    }
+  }
+  CHECK_EQ(pix.Edges(), 42);
+
+}
+
 int main(int argc, char **argv) {
   // TestLoopAssignment();
   // BenchmarkBitmapSDF();
 
   Test8x8SDF();
+  Test8x8();
 
   printf("OK\n");
   return 0;
