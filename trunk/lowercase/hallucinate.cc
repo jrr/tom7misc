@@ -611,7 +611,7 @@ static ImageA DrawSDFShapes(const Network &net,
                   ubs,
                   // 10000,
                   // 5000,
-                  100,
+                  10,
                   1,
                   10 // 240
                   );
@@ -623,34 +623,35 @@ static ImageA DrawSDFShapes(const Network &net,
 }
 
 // Generate random 8x8 bitmap images.
-static ImageA Random8x8(const Network &net,
+static ImageA Random8x8(const Network &prednet,
                         int target_letter) {
   constexpr int N = 8 * 8;
 
-  auto MakeSDF = [](const std::vector<double> &inputs) {
+  auto Make8x8 = [](const std::vector<double> &inputs) {
       FontProblem::Image8x8 img8;
       for (int i = 0; i < 64; i++) {
         int y = i / 8;
         int x = i % 8;
         img8.SetPixel(x, y, inputs[i] > 0.5);
       }
-      return FontProblem::SDF36From8x8(img8);
+      return img8;
     };
 
   int num_calls = 0;
   double sdf_time = 0.0;
   double run_time = 0.0;
   std::function<double(const std::vector<double> &inputs)> IsLetter =
-    [&net, target_letter, &MakeSDF, &num_calls,
+    [&prednet, target_letter, &Make8x8, &num_calls,
      &sdf_time, &run_time](
         const std::vector<double> &inputs) -> double {
 
       Timer sdf_timer;
-      ImageA sdf = MakeSDF(inputs);
+      FontProblem::Image8x8 img8x8 = Make8x8(inputs);
+      ImageA sdf = FontProblem::SDF36From8x8(img8x8);
       sdf_time += sdf_timer.MS();
       Timer run_timer;
-      const auto [out_sdf, pred] =
-        FontProblem::RunSDFModel(net, SDF_CONFIG, sdf);
+      const auto pred =
+        FontProblem::RunSDFModelPredOnly(prednet, SDF_CONFIG, sdf);
       run_time += run_timer.MS();
 
       double penalty =
@@ -659,10 +660,21 @@ static ImageA Random8x8(const Network &net,
                         return pred[i];
                       });
 
+      // Target about 50% of pixels set.
+      // (My handmade A had 33. Maybe should be fewer
+      // for lowercase?)
+      int pixels = img8x8.PixelsOn();
+      int pixel_cost = pixels - 32;
+      penalty += pixel_cost / 50.0;
+
+      // Provide a small penalty for noisy images.
+      int edges = img8x8.Edges();
+      penalty += edges / 100.0;
+
       num_calls++;
       if (num_calls % 1000 == 0)
-        printf("[%c] %d calls, penalty: %.4f\n",
-               target_letter + 'a', num_calls, penalty);
+        printf("[%c] %d calls, %d edges, penalty: %.4f\n",
+               target_letter + 'a', num_calls, edges, penalty);
 
       return penalty;
     };
@@ -677,15 +689,15 @@ static ImageA Random8x8(const Network &net,
                   IsLetter,
                   lbs,
                   ubs,
-                  1000,
-                  2, 50);
+                  2000,
+                  2, 250);
   double opt_ms = optimize_timer.MS();
 
   printf("Result penalty %.5f in %.2f\n", penalty, opt_ms / 1000.0);
   printf("SDF time %.2f ms/run, run time %.2f ms/run\n",
          sdf_time / num_calls, run_time / num_calls);
   CHECK(best.size() == N);
-  return MakeSDF(best);
+  return FontProblem::SDF36From8x8(Make8x8(best));
 }
 
 
@@ -702,6 +714,8 @@ int main(int argc, char **argv) {
 
   std::unique_ptr<Network> net;
   net.reset(Network::ReadNetworkBinary(model_file));
+  std::unique_ptr<Network> prednet(
+      FontProblem::MakePredOnlyNetwork(SDF_CONFIG, *net));
 
   std::mutex text_m;
   Timer all_timer;
@@ -712,33 +726,52 @@ int main(int argc, char **argv) {
 
   ParallelComp(
       // 26,
-      6,
-      [&net, &text_m, &all_timer, &text, &num_complete](int target_letter) {
+      26,
+      [&net, &prednet,
+       &text_m, &all_timer, &text, &num_complete](int target_letter) {
         Timer letter_timer;
         // ImageA best_sdf = DirectOptimizeSDF(*net, target_letter);
         // ImageA best_sdf = DrawBitmapShapes(*net, target_letter);
         // ImageA best_sdf = DrawSDFShapes(*net, target_letter);
         // ImageA best_sdf = DrawPoly(*net, target_letter);
-        ImageA best_sdf = Random8x8(*net, target_letter);
+        ImageA best_sdf = Random8x8(*prednet, target_letter);
 
         // Pass same net twice, we'll just use the "lowercase"
         FontProblem::GenResult result =
           FontProblem::GenImages(SDF_CONFIG, *net, *net, best_sdf, 6);
 
+        static constexpr int BAR = 16;
 
         ImageRGBA out(result.input.Width(),
-                      result.input.Height() * 2 + 12);
+                      result.input.Height() * 2 + 12 + BAR + 3);
+        out.Clear32(0x000000FF);
         out.BlendImage(0, 0, result.input);
         out.BlendImage(0, result.input.Height(), result.low);
 
         for (int i = 0; i < 26; i++) {
+          const int texty = result.input.Height() * 2 + 2;
+          const int bary = texty + 12;
           const uint8 v = FontProblem::FloatByte(result.low_pred[i]);
           string s = "A";
           s[0] += i;
           out.BlendText(9 * i,
-                        result.input.Height() * + 2,
+                        texty,
                         v, v, 0xFF, 0xFF,
                         s);
+
+          // TODO: negative bars too?
+          int bar_height = std::clamp((int)roundf(result.low_pred[i] * BAR),
+                                      0, BAR);
+          const int barx = 9 * i;
+          const int bar_width = 8;
+          out.BlendBox32(barx, bary,
+                         bar_width, bar_height,
+                         0x33AA33FF, 0x33AA337F);
+          if (bar_height > 2) {
+            out.BlendRect32(barx + 1, bary + 1,
+                            bar_width - 2, bar_height - 2,
+                            0x33AA33FF);
+          }
         }
 
 

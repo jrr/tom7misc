@@ -16,6 +16,8 @@
 #include "randutil.h"
 #include "timer.h"
 
+#include "network-util.h"
+
 using namespace std;
 
 using Contour = TTF::Contour;
@@ -1169,6 +1171,18 @@ FontProblem::RunSDFModel(const Network &net,
   return make_pair(sdf_output, letters);
 }
 
+std::vector<float>
+FontProblem::RunSDFModelPredOnly(const Network &net,
+                                 const SDFConfig &config,
+                                 const ImageA &sdf_input) {
+  Stimulation stim{net};
+  SDFFillVector(config, sdf_input, &stim.values[0]);
+  net.RunForward(&stim);
+  const std::vector<float> &output = stim.values.back();
+  CHECK(output.size() == 26);
+  return std::move(stim.values.back());
+}
+
 
 ImageRGBA FontProblem::ThresholdImageMulti(
     const ImageA &sdf,
@@ -1237,4 +1251,26 @@ FontProblem::GenResult FontProblem::GenImages(
   (void)RunTo(make_uppercase, lsdf, &result.low_up, nullptr);
   (void)RunTo(make_lowercase, usdf, &result.up_low, nullptr);
   return result;
+}
+
+Network *FontProblem::MakePredOnlyNetwork(const SDFConfig &config,
+                                          const Network &net) {
+  Network *ret = Network::Clone(net);
+
+  const int sdf_size = config.sdf_size;
+  // Act on the last layer.
+  const int layer_idx = net.num_layers - 1;
+  EZLayer ez(*ret, layer_idx);
+
+  std::vector<EZLayer::Node> new_nodes;
+  new_nodes.reserve(26);
+  for (int i = 0; i < 26; i++) {
+    new_nodes.push_back(ez.nodes[sdf_size * sdf_size + i]);
+  }
+  ez.nodes = std::move(new_nodes);
+  ez.MakeWidthHeight();
+  ez.Repack(ret, layer_idx);
+  ret->ReallocateInvertedIndices();
+  Network::ComputeInvertedIndices(ret, 6);
+  return ret;
 }
