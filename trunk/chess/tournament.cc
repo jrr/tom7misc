@@ -31,6 +31,7 @@
 #include "blind-player.h"
 #include "almanac-player.h"
 #include "numeric-player.h"
+#include "letter-player.h"
 
 #define TESTING true
 
@@ -56,8 +57,8 @@ using namespace std;
 // quadratically, it got to the point that running even a single
 // round would take hours. New version picks cells that have
 // the fewest number of games, and runs those in parallel.
-static constexpr int THREADS = 56;
-static constexpr int RUN_FOR_SECONDS = 60 * 2; // 0;
+static constexpr int THREADS = 30;
+static constexpr int RUN_FOR_SECONDS = 60 * 20;
 
 // Fill in the diagonal just a little. After reaching this number of games,
 // we don't bother prioritizing self-play at all.
@@ -111,9 +112,63 @@ static Player *Stockfish1M_64() {
   return new BlendRandom<64>(Stockfish1M());
 }
 
+static Player *LetterA() { return Letter(0); }
+static Player *LetterB() { return Letter(1); }
+static Player *LetterC() { return Letter(2); }
+static Player *LetterD() { return Letter(3); }
+static Player *LetterE() { return Letter(4); }
+static Player *LetterF() { return Letter(5); }
+static Player *LetterG() { return Letter(6); }
+static Player *LetterH() { return Letter(7); }
+static Player *LetterI() { return Letter(8); }
+static Player *LetterJ() { return Letter(9); }
+static Player *LetterK() { return Letter(10); }
+static Player *LetterL() { return Letter(11); }
+static Player *LetterM() { return Letter(12); }
+static Player *LetterN() { return Letter(13); }
+static Player *LetterO() { return Letter(14); }
+static Player *LetterP() { return Letter(15); }
+static Player *LetterQ() { return Letter(16); }
+static Player *LetterR() { return Letter(17); }
+static Player *LetterS() { return Letter(18); }
+static Player *LetterT() { return Letter(19); }
+static Player *LetterU() { return Letter(20); }
+static Player *LetterV() { return Letter(21); }
+static Player *LetterW() { return Letter(22); }
+static Player *LetterX() { return Letter(23); }
+static Player *LetterY() { return Letter(24); }
+static Player *LetterZ() { return Letter(25); }
+
 const vector<Entrant> &GetEntrants() {
   static vector<Entrant> *entrants =
     new vector<Entrant>{
+                        LetterA,
+                        LetterB,
+                        LetterC,
+                        LetterD,
+                        LetterE,
+                        LetterF,
+                        LetterG,
+                        LetterH,
+                        LetterI,
+                        LetterJ,
+                        LetterK,
+                        LetterL,
+                        LetterM,
+                        LetterN,
+                        LetterO,
+                        LetterP,
+                        LetterQ,
+                        LetterR,
+                        LetterS,
+                        LetterT,
+                        LetterU,
+                        LetterV,
+                        LetterW,
+                        LetterX,
+                        LetterY,
+                        LetterZ,
+
                         Safe,
                         Dangerous,
                         Popular,
@@ -405,7 +460,9 @@ struct OutcomeTable {
 
   bool HasResult(const string &white_name, const string &black_name) {
     ReadMutexLock ml(&m);
-    const Cell &cell = outcomes[make_pair(white_name, black_name)];
+    auto it = outcomes.find(make_pair(white_name, black_name));
+    if (it == outcomes.end()) return false;
+    const Cell &cell = it->second;
     return cell.white_wins + cell.white_losses + cell.draws > 0;
   }
 
@@ -492,14 +549,16 @@ struct Totals {
 static void TournamentThread(int thread_id,
                              Totals *totals,
                              OutcomeTable *outcome_table) {
-  // Create thread-local instances of each entrant.
-  // TODO: Lazily construct these.
-  vector<Player *> entrants;
-  for (Entrant e : GetEntrants()) {
-    entrants.push_back(e());
-  }
-  const int num_entrants = entrants.size();
-  (void)num_entrants;
+  // Thread-local instances of each entrant.
+  // These are lazily constructed, because in big tournaments
+  // we may not ever even need to run some players.
+  const vector<Entrant> &entrant_functions = GetEntrants();
+  const int num_entrants = entrant_functions.size();
+
+  vector<Player *> entrants(num_entrants, nullptr);
+  // for (Entrant e : GetEntrants()) {
+  // entrants.push_back(e());
+  // }
 
   {
     MutexLock ml(&status_m);
@@ -518,13 +577,30 @@ static void TournamentThread(int thread_id,
     }
 
     const auto [white, black] = totals->GetAssignment();
-    const string white_name = entrants[white]->Name();
-    const string black_name = entrants[black]->Name();
+
+    // Lazily construct local instance of players.
+    bool first = false;
+    if (entrants[white] == nullptr) {
+      entrants[white] = entrant_functions[white]();
+      first = true;
+      CHECK(entrants[white] != nullptr) << white;
+    }
+    if (entrants[black] == nullptr) {
+      entrants[black] = entrant_functions[black]();
+      first = true;
+      CHECK(entrants[black] != nullptr) << black;
+    }
+
+    Player *white_player = entrants[white];
+    Player *black_player = entrants[black];
+
+    const string white_name = white_player->Name();
+    const string black_name = black_player->Name();
 
     if (now - last_message > 1) {
       {
         MutexLock ml(&status_m);
-        status[thread_id].msg = "running";
+        status[thread_id].msg = first ? "run first" : "running";
         status[thread_id].row = white_name;
         status[thread_id].col = black_name;
         status[thread_id].done_games = games_done;
@@ -536,32 +612,45 @@ static void TournamentThread(int thread_id,
 
     // TODO: If both players are deterministic, just pretend
     // the same outcome happened again.
-    Player *white_player = entrants[white];
-    Player *black_player = entrants[black];
     if (white_player->IsDeterministic() &&
         black_player->IsDeterministic() &&
         outcome_table->HasResult(white_name, black_name)) {
       games_free++;
-      outcome_table->WithCell(white_name, black_name,
-                              [](Cell *cell) {
-                                if (cell->white_wins > 0) {
-                                  CHECK(cell->white_losses == 0 &&
-                                        cell->draws == 0)
-                                    << "supposedly deterministic?";
-                                  cell->white_wins++;
-                                } else if (cell->white_losses > 0) {
-                                  CHECK(cell->white_wins == 0 &&
-                                        cell->draws == 0)
-                                    << "supposedly deterministic?";
-                                  cell->white_losses++;
-                                } else {
-                                  CHECK(cell->draws > 0 &&
-                                        cell->white_wins == 0 &&
-                                        cell->white_losses == 0)
-                                    << "supposedly deterministic?";
-                                  cell->draws++;
-                                }
-                              });
+      outcome_table->WithCell(
+          white_name, black_name,
+          [&](Cell *cell) {
+            auto Error = [&]() {
+                return StringPrintf(
+                    "---- %s vs %s ----\n"
+                    "Supposedly deterministic matchup, but...:\n"
+                    "white wins: %d\n"
+                    "white loses: %d\n"
+                    "draw: %d\n",
+                    white_name.c_str(),
+                    black_name.c_str(),
+                    cell->white_wins,
+                    cell->white_losses,
+                    cell->draws);
+              };
+
+            if (cell->white_wins > 0) {
+              CHECK(cell->white_losses == 0 &&
+                    cell->draws == 0)
+                << Error();
+              cell->white_wins++;
+            } else if (cell->white_losses > 0) {
+              CHECK(cell->white_wins == 0 &&
+                    cell->draws == 0)
+                << Error();
+              cell->white_losses++;
+            } else {
+              CHECK(cell->draws > 0 &&
+                    cell->white_wins == 0 &&
+                    cell->white_losses == 0)
+                << Error();
+              cell->draws++;
+            }
+          });
     } else {
       vector<Move> as_white;
       switch (PlayGame(white_player, black_player, &as_white)) {

@@ -269,14 +269,6 @@ const char *TransferFunctionName(TransferFunction tf) {
   }
 }
 
-const char *LayerTypeName(LayerType lt) {
-  switch (lt) {
-  case LAYER_DENSE: return "LAYER_DENSE";
-  case LAYER_SPARSE: return "LAYER_SPARSE";
-  default: return "??INVALID??";
-  }
-}
-
 Network::Network(vector<int> num_nodes,
                  vector<int> indices_per_node,
                  vector<TransferFunction> transfer_functions) :
@@ -502,11 +494,10 @@ void Network::ComputeInvertedIndices(Network *net, int max_parallelism) {
 
 // Caller owns new-ly allocated Network object.
 Network *Network::ReadNetworkBinary(const string &filename) {
-  printf("Reading [%s]\n", filename.c_str());
   FILE *file = fopen(filename.c_str(), "rb");
   if (file == nullptr) {
-    printf("  ... failed. If it's present, there may be a "
-           "permissions problem?\n");
+    printf("Reading %s failed. If it's present, there may be a "
+           "permissions problem?\n", filename.c_str());
     fflush(stdout);
     return nullptr;
   }
@@ -542,15 +533,15 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   // These values determine the size of the network vectors.
   int file_num_layers = Read32();
   CHECK_GE(file_num_layers, 0);
-  printf("%s: %lld rounds, %lld examples, %d layers.\n",
-         filename.c_str(), round, examples, file_num_layers);
+  // printf("%s: %lld rounds, %lld examples, %d layers.\n",
+  // filename.c_str(), round, examples, file_num_layers);
   vector<int> num_nodes(file_num_layers + 1, 0);
-  printf("%s: num nodes: ", filename.c_str());
+  // printf("%s: num nodes: ", filename.c_str());
   for (int i = 0; i < file_num_layers + 1; i++) {
     num_nodes[i] = Read32();
-    printf("%d ", num_nodes[i]);
+    // printf("%d ", num_nodes[i]);
   }
-  printf("\n");
+  // printf("\n");
 
   vector<int> width, height, channels;
   vector<uint32_t> renderstyle;
@@ -572,12 +563,14 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   for (int h : height) CHECK(h > 0);
   for (int c : channels) CHECK(c > 0);
 
+  /*
   for (int i = 0; i < file_num_layers + 1; i++) {
     printf("Layer %d: %d x %d x %d (as %08x)\n",
            i - 1, width[i], height[i], channels[i], renderstyle[i]);
   }
+  */
 
-  printf("\n%s: indices per node/fns/type: ", filename.c_str());
+  // printf("\n%s: indices per node/fns/type: ", filename.c_str());
   vector<int> indices_per_node(file_num_layers, 0);
   vector<TransferFunction> transfer_functions(file_num_layers, SIGMOID);
   vector<LayerType> layer_types(file_num_layers, LAYER_DENSE);
@@ -589,12 +582,14 @@ Network *Network::ReadNetworkBinary(const string &filename) {
     LayerType lt = (LayerType)Read32();
     CHECK(lt >= 0 && lt < NUM_LAYER_TYPES) << lt;
     layer_types[i] = lt;
+    /*
     printf("%d %s %s ",
            indices_per_node[i],
            TransferFunctionName(tf),
            LayerTypeName(lt));
+    */
   }
-  printf("\n");
+  // printf("\n");
 
   std::unique_ptr<Network> net{
     new Network{num_nodes, indices_per_node, transfer_functions}};
@@ -663,13 +658,13 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   }
 
   fclose(file);
-  printf("Read from %s.\n", filename.c_str());
+  // printf("Read from %s.\n", filename.c_str());
 
   // Now, fill in the inverted indices. These are not stored in the file.
 
-  printf("Invert index:\n");
+  // printf("Invert index:\n");
   ComputeInvertedIndices(net.get());
-  printf("Check it:\n");
+  // printf("Check it:\n");
   net->StructuralCheck();
   // CheckInvertedIndices(*net);
 
@@ -677,15 +672,6 @@ Network *Network::ReadNetworkBinary(const string &filename) {
 }
 
 struct FontProblem {
-  struct SDFConfig {
-    int sdf_size = 36;
-    int pad_top = 2;
-    int pad_bot = 9;
-    int pad_left = 9;
-    uint8_t onedge_value = 220u;
-    float falloff_per_pixel = 15.0f;
-  };
-
   static inline uint8_t FloatByte(float f) {
     const int x = roundf(f * 255.0f);
     return std::clamp(x, 0, 255);
