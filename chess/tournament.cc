@@ -57,7 +57,7 @@ using namespace std;
 // round would take hours. New version picks cells that have
 // the fewest number of games, and runs those in parallel.
 static constexpr int THREADS = 56;
-static constexpr int RUN_FOR_SECONDS = 60 * 20;
+static constexpr int RUN_FOR_SECONDS = 60 * 2; // 0;
 
 // Fill in the diagonal just a little. After reaching this number of games,
 // we don't bother prioritizing self-play at all.
@@ -325,6 +325,9 @@ int64 status_start_time = 0LL;
 int64 status_last_time = 0LL;
 struct Status {
   int done_games = 0;
+  // "free" means we just replicated an existing
+  // deterministic result
+  int free_games = 0;
   string row;
   string col;
   string msg;
@@ -346,15 +349,17 @@ static void ShowStatus(int64 now) {
   for (int i = 0; i < status.size() + 2; i++) {
     printf("%s", ANSI_PREVLINE);
   }
-  int64 done_all = 0;
+  int64 done_all = 0, free_all = 0;
   for (int i = 0; i < status.size(); i++) {
     done_all += status[i].done_games;
+    free_all += status[i].free_games;
   }
 
-  printf("\n----------- %lld done ----- "
+  printf("\n-------- %lld " ANSI_YELLOW " done " ANSI_RESET
+         " -- %lld " ANSI_GREEN " free ----- "
          ANSI_CYAN "%lld" ANSI_RESET "m" ANSI_CYAN "%d" ANSI_RESET "s"
-         ANSI_WHITE " -----------" ANSI_CLEARTOEOL "\n",
-         done_all, minutes, seconds);
+         ANSI_WHITE " ---------" ANSI_CLEARTOEOL "\n",
+         done_all, free_all, minutes, seconds);
   for (int i = 0; i < status.size(); i++) {
     printf(ANSI_GREY "[" ANSI_BLUE "% 2d. " ANSI_YELLOW "%d"
            ANSI_GREY "] " ANSI_GREEN "%s" ANSI_WHITE " vs " ANSI_GREEN "%s: "
@@ -383,6 +388,31 @@ static string RenderMoves(const vector<Move> &moves) {
   return pgn;
 }
 
+// Wrapper around Outcomes with atomic access.
+// In 2021, we want to be able to read/write this thing from the
+// tournament threads, in order to avoid resimulating completely
+// deterministic matchups.
+struct OutcomeTable {
+  explicit OutcomeTable(const Outcomes &outcomes) : outcomes(outcomes) {}
+
+  template<class F>
+  void WithCell(const string &white_name, const string &black_name,
+                const F &f) {
+    WriteMutexLock ml(&m);
+    Cell *cell = &outcomes[make_pair(white_name, black_name)];
+    f(cell);
+  }
+
+  bool HasResult(const string &white_name, const string &black_name) {
+    ReadMutexLock ml(&m);
+    const Cell &cell = outcomes[make_pair(white_name, black_name)];
+    return cell.white_wins + cell.white_losses + cell.draws > 0;
+  }
+
+
+  std::shared_mutex m;
+  Outcomes outcomes;
+};
 
 struct Totals {
   // Coarse locking.
@@ -461,7 +491,7 @@ struct Totals {
 
 static void TournamentThread(int thread_id,
                              Totals *totals,
-                             Outcomes *outcomes) {
+                             OutcomeTable *outcome_table) {
   // Create thread-local instances of each entrant.
   // TODO: Lazily construct these.
   vector<Player *> entrants;
@@ -478,7 +508,7 @@ static void TournamentThread(int thread_id,
 
   const int64 start_time = time(nullptr);
 
-  int games_done = 0;
+  int games_done = 0, games_free = 0;
   int64 last_message = 0LL; // time(nullptr);
 
   for (;;) {
@@ -498,39 +528,74 @@ static void TournamentThread(int thread_id,
         status[thread_id].row = white_name;
         status[thread_id].col = black_name;
         status[thread_id].done_games = games_done;
+        status[thread_id].free_games = games_free;
       }
       ShowStatus(now);
       last_message = now;
     }
 
-    // outcomes are accumulated locally.
-    Cell *cell = &(*outcomes)[make_pair(white_name, black_name)];
-
     // TODO: If both players are deterministic, just pretend
     // the same outcome happened again.
-
-    vector<Move> as_white;
-    switch (PlayGame(entrants[white], entrants[black], &as_white)) {
-    case Result::WHITE_WINS:
-      if (cell->example_win.empty())
-        cell->example_win = RenderMoves(as_white);
-      cell->white_wins++;
-      break;
-    case Result::BLACK_WINS:
-      if (cell->example_loss.empty())
-        cell->example_loss = RenderMoves(as_white);
-      cell->white_losses++;
-      break;
-
-    case Result::DRAW_STALEMATE:
-    case Result::DRAW_75MOVES:
-    case Result::DRAW_5REPETITIONS:
-      if (cell->example_draw.empty())
-        cell->example_draw = RenderMoves(as_white);
-      cell->draws++;
-      break;
+    Player *white_player = entrants[white];
+    Player *black_player = entrants[black];
+    if (white_player->IsDeterministic() &&
+        black_player->IsDeterministic() &&
+        outcome_table->HasResult(white_name, black_name)) {
+      games_free++;
+      outcome_table->WithCell(white_name, black_name,
+                              [](Cell *cell) {
+                                if (cell->white_wins > 0) {
+                                  CHECK(cell->white_losses == 0 &&
+                                        cell->draws == 0)
+                                    << "supposedly deterministic?";
+                                  cell->white_wins++;
+                                } else if (cell->white_losses > 0) {
+                                  CHECK(cell->white_wins == 0 &&
+                                        cell->draws == 0)
+                                    << "supposedly deterministic?";
+                                  cell->white_losses++;
+                                } else {
+                                  CHECK(cell->draws > 0 &&
+                                        cell->white_wins == 0 &&
+                                        cell->white_losses == 0)
+                                    << "supposedly deterministic?";
+                                  cell->draws++;
+                                }
+                              });
+    } else {
+      vector<Move> as_white;
+      switch (PlayGame(white_player, black_player, &as_white)) {
+      case Result::WHITE_WINS: {
+        outcome_table->WithCell(white_name, black_name,
+                                [&as_white](Cell *cell) {
+                                  if (cell->example_win.empty())
+                                    cell->example_win = RenderMoves(as_white);
+                                  cell->white_wins++;
+                                });
+        break;
+      }
+      case Result::BLACK_WINS: {
+        outcome_table->WithCell(white_name, black_name,
+                                [&as_white](Cell *cell) {
+                                  if (cell->example_loss.empty())
+                                    cell->example_loss = RenderMoves(as_white);
+                                  cell->white_losses++;
+                                });
+        break;
+      }
+      case Result::DRAW_STALEMATE:
+      case Result::DRAW_75MOVES:
+      case Result::DRAW_5REPETITIONS: {
+        outcome_table->WithCell(white_name, black_name,
+                                [&as_white](Cell *cell) {
+                                  if (cell->example_draw.empty())
+                                    cell->example_draw = RenderMoves(as_white);
+                                  cell->draws++;
+                                });
+        break;
+      }
+      }
     }
-
     games_done++;
     totals->Increment(white, black);
   }
@@ -566,35 +631,22 @@ static void RunTournament() {
 
   fflush(stdout);
 
-  auto AddOutcomes =
-    [](const Outcomes &a,
-       const Outcomes &b) {
-      Outcomes res = b;
-      TournamentDB::MergeInto(a, &res);
-      return res;
-    };
-
   status_start_time = time(nullptr);
   status.resize(THREADS);
 
-  Outcomes previous_outcomes = TournamentDB::LoadFromFile("tournament.db");
+  OutcomeTable outcome_table(TournamentDB::LoadFromFile("tournament.db"));
 
   std::unique_ptr<Totals> totals =
-    std::make_unique<Totals>(names, previous_outcomes);
+    std::make_unique<Totals>(names, outcome_table.outcomes);
 
-  Outcomes outcomes =
-    ParallelAccumulate(
-        THREADS,
-        Outcomes{},
-        AddOutcomes,
-        [&totals](int thread_id, Outcomes *outcomes) {
-          return TournamentThread(thread_id, totals.get(), outcomes);
-        },
-        THREADS);
+  ParallelFan(THREADS,
+              [&totals, &outcome_table](int thread_id) {
+                return TournamentThread(thread_id,
+                                        totals.get(),
+                                        &outcome_table);
+              });
 
-  TournamentDB::MergeInto(previous_outcomes, &outcomes);
-
-  TournamentDB::SaveToFile(outcomes, "tournament.db");
+  TournamentDB::SaveToFile(outcome_table.outcomes, "tournament.db");
 
   for (Player *p : entrants) delete p;
   entrants.clear();
