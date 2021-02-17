@@ -1371,7 +1371,7 @@ uint8_t bcm2835_i2c_write_read_rs(char* cmds, uint32_t cmds_len, char* buf, uint
 #endif  // DISABLE_I2C
 
 /* Read the System Timer Counter (64-bits) */
-uint64_t bcm2835_st_read(void) {
+uint64_t bcm2835_st_read() {
   volatile uint32_t* paddr;
 
   if (bcm2835_st == MAP_FAILED)
@@ -1404,12 +1404,9 @@ uint64_t bcm2835_st_read(void) {
 }
 
 /* Delays for the specified number of microseconds with offset */
-void bcm2835_st_delay(uint64_t offset_micros, uint64_t micros)
-{
-    uint64_t compare = offset_micros + micros;
-
-    while(bcm2835_st_read() < compare)
-	;
+void bcm2835_st_delay(uint64_t offset_micros, uint64_t micros) {
+  const uint64_t target = offset_micros + micros;
+  while (bcm2835_st_read() < target) {}
 }
 
 /* PWM */
