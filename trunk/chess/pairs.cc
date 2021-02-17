@@ -54,20 +54,20 @@ int main (int argc, char **argv) {
   // index is sr * 512 + sc * 64 + dr * 8 + dc
   vector<int> pack;
   vector<int> unpack;
-  
+
   for (int sr = 0; sr < 8; sr++) {
     for (int sc = 0; sc < 8; sc++) {
       for (int dr = 0; dr < 8; dr++) {
-	for (int dc = 0; dc < 8; dc++) {
-	  if (CouldMove(sr, sc, dr, dc)) {
-	    pack.push_back(count);
-	    // unpack.emplace_back(sr, sc, dr, dc);
-	    unpack.push_back(sr * 512 + sc * 64 + dr * 8 + dc);
-	    count++;
-	  } else {
-	    pack.push_back(-1);
-	  }
-	}
+        for (int dc = 0; dc < 8; dc++) {
+          if (CouldMove(sr, sc, dr, dc)) {
+            pack.push_back(count);
+            // unpack.emplace_back(sr, sc, dr, dc);
+            unpack.push_back(sr * 512 + sc * 64 + dr * 8 + dc);
+            count++;
+          } else {
+            pack.push_back(-1);
+          }
+        }
       }
     }
   }
@@ -75,11 +75,11 @@ int main (int argc, char **argv) {
   printf("constexpr int16 pack_table[4096] = {\n");
   PrintVec(pack, 8);
   printf("};\n\n"
-	 "constexpr int16 unpack_table[%d] = {\n",
-	 count);
+         "constexpr int16 unpack_table[%d] = {\n",
+         count);
   PrintVec(unpack, 12);
   printf("};\n\n");
-  
+
   // fprintf(stderr, "Total: %d\n", count);
   return 0;
 }

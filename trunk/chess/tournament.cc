@@ -114,76 +114,76 @@ static Player *Stockfish1M_64() {
 const vector<Entrant> &GetEntrants() {
   static vector<Entrant> *entrants =
     new vector<Entrant>{
-			Safe,
-			Dangerous,
-			Popular,
-			Rare,
-			Survivalist,
-			Fatalist,
-			Equalizer,
+                        Safe,
+                        Dangerous,
+                        Popular,
+                        Rare,
+                        Survivalist,
+                        Fatalist,
+                        Equalizer,
 
-			BlindYolo,
-			BlindSingleKings,
-			BlindSpycheck,
-			
-			Worstfish,
+                        BlindYolo,
+                        BlindSingleKings,
+                        BlindSpycheck,
 
-			BinaryPi,
-			BinaryE,
+                        Worstfish,
 
-			RationalPi,
-			RationalE,
-			
-			MinOpponentMoves,
-			MirrorYSymmetry,
-			MirrorXSymmetry,
-			Random,
-			Symmetry180,
-			FirstMove,
-			Alphabetical,
-			Pacifist,
-			Generous,
-			NoIInsist,
-			SameColor,
-			OppositeColor,
-			Huddle,
-			Swarm,
-			SuicideKing,
-			ReverseStarting,
-			CCCP,
+                        BinaryPi,
+                        BinaryE,
 
-			SinglePlayer,
-			AlmanacPopular,
+                        RationalPi,
+                        RationalE,
 
-			Topple10K,
-			Topple1M,
+                        MinOpponentMoves,
+                        MirrorYSymmetry,
+                        MirrorXSymmetry,
+                        Random,
+                        Symmetry180,
+                        FirstMove,
+                        Alphabetical,
+                        Pacifist,
+                        Generous,
+                        NoIInsist,
+                        SameColor,
+                        OppositeColor,
+                        Huddle,
+                        Swarm,
+                        SuicideKing,
+                        ReverseStarting,
+                        CCCP,
 
-			Chessmaster1,
-			Chessmaster2,
+                        SinglePlayer,
+                        AlmanacPopular,
 
-			Stockfish0,
-			Stockfish5,
-			Stockfish10,
-			Stockfish15,
-			Stockfish20,
-			
-			Stockfish1M,
+                        Topple10K,
+                        Topple1M,
 
-			Stockfish1M_64512,
-			Stockfish1M_63488,
-			Stockfish1M_61440,
-			Stockfish1M_57344,
-			Stockfish1M_49152,
-			Stockfish1M_32768,
-			Stockfish1M_16384,
-			Stockfish1M_8192,
-			Stockfish1M_4096,
-			Stockfish1M_2048,
-			Stockfish1M_1024,
-			Stockfish1M_512,
-			Stockfish1M_256,
-			Stockfish1M_128,
-			Stockfish1M_64,
+                        Chessmaster1,
+                        Chessmaster2,
+
+                        Stockfish0,
+                        Stockfish5,
+                        Stockfish10,
+                        Stockfish15,
+                        Stockfish20,
+
+                        Stockfish1M,
+
+                        Stockfish1M_64512,
+                        Stockfish1M_63488,
+                        Stockfish1M_61440,
+                        Stockfish1M_57344,
+                        Stockfish1M_49152,
+                        Stockfish1M_32768,
+                        Stockfish1M_16384,
+                        Stockfish1M_8192,
+                        Stockfish1M_4096,
+                        Stockfish1M_2048,
+                        Stockfish1M_1024,
+                        Stockfish1M_512,
+                        Stockfish1M_256,
+                        Stockfish1M_128,
+                        Stockfish1M_64,
   };
   return *entrants;
 }
@@ -205,7 +205,7 @@ enum class Result {
 };
 
 Result PlayGame(Player *white_player, Player *black_player,
-		vector<Move> *moves) {
+                vector<Move> *moves) {
   std::unique_ptr<PlayerGame> white{white_player->CreateGame()};
   std::unique_ptr<PlayerGame> black{black_player->CreateGame()};
 
@@ -221,16 +221,16 @@ Result PlayGame(Player *white_player, Player *black_player,
   // and appears to be the correct interpretation of FIDE rules.
   std::unordered_map<Position, int, PositionHash, PositionEq>
     position_counts;
-  
+
   // TODO: Draw by insufficient material. But we can be guaranteed
   // that these eventually end in draws by the 75-move rule (or
   // perhaps some other draw rule) earlier.
-  
+
   auto DrawByRule75 =
     [&white_stale_moves,
      &black_stale_moves]() {
       return (white_stale_moves >= 75 &&
-	      black_stale_moves >= 75);
+              black_stale_moves >= 75);
     };
 
   int movenum = 0;
@@ -241,80 +241,80 @@ Result PlayGame(Player *white_player, Player *black_player,
     {
       Move m = white->GetMove(pos, nullptr);
       if (TESTING) {
-	CHECK(pos.IsLegal(m)) << pos.BoardString()
-			      << "\n" << Position::DebugMoveString(m)
-			      << "\n" << white_player->Name() << " vs "
-			      << black_player->Name();
+        CHECK(pos.IsLegal(m)) << pos.BoardString()
+                              << "\n" << Position::DebugMoveString(m)
+                              << "\n" << white_player->Name() << " vs "
+                              << black_player->Name();
 
       }
       if (pos.IsCapturing(m) ||
-	  pos.IsPawnMove(m)) {
-	white_stale_moves = 0;
+          pos.IsPawnMove(m)) {
+        white_stale_moves = 0;
       } else {
-	white_stale_moves++;
+        white_stale_moves++;
       }
 
       white->ForceMove(pos, m);
       black->ForceMove(pos, m);
       pos.ApplyMove(m);
       moves->push_back(m);
-      
+
       // Checkmate takes precedence over draw by
       // 75 moves.
 
       if (!pos.HasLegalMoves()) {
-	if (pos.IsInCheck())
-	  return Result::WHITE_WINS;
+        if (pos.IsInCheck())
+          return Result::WHITE_WINS;
 
-	return Result::DRAW_STALEMATE;
+        return Result::DRAW_STALEMATE;
       }
 
       int &count = position_counts[pos];
       count++;
       if (count == 5)
-	return Result::DRAW_5REPETITIONS;
-      
+        return Result::DRAW_5REPETITIONS;
+
       if (DrawByRule75())
-	return Result::DRAW_75MOVES;
+        return Result::DRAW_75MOVES;
 
     }
-      
+
     if (TESTING) { CHECK(pos.BlackMove()); }
-    
+
     {
       Move m = black->GetMove(pos, nullptr);
       if (TESTING) {
-	CHECK(pos.IsLegal(m)) << pos.BoardString()
-			      << "\n" << Position::DebugMoveString(m)
-			      << "\n" << white_player->Name() << " vs "
-			      << black_player->Name();
+        CHECK(pos.IsLegal(m)) << pos.BoardString()
+                              << "\n" << Position::DebugMoveString(m)
+                              << "\n" << white_player->Name() << " vs "
+                              << black_player->Name();
       }
       if (pos.IsCapturing(m) ||
-	  pos.IsPawnMove(m)) {
-	black_stale_moves = 0;
+          pos.IsPawnMove(m)) {
+        black_stale_moves = 0;
       } else {
-	black_stale_moves++;
+        black_stale_moves++;
       }
 
       white->ForceMove(pos, m);
       black->ForceMove(pos, m);
       pos.ApplyMove(m);
       moves->push_back(m);
-      
-      if (!pos.HasLegalMoves()) {
-	if (pos.IsInCheck())
-	  return Result::BLACK_WINS;
 
-	return Result::DRAW_STALEMATE;
+      if (!pos.HasLegalMoves()) {
+        if (pos.IsInCheck())
+          return Result::BLACK_WINS;
+
+        return Result::DRAW_STALEMATE;
       }
 
       int &count = position_counts[pos];
       count++;
       if (count == 5)
-	return Result::DRAW_5REPETITIONS;
-      
+        return Result::DRAW_5REPETITIONS;
+
       if (DrawByRule75())
-	return Result::DRAW_75MOVES;
+        return Result::DRAW_75MOVES;
     }
   }
 }
@@ -337,12 +337,12 @@ static void ShowStatus(int64 now) {
   if (now - status_last_time < 1)
     return;
   status_last_time = now;
-  
+
   int64 total_seconds = now - status_start_time;
 
   int64 minutes = total_seconds / 60;
   int seconds = total_seconds % 60;
-  
+
   for (int i = 0; i < status.size() + 2; i++) {
     printf("%s", ANSI_PREVLINE);
   }
@@ -350,20 +350,20 @@ static void ShowStatus(int64 now) {
   for (int i = 0; i < status.size(); i++) {
     done_all += status[i].done_games;
   }
-  
+
   printf("\n----------- %lld done ----- "
-	 ANSI_CYAN "%lld" ANSI_RESET "m" ANSI_CYAN "%d" ANSI_RESET "s"
-	 ANSI_WHITE " -----------" ANSI_CLEARTOEOL "\n",
-	 done_all, minutes, seconds);
+         ANSI_CYAN "%lld" ANSI_RESET "m" ANSI_CYAN "%d" ANSI_RESET "s"
+         ANSI_WHITE " -----------" ANSI_CLEARTOEOL "\n",
+         done_all, minutes, seconds);
   for (int i = 0; i < status.size(); i++) {
     printf(ANSI_GREY "[" ANSI_BLUE "% 2d. " ANSI_YELLOW "%d"
-	   ANSI_GREY "] " ANSI_GREEN "%s" ANSI_WHITE " vs " ANSI_GREEN "%s: "
-	   ANSI_WHITE "%s" ANSI_CLEARTOEOL "\n",
-	   i,
-	   status[i].done_games,
-	   status[i].row.c_str(),
-	   status[i].col.c_str(),
-	   status[i].msg.c_str());
+           ANSI_GREY "] " ANSI_GREEN "%s" ANSI_WHITE " vs " ANSI_GREEN "%s: "
+           ANSI_WHITE "%s" ANSI_CLEARTOEOL "\n",
+           i,
+           status[i].done_games,
+           status[i].row.c_str(),
+           status[i].col.c_str(),
+           status[i].msg.c_str());
   }
 }
 
@@ -377,11 +377,12 @@ static string RenderMoves(const vector<Move> &moves) {
       pgn += StringPrintf("%d.", (n >> 1) + 1);
     pgn += StringPrintf(" %s", pos.ShortMoveString(moves[n]).c_str());
     CHECK(pos.IsLegal(moves[n])) << pos.BoardString() << "\n"
-				 << pos.LongMoveString(moves[n]);
+                                 << pos.LongMoveString(moves[n]);
     pos.ApplyMove(moves[n]);
   }
   return pgn;
 }
+
 
 struct Totals {
   // Coarse locking.
@@ -391,18 +392,18 @@ struct Totals {
   vector<int64> totals;
   vector<std::pair<int, int>> todo;
   Totals(const vector<string> &n,
-	 const Outcomes &outcomes) : num(n.size()),
-				     names(n),
-				     totals(n.size() * n.size(), 0) {
+         const Outcomes &outcomes) : num(n.size()),
+                                     names(n),
+                                     totals(n.size() * n.size(), 0) {
     todo.reserve(THREADS);
     for (int white = 0; white < num; white++) {
       for (int black = 0; black < num; black++) {
-	auto it = outcomes.find(make_pair(names[white], names[black]));
-	if (it != outcomes.end()) {
-	  const Cell &cell = it->second;
-	  totals[white * num + black] =
-	    cell.white_wins + cell.white_losses + cell.draws;
-	}
+        auto it = outcomes.find(make_pair(names[white], names[black]));
+        if (it != outcomes.end()) {
+          const Cell &cell = it->second;
+          totals[white * num + black] =
+            cell.white_wins + cell.white_losses + cell.draws;
+        }
       }
     }
   }
@@ -428,21 +429,21 @@ struct Totals {
     };
     struct TCellCmp {
       bool operator()(const TCell &a, const TCell &b) {
-	return a.total < b.total;
+        return a.total < b.total;
       };
     };
-      
+
     gtl::TopN<TCell, TCellCmp> topn(THREADS);
-    
+
     // Otherwise, loop over the table and get the N neediest
     // cells.
     for (int white = 0; white < num; white++) {
       for (int black = 0; black < num; black++) {
-	// Could use DoRun filterting here.
-	int64 t = totals[white * num + black];
-	if (white != black || t < SELFPLAY_TARGET) {
-	  topn.push(TCell(white, black, t));
-	}
+        // Could use DoRun filterting here.
+        int64 t = totals[white * num + black];
+        if (white != black || t < SELFPLAY_TARGET) {
+          topn.push(TCell(white, black, t));
+        }
       }
     }
 
@@ -459,8 +460,8 @@ struct Totals {
 };
 
 static void TournamentThread(int thread_id,
-			     Totals *totals,
-			     Outcomes *outcomes) {
+                             Totals *totals,
+                             Outcomes *outcomes) {
   // Create thread-local instances of each entrant.
   // TODO: Lazily construct these.
   vector<Player *> entrants;
@@ -469,14 +470,14 @@ static void TournamentThread(int thread_id,
   }
   const int num_entrants = entrants.size();
   (void)num_entrants;
-  
+
   {
     MutexLock ml(&status_m);
     status[thread_id].msg = "start";
   }
 
   const int64 start_time = time(nullptr);
-  
+
   int games_done = 0;
   int64 last_message = 0LL; // time(nullptr);
 
@@ -486,18 +487,17 @@ static void TournamentThread(int thread_id,
       break;
     }
 
-    int white, black;
-    std::tie(white, black) = totals->GetAssignment();
+    const auto [white, black] = totals->GetAssignment();
     const string white_name = entrants[white]->Name();
     const string black_name = entrants[black]->Name();
-    
+
     if (now - last_message > 1) {
       {
-	MutexLock ml(&status_m);
-	status[thread_id].msg = "running";
-	status[thread_id].row = white_name;
-	status[thread_id].col = black_name;
-	status[thread_id].done_games = games_done;
+        MutexLock ml(&status_m);
+        status[thread_id].msg = "running";
+        status[thread_id].row = white_name;
+        status[thread_id].col = black_name;
+        status[thread_id].done_games = games_done;
       }
       ShowStatus(now);
       last_message = now;
@@ -506,24 +506,27 @@ static void TournamentThread(int thread_id,
     // outcomes are accumulated locally.
     Cell *cell = &(*outcomes)[make_pair(white_name, black_name)];
 
+    // TODO: If both players are deterministic, just pretend
+    // the same outcome happened again.
+
     vector<Move> as_white;
     switch (PlayGame(entrants[white], entrants[black], &as_white)) {
     case Result::WHITE_WINS:
       if (cell->example_win.empty())
-	cell->example_win = RenderMoves(as_white);
+        cell->example_win = RenderMoves(as_white);
       cell->white_wins++;
       break;
     case Result::BLACK_WINS:
       if (cell->example_loss.empty())
-	cell->example_loss = RenderMoves(as_white);
+        cell->example_loss = RenderMoves(as_white);
       cell->white_losses++;
       break;
-      
+
     case Result::DRAW_STALEMATE:
     case Result::DRAW_75MOVES:
     case Result::DRAW_5REPETITIONS:
       if (cell->example_draw.empty())
-	cell->example_draw = RenderMoves(as_white);
+        cell->example_draw = RenderMoves(as_white);
       cell->draws++;
       break;
     }
@@ -540,7 +543,7 @@ static void TournamentThread(int thread_id,
     status[thread_id].done_games = games_done;
   }
   ShowStatus(time(nullptr));
-  
+
   for (Player *p : entrants) delete p;
   entrants.clear();
 }
@@ -560,9 +563,9 @@ static void RunTournament() {
   }
   const int num_entrants = entrants.size();
   (void)num_entrants;
-  
+
   fflush(stdout);
-  
+
   auto AddOutcomes =
     [](const Outcomes &a,
        const Outcomes &b) {
@@ -578,21 +581,21 @@ static void RunTournament() {
 
   std::unique_ptr<Totals> totals =
     std::make_unique<Totals>(names, previous_outcomes);
-  
+
   Outcomes outcomes =
     ParallelAccumulate(
-	THREADS,
-	Outcomes{},
-	AddOutcomes,
-	[&totals](int thread_id, Outcomes *outcomes) {
-	  return TournamentThread(thread_id, totals.get(), outcomes);
-	},
-	THREADS);
+        THREADS,
+        Outcomes{},
+        AddOutcomes,
+        [&totals](int thread_id, Outcomes *outcomes) {
+          return TournamentThread(thread_id, totals.get(), outcomes);
+        },
+        THREADS);
 
   TournamentDB::MergeInto(previous_outcomes, &outcomes);
-  
+
   TournamentDB::SaveToFile(outcomes, "tournament.db");
-  
+
   for (Player *p : entrants) delete p;
   entrants.clear();
 }

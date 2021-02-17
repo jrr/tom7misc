@@ -1,6 +1,6 @@
 
-#ifndef __PGN_H
-#define __PGN_H
+#ifndef _PGN_H
+#define _PGN_H
 
 #include <unordered_map>
 #include <vector>
@@ -41,16 +41,16 @@ struct PGN {
     std::string move;
     // TODO: If present, annotations like clock, eval.
   };
-  
+
   // If you are parsing a large number of PGNs, it is slightly
   // faster to make a PGNParser instance and reuse it.
   static bool Parse(const std::string &s, PGN *pgn);
 
-  // Parse just a series of moves, like "1. d4 d5 2. Nf3" into 
+  // Parse just a series of moves, like "1. d4 d5 2. Nf3" into
   // ["d4", "d5", "Nf4"]. Termination like "1-0" is ignored.
   // Returns true and appends to 'moves' if successful.
   static bool ParseMoves(const std::string &s, std::vector<Move> *moves);
-  
+
   std::unordered_map<std::string, std::string> meta;
   int MetaInt(const std::string &key, int default_value = 0) const;
   Termination GetTermination() const;
@@ -60,7 +60,7 @@ struct PGN {
   // games ([TimeControl "-"]).
   std::pair<int, int> GetTimeControl() const;
   TimeClass GetTimeClass() const;
-  
+
   // The moves of the game. White moves are at even indices.
   // Does not include the terminating event like 1-0.
   std::vector<Move> moves;
@@ -71,7 +71,7 @@ struct PGNParser {
   // Parses a subset of the PGN language. Returns false upon failure.
   bool Parse(const std::string &s, PGN *pgn) const;
   PGNParser();
-  
+
 private:
   const RE2 meta_line_re, move_re, end_re;
 };

@@ -1,6 +1,6 @@
 
-#ifndef __UCI_PLAYER_H
-#define __UCI_PLAYER_H
+#ifndef _UCI_PLAYER_H
+#define _UCI_PLAYER_H
 
 #include "player.h"
 

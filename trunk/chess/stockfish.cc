@@ -31,7 +31,7 @@ void Stockfish::InitEngine() {
     return;
   subprocess.reset(
       Subprocess::Create("stockfish.exe"));
-	  // "..\\..\\stockfish\\src\\stockfish.exe"));
+          // "..\\..\\stockfish\\src\\stockfish.exe"));
   CHECK(subprocess.get());
 
   subprocess->Write("uci\n");
@@ -57,7 +57,7 @@ void Stockfish::GetMove(const string &fen, string *move, Score *score) {
   } else {
     subprocess->Write(StringPrintf("position fen %s\ngo\n", fen.c_str()));
   }
-    
+
   string line;
   string info;
   do {
@@ -70,7 +70,7 @@ void Stockfish::GetMove(const string &fen, string *move, Score *score) {
 
   // printf("%s -> [%s]\n", fen.c_str(), move->c_str());
   // fflush(stdout);
-  
+
   // On an info line, score has one of these two forms (from uci.cpp):
   /// cp <x>    The score from the engine's point of view in centipawns.
   /// mate <y>  Mate in y moves, not plies. If the engine is getting mated
@@ -80,18 +80,18 @@ void Stockfish::GetMove(const string &fen, string *move, Score *score) {
     string tok;
     while (!(tok = Util::chop(info)).empty()) {
       if (tok == "score") {
-	string typ = Util::chop(info);
-	string val = Util::chop(info);
-	if (typ == "cp") {
-	  score->is_mate = false;
-	} else if (typ == "mate") {
-	  score->is_mate = true;
-	} else {
-	  LOG(FATAL) << "Unknown score type " << typ;
-	}
+        string typ = Util::chop(info);
+        string val = Util::chop(info);
+        if (typ == "cp") {
+          score->is_mate = false;
+        } else if (typ == "mate") {
+          score->is_mate = true;
+        } else {
+          LOG(FATAL) << "Unknown score type " << typ;
+        }
 
-	score->value = atoi(val.c_str());
-	break;
+        score->value = atoi(val.c_str());
+        break;
       }
     }
   }

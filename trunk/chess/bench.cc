@@ -28,12 +28,12 @@ enum class Result {
 };
 
 Result PlayGame(Player *white_player, Player *black_player,
-		vector<Move> *moves) {
+                vector<Move> *moves) {
   Position pos;
 
   std::unique_ptr<PlayerGame> white{white_player->CreateGame()};
   std::unique_ptr<PlayerGame> black{black_player->CreateGame()};
-  
+
   // For implementing 75-move rule.
   int white_stale_moves = 0;
   int black_stale_moves = 0;
@@ -44,16 +44,16 @@ Result PlayGame(Player *white_player, Player *black_player,
   // and appears to be the correct interpretation of FIDE rules.
   std::unordered_map<Position, int, PositionHash, PositionEq>
     position_counts;
-  
+
   // TODO: Draw by insufficient material. (But we can be guaranteed
   // that these eventually end in draws by the 75-move rule (or
   // perhaps some other draw rule earlier).)
-  
+
   auto DrawByRule75 =
     [&white_stale_moves,
      &black_stale_moves]() {
       return (white_stale_moves >= 75 &&
-	      black_stale_moves >= 75);
+              black_stale_moves >= 75);
     };
 
   int movenum = 0;
@@ -63,66 +63,66 @@ Result PlayGame(Player *white_player, Player *black_player,
     {
       Move m = white->GetMove(pos, nullptr);
       if (pos.IsCapturing(m) ||
-	  pos.IsPawnMove(m)) {
-	white_stale_moves = 0;
+          pos.IsPawnMove(m)) {
+        white_stale_moves = 0;
       } else {
-	white_stale_moves++;
+        white_stale_moves++;
       }
 
       white->ForceMove(pos, m);
       black->ForceMove(pos, m);
       pos.ApplyMove(m);
       moves->push_back(m);
-      
+
       // Checkmate takes precedence over draw by
       // 75 moves.
 
       if (!pos.HasLegalMoves()) {
-	if (pos.IsInCheck())
-	  return Result::WHITE_WINS;
+        if (pos.IsInCheck())
+          return Result::WHITE_WINS;
 
-	return Result::DRAW_STALEMATE;
+        return Result::DRAW_STALEMATE;
       }
 
       int &count = position_counts[pos];
       count++;
       if (count == 5)
-	return Result::DRAW_5REPETITIONS;
-      
+        return Result::DRAW_5REPETITIONS;
+
       if (DrawByRule75())
-	return Result::DRAW_75MOVES;
+        return Result::DRAW_75MOVES;
 
     }
-      
+
     {
       Move m = black->GetMove(pos, nullptr);
       if (pos.IsCapturing(m) ||
-	  pos.IsPawnMove(m)) {
-	black_stale_moves = 0;
+          pos.IsPawnMove(m)) {
+        black_stale_moves = 0;
       } else {
-	black_stale_moves++;
+        black_stale_moves++;
       }
-      
+
       white->ForceMove(pos, m);
       black->ForceMove(pos, m);
 
       pos.ApplyMove(m);
       moves->push_back(m);
-      
-      if (!pos.HasLegalMoves()) {
-	if (pos.IsInCheck())
-	  return Result::BLACK_WINS;
 
-	return Result::DRAW_STALEMATE;
+      if (!pos.HasLegalMoves()) {
+        if (pos.IsInCheck())
+          return Result::BLACK_WINS;
+
+        return Result::DRAW_STALEMATE;
       }
 
       int &count = position_counts[pos];
       count++;
       if (count == 5)
-	return Result::DRAW_5REPETITIONS;
-      
+        return Result::DRAW_5REPETITIONS;
+
       if (DrawByRule75())
-	return Result::DRAW_75MOVES;
+        return Result::DRAW_75MOVES;
     }
   }
 }
@@ -132,7 +132,7 @@ static constexpr int NUM_GAMES = 10;
 static void PlayerBenchmark() {
   std::unique_ptr<Player> white{SinglePlayer()};
   std::unique_ptr<Player> black{SinglePlayer()};
-  
+
   int white_wins = 0, black_wins = 0, draws = 0;
   int total_moves = 0;
 
@@ -160,7 +160,7 @@ static void PlayerBenchmark() {
   // const double seconds = time(nullptr) - start_time;
   const double seconds = bench_timer.MS() / 1000.0;
   printf("Total time: %.2fs (%.2f moves/sec)\n",
-	 seconds, total_moves / seconds);
+         seconds, total_moves / seconds);
 }
 
 static void ExcursionBenchmark() {
@@ -192,26 +192,26 @@ static void ExcursionBenchmark() {
       "b2r3r/k4p1p/p2q1np1/NppP4/3p1Q2/P4PPB/1PP4P/1K1RR3 w - - 1 24");
   AddPosition(
       "r4b1r/pp1n2p1/1qp1k2p/4p3/3P4/2P5/P1P1Q1PP/1RB2RK1 b - - 2 15");
-  
+
   Timer bench_timer;
   static constexpr int LOOPS = 100000;
   for (int i = 0; i < LOOPS; i++) {
     for (const Position &orig_pos : positions) {
       Position excursion_pos = orig_pos;
       for (const Position::Move &move : excursion_pos.GetLegalMoves()) {
-	Position apply_pos = orig_pos;
-	apply_pos.ApplyMove(move);
-	excursion_pos.MoveExcursion(move, [&](){
-	    CHECK(PositionEq{}(apply_pos, excursion_pos)) <<
-	      "Should have applied move:\n" <<
-	      apply_pos.BoardString() << "\n" <<
-	      excursion_pos.BoardString();
-	    return 0;
-	  });
-	CHECK(PositionEq{}(orig_pos, excursion_pos)) <<
-	  "Should have restored state:\n" <<
-	  orig_pos.BoardString() << "\n" <<
-	  excursion_pos.BoardString();
+        Position apply_pos = orig_pos;
+        apply_pos.ApplyMove(move);
+        excursion_pos.MoveExcursion(move, [&](){
+            CHECK(PositionEq{}(apply_pos, excursion_pos)) <<
+              "Should have applied move:\n" <<
+              apply_pos.BoardString() << "\n" <<
+              excursion_pos.BoardString();
+            return 0;
+          });
+        CHECK(PositionEq{}(orig_pos, excursion_pos)) <<
+          "Should have restored state:\n" <<
+          orig_pos.BoardString() << "\n" <<
+          excursion_pos.BoardString();
       }
     }
   }
@@ -223,7 +223,7 @@ static void ExcursionBenchmark() {
 int main(int argc, char **argv) {
   (void)PlayerBenchmark;
   (void)ExcursionBenchmark;
-  
+
   ExcursionBenchmark();
   return 0;
 }

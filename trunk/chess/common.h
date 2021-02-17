@@ -1,5 +1,5 @@
-#ifndef __COMMON_H
-#define __COMMON_H
+#ifndef _COMMON_H
+#define _COMMON_H
 
 #include <string>
 #include <vector>
@@ -24,7 +24,7 @@ struct CommonSet {
   inline bool Contains(uint64_t h) const {
     return positions.find(h) != positions.end();
   }
-  
+
   std::unordered_set<uint64_t> positions;
 };
 
@@ -32,7 +32,7 @@ struct CommonSet {
 struct CommonMap {
   CommonMap() {}
   explicit CommonMap(const std::string &filename);
-  
+
   // Create map with empty move counts from set.
   explicit CommonMap(const CommonSet &cs) {
     for (const uint64_t w : cs.positions) {
@@ -47,13 +47,13 @@ struct CommonMap {
       const MoveCounts &src = p.second;
       MoveCounts *dest = &positions[p.first];
       for (const auto &c : src) {
-	(*dest)[c.first] += c.second;
+        (*dest)[c.first] += c.second;
       }
     }
   }
 
   void WriteFile(const std::string &filename);
-  
+
   // Packed move to count.
   // PERF: This can be represented a lot more efficiently.
   using MoveCounts = std::unordered_map<uint16_t, uint32_t>;

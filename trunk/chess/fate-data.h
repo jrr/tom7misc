@@ -1,5 +1,5 @@
-#ifndef __FATE_DATA_H
-#define __FATE_DATA_H
+#ifndef _FATE_DATA_H
+#define _FATE_DATA_H
 
 struct LivedDied {
   double lived, died;

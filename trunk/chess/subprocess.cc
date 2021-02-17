@@ -41,25 +41,25 @@ struct SubprocessImpl : Subprocess {
     for (;;) {
       DWORD num_read;
       if (!ReadFile(g_hChildStd_OUT_Rd, &cbuf, BUFSIZE, &num_read, nullptr))
-	return false;
+        return false;
 
       for (int i = 0; i < num_read; i++) {
-	if (cbuf[i] == '\n') {
-	  // Then partial_line contains a line.
-	  lines.push_back(std::move(partial_line));
-	  partial_line.clear();
-	} else if (cbuf[i] == '\r') {
-	  // strip these in line-reading mode.
-	} else {
-	  partial_line.push_back(cbuf[i]);
-	}
+        if (cbuf[i] == '\n') {
+          // Then partial_line contains a line.
+          lines.push_back(std::move(partial_line));
+          partial_line.clear();
+        } else if (cbuf[i] == '\r') {
+          // strip these in line-reading mode.
+        } else {
+          partial_line.push_back(cbuf[i]);
+        }
       }
 
       // If we have anylines, then we can return.
       if (!lines.empty()) {
-	*line = std::move(lines.front());
-	lines.pop_front();
-	return true;
+        *line = std::move(lines.front());
+        lines.pop_front();
+        return true;
       }
       // Otherwise, keep reading.
     }
@@ -76,9 +76,9 @@ struct SubprocessImpl : Subprocess {
       CloseHandle(g_hChildStd_OUT_Rd);
       g_hChildStd_OUT_Rd = nullptr;
     }
-    
+
     // XXX What about the others?
-    
+
     if (child_process_handle) {
       TerminateProcess(child_process_handle, 0);
       CloseHandle(child_process_handle);
@@ -93,7 +93,7 @@ struct SubprocessImpl : Subprocess {
 
   // temporary storage during reading.
   CHAR cbuf[BUFSIZE] = {};
-  
+
   HANDLE g_hChildStd_IN_Rd = nullptr;
   HANDLE g_hChildStd_IN_Wr = nullptr;
   HANDLE g_hChildStd_OUT_Rd = nullptr;
@@ -114,7 +114,7 @@ Subprocess *Subprocess::Create(const string &filename) {
 
   // printf("Create Subprocess struct...\n");
   // fflush(stdout);
-  
+
   std::unique_ptr<SubprocessImpl> sub{new SubprocessImpl};
 
   // XXX: Probably need to clean these up if e.g. CreateProcess fails?
@@ -136,7 +136,7 @@ Subprocess *Subprocess::Create(const string &filename) {
 
   // printf("Created handles...\n");
   // fflush(stdout);
-  
+
   // Now create the child process.
   PROCESS_INFORMATION piProcInfo;
   STARTUPINFO siStartInfo;
@@ -158,31 +158,31 @@ Subprocess *Subprocess::Create(const string &filename) {
 
   // printf("CreateProcess...\n");
   // fflush(stdout);
-  
+
   if (!CreateProcess(nullptr,
-		     // command line
-		     &filename_copy[0],
-		     // process security attributes
-		     nullptr,
-		     // primary thread security attributes
-		     nullptr,
-		     // handles are inherited
-		     TRUE,
-		     // creation flags
-		     0,
-		     // use parent's environment
-		     nullptr,
-		     // use parent's current directory
-		     nullptr,
-		     // STARTUPINFO pointer
-		     &siStartInfo,
-		     // receives PROCESS_INFORMATION
-		     &piProcInfo))
+                     // command line
+                     &filename_copy[0],
+                     // process security attributes
+                     nullptr,
+                     // primary thread security attributes
+                     nullptr,
+                     // handles are inherited
+                     TRUE,
+                     // creation flags
+                     0,
+                     // use parent's environment
+                     nullptr,
+                     // use parent's current directory
+                     nullptr,
+                     // STARTUPINFO pointer
+                     &siStartInfo,
+                     // receives PROCESS_INFORMATION
+                     &piProcInfo))
     return nullptr;
 
   // printf("CreateProcess...\n");
   // fflush(stdout);
-  
+
   // TODO: Keep these in Subprocess struct.
   // Close handles to the child process and its primary thread.
   // Some applications might keep these handles to monitor the status
@@ -193,6 +193,6 @@ Subprocess *Subprocess::Create(const string &filename) {
 
   // printf("OK...\n");
   // fflush(stdout);
-  
+
   return sub.release();
 }

@@ -1,6 +1,6 @@
 
-#ifndef __STOCKFISH_PLAYER_H
-#define __STOCKFISH_PLAYER_H
+#ifndef _STOCKFISH_PLAYER_H
+#define _STOCKFISH_PLAYER_H
 
 struct Player;
 

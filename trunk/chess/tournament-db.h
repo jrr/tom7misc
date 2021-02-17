@@ -1,6 +1,6 @@
 
-#ifndef __TOURNAMENT_DB_H
-#define __TOURNAMENT_DB_H
+#ifndef _TOURNAMENT_DB_H
+#define _TOURNAMENT_DB_H
 
 #include <utility>
 #include <vector>
@@ -26,13 +26,16 @@ struct OutcomeKeyHash {
 };
 
 // Where key is Player::Name()s as (white,black).
-using Outcomes = std::unordered_map<std::pair<std::string, std::string>, Cell, OutcomeKeyHash>;
+using Outcomes = std::unordered_map<std::pair<std::string, std::string>,
+                                    Cell, OutcomeKeyHash>;
 
 struct TournamentDB {
-  static Outcomes LoadFromFile(const std::string &filename,
-			       const std::unordered_set<std::string> &ignore = {});
-  static void SaveToFile(const Outcomes &outcomes, const std::string &filename);
-  
+  static Outcomes LoadFromFile(
+      const std::string &filename,
+      const std::unordered_set<std::string> &ignore = {});
+  static void SaveToFile(const Outcomes &outcomes,
+                         const std::string &filename);
+
   // Merge all the outcomes in source into dest, modifying it in place.
   static void MergeInto(const Outcomes &source, Outcomes *dest);
 };

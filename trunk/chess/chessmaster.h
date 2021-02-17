@@ -1,8 +1,8 @@
 
 // Wrapper for NES Chessmaster game.
 
-#ifndef __CHESSMASTER_H
-#define __CHESSMASTER_H
+#ifndef _CHESSMASTER_H
+#define _CHESSMASTER_H
 
 #include <vector>
 #include <cstdint>
@@ -20,16 +20,16 @@ struct Chessmaster {
   // Note that engine loading is lazy; errors like missing chessmaster.nes
   // won't occur until the first call to GetMove.
   Chessmaster(int level);
-  
+
   // Get a move. The position must be legal and have moves!
   // If something goes wrong, returns a move from 0,0 to 0,0.
   Position::Move GetMove(const Position &pos);
 
   // 256x256 screenshot, rgba. (Note: Advances one frame.)
   std::vector<uint8> GetScreenshot();
-  
+
   ~Chessmaster();
-  
+
 private:
   // Must hold lock.
   void InitEngine();

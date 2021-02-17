@@ -54,22 +54,22 @@ PackedGame::SplitFile(const vector<uint8_t> &contents) {
   auto Get32 = [&GetByte]() {
       uint32 ret = 0LL;
       for (int i = 0; i < 4; i++) {
-	ret <<= 8;
-	ret |= GetByte();
+        ret <<= 8;
+        ret |= GetByte();
       }
       return ret;
     };
   auto Get64 = [&GetByte]() {
       uint64 ret = 0LL;
       for (int i = 0; i < 8; i++) {
-	ret <<= 8;
-	ret |= GetByte();
+        ret <<= 8;
+        ret |= GetByte();
       }
       return ret;
     };
 
   vector<pair<uint64_t, PackedGame>> ret;
-  
+
   while (idx < contents.size()) {
     const uint64 hc = Get64();
     const uint8 result_byte = GetByte();
@@ -81,9 +81,9 @@ PackedGame::SplitFile(const vector<uint8_t> &contents) {
 
     /*
     fprintf(stderr, "hc %llx, %d moves, %d triples, %d packed [idx %d]\n",
-	    hc, num_moves, num_triples, packed_size, idx);
+            hc, num_moves, num_triples, packed_size, idx);
     */
-    
+
     PackedGame pg;
     switch (result_byte) {
     case 0b10: pg.result = Result::WHITE_WINS; break;

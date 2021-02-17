@@ -359,14 +359,14 @@ vector<pair<int, float>> actual_probs = {
 
 // Sum of absolute difference in rank across all elements.
 int RankError(const vector<int> &a,
-	      const vector<int> &b) {
+              const vector<int> &b) {
   int delta = 0;
   for (int i = 0; i < a.size(); i++) {
     int target = a[i];
     for (int j = 0; j < b.size(); j++) {
       if (b[j] == target) {
-	delta += abs(i - j);
-	goto next;
+        delta += abs(i - j);
+        goto next;
       }
     }
     LOG(FATAL) << "Did not find " << target << " in b?";
@@ -561,11 +561,11 @@ void GenPerm() {
     {"Actual", actual_probs},
     {"David", prob_david},
     {"Tom", Degenerate(rank_tom)},
-    {"Actual", actual_probs},    
+    {"Actual", actual_probs},
     {"Ben", Degenerate(rank_ben)},
   };
   */
-  
+
   vector<pair<string, vector<pair<int, float>>>> tableau = {
     {"All", actual_probs},
     {"Bullet", bullet_probs},
@@ -574,14 +574,14 @@ void GenPerm() {
     {"Classical", classical_probs},
     {"Titled", titled_probs},
   };
-  
+
   for (int i = 0; i < tableau.size(); i++) {
     for (int j = i + 1; j < tableau.size(); j++) {
       int e = RankError(Strip(tableau[i].second),
-			Strip(tableau[j].second));
+                        Strip(tableau[j].second));
       printf("%s vs. %s: %d err\n",
-	     tableau[i].first.c_str(),
-	     tableau[j].first.c_str(), e);
+             tableau[i].first.c_str(),
+             tableau[j].first.c_str(), e);
     }
   }
 
@@ -595,8 +595,8 @@ void GenPerm() {
       p1.reserve(32);
       p2.reserve(32);
       for (int i = 0; i < 32; i++) {
-	p1.push_back(i);
-	p2.push_back(i);
+        p1.push_back(i);
+        p2.push_back(i);
       }
       Shuffle(&rc, &p1);
       Shuffle(&rc, &p2);
@@ -605,12 +605,12 @@ void GenPerm() {
     double avg_error = (double)total_error / (double)TRIALS;
     printf("Average for random perms: %.6f\n", avg_error);
   }
-  
+
   const float WIDTH = 800.0;
   const float HEIGHT = 600.0;
   FILE *f = fopen("perms.svg", "wb");
   fprintf(f, "%s", TextSVG::Header(WIDTH, HEIGHT).c_str());
-  
+
   const float MARGIN_LEFT = 10.0;
   const float ROWHEIGHT = 16.0;
   const float HEADER_HEIGHT = 24.0;
@@ -623,13 +623,13 @@ void GenPerm() {
     const vector<pair<int, float>> &col = tableau[i].second;
 
     fprintf(f, "%s\n",
-	    TextSVG::Text(xcol, yy, "sans-serif",
-			  20.0, {{"#000", header}}).c_str());
+            TextSVG::Text(xcol, yy, "sans-serif",
+                          20.0, {{"#000", header}}).c_str());
     yy += HEADER_HEIGHT;
-    
+
     const bool has_probs = col[0].second > 0.0f;
     fprintf(stderr, "%s %s\n", header.c_str(),
-	    has_probs ? " has probs " : " hasn't probs");
+            has_probs ? " has probs " : " hasn't probs");
     const float LABEL_WIDTH = 35.0;
     const float PROB_WIDTH = 25.0;
     const float colwidth =
@@ -637,66 +637,66 @@ void GenPerm() {
     for (int row = 0; row < col.size(); row++) {
       int p = col[row].first;
       fprintf(f, "%s\n",
-	      TextSVG::Text(xcol, yy, "sans-serif",
-			    18.0, {{"#000", PieceName(p)}}).c_str());
+              TextSVG::Text(xcol, yy, "sans-serif",
+                            18.0, {{"#000", PieceName(p)}}).c_str());
 
       if (has_probs) {
-	const float prob = col[row].second;
-	fprintf(f, "%s\n",
-		TextSVG::Text(xcol + LABEL_WIDTH, yy, "sans-serif",
-			      9.0, {{"#777",
-				    StringPrintf("%d%%", (int)(prob * 100.0f))
-				     }}).c_str());
+        const float prob = col[row].second;
+        fprintf(f, "%s\n",
+                TextSVG::Text(xcol + LABEL_WIDTH, yy, "sans-serif",
+                              9.0, {{"#777",
+                                    StringPrintf("%d%%", (int)(prob * 100.0f))
+                                     }}).c_str());
       }
 
       // Draw connector.
       if (i != tableau.size() - 1) {
-	const vector<pair<int, float>> &ncol = tableau[i + 1].second;
-	// Get the index of the piece from this row.
-	// if (p == WHITE_KING)
-	for (int nrow = 0; nrow < ncol.size(); nrow++) {
-	  if (ncol[nrow].first == p) {
-	    // Maximum distance would be 31.
-	    const int idist = abs(nrow - row);
-	    const float actual_dist = idist / 31.0f;
-	    float dist = 0.25 + (0.75 * actual_dist);
-	    
-	    float sx = xcol + colwidth;
-	    float sy = yy - ROWHEIGHT / 2.0;
-	    float dx = xcol + colwidth + COL_MARGIN;
-	    float dy = (MARGIN_TOP + HEADER_HEIGHT) +
-	      (ROWHEIGHT * nrow) - (ROWHEIGHT / 2.0);
+        const vector<pair<int, float>> &ncol = tableau[i + 1].second;
+        // Get the index of the piece from this row.
+        // if (p == WHITE_KING)
+        for (int nrow = 0; nrow < ncol.size(); nrow++) {
+          if (ncol[nrow].first == p) {
+            // Maximum distance would be 31.
+            const int idist = abs(nrow - row);
+            const float actual_dist = idist / 31.0f;
+            float dist = 0.25 + (0.75 * actual_dist);
 
-	    if (idist > 0)
-	    fprintf(f, "<path fill=\"none\" "
-		    "stroke=\"#000\" stroke-opacity=\"%.2f\" "
-		    "stroke-width=\"1px\" "
-		    "d=\"M%s %s "
-		    "C%s %s, %s %s, %s %s"
-		    
-		    // "L%s %s"
-		    "\" />\n",
-		    dist,
-		    
-		    TextSVG::Rtos(sx).c_str(),
-		    TextSVG::Rtos(sy).c_str(),
+            float sx = xcol + colwidth;
+            float sy = yy - ROWHEIGHT / 2.0;
+            float dx = xcol + colwidth + COL_MARGIN;
+            float dy = (MARGIN_TOP + HEADER_HEIGHT) +
+              (ROWHEIGHT * nrow) - (ROWHEIGHT / 2.0);
 
-		    // Curve control points.
-		    TextSVG::Rtos(sx * 0.5 + dx * 0.5).c_str(),
-		    TextSVG::Rtos(sy).c_str(),
+            if (idist > 0)
+            fprintf(f, "<path fill=\"none\" "
+                    "stroke=\"#000\" stroke-opacity=\"%.2f\" "
+                    "stroke-width=\"1px\" "
+                    "d=\"M%s %s "
+                    "C%s %s, %s %s, %s %s"
 
-		    TextSVG::Rtos(sx * 0.5 + dx * 0.5).c_str(),
-		    TextSVG::Rtos(dy).c_str(),
-		    
-		    // end
-		    TextSVG::Rtos(dx).c_str(),
-		    TextSVG::Rtos(dy).c_str());
-		    
-	    break;
-	  }
-	}
+                    // "L%s %s"
+                    "\" />\n",
+                    dist,
+
+                    TextSVG::Rtos(sx).c_str(),
+                    TextSVG::Rtos(sy).c_str(),
+
+                    // Curve control points.
+                    TextSVG::Rtos(sx * 0.5 + dx * 0.5).c_str(),
+                    TextSVG::Rtos(sy).c_str(),
+
+                    TextSVG::Rtos(sx * 0.5 + dx * 0.5).c_str(),
+                    TextSVG::Rtos(dy).c_str(),
+
+                    // end
+                    TextSVG::Rtos(dx).c_str(),
+                    TextSVG::Rtos(dy).c_str());
+
+            break;
+          }
+        }
       }
-      
+
       yy += ROWHEIGHT;
     }
     xcol += colwidth + COL_MARGIN;
@@ -704,7 +704,7 @@ void GenPerm() {
 
   fprintf(f, "%s", TextSVG::Footer().c_str());
   fclose(f);
-  
+
 #if 0
   const Position startpos;
 
@@ -718,7 +718,7 @@ void GenPerm() {
     for (int p = 0; p < 32; p++) {
       int64 total_survived = 0LL;
       for (int j = 0; j < 64; j++)
-	total_survived += stats.pieces[p].survived_on[j];
+        total_survived += stats.pieces[p].survived_on[j];
       survived[p].denom[b] += stats.num_games;
       survived[p].numer[b] += total_survived;
     }
@@ -727,18 +727,18 @@ void GenPerm() {
   std::vector<int> pieces;
   for (int i = 0; i < 32; i++) pieces.push_back(i);
   std::sort(pieces.begin(), pieces.end(),
-	    [&survived](int a, int b) {
-	      return survived[a].Mean() < survived[b].Mean();
-	    });
+            [&survived](int a, int b) {
+              return survived[a].Mean() < survived[b].Mean();
+            });
 
   for (int p : pieces) {
     // TODO: Compute "confidence interval" here.
     printf("%d (%s). %lld/%lld %.3f (%.3f--%.3f)\n",
-	   p, PIECE_NAME[p],
-	   survived[p].Numer(), survived[p].Denom(),
-	   survived[p].Mean(),
-	   survived[p].Min(),
-	   survived[p].Max());
+           p, PIECE_NAME[p],
+           survived[p].Numer(), survived[p].Denom(),
+           survived[p].Mean(),
+           survived[p].Min(),
+           survived[p].Max());
   }
 
 
@@ -759,27 +759,27 @@ void GenPerm() {
 
     for (int i = 0; i < pieces.size(); i++) {
       auto UseCol =
-	[](int x) {
-	  const int p = PiecePiece(x);
-	  switch (p & Position::TYPE_MASK) {
-	  case Position::QUEEN:
-	  case Position::KING:
-	    return false;
-	  default:
-	    return true;
-	  }
-	};
+        [](int x) {
+          const int p = PiecePiece(x);
+          switch (p & Position::TYPE_MASK) {
+          case Position::QUEEN:
+          case Position::KING:
+            return false;
+          default:
+            return true;
+          }
+        };
       auto PieceName =
-	[&UseCol](int x) {
-	  const int p = PiecePiece(x);
-	  const string ent = Position::HTMLEntity(p);
-	  const string col = PieceCol(x);
-	  if (UseCol(x)) {
-	    return ent + col;
-	  } else {
-	    return ent;
-	  }
-	};
+        [&UseCol](int x) {
+          const int p = PiecePiece(x);
+          const string ent = Position::HTMLEntity(p);
+          const string col = PieceCol(x);
+          if (UseCol(x)) {
+            return ent + col;
+          } else {
+            return ent;
+          }
+        };
 
       const int p = pieces[i];
 
@@ -797,36 +797,36 @@ void GenPerm() {
       double x = MARGIN + pos.x0 + 3.0;
       /*
       fprintf(f, "<rect fill=\"none\" stroke=\"#000\" x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" />\n",
-	      pos.x0 + MARGIN, pos.y0, w, h);
+              pos.x0 + MARGIN, pos.y0, w, h);
       */
 
       fprintf(f, "<line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
-	      "stroke=\"black\" />\n",
-	      x, PtoY(survived[p].Min()),
-	      x, PtoY(survived[p].Max()));
+              "stroke=\"black\" />\n",
+              x, PtoY(survived[p].Min()),
+              x, PtoY(survived[p].Max()));
       double pmean = survived[p].Mean();
       double cy = PtoY(pmean);
       fprintf(f, "<circle cx=\"%.2f\" cy=\"%.2f\" r=\"1.5\" />\n",
-	      x, cy);
+              x, cy);
 
       fprintf(f, "%s\n",
-	      TextSVG::Text(x + 5.0, cy + 3.2, "sans-serif",
-			    18.0, {{"#000", PieceName(p)}}).c_str());
+              TextSVG::Text(x + 5.0, cy + 3.2, "sans-serif",
+                            18.0, {{"#000", PieceName(p)}}).c_str());
 
       fprintf(f, "%s\n",
-	      TextSVG::Text(x + label_width, cy + 3.2, "sans-serif",
-			    9.0, {{"#777",
-				   StringPrintf("%.1f%%", pmean * 100.0)
-				   }}).c_str());
+              TextSVG::Text(x + label_width, cy + 3.2, "sans-serif",
+                            9.0, {{"#777",
+                                   StringPrintf("%.1f%%", pmean * 100.0)
+                                   }}).c_str());
 
       #if 0
       // TODO: Compute "confidence interval" here.
       printf("%d (%s). %lld/%lld %.3f (%.3f--%.3f)\n",
-	     p, PIECE_NAME[p],
-	     survived[p].Numer(), survived[p].Denom(),
-	     survived[p].Mean(),
-	     survived[p].Min(),
-	     survived[p].Max());
+             p, PIECE_NAME[p],
+             survived[p].Numer(), survived[p].Denom(),
+             survived[p].Mean(),
+             survived[p].Min(),
+             survived[p].Max());
       #endif
     }
 
@@ -836,7 +836,7 @@ void GenPerm() {
 
   GenFateMap(stat_buckets);
   GenCC(stat_buckets);
-  
+
   // One idea for drawing chess pieces in HTML is to use
   // a "black" king drawn in white behind a white king (in black or
   // grey) to provide the outline. It looks better than the hollow
@@ -849,23 +849,23 @@ void GenPerm() {
     FILE *f = fopen("report.html", "wb");
 
     fprintf(f, "<!doctype html>\n"
-	    "<link href=\"report.css\" rel=\"stylesheet\" "
-	    "type=\"text/css\">\n");
+            "<link href=\"report.css\" rel=\"stylesheet\" "
+            "type=\"text/css\">\n");
 
     fprintf(f, "<h1>Overall chances survival (%lld games)</h1>\n"
-	    "<table>"
-	    "<tr><td>rank</td><td>piece</td> <td>survived</td> "
-	    "<td>p(survived)</td> <td>lb</td><td>ub</td></tr>\n",
-	    games.Total());
+            "<table>"
+            "<tr><td>rank</td><td>piece</td> <td>survived</td> "
+            "<td>p(survived)</td> <td>lb</td><td>ub</td></tr>\n",
+            games.Total());
     for (int p : pieces) {
       fprintf(f,
-	      "<td>%d</td> <td>%s</td> <td>%lld</td> "
-	      "<td>%.4f</td> <td>%.4f</td> <td>%.4f</td></tr>\n",
-	      p, PIECE_NAME[p],
-	      survived[p].Numer(),
-	      survived[p].Mean(),
-	      survived[p].Min(),
-	      survived[p].Max());
+              "<td>%d</td> <td>%s</td> <td>%lld</td> "
+              "<td>%.4f</td> <td>%.4f</td> <td>%.4f</td></tr>\n",
+              p, PIECE_NAME[p],
+              survived[p].Numer(),
+              survived[p].Mean(),
+              survived[p].Min(),
+              survived[p].Max());
     }
     fprintf(f, "</table>\n");
 
@@ -875,31 +875,31 @@ void GenPerm() {
     for (int r = 0; r < 8; r++) {
       fprintf(f, "<tr>");
       for (int c = 0; c < 8; c++) {
-	const int idx = r * 8 + c;
-	const bool light = ((r + c) & 1) == 0;
-	fprintf(f, " <td class=%s>", light ? "lt" : "dk");
+        const int idx = r * 8 + c;
+        const bool light = ((r + c) & 1) == 0;
+        fprintf(f, " <td class=%s>", light ? "lt" : "dk");
 
-	if (idx < 16 || idx >= 48) {
-	  const bool black = idx < 16;
-	  const int pidx = black ? idx : (16 + (idx - 48));
-	  // const char piecechar =
-	  // Position::HumanPieceChar(startpos.PieceAt(r, c));
-	  const char *ent = Position::HTMLEntity(startpos.PieceAt(r, c) |
-						 Position::BLACK);
-	  const Ratio &surv = survived[pidx];
-	  fprintf(f,
-		  "<span class=\"%s piece\">%s</span><br>"
-	          "<span class=bigp>%.2f%%</span><br>"
-		  "<span class=smallp>%.2f&ndash;%.2f%%</span>",
-		  (black ? "black" : "white"), ent,
-		  surv.Mean() * 100.0,
-		  surv.Min() * 100.0,
-		  surv.Max() * 100.0);
-	} else {
-	  fprintf(f, "&nbsp;");
-	}
+        if (idx < 16 || idx >= 48) {
+          const bool black = idx < 16;
+          const int pidx = black ? idx : (16 + (idx - 48));
+          // const char piecechar =
+          // Position::HumanPieceChar(startpos.PieceAt(r, c));
+          const char *ent = Position::HTMLEntity(startpos.PieceAt(r, c) |
+                                                 Position::BLACK);
+          const Ratio &surv = survived[pidx];
+          fprintf(f,
+                  "<span class=\"%s piece\">%s</span><br>"
+                  "<span class=bigp>%.2f%%</span><br>"
+                  "<span class=smallp>%.2f&ndash;%.2f%%</span>",
+                  (black ? "black" : "white"), ent,
+                  surv.Mean() * 100.0,
+                  surv.Min() * 100.0,
+                  surv.Max() * 100.0);
+        } else {
+          fprintf(f, "&nbsp;");
+        }
 
-	fprintf(f, "</td>\n");
+        fprintf(f, "</td>\n");
       }
       fprintf(f, "</tr>\n");
     }
@@ -915,29 +915,29 @@ void GenPerm() {
       vector<double> dranks, sranks;
 
       for (int b = 0; b < NUM_BUCKETS; b++) {
-	const Stats &stats = stat_buckets[b];
-	for (int i = 0; i < 64; i++) {
-	  died_on[i].denom[b] = stats.num_games;
-	  survived_on[i].denom[b] = stats.num_games;
+        const Stats &stats = stat_buckets[b];
+        for (int i = 0; i < 64; i++) {
+          died_on[i].denom[b] = stats.num_games;
+          survived_on[i].denom[b] = stats.num_games;
 
-	  died_on[i].numer[b] = stats.pieces[p].died_on[i];
-	  survived_on[i].numer[b] = stats.pieces[p].survived_on[i];
+          died_on[i].numer[b] = stats.pieces[p].died_on[i];
+          survived_on[i].numer[b] = stats.pieces[p].survived_on[i];
 
-	  dranks.push_back(died_on[i].Mean());
-	  sranks.push_back(survived_on[i].Mean());
-	}
+          dranks.push_back(died_on[i].Mean());
+          sranks.push_back(survived_on[i].Mean());
+        }
       }
 
       std::sort(dranks.begin(), dranks.end());
       std::sort(sranks.begin(), sranks.end());
       auto GetRank =
-	[](const vector<double> &ranks, double value) {
-	  // PERF can be done with binary search, obv...
-	  for (int i = 0; i < ranks.size(); i++) {
-	    if (value <= ranks[i]) return i / (double)ranks.size();
-	  }
-	  return 1.0;
-	};
+        [](const vector<double> &ranks, double value) {
+          // PERF can be done with binary search, obv...
+          for (int i = 0; i < ranks.size(); i++) {
+            if (value <= ranks[i]) return i / (double)ranks.size();
+          }
+          return 1.0;
+        };
 
       // XXX PiecePiece?
       const bool black = p < 16;
@@ -953,68 +953,68 @@ void GenPerm() {
       fprintf(f, "<table class=board>\n");
       for (int r = 0; r < 8; r++) {
 
-	auto HalfRow =
-	  [f, &min_all, &min_not_pawn, piece, &GetRank, r](
-	      const Ratio *fate_on, const char *fateclass,
-	      const char *borderno,
-	      const vector<double> &ranks,
-	      std::function<string(double)> MakeBG) {
-	    fprintf(f, "<tr>");
-	    for (int c = 0; c < 8; c++) {
-	      const int idx = r * 8 + c;
-	      const bool light = ((r + c) & 1) == 0;
-	      const Ratio &fate = fate_on[idx];
-	      const double rank = GetRank(ranks, fate.Mean());
-	      const string bg = MakeBG(rank);
-	      const bool zero = fate.Mean() < 0.0001;
+        auto HalfRow =
+          [f, &min_all, &min_not_pawn, piece, &GetRank, r](
+              const Ratio *fate_on, const char *fateclass,
+              const char *borderno,
+              const vector<double> &ranks,
+              std::function<string(double)> MakeBG) {
+            fprintf(f, "<tr>");
+            for (int c = 0; c < 8; c++) {
+              const int idx = r * 8 + c;
+              const bool light = ((r + c) & 1) == 0;
+              const Ratio &fate = fate_on[idx];
+              const double rank = GetRank(ranks, fate.Mean());
+              const string bg = MakeBG(rank);
+              const bool zero = fate.Mean() < 0.0001;
 
-	      if (fate.Numer() != 0) {
-		min_all = std::min(min_all, fate.Numer());
-		if ((piece & Position::TYPE_MASK) != Position::PAWN) {
-		  min_not_pawn = std::min(min_not_pawn, fate.Numer());
-		}
-	      }
-	      
-	      string big = zero ? StringPrintf("%lld%s", fate.Numer(),
-					       fate.Numer() < 2000 ?
-					       "###" : ""
-					       ) :
-		StringPrintf("%.2f%%", fate.Mean() * 100.0);
-					      
-	      fprintf(f, " <td style=\"border-%s:0;background:%s\" class=%s>",
-		      borderno,
-		      bg.c_str(),
-		      light ? "blt" : "bdk");
-	      fprintf(f,
-		      "<span class=\"%s bigp\">%s</span><br>"
-		      "<span class=\"%s smallp\">%.2f&ndash;%.2f%%</span>",
-		      fateclass,
-		      big.c_str(),
-		      fateclass,
-		      fate.Min() * 100.0,
-		      fate.Max() * 100.0);
-	      fprintf(f, "</td>\n");
-	    }
-	    fprintf(f, "</tr>\n");
-	  };
+              if (fate.Numer() != 0) {
+                min_all = std::min(min_all, fate.Numer());
+                if ((piece & Position::TYPE_MASK) != Position::PAWN) {
+                  min_not_pawn = std::min(min_not_pawn, fate.Numer());
+                }
+              }
 
-	HalfRow(died_on, "died", "bottom", dranks,
-		[](double r) {
-		  return StringPrintf("rgb(255.0,%.2f,%.2f)",
-				      255.0 * (1.0 - r),
-				      255.0 * (1.0 - r));
-		});
-	HalfRow(survived_on, "surv", "top", sranks,
-		[](double r) {
-		  return StringPrintf("rgb(%.2f,255.0,%.2f)",
-				      255.0 * (1.0 - r),
-				      255.0 * (1.0 - r));
-		});
+              string big = zero ? StringPrintf("%lld%s", fate.Numer(),
+                                               fate.Numer() < 2000 ?
+                                               "###" : ""
+                                               ) :
+                StringPrintf("%.2f%%", fate.Mean() * 100.0);
+
+              fprintf(f, " <td style=\"border-%s:0;background:%s\" class=%s>",
+                      borderno,
+                      bg.c_str(),
+                      light ? "blt" : "bdk");
+              fprintf(f,
+                      "<span class=\"%s bigp\">%s</span><br>"
+                      "<span class=\"%s smallp\">%.2f&ndash;%.2f%%</span>",
+                      fateclass,
+                      big.c_str(),
+                      fateclass,
+                      fate.Min() * 100.0,
+                      fate.Max() * 100.0);
+              fprintf(f, "</td>\n");
+            }
+            fprintf(f, "</tr>\n");
+          };
+
+        HalfRow(died_on, "died", "bottom", dranks,
+                [](double r) {
+                  return StringPrintf("rgb(255.0,%.2f,%.2f)",
+                                      255.0 * (1.0 - r),
+                                      255.0 * (1.0 - r));
+                });
+        HalfRow(survived_on, "surv", "top", sranks,
+                [](double r) {
+                  return StringPrintf("rgb(%.2f,255.0,%.2f)",
+                                      255.0 * (1.0 - r),
+                                      255.0 * (1.0 - r));
+                });
       }
       fprintf(f, "</table>\n");
     }
     fprintf(stderr, "Rarest nonzero: %lld\nNot pawn: %lld", min_all,
-	    min_not_pawn);
+            min_not_pawn);
     fclose(f);
   }
 #endif

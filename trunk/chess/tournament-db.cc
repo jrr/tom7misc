@@ -22,20 +22,20 @@ void TournamentDB::SaveToFile(const Outcomes &outcomes, const std::string &filen
     const auto &key = row.first;
     const Cell &cell = row.second;
     fprintf(f, "%s|%s|%lld|%lld|%lld|%s|%s|%s\n",
-	    key.first.c_str(),
-	    key.second.c_str(),
-	    cell.white_wins,
-	    cell.white_losses,
-	    cell.draws,
-	    cell.example_win.c_str(),
-	    cell.example_loss.c_str(),
-	    cell.example_draw.c_str());
+            key.first.c_str(),
+            key.second.c_str(),
+            cell.white_wins,
+            cell.white_losses,
+            cell.draws,
+            cell.example_win.c_str(),
+            cell.example_loss.c_str(),
+            cell.example_draw.c_str());
   }
   fclose(f);
 }
 
 Outcomes TournamentDB::LoadFromFile(const string &filename,
-				    const std::unordered_set<string> &ignore) {
+                                    const std::unordered_set<string> &ignore) {
   vector<string> lines = Util::ReadFileToLines(filename);
   Outcomes outcomes;
   for (string &line : lines) {
@@ -56,7 +56,7 @@ Outcomes TournamentDB::LoadFromFile(const string &filename,
     cell.draws = strtoll(draws_s.c_str(), nullptr, 10);
 
     if (ignore.find(white) != ignore.end() ||
-	ignore.find(black) != ignore.end())
+        ignore.find(black) != ignore.end())
       continue;
     outcomes[make_pair(white, black)] = cell;
   }
@@ -67,13 +67,13 @@ void TournamentDB::MergeInto(const Outcomes &source, Outcomes *dest) {
   for (const auto &row : source) {
     const Cell &src = row.second;
     Cell *dst = &(*dest)[row.first];
-    
+
     dst->white_wins += src.white_wins;
     dst->white_losses += src.white_losses;
     dst->draws += src.draws;
-    
-#   define MELD(field)						\
-    do { if (dst-> field .empty()) dst-> field = src. field ; }	\
+
+#   define MELD(field)                                          \
+    do { if (dst-> field .empty()) dst-> field = src. field ; } \
     while(0)
     MELD(example_win);
     MELD(example_loss);

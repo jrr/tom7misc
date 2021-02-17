@@ -1,6 +1,6 @@
 
-#ifndef __NUMERIC_PLAYER_H
-#define __NUMERIC_PLAYER_H
+#ifndef _NUMERIC_PLAYER_H
+#define _NUMERIC_PLAYER_H
 
 #include <string>
 #include <cstdint>

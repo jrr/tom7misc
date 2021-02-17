@@ -1,6 +1,6 @@
 
-#ifndef __PLAYER_H
-#define __PLAYER_H
+#ifndef _PLAYER_H
+#define _PLAYER_H
 
 #include <string>
 #include <cstdint>
@@ -18,7 +18,7 @@ struct Explainer {
   virtual void SetMessage(const std::string &s) = 0;
   virtual void SetPosition(const Position &pos) = 0;
   virtual void SetGraphic(int width, int height,
-			  const std::vector<uint8> &rgba) = 0;
+                          const std::vector<uint8> &rgba) = 0;
 };
 
 // Interface for a stateless chess-playing algorithm. Can be
@@ -31,7 +31,7 @@ struct StatelessPlayer {
   // invoked on, but it is okay for it to keep some state (like a
   // random number generator).
   virtual Position::Move MakeMove(const Position &pos,
-				  Explainer *explainer = nullptr) = 0;
+                                  Explainer *explainer = nullptr) = 0;
 
   // Return the name of the algorithm. Should be distinct
   // across all implementations of the interface.
@@ -47,14 +47,14 @@ struct StatelessPlayer {
 struct PlayerGame {
   // Force a specific move, which changes the current side.
   virtual void ForceMove(const Position &pos,
-			 Position::Move move) = 0;
+                         Position::Move move) = 0;
   // Get a move for the current player in the current position.
   // pos is guaranteed to match the series of moves already
   // applied, in case the object does not want to track this.
   // The move should not be applied; ForceMove will typically be
   // called on it.
   virtual Position::Move GetMove(const Position &pos,
-				 Explainer *explainer = nullptr) = 0;
+                                 Explainer *explainer = nullptr) = 0;
 
   virtual ~PlayerGame() {}
 };

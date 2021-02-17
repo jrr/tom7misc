@@ -1,6 +1,6 @@
 
-#ifndef __STOCKFISH_H
-#define __STOCKFISH_H
+#ifndef _STOCKFISH_H
+#define _STOCKFISH_H
 
 #include <string>
 #include <memory>
@@ -29,10 +29,10 @@ struct Stockfish {
     //   (moves negative if the engine is getting mated)
     int value = 0;
   };
-  
+
   // Get a move. The position must be legal and have moves!
   void GetMove(const std::string &fen, std::string *move, Score *score);
-  
+
 private:
   // Must hold lock.
   void InitEngine();

@@ -59,14 +59,14 @@ static void ValidatePack(const char *filename) {
 
   // In parallel?
   fprintf(stderr, "Read %lld games from %s. Validating...\n",
-	  (int64)packed_games.size(), filename);
+          (int64)packed_games.size(), filename);
   fflush(stderr);
 
   UnParallelApp(packed_games, ValidateOne, 4);
 
   int64 secs = time(nullptr) - start;
   fprintf(stderr, "Validated %s in %lld sec.\n",
-	  filename, secs);
+          filename, secs);
   fflush(stderr);
 }
 
@@ -77,8 +77,8 @@ int main(int argc, char **argv) {
   }
 
   ParallelComp(argc - 1,
-	       [argv](int i) { ValidatePack(argv[i + 1]); },
-	       MAX_PARALLELISM);
+               [argv](int i) { ValidatePack(argv[i + 1]); },
+               MAX_PARALLELISM);
 
   return 0;
 }

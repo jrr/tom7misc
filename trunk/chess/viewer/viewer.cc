@@ -628,7 +628,7 @@ struct UI {
   bool draw_movelist = true;
   bool draw_board = true;
   bool draw_pieces = true;
-  
+
   int draw_fates = 0;
 
   // Computer always plays black.
@@ -847,21 +847,21 @@ void UI::Loop() {
         case SDLK_HOME: {
           movie_idx = 0;
           position = Position();
-	  current_fates = Fates();
+          current_fates = Fates();
           async_player->Reset();
           ui_dirty = true;
           break;
         }
 
-	case SDLK_DELETE: {
-	  movie.clear();
-	  movie_idx = 0;
-	  position = Position();
-	  current_fates = Fates();
-	  async_player->Reset();
-	  ui_dirty = true;
-	  break;
-	}
+        case SDLK_DELETE: {
+          movie.clear();
+          movie_idx = 0;
+          position = Position();
+          current_fates = Fates();
+          async_player->Reset();
+          ui_dirty = true;
+          break;
+        }
 
         case SDLK_LEFT: {
           if (movie_idx > 0) {
@@ -872,10 +872,10 @@ void UI::Loop() {
 
             if (movie_idx > 0) {
               position = std::get<0>(movie[movie_idx - 1]);
-	      current_fates = std::get<3>(movie[movie_idx - 1]);
+              current_fates = std::get<3>(movie[movie_idx - 1]);
             } else {
               position = Position();
-	      current_fates = Fates();
+              current_fates = Fates();
             }
 
             // Replay from start so we can track computer player.
@@ -903,12 +903,12 @@ void UI::Loop() {
           break;
         }
 
-	case SDLK_j: {
-	  draw_fates++;
-	  draw_fates %= 3;
-	  ui_dirty = true;
-	  break;
-	}
+        case SDLK_j: {
+          draw_fates++;
+          draw_fates %= 3;
+          ui_dirty = true;
+          break;
+        }
 
         case SDLK_d: {
           mode = Mode::DRAWING;
@@ -980,12 +980,12 @@ void UI::Loop() {
           break;
         }
 
-	case SDLK_p: {
-	  draw_pieces = !draw_pieces;
-	  ui_dirty = true;
-	  break;
-	}
-	  
+        case SDLK_p: {
+          draw_pieces = !draw_pieces;
+          ui_dirty = true;
+          break;
+        }
+
         case SDLK_KP_PLUS:
         case SDLK_EQUALS:
         case SDLK_PLUS:
@@ -994,7 +994,7 @@ void UI::Loop() {
           ui_dirty = true;
           break;
 
-  
+
         case SDLK_KP_MINUS:
         case SDLK_MINUS:
           current_alpha--;
@@ -1008,31 +1008,31 @@ void UI::Loop() {
           break;
         }
 
-	case SDLK_l: {
-	  if (event.key.keysym.mod & KMOD_CTRL) {
-	    SaveUndo();
-	    printf("Load drawing.png...\n");
-	    fflush(stdout);
-	    SDL_Surface *s = sdlutil::LoadImage("drawing.png");
-	    CHECK(s);
-	    SDL_SetAlpha(s, 0, 0xFF);
-	    sdlutil::blitall(s, drawing, 0, 0);
-	    SDL_FreeSurface(s);
-	    ui_dirty = true;
-	  }
-	  break;
-	}
-	  
+        case SDLK_l: {
+          if (event.key.keysym.mod & KMOD_CTRL) {
+            SaveUndo();
+            printf("Load drawing.png...\n");
+            fflush(stdout);
+            SDL_Surface *s = sdlutil::LoadImage("drawing.png");
+            CHECK(s);
+            SDL_SetAlpha(s, 0, 0xFF);
+            sdlutil::blitall(s, drawing, 0, 0);
+            SDL_FreeSurface(s);
+            ui_dirty = true;
+          }
+          break;
+        }
+
         case SDLK_s: {
-	  if (event.key.keysym.mod & KMOD_CTRL) {
-	    sdlutil::SavePNG("drawing.png", drawing);
-	    printf("Wrote drawing.png\n");
-	    fflush(stdout);
-	  } else {
-	    draw_stockfish = !draw_stockfish;
-	    ui_dirty = true;
-	  }
-	  break;
+          if (event.key.keysym.mod & KMOD_CTRL) {
+            sdlutil::SavePNG("drawing.png", drawing);
+            printf("Wrote drawing.png\n");
+            fflush(stdout);
+          } else {
+            draw_stockfish = !draw_stockfish;
+            ui_dirty = true;
+          }
+          break;
         }
 
         case SDLK_a: {
@@ -1073,7 +1073,7 @@ void UI::Loop() {
 
       case SDL_MOUSEBUTTONDOWN: {
         // LMB/RMB, drag, etc.
-	SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
+        SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
         mousex = e->x;
         mousey = e->y;
 
@@ -1170,9 +1170,9 @@ void UI::Loop() {
         if (autoplay_computer &&
             position.BlackMove() &&
             !em->no_moves) {
-	  // AnimateMove causes async_player to start running in the
-	  // background.
-	  ExplainedMove em_copy = *em;
+          // AnimateMove causes async_player to start running in the
+          // background.
+          ExplainedMove em_copy = *em;
           AnimateMove(em_copy);
         }
         ui_dirty = true;
@@ -1297,7 +1297,7 @@ void UI::DrawStatus() {
                  KEY("M") "oves %s  "
                  "b" KEY("O") "ard %s  "
                  "me" KEY("T") "er %s  "
-		 "fa" KEY("J") "es %s  "
+                 "fa" KEY("J") "es %s  "
                  ,
                  erasecolor,
                  drawcolor, fillcolor, chesscolor,
@@ -1309,7 +1309,7 @@ void UI::DrawStatus() {
                  draw_movelist ? "ON" : "OFF",
                  draw_board ? "ON" : "OFF",
                  draw_meter ? "ON" : "OFF",
-		 FATESTATES[draw_fates]
+                 FATESTATES[draw_fates]
                  );
   font2x->draw(5, SCREENH - (FONTHEIGHT * 2) - 1, modestring);
 #undef KEY
@@ -1400,8 +1400,8 @@ static uint32 SquareColor(bool black, bool inmove, bool legal) {
 }
 
 static void DrawArrow(SDL_Surface *surf,
-		      int x0, int y0, int x1, int y1,
-		      Uint32 color) {
+                      int x0, int y0, int x1, int y1,
+                      Uint32 color) {
   // Main stem.
   DrawThick(surf, x0, y0, x1, y1, color);
   sdlutil::DrawCircle32(surf, x1, y1, 6, color);
@@ -1431,16 +1431,16 @@ void UI::Draw() {
     for (int r = 0; r < 8; r++) {
       const int yy = CHESSY + r * CHESSSCALE;
       for (int c = 0; c < 8; c++) {
-	const int xx = CHESSX + c * CHESSSCALE;
-	const bool black = (r + c) & 1;
-	const bool inmove =
-	  draw_movelist &&
-	  have_move && ((r == last_move.src_row &&
-			 c == last_move.src_col) ||
-			(r == last_move.dst_row &&
-			 c == last_move.dst_col));
-	const uint32 color = SquareColor(black, inmove, false);
-	sdlutil::fillrect(screen, color, xx, yy, CHESSSCALE, CHESSSCALE);
+        const int xx = CHESSX + c * CHESSSCALE;
+        const bool black = (r + c) & 1;
+        const bool inmove =
+          draw_movelist &&
+          have_move && ((r == last_move.src_row &&
+                         c == last_move.src_col) ||
+                        (r == last_move.dst_row &&
+                         c == last_move.dst_col));
+        const uint32 color = SquareColor(black, inmove, false);
+        sdlutil::fillrect(screen, color, xx, yy, CHESSSCALE, CHESSSCALE);
       }
     }
   }
@@ -1457,11 +1457,11 @@ void UI::Draw() {
     case Evaluator::PLAYING: {
       Move m = current_eval->move;
       DrawArrow(screen,
-		CHESSX + m.src_col * CHESSSCALE + (CHESSSCALE >> 1),
-		CHESSY + m.src_row * CHESSSCALE + (CHESSSCALE >> 1),
-		CHESSX + m.dst_col * CHESSSCALE + (CHESSSCALE >> 1),
-		CHESSY + m.dst_row * CHESSSCALE + (CHESSSCALE >> 1),
-		STOCKFISH_COLOR);
+                CHESSX + m.src_col * CHESSSCALE + (CHESSSCALE >> 1),
+                CHESSY + m.src_row * CHESSSCALE + (CHESSSCALE >> 1),
+                CHESSX + m.dst_col * CHESSSCALE + (CHESSSCALE >> 1),
+                CHESSY + m.dst_row * CHESSSCALE + (CHESSSCALE >> 1),
+                STOCKFISH_COLOR);
 
       font2x->draw(100, 16, Position::DebugMoveString(m));
       int value = current_eval->score.value;
@@ -1470,9 +1470,9 @@ void UI::Draw() {
       // make it white's perspective.
       if (position.BlackMove()) value = -value;
       font2x->draw(5, 16,
-		   StringPrintf("%s%d",
-				(current_eval->score.is_mate ? "#" : ""),
-				value));
+                   StringPrintf("%s%d",
+                                (current_eval->score.is_mate ? "#" : ""),
+                                value));
 
       break;
     }
@@ -1489,36 +1489,36 @@ void UI::Draw() {
       // Draw "meter". Meter value is in [0, 1] where 0.5 is draw
       // and 1.0 is white winning.
       const float new_meter_value = [&]{
-	  if (current_eval == nullptr)
-	    return old_meter_value;
+          if (current_eval == nullptr)
+            return old_meter_value;
 
-	  int value = current_eval->score.value;
-	  if (position.BlackMove()) value = -value;
+          int value = current_eval->score.value;
+          if (position.BlackMove()) value = -value;
 
-	  if (current_eval->status == Evaluator::CHECKMATE) {
-	    // It's black's "move" (none left) but white was the one
-	    // checkmating.
-	    return position.BlackMove() ? 1.0f : 0.0f;
-	  } else if (current_eval->status == Evaluator::DRAW) {
-	    return 0.5f;
-	  }
+          if (current_eval->status == Evaluator::CHECKMATE) {
+            // It's black's "move" (none left) but white was the one
+            // checkmating.
+            return position.BlackMove() ? 1.0f : 0.0f;
+          } else if (current_eval->status == Evaluator::DRAW) {
+            return 0.5f;
+          }
 
-	  if (current_eval->score.is_mate)
-	    return value < 0 ? 0.0f : 1.0f;
-	  // Otherwise, sigmoid
-	  static constexpr float stretch = -1.0f / 500.0f;
-	  return 1.0f / (1.0f + expf(value * stretch));
-	}();
+          if (current_eval->score.is_mate)
+            return value < 0 ? 0.0f : 1.0f;
+          // Otherwise, sigmoid
+          static constexpr float stretch = -1.0f / 500.0f;
+          return 1.0f / (1.0f + expf(value * stretch));
+        }();
 
       const float interp = interp_meter.Frac();
       const float f =
-	interp_meter.On() ?
-	((1.0f - interp) * old_meter_value) +
-	(interp * new_meter_value) :
-	new_meter_value;
+        interp_meter.On() ?
+        ((1.0f - interp) * old_meter_value) +
+        (interp * new_meter_value) :
+        new_meter_value;
 
       if (!interp_meter.On())
-	old_meter_value = new_meter_value;
+        old_meter_value = new_meter_value;
 
       constexpr int xx = CHESSX + CHESSSCALE * 8 + 3;
       constexpr int yy = CHESSY + 1;
@@ -1529,39 +1529,39 @@ void UI::Draw() {
       const int topheight = hh - botheight;
 
       sdlutil::fillrect(screen, 0xFF000033,
-			xx,
-			yy,
-			ww, topheight);
+                        xx,
+                        yy,
+                        ww, topheight);
       sdlutil::fillrect(screen, 0xFFFFFFCC,
-			xx,
-			yy + topheight,
-			ww, botheight);
+                        xx,
+                        yy + topheight,
+                        ww, botheight);
 
       sdlutil::DrawBox32(screen,
-			 xx - 1,
-			 yy - 1,
-			 ww + 2,
-			 hh + 2,
-			 0xFF444444);
+                         xx - 1,
+                         yy - 1,
+                         ww + 2,
+                         hh + 2,
+                         0xFF444444);
   };
 
   auto DrawPieceAt = [this](int x, int y, uint8 piece) {
       if (!draw_pieces)
-	return;
-      
-      if (draw_only_bits) {
-	font4x->draw(x, y + 8, "^9" BARSTART BAR_10);
-      } else {
-	uint8 typ = piece & Position::TYPE_MASK;
-	if (typ == Position::C_ROOK) typ = Position::ROOK;
-	string str = " ";
-	if ((piece & Position::COLOR_MASK) == Position::BLACK) {
-	  str[0] = "?pnbrqk"[typ];
-	} else {
-	  str[0] = "?PNBRQK"[typ];
-	}
+        return;
 
-	chessfont3x->draw(x, y, str);
+      if (draw_only_bits) {
+        font4x->draw(x, y + 8, "^9" BARSTART BAR_10);
+      } else {
+        uint8 typ = piece & Position::TYPE_MASK;
+        if (typ == Position::C_ROOK) typ = Position::ROOK;
+        string str = " ";
+        if ((piece & Position::COLOR_MASK) == Position::BLACK) {
+          str[0] = "?pnbrqk"[typ];
+        } else {
+          str[0] = "?PNBRQK"[typ];
+        }
+
+        chessfont3x->draw(x, y, str);
       }
     };
 
@@ -1612,40 +1612,40 @@ void UI::Draw() {
     for (int m = 0; m < movie.size() && m < movie_idx; m++) {
       const Fates &fate = std::get<3>(movie[m]);
       for (int i = 0; i < 32; i++) {
-	int op = prev_fate.fates[i] & Fates::POS_MASK;
-	int np = fate.fates[i] & Fates::POS_MASK;
-	if (op != np) {
-	  auto Ulam = [](int n) -> std::pair<int, int> {
-	      int k = ceilf((sqrtf(n) - 1.0f) * 0.5f);
-	      int t = 2 * k + 1;
-	      int m = t * t;
-	      t--;
-	      if (n >= m - t)
-		return {k - (m - n), -k};
-	      m -= t;
-	      if (n >= m - t)
-		return {-k, -k + (m - n)};
-	      m -= t;
-	      if (n >= m - t)
-		return {-k + (m - n), k};
-	      return {k, k - (m - n - t)};
-	    };
+        int op = prev_fate.fates[i] & Fates::POS_MASK;
+        int np = fate.fates[i] & Fates::POS_MASK;
+        if (op != np) {
+          auto Ulam = [](int n) -> std::pair<int, int> {
+              int k = ceilf((sqrtf(n) - 1.0f) * 0.5f);
+              int t = 2 * k + 1;
+              int m = t * t;
+              t--;
+              if (n >= m - t)
+                return {k - (m - n), -k};
+              m -= t;
+              if (n >= m - t)
+                return {-k, -k + (m - n)};
+              m -= t;
+              if (n >= m - t)
+                return {-k + (m - n), k};
+              return {k, k - (m - n - t)};
+            };
 
-	  auto GetXY = [&visited, &Ulam](int p) -> std::pair<int, int> {
-	      int x = CHESSSCALE * (p % 8) + CHESSX + CHESSSCALE / 2;
-	      int y = CHESSSCALE * (p / 8) + CHESSY + CHESSSCALE / 2;
-	      // Now add Ulam spiral.
-	      int ux, uy;
-	      std::tie(ux, uy) = Ulam(visited[p]);
-	      return {x + 8 * ux, y + 8 * uy};
-	  };
+          auto GetXY = [&visited, &Ulam](int p) -> std::pair<int, int> {
+              int x = CHESSSCALE * (p % 8) + CHESSX + CHESSSCALE / 2;
+              int y = CHESSSCALE * (p / 8) + CHESSY + CHESSSCALE / 2;
+              // Now add Ulam spiral.
+              int ux, uy;
+              std::tie(ux, uy) = Ulam(visited[p]);
+              return {x + 8 * ux, y + 8 * uy};
+          };
 
-	  int oldx, oldy, newx, newy;
-	  std::tie(oldx, oldy) = GetXY(op);
-	  visited[np]++;
-	  std::tie(newx, newy) = GetXY(np);
-	  DrawThick(screen, oldx, oldy, newx, newy, FATE_COLORS[i]);
-	}
+          int oldx, oldy, newx, newy;
+          std::tie(oldx, oldy) = GetXY(op);
+          visited[np]++;
+          std::tie(newx, newy) = GetXY(np);
+          DrawThick(screen, oldx, oldy, newx, newy, FATE_COLORS[i]);
+        }
       }
       prev_fate = fate;
     }
@@ -1655,30 +1655,30 @@ void UI::Draw() {
     for (int r = 0; r < 8; r++) {
       const int yy = CHESSY + r * CHESSSCALE;
       for (int c = 0; c < 8; c++) {
-	const int xx = CHESSX + c * CHESSSCALE;
-	// We'll skip drawing the piece if it's the one we're
-	// dragging, or if we are currently interpolating a move
-	// and it's the interpolated piece.
-	if (drag_source.first == r && drag_source.second == c)
-	  continue;
+        const int xx = CHESSX + c * CHESSSCALE;
+        // We'll skip drawing the piece if it's the one we're
+        // dragging, or if we are currently interpolating a move
+        // and it's the interpolated piece.
+        if (drag_source.first == r && drag_source.second == c)
+          continue;
 
-	if (interpolating_piece) {
-	  // When interpolating, we draw the old board state, but
-	  // skip the piece that's moving.
-	  if (r == last_move.src_row && c == last_move.src_col)
-	    continue;
-	  uint8 old_piece = last_position.PieceAt(r, c);
-	  if ((old_piece & Position::TYPE_MASK) != Position::EMPTY) {
-	    DrawPieceAt(xx, yy + 8, old_piece);
-	  }
-	  // But DON'T draw the piece that's moving; we do it below.
-	} else {
-	  // Normal case.
-	  uint8 piece = position.PieceAt(r, c);
-	  if ((piece & Position::TYPE_MASK) != Position::EMPTY) {
-	    DrawPieceAt(xx, yy + 8, piece);
-	  }
-	}
+        if (interpolating_piece) {
+          // When interpolating, we draw the old board state, but
+          // skip the piece that's moving.
+          if (r == last_move.src_row && c == last_move.src_col)
+            continue;
+          uint8 old_piece = last_position.PieceAt(r, c);
+          if ((old_piece & Position::TYPE_MASK) != Position::EMPTY) {
+            DrawPieceAt(xx, yy + 8, old_piece);
+          }
+          // But DON'T draw the piece that's moving; we do it below.
+        } else {
+          // Normal case.
+          uint8 piece = position.PieceAt(r, c);
+          if ((piece & Position::TYPE_MASK) != Position::EMPTY) {
+            DrawPieceAt(xx, yy + 8, piece);
+          }
+        }
       }
     }
   }
@@ -1694,7 +1694,7 @@ void UI::Draw() {
     const float interp = interp_piece.Frac();
     // In the case of promotion, show us as moving a pawn, not a queen.
     uint8 p = last_position.PieceAt(last_move.src_row,
-				    last_move.src_col);
+                                    last_move.src_col);
     CHECK((p & Position::TYPE_MASK) != Position::EMPTY);
 
     // XXX sigmoid
@@ -1712,55 +1712,55 @@ void UI::Draw() {
 
   if (draw_only_bits) {
     font2x->draw(CHESSX, CHESSY + 8 * CHESSSCALE + 8,
-		 StringPrintf("0x%llx", PositionBits()));
+                 StringPrintf("0x%llx", PositionBits()));
   }
 
   if (draw_fates == 2) {
     static constexpr const char *piece_names[] {
-	/*
-	"a rook",
-	"b knight",
-	"c bishop",
-	"queen",
-	"king",
-	"f bishop",
-	"g knight",
-	"h rook",
-	"a pawn", "b pawn", "c pawn", "d pawn",
-	"e pawn", "f pawn", "g pawn", "h pawn",
-	// white
-	"a pawn", "b pawn", "c pawn", "d pawn",
-	"e pawn", "f pawn", "g pawn", "h pawn",
-	"a rook",
-	"b knight",
-	"c bishop",
-	"queen",
-	"king",
-	"f bishop",
-	"g knight",
-	"h rook", 
-	*/
-	"a rook",
-	"b knight",
-	"c bishop",
-	"queen",
-	"king",
-	"f bishop",
-	"g knight",
-	"h rook",
-	"alexis", "bruno", "caleb", "diego",
-	"esther", "foxglove", "grainger", "hartford",
-	// white
-	"arial", "baskerville", "chicago", "droid sans",
-	"eurostile", "fixedsys", "geneva", "helvetica",
-	"a rook",
-	"b knight",
-	"c bishop",
-	"queen",
-	"king",
-	"f bishop",
-	"g knight",
-	"h rook", 
+        /*
+        "a rook",
+        "b knight",
+        "c bishop",
+        "queen",
+        "king",
+        "f bishop",
+        "g knight",
+        "h rook",
+        "a pawn", "b pawn", "c pawn", "d pawn",
+        "e pawn", "f pawn", "g pawn", "h pawn",
+        // white
+        "a pawn", "b pawn", "c pawn", "d pawn",
+        "e pawn", "f pawn", "g pawn", "h pawn",
+        "a rook",
+        "b knight",
+        "c bishop",
+        "queen",
+        "king",
+        "f bishop",
+        "g knight",
+        "h rook",
+        */
+        "a rook",
+        "b knight",
+        "c bishop",
+        "queen",
+        "king",
+        "f bishop",
+        "g knight",
+        "h rook",
+        "alexis", "bruno", "caleb", "diego",
+        "esther", "foxglove", "grainger", "hartford",
+        // white
+        "arial", "baskerville", "chicago", "droid sans",
+        "eurostile", "fixedsys", "geneva", "helvetica",
+        "a rook",
+        "b knight",
+        "c bishop",
+        "queen",
+        "king",
+        "f bishop",
+        "g knight",
+        "h rook",
       };
     uint8 count[64] = {};
     for (int i = 0; i < 32; i++) {
@@ -1771,20 +1771,20 @@ void UI::Draw() {
       int fcolor = i < 16 ? 1 : 0;
 
       const int len = (fate & Fates::DIED) ? strlen(piece_names[i]) + 2 :
-	strlen(piece_names[i]);
-      
+        strlen(piece_names[i]);
+
       int xx = CHESSX + c * CHESSSCALE + 8 +
-		       (((10 - len) * (FONTWIDTH - 1)) >> 1);
+                       (((10 - len) * (FONTWIDTH - 1)) >> 1);
       int yy = CHESSY + r * CHESSSCALE + (CHESSSCALE - FONTHEIGHT - 2) -
-		       FONTHEIGHT * count[pos];
+                       FONTHEIGHT * count[pos];
       if (fate & Fates::DIED) {
-	// red 'x'
-	font->draw(xx, yy, StringPrintf("^2x"));
-	xx += FONTWIDTH * 2;
+        // red 'x'
+        font->draw(xx, yy, StringPrintf("^2x"));
+        xx += FONTWIDTH * 2;
       }
       fates_font->draw(
-	  xx, yy,
-	  StringPrintf("^%d%s", fcolor, piece_names[i]));
+          xx, yy,
+          StringPrintf("^%d%s", fcolor, piece_names[i]));
       count[pos]++;
     }
   }
@@ -1798,17 +1798,17 @@ void UI::Draw() {
       const string &ms = std::get<2>(movie[i]);
       const ExplainedMove &em = std::get<1>(movie[i]);
       const bool has_explanation =
-		      em.has_position ||
-		      !em.message.empty() ||
-		      !em.moves.empty();
+                      em.has_position ||
+                      !em.message.empty() ||
+                      !em.moves.empty();
       (void)has_explanation;
       const char *ann = ""; // has_explanation ? "^4" HEART : "";
       if (i & 1) {
-	// Black's move.
-	t.Write(StringPrintf("^%d%s%s  ", color, ms.c_str(), ann));
+        // Black's move.
+        t.Write(StringPrintf("^%d%s%s  ", color, ms.c_str(), ann));
       } else {
-	t.Write(StringPrintf("^%d%d. %s%s ", color, (i >> 1) + 1,
-			     ms.c_str(), ann));
+        t.Write(StringPrintf("^%d%d. %s%s ", color, (i >> 1) + 1,
+                             ms.c_str(), ann));
       }
     }
   }
@@ -1824,87 +1824,87 @@ void UI::Draw() {
     if (em != nullptr) {
       Typewriter t{font2x, 900, 500, 1900 - 900, 1080 - 500};
       if (em->no_moves) {
-	t.Write("(no moves)");
+        t.Write("(no moves)");
       }
 
       if (!em->message.empty()) {
-	t.Newline();
-	t.Write(em->message);
+        t.Newline();
+        t.Write(em->message);
       }
 
       if (!em->moves.empty()) {
-	const auto &moves = em->moves;
-	for (int i = 0; i < moves.size(); i++) {
-	  t.Newline();
-	  t.Write(moves[i]);
-	}
+        const auto &moves = em->moves;
+        for (int i = 0; i < moves.size(); i++) {
+          t.Newline();
+          t.Write(moves[i]);
+        }
       }
 
       if (em->graphic_width > 0) {
-	const int PX = 2;
-	const int EX = 900;
-	const int EY = 550;
-	const int w = em->graphic_width;
-	const int h = em->graphic_height;
-	const vector<uint8> &rgba = em->rgba;
-	CHECK(rgba.size() == w * h * 4);
-	for (int y = 0; y < h; y++) {
-	  int yy = EY + (y * PX);
-	  for (int x = 0; x < w; x++) {
-	    int xx = EX + (x * PX);
-	    uint8 r = rgba[(y * w + x) * 4 + 0];
-	    uint8 g = rgba[(y * w + x) * 4 + 1];
-	    uint8 b = rgba[(y * w + x) * 4 + 2];
-	    Uint32 color = SDL_MapRGB(screen->format, r, g, b);
-	    // printf("Set %d %d = %d %d %d\n", xx, yy, r, g, b);
-	    // sdlutil::drawclippixel(screen, xx, yy, r, g, b);
-	    sdlutil::SetPixel32(screen, xx, yy, color);
-	    sdlutil::SetPixel32(screen, xx + 1, yy, color);
-	    sdlutil::SetPixel32(screen, xx, yy + 1, color);
-	    sdlutil::SetPixel32(screen, xx + 1, yy + 1, color);
-	  }
-	}
+        const int PX = 2;
+        const int EX = 900;
+        const int EY = 550;
+        const int w = em->graphic_width;
+        const int h = em->graphic_height;
+        const vector<uint8> &rgba = em->rgba;
+        CHECK(rgba.size() == w * h * 4);
+        for (int y = 0; y < h; y++) {
+          int yy = EY + (y * PX);
+          for (int x = 0; x < w; x++) {
+            int xx = EX + (x * PX);
+            uint8 r = rgba[(y * w + x) * 4 + 0];
+            uint8 g = rgba[(y * w + x) * 4 + 1];
+            uint8 b = rgba[(y * w + x) * 4 + 2];
+            Uint32 color = SDL_MapRGB(screen->format, r, g, b);
+            // printf("Set %d %d = %d %d %d\n", xx, yy, r, g, b);
+            // sdlutil::drawclippixel(screen, xx, yy, r, g, b);
+            sdlutil::SetPixel32(screen, xx, yy, color);
+            sdlutil::SetPixel32(screen, xx + 1, yy, color);
+            sdlutil::SetPixel32(screen, xx, yy + 1, color);
+            sdlutil::SetPixel32(screen, xx + 1, yy + 1, color);
+          }
+        }
       }
 
       if (em->has_position) {
-	// XXX maybe get position from typewriter.
-	const int EX = 900;
-	const int EY = 750;
-	const int ES = 32;
-	for (int r = 0; r < 8; r++) {
-	  const int yy = EY + r * ES;
-	  for (int c = 0; c < 8; c++) {
-	    const int xx = EX + c * ES;
-	    const bool black = (r + c) & 1;
-	    const uint32 color = SquareColor(black, false, false);
-	    sdlutil::fillrect(screen, color, xx, yy, ES, ES);
-	  }
-	}
+        // XXX maybe get position from typewriter.
+        const int EX = 900;
+        const int EY = 750;
+        const int ES = 32;
+        for (int r = 0; r < 8; r++) {
+          const int yy = EY + r * ES;
+          for (int c = 0; c < 8; c++) {
+            const int xx = EX + c * ES;
+            const bool black = (r + c) & 1;
+            const uint32 color = SquareColor(black, false, false);
+            sdlutil::fillrect(screen, color, xx, yy, ES, ES);
+          }
+        }
 
-	// And the pieces
-	auto ExDrawPieceAt = [this](int x, int y, uint8 piece) {
-	    uint8 typ = piece & Position::TYPE_MASK;
-	    if (typ == Position::C_ROOK) typ = Position::ROOK;
-	    string str = " ";
-	    if ((piece & Position::COLOR_MASK) == Position::BLACK) {
-	      str[0] = "?pnbrqk"[typ];
-	    } else {
-	      str[0] = "?PNBRQK"[typ];
-	    }
-	    chessfont->draw(x, y, str);
-	  };
+        // And the pieces
+        auto ExDrawPieceAt = [this](int x, int y, uint8 piece) {
+            uint8 typ = piece & Position::TYPE_MASK;
+            if (typ == Position::C_ROOK) typ = Position::ROOK;
+            string str = " ";
+            if ((piece & Position::COLOR_MASK) == Position::BLACK) {
+              str[0] = "?pnbrqk"[typ];
+            } else {
+              str[0] = "?PNBRQK"[typ];
+            }
+            chessfont->draw(x, y, str);
+          };
 
-	for (int r = 0; r < 8; r++) {
-	  const int yy = EY + r * ES;
-	  for (int c = 0; c < 8; c++) {
-	    const int xx = EX + c * ES;
-	    // Normal case.
-	    uint8 piece = em->position.PieceAt(r, c);
-	    if ((piece & Position::TYPE_MASK) != Position::EMPTY) {
-	      ExDrawPieceAt(xx, yy + 2, piece);
-	    }
-	  }
-	}
+        for (int r = 0; r < 8; r++) {
+          const int yy = EY + r * ES;
+          for (int c = 0; c < 8; c++) {
+            const int xx = EX + c * ES;
+            // Normal case.
+            uint8 piece = em->position.PieceAt(r, c);
+            if ((piece & Position::TYPE_MASK) != Position::EMPTY) {
+              ExDrawPieceAt(xx, yy + 2, piece);
+            }
+          }
+        }
       }
     }
   }
@@ -1918,7 +1918,7 @@ uint64 UI::PositionBits() const {
     for (int c = 0; c < 8; c++) {
       out <<= 1;
       if (position.PieceAt(r, c) != Position::EMPTY) {
-	out |= 1ULL;
+        out |= 1ULL;
       }
     }
   }
@@ -1928,12 +1928,12 @@ uint64 UI::PositionBits() const {
 int main(int argc, char **argv) {
   /* Initialize SDL and network, if we're using it. */
   CHECK(SDL_Init(SDL_INIT_VIDEO |
-		 SDL_INIT_TIMER |
-		 SDL_INIT_AUDIO) >= 0);
+                 SDL_INIT_TIMER |
+                 SDL_INIT_AUDIO) >= 0);
   fprintf(stderr, "SDL initialized OK.\n");
 
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,
-		      SDL_DEFAULT_REPEAT_INTERVAL);
+                      SDL_DEFAULT_REPEAT_INTERVAL);
 
   SDL_EnableUNICODE(1);
 
@@ -1946,31 +1946,31 @@ int main(int argc, char **argv) {
   CHECK(screen);
 
   fates_font = Font::create(screen,
-			    "fates-font.png",
-			    FONTCHARS,
-			    11, FONTHEIGHT + 2, 2, 3, 1);
+                            "fates-font.png",
+                            FONTCHARS,
+                            11, FONTHEIGHT + 2, 2, 3, 1);
   CHECK(fates_font != nullptr) << "Couldn't load fates_font.";
-  
+
   font = Font::create(screen,
-		      "../blind/font.png",
-		      FONTCHARS,
-		      FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
+                      "../blind/font.png",
+                      FONTCHARS,
+                      FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font != nullptr) << "Couldn't load font.";
 
 
-  
+
   font2x = Font::CreateX(2,
-			 screen,
-			 "../blind/font.png",
-			 FONTCHARS,
-			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
+                         screen,
+                         "../blind/font.png",
+                         FONTCHARS,
+                         FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font2x != nullptr) << "Couldn't load font.";
 
   font4x = Font::CreateX(4,
-			 screen,
-			 "../blind/font.png",
-			 FONTCHARS,
-			 FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
+                         screen,
+                         "../blind/font.png",
+                         FONTCHARS,
+                         FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font4x != nullptr) << "Couldn't load font.";
 
   # define CHESSFONT "../blind/chessfont.png"
@@ -1979,7 +1979,7 @@ int main(int argc, char **argv) {
   // # define CHESSFONT "chessfont-halos.png"
 
   // #define CHESSFONT "chessfont-letter.png"
-  
+
   // Note, chessfont-nes might be missing; it is non-free.
   // # define CHESSFONT "chessfont-nes.png"
   // #define CHESSFONT "chessfont-cylon.png"
@@ -1987,7 +1987,7 @@ int main(int argc, char **argv) {
   // #define CHESSFONT "chessfont-cccp.png"
 
   // #define CHESSFONT "chessfont-idiot.png"
-  
+
   /*
     This one probably comes first, so maybe just uses regular
     pieces: Random,
@@ -2014,64 +2014,64 @@ int main(int argc, char **argv) {
     TODO: 'pi' and 'e' players
 
     letter: Alphabetical
-	(FirstMove - number?)
+        (FirstMove - number?)
 
-			MinOpponentMoves,
+                        MinOpponentMoves,
 
-			SameColor,
-			OppositeColor,
-			Huddle,
-			Swarm,
-			SuicideKing,
-			ReverseStarting,
-			CCCP,
+                        SameColor,
+                        OppositeColor,
+                        Huddle,
+                        Swarm,
+                        SuicideKing,
+                        ReverseStarting,
+                        CCCP,
 
-			AlmanacPopular,
+                        AlmanacPopular,
 
-			Topple10K,
-			Topple1M,
+                        Topple10K,
+                        Topple1M,
 
    chessfont-nes: Chessmaster1, Chessmaster2,
 
    cylon font:
-			Stockfish0,
-			Stockfish5,
-			Stockfish10,
-			Stockfish15,
-			Stockfish20,
+                        Stockfish0,
+                        Stockfish5,
+                        Stockfish10,
+                        Stockfish15,
+                        Stockfish20,
 
-			Stockfish1M,
+                        Stockfish1M,
 
    perhaps we can have programmatically randomized
    versions of these? would we even show them?
-			Stockfish1M_64512,
-			Stockfish1M_63488,
-			Stockfish1M_61440,
-			Stockfish1M_57344,
-			Stockfish1M_49152,
-			Stockfish1M_32768,
-			Stockfish1M_16384,
-			Stockfish1M_8192,
-			Stockfish1M_4096,
-			Stockfish1M_2048,
-			Stockfish1M_1024,
-			Stockfish1M_512,
-			Stockfish1M_256,
-			Stockfish1M_128,
-			Stockfish1M_64,
+                        Stockfish1M_64512,
+                        Stockfish1M_63488,
+                        Stockfish1M_61440,
+                        Stockfish1M_57344,
+                        Stockfish1M_49152,
+                        Stockfish1M_32768,
+                        Stockfish1M_16384,
+                        Stockfish1M_8192,
+                        Stockfish1M_4096,
+                        Stockfish1M_2048,
+                        Stockfish1M_1024,
+                        Stockfish1M_512,
+                        Stockfish1M_256,
+                        Stockfish1M_128,
+                        Stockfish1M_64,
   */
 
   chessfont = Font::create(screen,
-			   CHESSFONT,
-			   " PNBRQKpnbrqk",
-			   32, 32, 1, 0, 1);
+                           CHESSFONT,
+                           " PNBRQKpnbrqk",
+                           32, 32, 1, 0, 1);
   CHECK(chessfont != nullptr) << "Couldn't load chessfont " << CHESSFONT;
 
   chessfont3x = Font::CreateX(3,
-			      screen,
-			      CHESSFONT,
-			      " PNBRQKpnbrqk",
-			      32, 32, 1, 0, 1);
+                              screen,
+                              CHESSFONT,
+                              " PNBRQKpnbrqk",
+                              32, 32, 1, 0, 1);
   CHECK(chessfont3x != nullptr) << "Couldn't load chessfont3x " << CHESSFONT;
 
   CHECK((cursor_arrow = Cursor::MakeArrow()));
@@ -2105,7 +2105,7 @@ int main(int argc, char **argv) {
   // ui.async_player.reset(new AsyncPlayer(Generous()));
   // ui.async_player.reset(new AsyncPlayer(Worstfish()));
   // ui.async_player.reset(new AsyncPlayer(Chessmaster2()));
-  
+
   if (argc > 1) {
     ui.LoadMoves(argv[1]);
     ui.autoplay_computer = false;

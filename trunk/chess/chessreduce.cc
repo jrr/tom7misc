@@ -56,7 +56,7 @@ static double FateScore(const Fates &result) {
       sum += fate_data[i][square].lived;
     }
   }
-  
+
   return sum / 32.0;
 }
 
@@ -73,30 +73,30 @@ struct Processor {
     // We're looking for mate here, so require one side to win.
     /*
     if (pgn.result != PGN::Result::WHITE_WINS &&
-	pgn.result != PGN::Result::BLACK_WINS) {
+        pgn.result != PGN::Result::BLACK_WINS) {
       return false;
     }
     */
-    
+
     if (pgn.GetTermination() != PGN::Termination::NORMAL) {
       return false;
     }
 
     auto it = pgn.meta.find("Event");
     if (it == pgn.meta.end() ||
-	string::npos != it->second.find("Bullet"))
+        string::npos != it->second.find("Bullet"))
       return false;
-    
+
     // TODO: time format? Ignore bullet?
     // TODO: titled players only?
     // [WhiteTitle "IM"]
     // [BlackTitle "CM"]
-    
+
     const int min_elo = std::min(pgn.MetaInt("WhiteElo", 0),
-				 pgn.MetaInt("BlackElo", 0));
+                                 pgn.MetaInt("BlackElo", 0));
     if (min_elo < 2300 &&
-	(!ContainsKey(pgn.meta, "WhiteTitle") ||
-	 !ContainsKey(pgn.meta, "BlackTitle"))) {
+        (!ContainsKey(pgn.meta, "WhiteTitle") ||
+         !ContainsKey(pgn.meta, "BlackTitle"))) {
       return false;
     }
     return true;
@@ -110,13 +110,13 @@ struct Processor {
     for (int c = 0; c < 8; c++) {
       int white_pawns = 0, black_pawns = 0;
       for (int r = 0; r < 8; r++) {
-	uint8 p = pos.PieceAt(r, c);
-	if ((p & Position::TYPE_MASK) == Position::PAWN) {
-	  if ((p & Position::COLOR_MASK) == Position::WHITE)
-	    white_pawns++;
-	  else
-	    black_pawns++;
-	}
+        uint8 p = pos.PieceAt(r, c);
+        if ((p & Position::TYPE_MASK) == Position::PAWN) {
+          if ((p & Position::COLOR_MASK) == Position::WHITE)
+            white_pawns++;
+          else
+            black_pawns++;
+        }
       }
       most_white_pawns = std::max(most_white_pawns, white_pawns);
       most_black_pawns = std::max(most_black_pawns, black_pawns);
@@ -137,7 +137,7 @@ struct Processor {
     int max_position_score = 0;
 
     int black_consec_forced = 0, white_consec_forced = 0;
-    
+
     Position pos;
     Fates game_fates;
     for (int i = 0; i < pgn.moves.size(); i++) {
@@ -146,15 +146,15 @@ struct Processor {
       const bool move_ok = pos.ParseMove(m.move.c_str(), &move);
 
       if (!move_ok) {
-	fprintf(stderr, "Bad move %s from full PGN:\n%s",
-		m.move.c_str(), pgn_text.c_str());
-	// There are a few messed up games in 2016 and earlier.
-	// Return early if we find such a game.
-	{
-	  WriteMutexLock ml(&bad_games_m);
-	  bad_games++;
-	}
-	return;
+        fprintf(stderr, "Bad move %s from full PGN:\n%s",
+                m.move.c_str(), pgn_text.c_str());
+        // There are a few messed up games in 2016 and earlier.
+        // Return early if we find such a game.
+        {
+          WriteMutexLock ml(&bad_games_m);
+          bad_games++;
+        }
+        return;
       }
 
       /*
@@ -164,60 +164,60 @@ struct Processor {
       // out of bounds (chessboard index, not piece index), so
       // when I ran this code it was wrong!
       if (!!(game_fates.fates[Fates::BLACK_QUEEN] & Fates::DIED) ||
-	  !!(game_fates.fates[Fates::WHITE_QUEEN] & Fates::DIED))
-	break;
+          !!(game_fates.fates[Fates::WHITE_QUEEN] & Fates::DIED))
+        break;
 
       const bool blackmove = pos.BlackMove();
       const bool forced = 1 == pos.ExactlyOneLegalMove();
 
       if (blackmove)
-	black_consec_forced = forced ? black_consec_forced + 1 : 0;
+        black_consec_forced = forced ? black_consec_forced + 1 : 0;
       else
-	white_consec_forced = forced ? white_consec_forced + 1 : 0;
+        white_consec_forced = forced ? white_consec_forced + 1 : 0;
 
       max_position_score = std::max(max_position_score,
-				    std::max(black_consec_forced,
-					     white_consec_forced));
+                                    std::max(black_consec_forced,
+                                             white_consec_forced));
       */
-      
+
       // const bool castling_move = pos.IsCastling(move);
       // const bool enpassant_move = pos.IsEnPassant(move);
       pos.ApplyMove(move);
 
       game_fates.Update(pos, move);
-      
+
       #if 0
       if (enpassant_move) {
-	if (pos.IsMated()) {
-	  int64 game_score =
-	    std::min(pgn.MetaInt("WhiteElo", 0),
-		     pgn.MetaInt("BlackElo", 0));      
+        if (pos.IsMated()) {
+          int64 game_score =
+            std::min(pgn.MetaInt("WhiteElo", 0),
+                     pgn.MetaInt("BlackElo", 0));
 
-	  if (ContainsKey(pgn.meta, "WhiteTitle"))
-	    game_score += 10000;
-	  if (ContainsKey(pgn.meta, "BlackTitle"))
-	    game_score += 10000;
+          if (ContainsKey(pgn.meta, "WhiteTitle"))
+            game_score += 10000;
+          if (ContainsKey(pgn.meta, "BlackTitle"))
+            game_score += 10000;
 
-	  int base, increment;
-	  std::tie(base, increment) = pgn.GetTimeControl();
-	  if (base == 0 && increment == 0) game_score += 2000;
-	  else game_score += base + increment;
+          int base, increment;
+          std::tie(base, increment) = pgn.GetTimeControl();
+          if (base == 0 && increment == 0) game_score += 2000;
+          else game_score += base + increment;
 
-	  // If the game has an interesting position, then output it.
-	  // PERF: We could do a read-only check of TopN without taking
-	  // the write mutex.
-	  WriteMutexLock ml(&topn_m);
-	  ScoredGame sg;
-	  sg.score = game_score;
-	  sg.pgn_text = pgn_text;
-	  topn.push(std::move(sg));
-	}
+          // If the game has an interesting position, then output it.
+          // PERF: We could do a read-only check of TopN without taking
+          // the write mutex.
+          WriteMutexLock ml(&topn_m);
+          ScoredGame sg;
+          sg.score = game_score;
+          sg.pgn_text = pgn_text;
+          topn.push(std::move(sg));
+        }
       }
       #endif
-      
+
       #if 0
-      max_position_score = 
-	std::max(max_position_score, ScorePosition(pos));
+      max_position_score =
+        std::max(max_position_score, ScorePosition(pos));
       #endif
     }
 
@@ -225,24 +225,24 @@ struct Processor {
     // weirdnesss .979933 to .973182 in top 10,
     // but go down to almost .800 in bottom.
     double weirdness = 1.0 - FateScore(game_fates);
-    int64 game_score = weirdness * 1000000LL;    
+    int64 game_score = weirdness * 1000000LL;
     if (game_score > 950000LL) {
 
       /*
-      game_score += 
-	std::min(pgn.MetaInt("WhiteElo", 0),
-		 pgn.MetaInt("BlackElo", 0));      
+      game_score +=
+        std::min(pgn.MetaInt("WhiteElo", 0),
+                 pgn.MetaInt("BlackElo", 0));
 
       if (ContainsKey(pgn.meta, "WhiteTitle"))
-	game_score += 10000;
+        game_score += 10000;
       if (ContainsKey(pgn.meta, "BlackTitle"))
-	game_score += 10000;
+        game_score += 10000;
 
       int base, increment;
       std::tie(base, increment) = pgn.GetTimeControl();
       if (base == 0 && increment == 0) game_score += 2000;
       else game_score += base + increment;
-      */      
+      */
       // If the game has an interesting position, then output it.
       // PERF: We could do a read-only check of TopN without taking
       // the write mutex.
@@ -269,7 +269,7 @@ struct Processor {
     size_t s = topn.size();
     return s > 0 ? StringPrintf(" (found %d)", (int)s) : "";
   }
-  
+
   std::shared_mutex topn_m;
   gtl::TopN<ScoredGame, ScoredGameCmp> topn;
 
@@ -287,7 +287,7 @@ static void ReadLargePGN(const char *filename) {
   // TODO: How to get this to deduce second argument at least?
   auto work_queue =
     std::make_unique<WorkQueue<string, decltype(DoWork), 1>>(DoWork,
-							     MAX_PARALLELISM);
+                                                             MAX_PARALLELISM);
 
   const int64 start = time(nullptr);
 
@@ -300,26 +300,26 @@ static void ReadLargePGN(const char *filename) {
 
       const int64 num_read = stream.NumRead();
       if (num_read % 20000LL == 0) {
-	int64 done, in_progress, pending;
-	work_queue->Stats(&done, &in_progress, &pending);
-	const bool should_pause = pending > 5000000;
-	const char *pausing = should_pause ? " (PAUSE READING)" : "";
-	fprintf(stderr,
-		"[Still reading; %lld games at %.1f/sec] %lld %lld %lld %s%s\n",
-		num_read,
-		num_read / (double)(time(nullptr) - start),
-		done, in_progress, pending, pausing,
-		processor.Status().c_str());
-	fflush(stderr);
-	if (MAX_GAMES > 0 && num_read >= MAX_GAMES)
-	  break;
+        int64 done, in_progress, pending;
+        work_queue->Stats(&done, &in_progress, &pending);
+        const bool should_pause = pending > 5000000;
+        const char *pausing = should_pause ? " (PAUSE READING)" : "";
+        fprintf(stderr,
+                "[Still reading; %lld games at %.1f/sec] %lld %lld %lld %s%s\n",
+                num_read,
+                num_read / (double)(time(nullptr) - start),
+                done, in_progress, pending, pausing,
+                processor.Status().c_str());
+        fflush(stderr);
+        if (MAX_GAMES > 0 && num_read >= MAX_GAMES)
+          break;
 
-	if (should_pause)
-	  sleep(60);
+        if (should_pause)
+          sleep(60);
       }
     }
   }
-  
+
   work_queue->SetNoMoreWork();
 
   #if 0
@@ -327,29 +327,29 @@ static void ReadLargePGN(const char *filename) {
     // XXX DEBUG
     PSAPI_WORKING_SET_EX_INFORMATION workingset[16384];
     CHECK(QueryWorkingSetEx(GetCurrentProcess(),
-			    workingset,
-			    16384 * sizeof (PSAPI_WORKING_SET_INFORMATION)));
+                            workingset,
+                            16384 * sizeof (PSAPI_WORKING_SET_INFORMATION)));
     for (int i = 0; i < 16384; i++) {
       const PSAPI_WORKING_SET_EX_INFORMATION *wsi = &workingset[i];
       /*
       if (wsi->VirtualAddress == 0) {
-	fprintf(stderr, "(null)\n");
+        fprintf(stderr, "(null)\n");
       }
       */
       const PSAPI_WORKING_SET_EX_BLOCK *wsb = &wsi->VirtualAttributes;
       fprintf(stderr, "%p: ", wsi->VirtualAddress);
       if (wsb->Valid) {
-	fprintf(stderr,
-		" v shc %d prot %d sh %d node %d lock %d large %d",
-		(int)wsb->ShareCount,
-		(int)wsb->Win32Protection,
-		(int)wsb->Shared,
-		(int)wsb->Node,
-		(int)wsb->Locked,
-		(int)wsb->LargePage
-		/* , (int)wsb->Reserved */);
+        fprintf(stderr,
+                " v shc %d prot %d sh %d node %d lock %d large %d",
+                (int)wsb->ShareCount,
+                (int)wsb->Win32Protection,
+                (int)wsb->Shared,
+                (int)wsb->Node,
+                (int)wsb->Locked,
+                (int)wsb->LargePage
+                /* , (int)wsb->Reserved */);
       } else {
-	fprintf(stderr, " INVALID");
+        fprintf(stderr, " INVALID");
       }
       fprintf(stderr, "\n");
       fflush(stderr);
@@ -362,9 +362,9 @@ static void ReadLargePGN(const char *filename) {
     int64 done, in_progress, pending;
     work_queue->Stats(&done, &in_progress, &pending);
     fprintf(stderr, "[Done reading] %lld %lld %lld %.2f%% %s\n",
-	    done, in_progress, pending,
-	    (100.0 * (double)done) / (in_progress + done + pending),
-	    processor.Status().c_str());
+            done, in_progress, pending,
+            (100.0 * (double)done) / (in_progress + done + pending),
+            processor.Status().c_str());
     fflush(stderr);
     sleep(10);
   }
@@ -379,7 +379,7 @@ static void ReadLargePGN(const char *filename) {
   }
 
   fprintf(stderr,
-	  "There are %lld scored games\n", (int64)processor.topn.size());
+          "There are %lld scored games\n", (int64)processor.topn.size());
   auto top = processor.topn.Extract();
   for (const auto &p : *top) {
     printf("[Score %lld]\n%s\n", p.score, p.pgn_text.c_str());

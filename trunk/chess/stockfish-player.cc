@@ -25,7 +25,7 @@ struct StockfishPlayer : public StatelessPlayer {
     fish.reset(new Stockfish(level, nodes));
     CHECK(fish.get());
   }
-  
+
   Move MakeMove(const Position &orig_pos, Explainer *explainer) override {
     // XXX: In endgames, the move clock matters. Should
     // perhaps be providing this.
@@ -45,16 +45,16 @@ struct StockfishPlayer : public StatelessPlayer {
 
     return m;
   }
-  
+
   string Name() const override {
     return name;
   }
-  
+
   string Desc() const override {
     return StringPrintf("Stockfish engine, no tables, level %d, nodes %lld",
-			level, nodes);
+                        level, nodes);
   }
-  
+
   const int level;
   const int64 nodes;
   const string name;
@@ -86,7 +86,7 @@ struct WorstfishPlayer : public EvalResultPlayer {
     // There's no reason to parse the actual move; we just care about
     // the score. In fact there may be no move (stockfish returns
     // "(none)") because we may be mated.
-    // 
+    //
     // In the case that the player checkmated, we see "mate 0",
     // and in the case of stalemate we see "cp 0".
 
@@ -95,34 +95,34 @@ struct WorstfishPlayer : public EvalResultPlayer {
       // than centipawn loss, using MATE as like "infinity".
 
       if (score.value == 0) {
-	// Black is checkmated. Then this is white's best possible move,
-	// so it gets the highest penalty.
-	return MATE;
+        // Black is checkmated. Then this is white's best possible move,
+        // so it gets the highest penalty.
+        return MATE;
       } else if (score.value > 0) {
-	// Black can mate in x moves. This is bad for white, so this gets
-	// a very low (negative) penalty so that we select such moves.
-	// The closer mate is (smaller x), the worse for white.
-	return -MATE + score.value;
+        // Black can mate in x moves. This is bad for white, so this gets
+        // a very low (negative) penalty so that we select such moves.
+        // The closer mate is (smaller x), the worse for white.
+        return -MATE + score.value;
       } else {
-	// White can mate in x moves. This is good for white, so the
-	// penalty must be high. Value is negative, so add it to
-	// MATE; a mate in -1 is better for white than a mate in -7.
-	return MATE + score.value;
+        // White can mate in x moves. This is good for white, so the
+        // penalty must be high. Value is negative, so add it to
+        // MATE; a mate in -1 is better for white than a mate in -7.
+        return MATE + score.value;
       }
     } else {
       // If centipawns is positive here, then "black" is winning.
       return -score.value;
     }
   }
-  
+
   string Name() const override {
     return "worstfish";
   }
-  
+
   string Desc() const override {
     return StringPrintf("Make the worst legal move according to Stockfish "
-			"(no tables, level %d).",
-			level);
+                        "(no tables, level %d).",
+                        level);
   }
 
   const int level;

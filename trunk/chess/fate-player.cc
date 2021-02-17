@@ -21,7 +21,7 @@ namespace {
 template<bool NORM>
 struct FatePlayer : public Player {
   FatePlayer() : rc(PlayerUtil::GetSeed()) {}
-  
+
   struct FGame : public PlayerGame {
     explicit FGame(FatePlayer *parent) : parent(parent) {
     }
@@ -31,76 +31,76 @@ struct FatePlayer : public Player {
       Position::Move m;
       double score = 0.0;
     };
-    
+
     void ForceMove(const Position &pos, Position::Move move) override {
       fates.Update(pos, move);
     }
-    
+
     // Get a move for the current player in the current position.
     Position::Move GetMove(const Position &orig_pos,
-			   Explainer *explainer) override {
+                           Explainer *explainer) override {
       Position pos = orig_pos;
       std::vector<LabeledMove> labeled;
       double min_score = 99999.0, max_score = 0.0;
       if (VERBOSE) printf("\n------\n");
       for (const Move &m : pos.GetLegalMoves()) {
-	LabeledMove lm;
-	lm.m = m;
-	Fates fates_copy = fates.Apply(pos, m);
-	pos.MoveExcursion(m,
-			  [this, &pos, &lm, &fates_copy]() {
-			    lm.score = parent->Eval(&pos, fates_copy);
-			    return 0;
-			  });
+        LabeledMove lm;
+        lm.m = m;
+        Fates fates_copy = fates.Apply(pos, m);
+        pos.MoveExcursion(m,
+                          [this, &pos, &lm, &fates_copy]() {
+                            lm.score = parent->Eval(&pos, fates_copy);
+                            return 0;
+                          });
 
-	min_score = std::min(lm.score, min_score);
-	max_score = std::max(lm.score, max_score);
-	labeled.push_back(lm);
-	if (VERBOSE)
-	  printf("%s ~ %.6f\n", pos.ShortMoveString(lm.m).c_str(), lm.score);
+        min_score = std::min(lm.score, min_score);
+        max_score = std::max(lm.score, max_score);
+        labeled.push_back(lm);
+        if (VERBOSE)
+          printf("%s ~ %.6f\n", pos.ShortMoveString(lm.m).c_str(), lm.score);
       }
       CHECK(!labeled.empty());
 
       double total_score = 0.0;
       if (NORM) {
-	// Prevent singularities.
-	if (labeled.size() == 1)
-	  return labeled[0].m;
-	if (min_score >= max_score)
-	  return labeled[RandTo32(&parent->rc, labeled.size())].m;
+        // Prevent singularities.
+        if (labeled.size() == 1)
+          return labeled[0].m;
+        if (min_score >= max_score)
+          return labeled[RandTo32(&parent->rc, labeled.size())].m;
 
-	if (VERBOSE) printf("norm:\n");
-	const double onorm = 1.0 / (max_score - min_score);
-	double total_score = 0.0;
-	for (LabeledMove &lm : labeled) {
-	  lm.score = (lm.score - min_score) * onorm;
-	  total_score += lm.score;
-	  if (VERBOSE) printf("%s -> %.6f\n",
-			      pos.ShortMoveString(lm.m).c_str(), lm.score);
-	}
+        if (VERBOSE) printf("norm:\n");
+        const double onorm = 1.0 / (max_score - min_score);
+        double total_score = 0.0;
+        for (LabeledMove &lm : labeled) {
+          lm.score = (lm.score - min_score) * onorm;
+          total_score += lm.score;
+          if (VERBOSE) printf("%s -> %.6f\n",
+                              pos.ShortMoveString(lm.m).c_str(), lm.score);
+        }
 
-	if (VERBOSE)
-	  printf("min %.6f max %.6f onorm %.6f total %.6f\n",
-		 min_score, max_score, onorm, total_score);
+        if (VERBOSE)
+          printf("min %.6f max %.6f onorm %.6f total %.6f\n",
+                 min_score, max_score, onorm, total_score);
       } else {
-	for (const LabeledMove &lm : labeled)
-	  total_score += lm.score;
+        for (const LabeledMove &lm : labeled)
+          total_score += lm.score;
       }
       // Sample, weighted by score. Index into the stacked
       // probability mass.
       double idx = RandDouble(&parent->rc) * total_score;
       if (VERBOSE) printf("\nIndex %.6f / %.6f\n", idx, total_score);
-      
+
       for (int i = 0; i < labeled.size(); i++) {
-	idx -= labeled[i].score;
-	if (VERBOSE) printf("  Move %d idx %.6f\n", i, idx);
-	if (idx < 0.0) {
-	  if (VERBOSE) fflush(stdout);
-	  return labeled[i].m;
-	}
+        idx -= labeled[i].score;
+        if (VERBOSE) printf("  Move %d idx %.6f\n", i, idx);
+        if (idx < 0.0) {
+          if (VERBOSE) fflush(stdout);
+          return labeled[i].m;
+        }
       }
       if (VERBOSE) fflush(stdout);
-      
+
       // Could get all the way to the end in unlucky rounding situations.
       // Return the last move in this case.
       return labeled[labeled.size() - 1].m;
@@ -116,11 +116,11 @@ struct FatePlayer : public Player {
   // Note that the position represents the state after the move,
   // so it is the opponent's turn now.
   virtual double Eval(Position *pos, const Fates &gs) = 0;
-  
+
   FGame *CreateGame() override {
     return new FGame(this);
   }
-  
+
   ArcFour rc;
 };
 
@@ -137,9 +137,9 @@ struct SafePlayer : public FatePlayer<true> {
     // Sum over all of my own living pieces.
     for (int i = black ? 0 : 16; i < (black ? 16 : 32); i++) {
       if ((gs.fates[i] & Fates::DIED) == 0) {
-	const LivedDied &ld =
-	  all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
-	score += ld.lived;
+        const LivedDied &ld =
+          all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
+        score += ld.lived;
       }
     }
     return score;
@@ -158,9 +158,9 @@ struct DangerousPlayer : public FatePlayer<true> {
     const bool black = !pos->BlackMove();
     for (int i = black ? 0 : 16; i < (black ? 16 : 32); i++) {
       if ((gs.fates[i] & Fates::DIED) == 0) {
-	const LivedDied &ld =
-	  all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
-	score += ld.died;
+        const LivedDied &ld =
+          all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
+        score += ld.died;
       }
     }
     return score;
@@ -178,9 +178,9 @@ struct PopularPlayer : public FatePlayer<true> {
     const bool black = !pos->BlackMove();
     for (int i = black ? 0 : 16; i < (black ? 16 : 32); i++) {
       if ((gs.fates[i] & Fates::DIED) == 0) {
-	const LivedDied &ld =
-	  all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
-	score += ld.died + ld.lived;
+        const LivedDied &ld =
+          all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
+        score += ld.died + ld.lived;
       }
     }
     return score;
@@ -198,9 +198,9 @@ struct RarePlayer : public FatePlayer<true> {
     const bool black = !pos->BlackMove();
     for (int i = black ? 0 : 16; i < (black ? 16 : 32); i++) {
       if ((gs.fates[i] & Fates::DIED) == 0) {
-	const LivedDied &ld =
-	  all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
-	score += 1.0 - (ld.died + ld.lived);
+        const LivedDied &ld =
+          all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
+        score += 1.0 - (ld.died + ld.lived);
       }
     }
     return score;
@@ -218,14 +218,14 @@ struct SurvivalistPlayer : public FatePlayer<false> {
     const bool black = !pos->BlackMove();
     for (int i = black ? 0 : 16; i < (black ? 16 : 32); i++) {
       if ((gs.fates[i] & Fates::DIED) == 0) {
-	const LivedDied &ld =
-	  all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
-	if (ld.died > 0.0) {
-	  score += (ld.lived / ld.died);
-	} else {
-	  // This constant doesn't matter much, since 
-	  score += 1e6;
-	}
+        const LivedDied &ld =
+          all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
+        if (ld.died > 0.0) {
+          score += (ld.lived / ld.died);
+        } else {
+          // This constant doesn't matter much, since
+          score += 1e6;
+        }
       }
     }
     return score;
@@ -243,13 +243,13 @@ struct FatalistPlayer : public FatePlayer<false> {
     const bool black = !pos->BlackMove();
     for (int i = black ? 0 : 16; i < (black ? 16 : 32); i++) {
       if ((gs.fates[i] & Fates::DIED) == 0) {
-	const LivedDied &ld =
-	  all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
-	if (ld.lived > 0.0) {
-	  score += (ld.died / ld.lived);
-	} else {
-	  score += 1e6;
-	}
+        const LivedDied &ld =
+          all_fate_data[i][gs.fates[i] & Fates::POS_MASK];
+        if (ld.lived > 0.0) {
+          score += (ld.died / ld.lived);
+        } else {
+          score += 1e6;
+        }
       }
     }
     return score;
@@ -258,13 +258,13 @@ struct FatalistPlayer : public FatePlayer<false> {
 
 struct EqualizerPlayer : public Player {
   EqualizerPlayer() : rc(PlayerUtil::GetSeed()) {}
-  
+
   struct EQGame : public PlayerGame {
     EQGame(EqualizerPlayer *parent) : parent(parent) {
       for (int i = 0; i < 32; i++)
-	moved[i] = 0;
+        moved[i] = 0;
       for (int i = 0; i < 64; i++)
-	visited_black[i] = visited_white[i] = 0;
+        visited_black[i] = visited_white[i] = 0;
       // Starting position counts as "visited."
       for (int i = 0; i < 16; i++) visited_black[i] = 1;
       for (int i = 48; i < 64; i++) visited_white[i] = 1;
@@ -277,7 +277,7 @@ struct EqualizerPlayer : public Player {
       int square_visited = 0;
       uint32 r = 0;
     };
-    
+
     void ForceMove(const Position &pos, Position::Move m) override {
       const int srcidx = fates.PieceIndexAt(m.src_row, m.src_col);
       CHECK(srcidx >= 0) << srcidx;
@@ -291,66 +291,66 @@ struct EqualizerPlayer : public Player {
       // of the rook and the movement of the rook.
       const int src_pos = (int)m.src_row * 8 + (int)m.src_col;
       if (src_pos == 4 && pos.PieceAt(0, 4) ==
-	  (Position::BLACK | Position::KING)) {
-	if (dst_pos == 2) {
-	  moved[0]++;
-	  visited[3]++;
-	} else if (dst_pos == 6) {
-	  moved[7]++;
-	  visited[5]++;
-	}
+          (Position::BLACK | Position::KING)) {
+        if (dst_pos == 2) {
+          moved[0]++;
+          visited[3]++;
+        } else if (dst_pos == 6) {
+          moved[7]++;
+          visited[5]++;
+        }
       } else if (src_pos == 60 && pos.PieceAt(7, 4) ==
-		 (Position::WHITE | Position::KING)) {
-	if (dst_pos == 58) {
-	  moved[24]++;
-	  visited[59]++;
-	} else if (dst_pos == 62) {
-	  moved[31]++;
-	  visited[61]++;
-	}
+                 (Position::WHITE | Position::KING)) {
+        if (dst_pos == 58) {
+          moved[24]++;
+          visited[59]++;
+        } else if (dst_pos == 62) {
+          moved[31]++;
+          visited[61]++;
+        }
       }
-	  
+
       fates.Update(pos, m);
     }
 
     Position::Move GetMove(const Position &orig_pos,
-			   Explainer *explainer) override {
+                           Explainer *explainer) override {
       Position pos = orig_pos;
       std::vector<LabeledMove> labeled;
       const bool black = pos.BlackMove();
-      
-      for (const Move &m : pos.GetLegalMoves()) {
-	LabeledMove lm;
-	lm.m = m;
-	lm.r = Rand32(&parent->rc);
-	// a piece index
-	const int srcidx = fates.PieceIndexAt(m.src_row, m.src_col);
-	CHECK(srcidx >= 0) << srcidx;
-	lm.piece_moved = moved[srcidx];
-	// a board index
-	const int dstidx = (int)m.dst_row * 8 + (int)m.dst_col;
-	lm.square_visited =
-	  black ? visited_black[dstidx] : visited_white[dstidx];
 
-	labeled.push_back(lm);
+      for (const Move &m : pos.GetLegalMoves()) {
+        LabeledMove lm;
+        lm.m = m;
+        lm.r = Rand32(&parent->rc);
+        // a piece index
+        const int srcidx = fates.PieceIndexAt(m.src_row, m.src_col);
+        CHECK(srcidx >= 0) << srcidx;
+        lm.piece_moved = moved[srcidx];
+        // a board index
+        const int dstidx = (int)m.dst_row * 8 + (int)m.dst_col;
+        lm.square_visited =
+          black ? visited_black[dstidx] : visited_white[dstidx];
+
+        labeled.push_back(lm);
       }
       CHECK(!labeled.empty());
 
       return PlayerUtil::GetBest(
-	  labeled,
-	  [](const LabeledMove &a,
-	     const LabeledMove &b) {
-	    // First, prefer a piece that's moved more rarely.
-	    if (a.piece_moved != b.piece_moved)
-	      return a.piece_moved < b.piece_moved;
-	    // Next, to a less-visited destination.
-	    if (a.square_visited != b.square_visited)
-	      return a.square_visited < b.square_visited;
-	    // Break ties randomly.
-	    return a.r < b.r;
-	  }).m;
+          labeled,
+          [](const LabeledMove &a,
+             const LabeledMove &b) {
+            // First, prefer a piece that's moved more rarely.
+            if (a.piece_moved != b.piece_moved)
+              return a.piece_moved < b.piece_moved;
+            // Next, to a less-visited destination.
+            if (a.square_visited != b.square_visited)
+              return a.square_visited < b.square_visited;
+            // Break ties randomly.
+            return a.r < b.r;
+          }).m;
     }
-    
+
     Fates fates;
     // Number of times the piece has moved.
     int moved[32] = {};
@@ -363,7 +363,7 @@ struct EqualizerPlayer : public Player {
   EQGame *CreateGame() override {
     return new EQGame(this);
   }
-  
+
   string Name() const override { return "equalizer"; }
   string Desc() const override {
     // Due to "Anonymous"

@@ -25,10 +25,10 @@ static Position::Move ApplyMove(Position *pos, const char *pgn, Fates *fates) {
 
   uint16_t pm = PackedGame::PackMove(m);
   CHECK((pm & ~0b111111111111) == 0b0) << pm << " for "
-				       << Position::DebugMoveString(m);
+                                       << Position::DebugMoveString(m);
   const Move m2 = PackedGame::UnpackMove(pm);
   CHECK(Position::MoveEq(m, m2)) << Position::DebugMoveString(m) << " vs "
-				 << Position::DebugMoveString(m2);
+                                 << Position::DebugMoveString(m2);
 
   if (fates != nullptr) {
     fates->Update(*pos, m);
@@ -107,7 +107,7 @@ static void PlayGame(std::initializer_list<const char *> game) {
     pos2.ApplyMove(move);
   }
   CHECK(PositionEq{}(pos, pos2)) << pos.BoardString() << "\nvs\n"
-				 << pos2.BoardString();
+                                 << pos2.BoardString();
 }
 
 static void PromotionRegression() {
@@ -115,7 +115,7 @@ static void PromotionRegression() {
     Position pos;
     // White pawn about to promote on column 2.
     CHECK(Position::ParseFEN(
-	      "8/2P5/7k/8/7K/8/8/8 w - 0 1", &pos));
+              "8/2P5/7k/8/7K/8/8/8 w - 0 1", &pos));
     Move m;
     m.src_row = 1;
     m.src_col = 2;
@@ -134,7 +134,7 @@ static void PromotionRegression() {
     Position pos;
     // Black pawn about to promote on column 2.
     CHECK(Position::ParseFEN(
-	      "8/8/7k/8/7K/8/2p5/8 b - 0 1", &pos));
+              "8/8/7k/8/7K/8/2p5/8 b - 0 1", &pos));
     Move m;
     m.src_row = 6;
     m.src_col = 2;
@@ -170,12 +170,12 @@ static void ReadPGN() {
 
 1. e4 { [%clk 0:05:00] } Nf6 { [%clk 0:05:00] } 2. e5 { [%clk 0:04:55] } Nd5 { [%clk 0:04:58] } 3. c4 { [%clk 0:04:53] } Nb6 { [%clk 0:04:56] } 4. a4 { [%clk 0:04:49] } a5 { [%clk 0:04:53] } 5. Qf3 { [%clk 0:04:42] } d6 { [%clk 0:04:47] } 6. d4 { [%clk 0:04:25] } dxe5 { [%clk 0:04:38] } 7. dxe5 { [%clk 0:04:22] } Nc6 { [%clk 0:04:32] } 8. c5 { [%clk 0:04:17] } Nxe5 { [%clk 0:04:21] } 9. Qe4 { [%clk 0:04:03] } Nbd7 { [%clk 0:04:08] } 10. Bb5 { [%clk 0:03:57] } c6 { [%clk 0:03:56] } 11. Be2 { [%clk 0:03:51] } g6 { [%clk 0:03:39] } 12. Bf4 { [%clk 0:03:46] } Bg7 { [%clk 0:03:37] } 13. Nc3 { [%clk 0:03:32] } O-O { [%clk 0:03:31] } 14. Nf3 { [%clk 0:03:14] } Nxf3+ { [%clk 0:03:28] } 15. Bxf3 { [%clk 0:03:11] } Nf6 { [%clk 0:03:22] } 16. Qe3 { [%clk 0:03:04] } Ng4 { [%clk 0:03:13] } 17. Bxg4 { [%clk 0:03:00] } Bxg4 { [%clk 0:03:10] } 18. Bh6 { [%clk 0:02:58] } Re8 { [%clk 0:02:49] } 19. Bxg7 { [%clk 0:02:53] } Kxg7 { [%clk 0:02:48] } 20. O-O { [%clk 0:02:50] } e5 { [%clk 0:02:41] } 21. Rad1 { [%clk 0:02:41] } Qc7 { [%clk 0:02:32] } 22. Rd6 { [%clk 0:02:36] } Rad8 { [%clk 0:02:25] } 23. Ne4 { [%clk 0:02:12] } Bf5 { [%clk 0:02:11] } 24. Qg5 { [%clk 0:01:59] } Bxe4 { [%clk 0:02:06] } 25. Qf6+ { [%clk 0:01:54] } Kg8 { [%clk 0:02:01] } 26. Rfd1 { [%clk 0:01:49] } Bd5 { [%clk 0:01:48] } 27. Rd3 { [%clk 0:01:16] } e4 { [%clk 0:01:45] } 28. Rd4 { [%clk 0:00:58] } Re6 { [%clk 0:01:34] } 29. Rxd8+ { [%clk 0:00:50] } Qxd8 { [%clk 0:01:09] } 30. Qxd8+ { [%clk 0:00:50] } Kg7 { [%clk 0:01:07] } 31. Qd7 { [%clk 0:00:38] } e3 { [%clk 0:00:57] } 32. fxe3 { [%clk 0:00:36] } Rxe3 { [%clk 0:00:56] } 33. Qxb7 { [%clk 0:00:33] } Rb3 { [%clk 0:00:48] } 34. Qe7 { [%clk 0:00:30] } Rxb2 { [%clk 0:00:43] } 35. Rf4 { [%clk 0:00:27] } Rb1+ { [%clk 0:00:38] } 36. Kf2 { [%clk 0:00:26] } Rb2+ { [%clk 0:00:35] } 37. Ke3 { [%clk 0:00:22] } Rxg2 { [%clk 0:00:29] } 38. Qf6+ { [%clk 0:00:21] } Kg8 { [%clk 0:00:26] } 39. Rh4 { [%clk 0:00:17] } h5 { [%clk 0:00:21] } 40. Re4 { [%clk 0:00:14] } Bxe4 { [%clk 0:00:15] } 41. Kxe4 { [%clk 0:00:13] } Re2+ { [%clk 0:00:12] } 42. Kd3 { [%clk 0:00:12] } Rxh2 { [%clk 0:00:09] } 43. Qxc6 { [%clk 0:00:10] } Kg7 { [%clk 0:00:06] } 44. Qe8 { [%clk 0:00:07] } Rh3+ { [%clk 0:00:04] } 45. Ke2 { [%clk 0:00:04] } Rh2+ { [%clk 0:00:02] } 46. Kf3 { [%clk 0:00:03] } Rh3+ { [%clk 0:00:01] } 47. Kg2 { [%clk 0:00:03] } 1-0
 )_";
-      
+
   CHECK(PGN::Parse(kGame, &pgn));
   CHECK(pgn.result == PGN::Result::WHITE_WINS);
   CHECK(pgn.GetTimeControl() == std::make_pair(300, 1));
   CHECK(pgn.GetTermination() == PGN::Termination::TIME_FORFEIT);
-  
+
   Position pos;
 
   Fates fates;
@@ -225,9 +225,9 @@ static void Regression2Game() {
 29. Re8+ Kd7 30. Rd1 Re2+ 31. Kf1 Rxd1+ 32. Kxe2 Ra1
 33. Re7+ Kxe7 34. Nf5+ Ke6 35. b5 cxb5 36. a4 Ra2+
 )_";
-      
+
   CHECK(PGN::Parse(kGame, &pgn));
-  
+
   Position pos;
 
   Fates fates;
@@ -242,15 +242,15 @@ static void Regression2Game() {
 static void Regression1() {
   Position pos;
   CHECK(Position::ParseFEN(
-	    "3K4/5p2/6q1/8/4q3/8/6k1/8 b - - 9 60",
-	    &pos));
+            "3K4/5p2/6q1/8/4q3/8/6k1/8 b - - 9 60",
+            &pos));
   printf("---- Regression 1 -----\n");
   printf("Start board:\n%s\n", pos.BoardString().c_str());
   Move move;
   CHECK(pos.ParseMove("Qge6", &move));
   CHECK(pos.IsLegal(move));
   printf("%d %d -> %d %d\n", move.src_row, move.src_col,
-	 move.dst_row, move.dst_col);
+         move.dst_row, move.dst_col);
   pos.ApplyMove(move);
   CHECK(move.src_row == 2 && move.src_col == 6);
   printf("Resulting board:\n%s\n", pos.BoardString().c_str());
@@ -259,15 +259,15 @@ static void Regression1() {
 static void Regression2() {
   Position pos;
   CHECK(Position::ParseFEN(
-	    "4R3/pp1k4/2p2p2/8/1P6/4N3/P2r1r2/3RK3 b - - 5 30",
-	    &pos));
+            "4R3/pp1k4/2p2p2/8/1P6/4N3/P2r1r2/3RK3 b - - 5 30",
+            &pos));
   printf("---- Regression 2 -----\n");
   printf("Start board:\n%s\n", pos.BoardString().c_str());
   Move move;
   CHECK(pos.ParseMove("Re2+", &move));
   CHECK(pos.IsLegal(move));
   printf("%d %d -> %d %d\n", move.src_row, move.src_col,
-	 move.dst_row, move.dst_col);
+         move.dst_row, move.dst_col);
   pos.ApplyMove(move);
   CHECK(move.src_row == 6 && move.src_col == 5);
   printf("Resulting board:\n%s\n", pos.BoardString().c_str());
@@ -283,7 +283,7 @@ static void ValidMoves1() {
 
   PGN pgn;
   CHECK(PGN::Parse(kGame, &pgn));
-  
+
   Position pos;
 
   Fates fates;
@@ -299,13 +299,13 @@ static void ValidMoves1() {
   vector<Position::Move> moves = pos.GetLegalMoves();
   // TODO: Could check for the specific expected moves here.
   CHECK(moves.size() == 51);
-  
+
   /*
   for (Position::Move move : moves) {
     printf("  %c%d -> %c%d = %c\n",
-	   'a' + move.src_col, 8 - move.src_row,
-	   'a' + move.dst_col, 8 - move.dst_row,
-	   Position::HumanPieceChar(move.promote_to));
+           'a' + move.src_col, 8 - move.src_row,
+           'a' + move.dst_col, 8 - move.dst_row,
+           Position::HumanPieceChar(move.promote_to));
   }
   */
 }
@@ -324,14 +324,14 @@ static void ValidMoves2() {
 
   PGN pgn;
   CHECK(PGN::Parse(kGame, &pgn));
-  
+
   Position pos;
 
   auto IsInVector =
     [](const std::vector<Move> &vec,
        Move m) {
       for (const Move &mm : vec) {
-	if (Position::MoveEq(m, mm)) return true;
+        if (Position::MoveEq(m, mm)) return true;
       }
       return false;
     };
@@ -340,8 +340,8 @@ static void ValidMoves2() {
     [](const Position &pos, const std::vector<Move> &vec) {
       string ret;
       for (Move m : vec) {
-	if (!ret.empty()) ret += ", ";
-	ret += pos.LongMoveString(m);
+        if (!ret.empty()) ret += ", ";
+        ret += pos.LongMoveString(m);
       }
       return ret;
     };
@@ -349,19 +349,19 @@ static void ValidMoves2() {
   auto NoDupes =
     [](const std::vector<Move> &vec) {
       for (int i = 0; i < vec.size(); i++) {
-	for (int j = 0; j < vec.size(); j++) {
-	  if (i != j &&
-	      Position::MoveEq(vec[i], vec[j]))
-	    return false;
-	}
+        for (int j = 0; j < vec.size(); j++) {
+          if (i != j &&
+              Position::MoveEq(vec[i], vec[j]))
+            return false;
+        }
       }
       return true;
     };
-  
+
   for (const PGN::Move &m : pgn.moves) {
     CHECK(pos.HasLegalMoves());
     std::vector<Move> legal_moves = pos.GetLegalMoves();
-	
+
     Move move;
     CHECK(pos.ParseMove(m.move.c_str(), &move));
     CHECK(pos.IsLegal(move));
@@ -408,8 +408,8 @@ static void TestShortMove() {
     CHECK(pos.IsLegal(m)) << move_string;
     string sm = pos.ShortMoveString(m);
     CHECK(move_string == sm) << "Wanted " << move_string
-			     << " but got " << sm << " in:\n"
-			     << pos.BoardString();
+                             << " but got " << sm << " in:\n"
+                             << pos.BoardString();
     pos.ApplyMove(m);
   }
 }
@@ -417,8 +417,8 @@ static void TestShortMove() {
 static void RegressionBxa8n() {
   Position pos;
   CHECK(Position::ParseFEN(
-	    "1rbqkbnr/pPpppppp/8/P7/8/8/2PPPPPP/RNBQKBNR w KQk - 1 7",
-	    &pos));
+            "1rbqkbnr/pPpppppp/8/P7/8/8/2PPPPPP/RNBQKBNR w KQk - 1 7",
+            &pos));
   CHECK(pos.PieceAt(0, 0) == Position::EMPTY);
 
   Move m;
@@ -436,8 +436,8 @@ static void RegressionBxa8n() {
 static void RegressionRg8() {
   Position pos;
   CHECK(Position::ParseFEN(
-	    "3qk2r/p2pp2p/2N3rb/2p2p2/1Qp2pn1/1P6/3PPPPP/R1BQKB1R b Qk - 1 1",
-	    &pos));
+            "3qk2r/p2pp2p/2N3rb/2p2p2/1Qp2pn1/1P6/3PPPPP/R1BQKB1R b Qk - 1 1",
+            &pos));
   Move m;
   m.src_row = 2;
   m.src_col = 6;
@@ -454,13 +454,13 @@ static void RegressionRg8() {
 
 static void TestEp() {
   const char *kGame = R"_([Event "Test"]
-1. e4 e5 2. Ke2 Ke7 3. f4 exf4 4. g4 
+1. e4 e5 2. Ke2 Ke7 3. f4 exf4 4. g4
 )_";
   Position pos = MakePos(kGame);
   CHECK(!pos.IsMated());
   string fen = pos.ToFEN(0, 4);
   CHECK("rnbq1bnr/ppppkppp/8/8/4PpP1/8/PPPPK2P/RNBQ1BNR b - g3 0 4" ==
-	fen) << fen;
+        fen) << fen;
   Move ep;
   CHECK(pos.ParseMove("fxg3", &ep));
   CHECK(pos.IsEnPassant(ep));
@@ -489,7 +489,7 @@ int main(int argc, char **argv) {
 
   ReadPGN();
   ReadPGNUnterminated();
-  
+
   Regression1();
   Regression2();
 

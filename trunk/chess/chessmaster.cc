@@ -110,7 +110,7 @@ bool Chessmaster::WaitInputReady(uint8 button) {
     const uint8 *ram = emu->GetFC()->fceu->RAM;
     if (ram[READY_FOR_INPUT]) {
       if (VERBOSE) printf("ready_for_input=%02x after %d\n",
-			  ram[READY_FOR_INPUT], i);
+                          ram[READY_FOR_INPUT], i);
       return true;
     }
   }
@@ -141,11 +141,11 @@ void Chessmaster::InitEngine() {
   vector<uint8> movie =
     level == 1 ?
     SimpleFM7::ParseString(
-	"!32_8t26_8t220_8t43_8t28_6c65_3d7_4d5_3d16_5d24_5d26_4a195_") :
+        "!32_8t26_8t220_8t43_8t28_6c65_3d7_4d5_3d16_5d24_5d26_4a195_") :
     // Switch to level 2 on the menu
     SimpleFM7::ParseString(
-	"!24_5t24_5t242_6c53_8t88_6c91_3d7_5d7_3d5_5d5_4d5_4d7_5d3_"
-	"4d23_5a71_4u7_4u27_5u32_5a126_");
+        "!24_5t24_5t242_6c53_8t88_6c91_3d7_5d7_3d5_5d5_4d5_4d7_5d3_"
+        "4d23_5a71_4u7_4u27_5u32_5a126_");
 
   for (uint8 c : movie) emu->Step(c, 0);
 
@@ -186,11 +186,11 @@ Move Chessmaster::GetMove(const Position &pos) {
 
   const bool black = pos.BlackMove();
   const uint8 my_mask = black ? Position::BLACK : Position::WHITE;
-  
+
   {
     MutexLock ml(&emulator_m);
     InitEngine();
-    
+
     // Place in the board editor.
     emu->LoadUncompressed(edit_save);
 
@@ -198,25 +198,25 @@ Move Chessmaster::GetMove(const Position &pos) {
     {
       uint8 *ram = emu->GetFC()->fceu->RAM;
       for (int r = 0; r < 8; r++) {
-	for (int c = 0; c < 8; c++) {
-	  const uint8 p = pos.PieceAt(r, c);
-	  ram[BOARD_START_LOC + (r * 16) + c] = PieceMaster(p);
-	}
+        for (int c = 0; c < 8; c++) {
+          const uint8 p = pos.PieceAt(r, c);
+          ram[BOARD_START_LOC + (r * 16) + c] = PieceMaster(p);
+        }
       }
 
       // 1 = black's move, 0 = white's move
       ram[WHOSE_MOVE_LOC] = black ? 0x01 : 0x00;
     }
-    
+
     if (VERBOSE) {
       printf("after setting it:\n");
       const uint8 *ram = emu->GetFC()->fceu->RAM;
       for (int r = 0; r < 8; r++) {
-	for (int c = 0; c < 8; c++) {
-	  const uint8 np = MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
-	  printf("%c ", Position::HumanPieceChar(np));
-	}
-	printf("\n");
+        for (int c = 0; c < 8; c++) {
+          const uint8 np = MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
+          printf("%c ", Position::HumanPieceChar(np));
+        }
+        printf("\n");
       }
     }
 
@@ -227,15 +227,15 @@ Move Chessmaster::GetMove(const Position &pos) {
       printf("after one step:\n");
       const uint8 *ram = emu->GetFC()->fceu->RAM;
       for (int r = 0; r < 8; r++) {
-	for (int c = 0; c < 8; c++) {
-	  const uint8 np = MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
-	  printf("%c ", Position::HumanPieceChar(np));
-	}
-	printf("\n");
+        for (int c = 0; c < 8; c++) {
+          const uint8 np = MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
+          printf("%c ", Position::HumanPieceChar(np));
+        }
+        printf("\n");
       }
     }
     #endif
-    
+
     for (uint8 c : return_to_game)
       emu->Step(c, 0);
 
@@ -243,20 +243,20 @@ Move Chessmaster::GetMove(const Position &pos) {
       printf("after returning to game:\n");
       const uint8 *ram = emu->GetFC()->fceu->RAM;
       for (int r = 0; r < 8; r++) {
-	for (int c = 0; c < 8; c++) {
-	  const uint8 np = MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
-	  printf("%c ", Position::HumanPieceChar(np));
-	}
-	printf("\n");
+        for (int c = 0; c < 8; c++) {
+          const uint8 np = MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
+          printf("%c ", Position::HumanPieceChar(np));
+        }
+        printf("\n");
       }
     }
 
-    
+
     // Wait for input to be ready.
     if (!WaitInputReady(0)) {
       if (VERBOSE) {
-	printf("Timeout after returning to game\n");
-	Screenshot("return-to-game.png");
+        printf("Timeout after returning to game\n");
+        Screenshot("return-to-game.png");
       }
       return move;
     }
@@ -267,7 +267,7 @@ Move Chessmaster::GetMove(const Position &pos) {
       int delay = rc.Byte() & 0x7F;
       while (delay--) emu->Step(0, 0);
     }
-    
+
     for (uint8 c : change_sides)
       emu->Step(c, 0);
 
@@ -281,16 +281,16 @@ Move Chessmaster::GetMove(const Position &pos) {
       printf("after move made:\n");
       const uint8 *ram = emu->GetFC()->fceu->RAM;
       for (int r = 0; r < 8; r++) {
-	for (int c = 0; c < 8; c++) {
-	  const uint8 np = MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
-	  printf("%c ", Position::HumanPieceChar(np));
-	}
-	printf("\n");
+        for (int c = 0; c < 8; c++) {
+          const uint8 np = MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
+          printf("%c ", Position::HumanPieceChar(np));
+        }
+        printf("\n");
       }
     }
-    
+
     if (VERBOSE) fflush(stdout);
-    
+
     // Now deduce move from the change in board state.
     {
       const uint8 *ram = emu->GetFC()->fceu->RAM;
@@ -301,52 +301,52 @@ Move Chessmaster::GetMove(const Position &pos) {
       bool source_king = false, dest_king = false;
 
       auto MasterPieceAt =
-	[ram](int r, int c) {
-	  return MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
-	};
-      
+        [ram](int r, int c) {
+          return MasterPiece(ram[BOARD_START_LOC + (r * 16) + c]);
+        };
+
       for (int r = 0; r < 8; r++) {
-	for (int c = 0; c < 8; c++) {
-	  const uint8 op = NormalizeRook(pos.PieceAt(r, c));
-	  const uint8 np = MasterPieceAt(r, c);
-	  if (op != np) {
-	    if (VERBOSE)
-	      printf("[op %c np %c]\n",
-		     Position::HumanPieceChar(op),
-		     Position::HumanPieceChar(np));
-	    // Check that the old piece was my color to
-	    // skip en passant captures.
-	    if ((op & Position::COLOR_MASK) == my_mask &&
-		np == Position::EMPTY) {
+        for (int c = 0; c < 8; c++) {
+          const uint8 op = NormalizeRook(pos.PieceAt(r, c));
+          const uint8 np = MasterPieceAt(r, c);
+          if (op != np) {
+            if (VERBOSE)
+              printf("[op %c np %c]\n",
+                     Position::HumanPieceChar(op),
+                     Position::HumanPieceChar(np));
+            // Check that the old piece was my color to
+            // skip en passant captures.
+            if ((op & Position::COLOR_MASK) == my_mask &&
+                np == Position::EMPTY) {
 
-	      if ((sr == -1 && sc == -1) || !source_king) {
-		sr = r;
-		sc = c;
-		source_king = (op & Position::TYPE_MASK) == Position::KING;
-	      }
+              if ((sr == -1 && sc == -1) || !source_king) {
+                sr = r;
+                sc = c;
+                source_king = (op & Position::TYPE_MASK) == Position::KING;
+              }
 
-	    } else if ((np & Position::COLOR_MASK) == my_mask) {
-	      
-	      if ((dr == -1 && dc == -1) || !dest_king) {
-		if (VERBOSE)
-		  printf("Update dest %d,%d to %d,%d\n", dr, dc, r, c);
-		dr = r;
-		dc = c;
-		dest_king = (np & Position::TYPE_MASK) == Position::KING;
-	      }
+            } else if ((np & Position::COLOR_MASK) == my_mask) {
 
-	    }
-	  }
-	}
+              if ((dr == -1 && dc == -1) || !dest_king) {
+                if (VERBOSE)
+                  printf("Update dest %d,%d to %d,%d\n", dr, dc, r, c);
+                dr = r;
+                dc = c;
+                dest_king = (np & Position::TYPE_MASK) == Position::KING;
+              }
+
+            }
+          }
+        }
       }
 
       if (sr == -1 || sc == -1 || dr == -1 || dc == -1) {
-	if (VERBOSE) {
-	  printf("no move %d %d %d %d\n",
-		 sr, sc, dr, dc);
-	  Screenshot("no-move.png");
-	}
-	return move;
+        if (VERBOSE) {
+          printf("no move %d %d %d %d\n",
+                 sr, sc, dr, dc);
+          Screenshot("no-move.png");
+        }
+        return move;
       }
 
       move.src_row = sr;
@@ -356,10 +356,10 @@ Move Chessmaster::GetMove(const Position &pos) {
 
       const uint8 sp = pos.PieceAt(sr, sc);
       if (sp == (my_mask | Position::PAWN)) {
-	const uint8 dp = MasterPieceAt(dr, dc);
-	if (sp != dp) {
-	  move.promote_to = dp;
-	}
+        const uint8 dp = MasterPieceAt(dr, dc);
+        if (sp != dp) {
+          move.promote_to = dp;
+        }
       }
     }
 
@@ -368,20 +368,20 @@ Move Chessmaster::GetMove(const Position &pos) {
     {
       Position pc = pos;
       if (!pc.IsLegal(move)) {
-	if (VERBOSE) {
-	  printf("Chessmaster tried to make illegal move %d,%d->%d,%d=%d\n",
-		 move.src_row,
-		 move.src_col,
-		 move.dst_row,
-		 move.dst_col,
-		 move.promote_to);
-	}
-	move.src_row = 0;
-	move.src_col = 0;
-	move.dst_row = 0;
-	move.dst_col = 0;
-	move.promote_to = 0;
-	return move;
+        if (VERBOSE) {
+          printf("Chessmaster tried to make illegal move %d,%d->%d,%d=%d\n",
+                 move.src_row,
+                 move.src_col,
+                 move.dst_row,
+                 move.dst_col,
+                 move.promote_to);
+        }
+        move.src_row = 0;
+        move.src_col = 0;
+        move.dst_row = 0;
+        move.dst_col = 0;
+        move.promote_to = 0;
+        return move;
       }
     }
     return move;
@@ -391,7 +391,7 @@ Move Chessmaster::GetMove(const Position &pos) {
 namespace {
 struct ChessmasterPlayer : public StatelessPlayer {
   explicit ChessmasterPlayer(int level) : level(level), master(level),
-					  rc(PlayerUtil::GetSeed()) {
+                                          rc(PlayerUtil::GetSeed()) {
     rc.Discard(800);
   }
 
@@ -408,11 +408,11 @@ struct ChessmasterPlayer : public StatelessPlayer {
       explainer->SetGraphic(256, 256, master.GetScreenshot());
     }
     if (move.src_row == 0 &&
-	move.src_col == 0 &&
-	move.dst_row == 0 &&
-	move.dst_col == 0) {
+        move.src_col == 0 &&
+        move.dst_row == 0 &&
+        move.dst_col == 0) {
       if (explainer)
-	explainer->SetMessage("No move from emulator?");
+        explainer->SetMessage("No move from emulator?");
       Position pcopy = pos;
       std::vector<Move> legal = pcopy.GetLegalMoves();
       CHECK(!legal.empty());

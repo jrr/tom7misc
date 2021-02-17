@@ -31,11 +31,11 @@ static Unblinder *GetUnblinder() {
 
 struct BlindPlayer : public StatelessPlayer {
   BlindPlayer(const string &name,
-	      bool spycheck,
-	      bool single_king) : name(name),
-				  spycheck(spycheck),
-				  single_king(single_king),
-				  rc(PlayerUtil::GetSeed()) {
+              bool spycheck,
+              bool single_king) : name(name),
+                                  spycheck(spycheck),
+                                  single_king(single_king),
+                                  rc(PlayerUtil::GetSeed()) {
     fish.reset(new Stockfish(20, 1'000'000));
     CHECK(fish.get());
     unblinder = GetUnblinder();
@@ -48,33 +48,33 @@ struct BlindPlayer : public StatelessPlayer {
     // FEN, so take care. (We could also just return false in these cases.)
     if (predicted->CanStillCastle(false, false)) {
       CHECK(predicted->PieceAt(0, 0) == (Position::C_ROOK | Position::BLACK) &&
-	    predicted->PieceAt(0, 4) == (Position::KING | Position::BLACK));
+            predicted->PieceAt(0, 4) == (Position::KING | Position::BLACK));
     }
     if (predicted->CanStillCastle(false, true)) {
       CHECK(predicted->PieceAt(0, 7) == (Position::C_ROOK | Position::BLACK) &&
-	    predicted->PieceAt(0, 4) == (Position::KING | Position::BLACK));
+            predicted->PieceAt(0, 4) == (Position::KING | Position::BLACK));
     }
     if (predicted->CanStillCastle(true, false)) {
       CHECK(predicted->PieceAt(7, 0) == (Position::C_ROOK | Position::WHITE) &&
-	    predicted->PieceAt(7, 4) == (Position::KING | Position::WHITE));
+            predicted->PieceAt(7, 4) == (Position::KING | Position::WHITE));
     }
     if (predicted->CanStillCastle(true, true)) {
       CHECK(predicted->PieceAt(7, 7) == (Position::C_ROOK | Position::WHITE) &&
-	    predicted->PieceAt(7, 4) == (Position::KING | Position::WHITE));
+            predicted->PieceAt(7, 4) == (Position::KING | Position::WHITE));
     }
 
     // There must be exactly one of each.
     int white_kings = 0, black_kings = 0;
     for (int r = 0; r < 8; r++) {
       for (int c = 0; c < 8; c++) {
-	uint8 p = predicted->PieceAt(r, c);
-	if ((p & Position::TYPE_MASK) == Position::KING) {
-	  if ((p & Position::COLOR_MASK) == Position::BLACK) {
-	    black_kings++;
-	  } else {
-	    white_kings++;
-	  }
-	}
+        uint8 p = predicted->PieceAt(r, c);
+        if ((p & Position::TYPE_MASK) == Position::KING) {
+          if ((p & Position::COLOR_MASK) == Position::BLACK) {
+            black_kings++;
+          } else {
+            white_kings++;
+          }
+        }
       }
     }
 
@@ -88,11 +88,11 @@ struct BlindPlayer : public StatelessPlayer {
       predicted->SetBlackMove(!black);
 
       bool invalid_check = predicted->IsInCheck();
-      
+
       // Restore.
       predicted->SetBlackMove(black);
       if (invalid_check)
-	return false;
+        return false;
     }
 
     // Finally, if no legal moves, then we would not get here and
@@ -102,9 +102,9 @@ struct BlindPlayer : public StatelessPlayer {
 
     return true;
   }
-  
+
   Move MakeMove(const Position &orig_pos, Explainer *explainer) override {
-    Position pos = orig_pos;    
+    Position pos = orig_pos;
     // We only need this on some code paths. Empty means that
     // we haven't computed it.
     std::vector<Position::Move> legal;
@@ -117,7 +117,7 @@ struct BlindPlayer : public StatelessPlayer {
       // if (OK(&predicted))
       explainer->SetPosition(predicted);
     }
-    
+
     // Do spy check if enabled. Note that it would be wrong for us to
     // do this using the correct side-to-move, because we don't
     // actually have that information. (Below it can be seen as an
@@ -138,69 +138,69 @@ struct BlindPlayer : public StatelessPlayer {
       // instead inspect the actual legal move list, and select
       // the one that would have had the highest priority (if any).
       struct SpycheckMove {
-	Move m;
-	bool color_agrees = false;
-	int capture_value = 0;
-	uint32 r = 0;
+        Move m;
+        bool color_agrees = false;
+        int capture_value = 0;
+        uint32 r = 0;
       };
       vector<SpycheckMove> spymoves;
 
       for (const Move &m : legal) {
-	// Here we must only consult the predicted board.
-	const uint8 srcp = predicted.PieceAt(m.src_row, m.src_col);
-	const uint8 dstp = predicted.PieceAt(m.dst_row, m.dst_col);
-	if (srcp == Position::EMPTY || dstp == Position::EMPTY)
-	  continue;
-	if ((srcp & Position::COLOR_MASK) == (dstp & Position::COLOR_MASK)) {
-	  // This is a valid spycheck move. We act as though we first try all
-	  // spycheck moves of the predicted color, then the opposite.
-	  SpycheckMove sm;
-	  sm.m = m;
-	  sm.r = Rand32(&rc);
-	  sm.color_agrees = ((srcp & Position::COLOR_MASK) == Position::BLACK) ==
-	    predicted.BlackMove();
-	  const uint8 srct = srcp & Position::TYPE_MASK;
-	  // We know that we got the destination piece wrong if the
-	  // move is legal, so we don't base our decision on that at
-	  // all.
-	  sm.capture_value = [srct]() {
-	    switch (srct) {
-	    case Position::QUEEN: return 7;
-	    // Actually prefer capturing with the king if it is legal.
-	    case Position::KING: return 6;
-	    case Position::C_ROOK:
-	    case Position::ROOK: return 5;
-	    case Position::KNIGHT: return 3;
-	    case Position::BISHOP: return 3;
-	    case Position::PAWN: return 1;
-	    default: 
-	    // Should be impossible.
-	    return 0;
-	    }
-	  }();
-	  spymoves.push_back(sm);
-	}
+        // Here we must only consult the predicted board.
+        const uint8 srcp = predicted.PieceAt(m.src_row, m.src_col);
+        const uint8 dstp = predicted.PieceAt(m.dst_row, m.dst_col);
+        if (srcp == Position::EMPTY || dstp == Position::EMPTY)
+          continue;
+        if ((srcp & Position::COLOR_MASK) == (dstp & Position::COLOR_MASK)) {
+          // This is a valid spycheck move. We act as though we first try all
+          // spycheck moves of the predicted color, then the opposite.
+          SpycheckMove sm;
+          sm.m = m;
+          sm.r = Rand32(&rc);
+          sm.color_agrees = ((srcp & Position::COLOR_MASK) == Position::BLACK) ==
+            predicted.BlackMove();
+          const uint8 srct = srcp & Position::TYPE_MASK;
+          // We know that we got the destination piece wrong if the
+          // move is legal, so we don't base our decision on that at
+          // all.
+          sm.capture_value = [srct]() {
+            switch (srct) {
+            case Position::QUEEN: return 7;
+            // Actually prefer capturing with the king if it is legal.
+            case Position::KING: return 6;
+            case Position::C_ROOK:
+            case Position::ROOK: return 5;
+            case Position::KNIGHT: return 3;
+            case Position::BISHOP: return 3;
+            case Position::PAWN: return 1;
+            default:
+            // Should be impossible.
+            return 0;
+            }
+          }();
+          spymoves.push_back(sm);
+        }
       }
 
       // Now, if we had any spycheck moves, play the best one.
       if (!spymoves.empty()) {
-	if (explainer) {
-	  explainer->SetMessage("Spycheck!");
-	}
-	return PlayerUtil::GetBest(spymoves,
-				   [](const SpycheckMove &a,
-				      const SpycheckMove &b) {
-				     // Prefer all moves where the color agrees
-				     // with our prediction.
-				     if (a.color_agrees != b.color_agrees)
-				       return a.color_agrees;
-				     // a is better if it captures
-				     // with a lower-value piece.
-				     if (a.capture_value != b.capture_value)
-				       return a.capture_value < b.capture_value;
-				     // And break ties randomly.
-				     return a.r < b.r;
-				   }).m;
+        if (explainer) {
+          explainer->SetMessage("Spycheck!");
+        }
+        return PlayerUtil::GetBest(spymoves,
+                                   [](const SpycheckMove &a,
+                                      const SpycheckMove &b) {
+                                     // Prefer all moves where the color agrees
+                                     // with our prediction.
+                                     if (a.color_agrees != b.color_agrees)
+                                       return a.color_agrees;
+                                     // a is better if it captures
+                                     // with a lower-value piece.
+                                     if (a.capture_value != b.capture_value)
+                                       return a.capture_value < b.capture_value;
+                                     // And break ties randomly.
+                                     return a.r < b.r;
+                                   }).m;
       }
     }
 
@@ -214,33 +214,33 @@ struct BlindPlayer : public StatelessPlayer {
       fish->GetMove(fen, &move_s, &score);
       Move m;
       CHECK(PlayerUtil::ParseLongMove(move_s, predicted.BlackMove(), &m))
-	<< predicted.BoardString()
-	<< "\n" << fen
-	<< "\n[" << move_s << "]";
+        << predicted.BoardString()
+        << "\n" << fen
+        << "\n[" << move_s << "]";
 
       // Easy for move to be invalid if we mispredicted the board state.
       if (pos.IsLegal(m))
-	return m;
+        return m;
 
       if (explainer)
-	explainer->SetMessage("Move on predicted board was not legal");
-      
+        explainer->SetMessage("Move on predicted board was not legal");
+
       if (VERBOSE)
-	printf("\nMove %s not legal. Predicted:\n%sActual:\n%s",
-	       predicted.ShortMoveString(m).c_str(),
-	       predicted.BoardString().c_str(),
-	       orig_pos.BoardString().c_str());
+        printf("\nMove %s not legal. Predicted:\n%sActual:\n%s",
+               predicted.ShortMoveString(m).c_str(),
+               predicted.BoardString().c_str(),
+               orig_pos.BoardString().c_str());
     } else {
 
       if (explainer)
-	explainer->SetMessage("Predicted board not ok");
+        explainer->SetMessage("Predicted board not ok");
 
       if (VERBOSE)
-	printf("\nPredicted board not OK:\n%sActual:\n%s",
-	       predicted.BoardString().c_str(),
-	       orig_pos.BoardString().c_str());
+        printf("\nPredicted board not OK:\n%sActual:\n%s",
+               predicted.BoardString().c_str(),
+               orig_pos.BoardString().c_str());
     }
-    
+
     // Random move.
     if (legal.empty()) legal = pos.GetLegalMoves();
     CHECK(!legal.empty());
@@ -253,11 +253,11 @@ struct BlindPlayer : public StatelessPlayer {
 
   string Desc() const override {
     return StringPrintf("Predict a board state%s.%s If valid (or can be made "
-			"valid trivially), use stockfish1m to make a move. "
-			"If move is invalid or other problem, random.",
-			(spycheck ? " First, spy-check pieces that we think are our "
-			 "own." : ""),
-			(single_king ? "" : " with exactly one king per side"));
+                        "valid trivially), use stockfish1m to make a move. "
+                        "If move is invalid or other problem, random.",
+                        (spycheck ? " First, spy-check pieces that we think are our "
+                         "own." : ""),
+                        (single_king ? "" : " with exactly one king per side"));
   }
 
   const string name;

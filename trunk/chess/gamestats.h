@@ -1,5 +1,5 @@
-#ifndef __GAMESTATS_H
-#define __GAMESTATS_H
+#ifndef _GAMESTATS_H
+#define _GAMESTATS_H
 
 #include <shared_mutex>
 #include <cstdint>
@@ -15,7 +15,7 @@
 // objects.
 static constexpr int NUM_BUCKETS = 32;
 static_assert(! (NUM_BUCKETS & (NUM_BUCKETS - 1)),
-	      "Must be a power of two");
+              "Must be a power of two");
 static constexpr int64_t NUM_BUCKETS_MASK = NUM_BUCKETS - 1;
 
 struct PieceStats {
@@ -33,9 +33,9 @@ struct Stats {
     for (int i = 0; i < 32; i++) {
       const uint8_t fate = gs.fates[i];
       if (fate & Fates::DIED) {
-	pieces[i].died_on[fate & Fates::POS_MASK]++;
+        pieces[i].died_on[fate & Fates::POS_MASK]++;
       } else {
-	pieces[i].survived_on[fate & Fates::POS_MASK]++;
+        pieces[i].survived_on[fate & Fates::POS_MASK]++;
       }
     }
     m.unlock();

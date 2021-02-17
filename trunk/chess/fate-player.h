@@ -1,5 +1,5 @@
-#ifndef __FATE_PLAYER_H
-#define __FATE_PLAYER_H
+#ifndef _FATE_PLAYER_H
+#define _FATE_PLAYER_H
 
 #include "player.h"
 #include "chess.h"
