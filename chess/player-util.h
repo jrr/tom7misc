@@ -80,6 +80,10 @@ struct MakeStateless : public Player {
     return new MSGame(player.get());
   }
 
+  bool IsDeterministic() const override {
+    return player->IsDeterministic();
+  }
+
   std::string Name() const override { return player->Name(); }
   std::string Desc() const override { return player->Desc(); }
   std::unique_ptr<P> player;

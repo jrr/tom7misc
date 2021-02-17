@@ -7,6 +7,8 @@
 
 #include "chess.h"
 
+class ImageRGBA;
+
 // Abstract "visualization" of the player's internal state.
 struct Explainer {
   // All the moves must be legal, but it can be any subset of them.
@@ -17,8 +19,7 @@ struct Explainer {
           std::tuple<Position::Move, int64_t, std::string>> &v) = 0;
   virtual void SetMessage(const std::string &s) = 0;
   virtual void SetPosition(const Position &pos) = 0;
-  virtual void SetGraphic(int width, int height,
-                          const std::vector<uint8> &rgba) = 0;
+  virtual void SetGraphic(const ImageRGBA &rgba) = 0;
 };
 
 // Interface for a stateless chess-playing algorithm. Can be
@@ -38,6 +39,8 @@ struct StatelessPlayer {
   virtual std::string Name() const = 0;
   // Brief description of how the player works.
   virtual std::string Desc() const = 0;
+
+  virtual bool IsDeterministic() const { return false; }
 
   virtual ~StatelessPlayer() {}
 };
@@ -68,6 +71,11 @@ struct Player {
   // As above.
   virtual std::string Name() const = 0;
   virtual std::string Desc() const = 0;
+
+  // True if the player always makes the same move given the
+  // same situation. Note that many players are not deterministic
+  // because they use randomness to break ties.
+  virtual bool IsDeterministic() const { return false; }
 
   virtual ~Player() {}
 };

@@ -267,6 +267,10 @@ struct BinaryPlayer : public Player {
         "expansion of %s", CONSTANT());
   }
 
+  bool IsDeterministic() const override {
+    return true;
+  }
+
   const vector<bool> &bits;
 };
 
@@ -434,6 +438,10 @@ struct RationalPlayer : public Player {
     return StringPrintf(
         "Choose the nth legal move, as though arithmetically coded "
         "using %s", CONSTANT());
+  }
+
+  bool IsDeterministic() const override {
+    return true;
   }
 
   BigRat start_lb, start_ub;

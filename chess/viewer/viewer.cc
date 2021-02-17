@@ -27,6 +27,7 @@
 #include "../numeric-player.h"
 #include "../stockfish-player.h"
 #include "../fate-player.h"
+#include "../letter-player.h"
 #include "timer.h"
 
 // #include "unblinder.h"
@@ -39,6 +40,7 @@
 #include "../cc-lib/sdl/cursor.h"
 #include "../cc-lib/lines.h"
 #include "../cc-lib/util.h"
+#include "../cc-lib/image.h"
 
 /* there are some non-ascii symbols in the font */
 #define CHECKMARK "\xF2"
@@ -312,8 +314,7 @@ struct ExplainedMove {
   // Pre-formatted.
   vector<string> moves;
 
-  int graphic_width = 0, graphic_height = 0;
-  vector<uint8> rgba;
+  ImageRGBA graphic;
 };
 
 // Wrapper around Player that allows getting moves in a separate
@@ -507,9 +508,7 @@ private:
       em->has_position = false;
       em->message.clear();
       em->moves.clear();
-      em->rgba.clear();
-      em->graphic_width = 0;
-      em->graphic_height = 0;
+      em->graphic = ImageRGBA();
     }
 
     void SetScoredMoves(
@@ -536,11 +535,8 @@ private:
       em->position = pos;
     }
 
-    void SetGraphic(int w, int h, const std::vector<uint8> &rgba) {
-      CHECK(rgba.size() == w * h * 4) << rgba.size();
-      em->graphic_width = w;
-      em->graphic_height = h;
-      em->rgba = rgba;
+    void SetGraphic(const ImageRGBA &img) {
+      em->graphic = img;
     }
 
     // Writes here.
@@ -1840,21 +1836,17 @@ void UI::Draw() {
         }
       }
 
-      if (em->graphic_width > 0) {
+      if (em->graphic.Width() > 0) {
         const int PX = 2;
         const int EX = 900;
         const int EY = 550;
-        const int w = em->graphic_width;
-        const int h = em->graphic_height;
-        const vector<uint8> &rgba = em->rgba;
-        CHECK(rgba.size() == w * h * 4);
+        const int w = em->graphic.Width();
+        const int h = em->graphic.Height();
         for (int y = 0; y < h; y++) {
           int yy = EY + (y * PX);
           for (int x = 0; x < w; x++) {
             int xx = EX + (x * PX);
-            uint8 r = rgba[(y * w + x) * 4 + 0];
-            uint8 g = rgba[(y * w + x) * 4 + 1];
-            uint8 b = rgba[(y * w + x) * 4 + 2];
+            const auto [r, g, b, _] = em->graphic.GetPixel(x, y);
             Uint32 color = SDL_MapRGB(screen->format, r, g, b);
             // printf("Set %d %d = %d %d %d\n", xx, yy, r, g, b);
             // sdlutil::drawclippixel(screen, xx, yy, r, g, b);
@@ -2092,7 +2084,9 @@ int main(int argc, char **argv) {
   // ui.async_player.reset(new AsyncPlayer(BinaryE()));
   // ui.async_player.reset(new AsyncPlayer(BlindSingleKings()));
   // ui.async_player.reset(new AsyncPlayer(RationalPi()));
-  ui.async_player.reset(new AsyncPlayer(SuicideKing()));
+  // ui.async_player.reset(new AsyncPlayer(SuicideKing()));
+  ui.async_player.reset(new AsyncPlayer(Letter(2)));
+
   // ui.async_player.reset(new AsyncPlayer(NoIInsist()));
   // ui.async_player.reset(new AsyncPlayer(SinglePlayer()));
   // ui.async_player.reset(new AsyncPlayer(Random()));

@@ -78,6 +78,10 @@ struct FirstMovePlayer : public StatelessPlayer {
   string Desc() const override {
     return "Makes the lexicographically first legal move.";
   }
+
+  bool IsDeterministic() const override {
+    return true;
+  }
 };
 
 struct RandomPlayer : public StatelessPlayer {
@@ -213,6 +217,10 @@ struct CCCPPlayer : public StatelessPlayer {
   string Desc() const override {
     return "Checkmate, check, capture, push.";
   }
+
+  bool IsDeterministic() const override {
+    return true;
+  }
 };
 
 struct AlphabeticalPlayer : public StatelessPlayer {
@@ -255,6 +263,10 @@ struct AlphabeticalPlayer : public StatelessPlayer {
   string Desc() const override {
     return "Return the alphabetically earliest move, using "
       "standard algebraic notation.";
+  }
+
+  bool IsDeterministic() const override {
+    return true;
   }
 };
 
