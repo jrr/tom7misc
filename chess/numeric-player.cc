@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <memory>
 
-#include "../cc-lib/randutil.h"
 #include "../cc-lib/base/logging.h"
 #include "../cc-lib/base/stringprintf.h"
 #include "../cc-lib/util.h"
