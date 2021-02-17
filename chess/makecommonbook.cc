@@ -60,12 +60,12 @@ static void AddPackFile(const string &filename) {
 
   const int64 num_games = packed_games.size();
   fprintf(stderr, "Read %lld games from %s. Running...\n",
-	  num_games, filename.c_str());
+          num_games, filename.c_str());
   fflush(stderr);
 
   // Local to this pack file.
   CommonMap common_map;
-  
+
   for (const auto &p : packed_games) {
     const PackedGame &pg = p.second;
 
@@ -77,7 +77,7 @@ static void AddPackFile(const string &filename) {
 
       uint64 ph = PositionHash{}(pos);
       if (common_set->Contains(ph)) {
-	common_map.positions[ph][packed_move]++;
+        common_map.positions[ph][packed_move]++;
       }
       // Just assume it's legal.
       // CHECK(pos.IsLegal(move));
@@ -87,10 +87,10 @@ static void AddPackFile(const string &filename) {
 
   const int64 num_pos = common_map.positions.size();
   fprintf(stderr, "Got %lld distinct positions in %lld games from %s.\n",
-	  num_pos, num_games, filename.c_str());
+          num_pos, num_games, filename.c_str());
   fflush(stderr);
   packed_games.clear();
-  
+
   {
     const int64 secs = time(nullptr) - start;
     WriteMutexLock ml(&merged_mutex);
@@ -98,13 +98,13 @@ static void AddPackFile(const string &filename) {
     const int64 merge_start = time(nullptr);
     merged_map->MergeFrom(common_map);
     const int64 merge_time = time(nullptr) - merge_start;
-    
+
     done_files++;
     fprintf(stderr, "[%d/%d] %lld games from %s. "
-	    "(%lld+%lld sec) [%.2f G mem]\n",
-	    done_files, total_files,
-	    num_games, filename.c_str(),
-	    secs, merge_time, MemUsageG());
+            "(%lld+%lld sec) [%.2f G mem]\n",
+            done_files, total_files,
+            num_games, filename.c_str(),
+            secs, merge_time, MemUsageG());
     fflush(stderr);
   }
 }
@@ -117,24 +117,24 @@ static void AddPackFiles(const std::vector<string> &filenames) {
   CHECK(!common_set->positions.empty());
   merged_map = new CommonMap;
   fprintf(stderr, "[Elapsed %lld]. Loaded common set.\n",
-	  time(nullptr) - start);
+          time(nullptr) - start);
   fflush(stderr);
   total_files = filenames.size();
-  
+
   ParallelApp(filenames,
-	      AddPackFile,
-	      MAX_PARALLELISM);
+              AddPackFile,
+              MAX_PARALLELISM);
   delete common_set;
 
   fprintf(stderr, "[Elapsed %lld]. Writing...\n",
-	  time(nullptr) - start);
+          time(nullptr) - start);
   fflush(stderr);
-  
+
   merged_map->WriteFile("common_map.bin");
 
   fprintf(stderr, "[Elapsed %lld]. Done; total memory usage is %.4f G\n",
-	  time(nullptr) - start,
-	  MemUsageG());
+          time(nullptr) - start,
+          MemUsageG());
   fflush(stderr);
 }
 
@@ -149,6 +149,6 @@ int main(int argc, char **argv) {
     filenames.emplace_back(argv[i]);
 
   AddPackFiles(filenames);
-  
+
   return 0;
 }

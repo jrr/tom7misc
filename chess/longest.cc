@@ -54,7 +54,7 @@ static constexpr bool OPTIMIZE = true;
 static constexpr int POS_MAX = 10;
 
 static bool PositionEqIgnoringCastlingEp(const Position &pos1,
-					 const Position &pos2) {
+                                         const Position &pos2) {
   // Must be same player's move.
   if (pos1.BlackMove() != pos2.BlackMove())
     return false;
@@ -65,7 +65,7 @@ static bool PositionEqIgnoringCastlingEp(const Position &pos1,
       uint8 p1 = pos1.PieceAt(r, c);
       uint8 p2 = pos2.PieceAt(r, c);
       if ((p1 & Position::COLOR_MASK) !=
-	  (p2 & Position::COLOR_MASK)) return false;
+          (p2 & Position::COLOR_MASK)) return false;
       uint8 t1 = p1 & Position::TYPE_MASK;
       uint8 t2 = p2 & Position::TYPE_MASK;
       if (t1 == Position::C_ROOK) t1 = Position::ROOK;
@@ -84,7 +84,7 @@ static bool PositionEqIgnoringCastlingEp(const Position &pos1,
 // in a draw; the following conditions automatically cause
 // a draw:
 //  1. The same position is repeated 5 times. [1]
-//  2. 75 half-moves are played by each player without a pawn 
+//  2. 75 half-moves are played by each player without a pawn
 //     move or capture.
 //  3. There is insufficient material for even a "helpmate" (for
 //     example, two kings). [Actually this is not quite right;
@@ -177,53 +177,53 @@ struct Critical {
 
 static vector<Critical> MakeCritical() {
   // Made manually.
-  // 
+  //
   // To minimize the amount of slack we incur later, we should make
   // critical moves consecutively by the same player as much as possible.
   // Each time we switch back and forth, it costs us one move.
-  // 
+  //
   // Also looks like the first pawn move should be made by black with
   // white having moved one knight to an opposite color. So the first
   // phase of critical moves should be made by black.
 #if 0
   string slowgame_pgn = R"(
-    1. Nf3 e6 2. Rg1 e5 3. Rh1 e4 4. Rg1 g6 5. Rh1 g5 6. Rg1 g4 
-    7. Rh1 c6 8. Rg1 c5 9. Rh1 c4 10. Rg1 a6 11. Rh1 a5 12. Rg1 a4 
-    13. Rh1 Ra7 14. Rg1 Na6 15. Rh1 Nc7 16. Rg1 Bg7 17. Rh1 Qf6 
-    18. Rg1 Qg6 19. Rh1 Ra5 20. Rg1 Rb5 21. Rh1 Rb3 22. Rg1 Nf6 
-    23. Rh1 Nh5 24. Rg1 Nf4 25. Rh1 Nh3 26. Rg1 Bf8 27. Nd4 Qf5 
-    28. Rh1 Qf3 29. Rg1 Rg8 30. Rh1 Rg5 31. Nb5 Rd5 32. Na7 Rdd3 
-    33. Nc6 b6 34. Na5 bxa5 35. axb3 Ne6 36. cxd3 Nc7 37. exf3 Ne6 
-    38. gxh3 Ng7 39. b4 Ne6 40. b5 Ng7 41. b6 Ne6 42. b7 Ng7 
-    43. b8=R Ne6 44. Rb5 Ng7 45. b3 Ne6 46. b4 Ng7 47. Rg5 Ne6 
-    48. b5 Ng7 49. b6 Ne6 50. b7 Ng7 51. b8=B Ne6 52. Be5 Nc7 
-    53. Ba3 Ne6 54. Bxf8 Ng7 55. Nc3 Ne6 56. Nd5 Ng7 57. Nb6 Ne6 
-    58. Nxc8 Ng7 59. Bfxg7 Kd8 60. Rb1 Ke8 61. Rb5 Kd8 62. Rc5 Ke8 
-    63. Qb3 Kd8 64. Be2 Ke8 65. Bd1 Kd8 66. Bc2 d6 67. Qb8 dxc5 
-    68. Bb3 f6 69. Bc2 fxe5 70. Bb3 h6 71. Bc2 hxg5 72. Bb3 a3 
-    73. Bc2 a2 74. Bb3 a1=N 75. Bh6 Nxb3 76. Bg7 a4 77. Bh6 a3 
-    78. Bg7 a2 79. Bh6 a1=N 80. Bg7 Na5 81. Qb7 Nxb7 82. Bh6 c3 
-    83. Bg7 c2 84. Bh6 c1=N 85. Bg7 c4 86. Bh6 c3 87. Bg7 c2 
-    88. Bh6 Ncb3 89. Bg7 c1=N 90. Bf8 N3a5 91. Kd1 Na2 92. Bb4 Nxb4 
-    93. Kc1 Nd5 94. Kb2 Nf4 95. Ka2 Ng2 96. Re1 Nxe1 97. Ka3 Ng2 
-    98. Ka4 e3 99. Ka3 e2 100. Ka4 e1=N 101. Ka3 e4 102. Ka4 Nec2 
-    103. Kb5 Nce3 104. Ka4 Nf5 105. Kb4 Nc4 106. Kb5 Ne5 107. Ka4 Nbd6 
-    108. Ka5 Nxc8 109. Ka4 Nc2 110. Ka5 Ncd4 111. Ka4 Ne6 112. Ka5 e3 
-    113. Ka4 e2 114. Ka5 e1=R 115. Ka4 Ngh4 116. Ka5 g3 117. Ka4 Nhg6 
-    118. Ka5 g4 119. Ka4 g2 120. Ka5 g1=R 121. Ka4 g3 122. Ka5 Rgf1 
-    123. Ka4 g2 124. Ka5 g1=R 125. h4 Kc7 126. h5 Kb8 127. h6 Ka8 
-    128. h7 Kb8 129. h8=B Ka8 130. Bxe5 Rg3 131. Bxg3 Ne5 132. Bxe5 Neg7 
-    133. Bxg7 Nd4 134. Bxd4 Rg1 135. f4 Ref1 136. f3 Re1 137. f5 Ref1 
-    138. f6 Re1 139. f7 Ref1 140. f8=R Re1 141. Re8 Ref1 142. Bxg1 Re1 
-    143. f4 Rf1 144. f5 Re1 145. f6 Rf1 146. f7 Re1 147. f8=N Re2 
-    148. h3 Re1 149. h4 Re2 150. h5 Re1 151. h6 Re2 152. h7 Re1 
-    153. h8=Q Re2 154. d4 Re1 155. d5 Re2 156. d6 Re1 157. d7 Re2 
-    158. d8=B Re3 159. d3 Re2 160. Bh4 Re3 161. d4 Re2 162. d5 Re3 
-    163. d6 Re2 164. d7 Re3 165. d8=N Ka7 166. Ka4 Ka6 167. Kb4 Ne7 
-    168. Kc4 Rg3 169. Bxg3 Ng8 170. Qxg8 Ka5 171. Kd3 Ka6 172. Ke2 Ka5 
-    173. Kf2 Ka6 174. Kg2 Ka5 175. Bc5 Kb5 176. Bh2 Kxc5 177. Re6 Kd5 
-    178. Nh7 Kc5 179. Rd6 Kb5 180. Ra6 Kxa6 181. Nb7 Kxb7 182. Qa2 Kc6 
-    183. Bd6 Kxd6 184. Nf6 Ke7 185. Nd7 Kxd7 186. Kf3 Ke7 187. Kf4 Kf6 
+    1. Nf3 e6 2. Rg1 e5 3. Rh1 e4 4. Rg1 g6 5. Rh1 g5 6. Rg1 g4
+    7. Rh1 c6 8. Rg1 c5 9. Rh1 c4 10. Rg1 a6 11. Rh1 a5 12. Rg1 a4
+    13. Rh1 Ra7 14. Rg1 Na6 15. Rh1 Nc7 16. Rg1 Bg7 17. Rh1 Qf6
+    18. Rg1 Qg6 19. Rh1 Ra5 20. Rg1 Rb5 21. Rh1 Rb3 22. Rg1 Nf6
+    23. Rh1 Nh5 24. Rg1 Nf4 25. Rh1 Nh3 26. Rg1 Bf8 27. Nd4 Qf5
+    28. Rh1 Qf3 29. Rg1 Rg8 30. Rh1 Rg5 31. Nb5 Rd5 32. Na7 Rdd3
+    33. Nc6 b6 34. Na5 bxa5 35. axb3 Ne6 36. cxd3 Nc7 37. exf3 Ne6
+    38. gxh3 Ng7 39. b4 Ne6 40. b5 Ng7 41. b6 Ne6 42. b7 Ng7
+    43. b8=R Ne6 44. Rb5 Ng7 45. b3 Ne6 46. b4 Ng7 47. Rg5 Ne6
+    48. b5 Ng7 49. b6 Ne6 50. b7 Ng7 51. b8=B Ne6 52. Be5 Nc7
+    53. Ba3 Ne6 54. Bxf8 Ng7 55. Nc3 Ne6 56. Nd5 Ng7 57. Nb6 Ne6
+    58. Nxc8 Ng7 59. Bfxg7 Kd8 60. Rb1 Ke8 61. Rb5 Kd8 62. Rc5 Ke8
+    63. Qb3 Kd8 64. Be2 Ke8 65. Bd1 Kd8 66. Bc2 d6 67. Qb8 dxc5
+    68. Bb3 f6 69. Bc2 fxe5 70. Bb3 h6 71. Bc2 hxg5 72. Bb3 a3
+    73. Bc2 a2 74. Bb3 a1=N 75. Bh6 Nxb3 76. Bg7 a4 77. Bh6 a3
+    78. Bg7 a2 79. Bh6 a1=N 80. Bg7 Na5 81. Qb7 Nxb7 82. Bh6 c3
+    83. Bg7 c2 84. Bh6 c1=N 85. Bg7 c4 86. Bh6 c3 87. Bg7 c2
+    88. Bh6 Ncb3 89. Bg7 c1=N 90. Bf8 N3a5 91. Kd1 Na2 92. Bb4 Nxb4
+    93. Kc1 Nd5 94. Kb2 Nf4 95. Ka2 Ng2 96. Re1 Nxe1 97. Ka3 Ng2
+    98. Ka4 e3 99. Ka3 e2 100. Ka4 e1=N 101. Ka3 e4 102. Ka4 Nec2
+    103. Kb5 Nce3 104. Ka4 Nf5 105. Kb4 Nc4 106. Kb5 Ne5 107. Ka4 Nbd6
+    108. Ka5 Nxc8 109. Ka4 Nc2 110. Ka5 Ncd4 111. Ka4 Ne6 112. Ka5 e3
+    113. Ka4 e2 114. Ka5 e1=R 115. Ka4 Ngh4 116. Ka5 g3 117. Ka4 Nhg6
+    118. Ka5 g4 119. Ka4 g2 120. Ka5 g1=R 121. Ka4 g3 122. Ka5 Rgf1
+    123. Ka4 g2 124. Ka5 g1=R 125. h4 Kc7 126. h5 Kb8 127. h6 Ka8
+    128. h7 Kb8 129. h8=B Ka8 130. Bxe5 Rg3 131. Bxg3 Ne5 132. Bxe5 Neg7
+    133. Bxg7 Nd4 134. Bxd4 Rg1 135. f4 Ref1 136. f3 Re1 137. f5 Ref1
+    138. f6 Re1 139. f7 Ref1 140. f8=R Re1 141. Re8 Ref1 142. Bxg1 Re1
+    143. f4 Rf1 144. f5 Re1 145. f6 Rf1 146. f7 Re1 147. f8=N Re2
+    148. h3 Re1 149. h4 Re2 150. h5 Re1 151. h6 Re2 152. h7 Re1
+    153. h8=Q Re2 154. d4 Re1 155. d5 Re2 156. d6 Re1 157. d7 Re2
+    158. d8=B Re3 159. d3 Re2 160. Bh4 Re3 161. d4 Re2 162. d5 Re3
+    163. d6 Re2 164. d7 Re3 165. d8=N Ka7 166. Ka4 Ka6 167. Kb4 Ne7
+    168. Kc4 Rg3 169. Bxg3 Ng8 170. Qxg8 Ka5 171. Kd3 Ka6 172. Ke2 Ka5
+    173. Kf2 Ka6 174. Kg2 Ka5 175. Bc5 Kb5 176. Bh2 Kxc5 177. Re6 Kd5
+    178. Nh7 Kc5 179. Rd6 Kb5 180. Ra6 Kxa6 181. Nb7 Kxb7 182. Qa2 Kc6
+    183. Bd6 Kxd6 184. Nf6 Ke7 185. Nd7 Kxd7 186. Kf3 Ke7 187. Kf4 Kf6
     188. Qf2 Kg6 189. Qg2+ Kh5 190. Ke3 Kh6 191. Qg7+ Kxg7
   )";
 #endif
@@ -325,7 +325,7 @@ static vector<Critical> MakeCritical() {
 17. Rh1 Nh5 18. Ra1 c6 19. Rb1 c5 20. Ra1 f6
 21. Rg1 f5 22. b3
 )";
-  
+
   #if 0
   // Draw game, just 3 slack! But this game ends with the
   // last move being forced, which means that it is actually
@@ -374,7 +374,7 @@ static vector<Critical> MakeCritical() {
     161. Ka4 Qb4+ 162. Kxb4
 )";
 #endif
-  
+
   vector<Move> moves;
   {
     vector<PGN::Move> movestrings;
@@ -399,12 +399,12 @@ static vector<Critical> MakeCritical() {
     const bool is_pawn = pos.IsPawnMove(m);
     const bool is_capturing = pos.IsCapturing(m);
     const bool is_checkmate = pos.MoveExcursion(m, [&](){
-	return pos.IsMated();
+        return pos.IsMated();
       });
     if (is_pawn) pawn_moves++;
     if (is_capturing) captures++;
     if (is_checkmate) has_checkmate = true;
-    
+
     const bool is_critical = is_pawn || is_capturing || is_checkmate;
     if (is_critical) {
       crit.end_pos = pos;
@@ -425,17 +425,17 @@ static vector<Critical> MakeCritical() {
   CHECK(!pos.IsInCheck());
   CHECK(!pos.IsMated());
   #endif
-  
+
   const char *maybe_checkmate = "";
   if (has_checkmate) maybe_checkmate = "(ends in checkmate)\n";
-  
+
   printf("Slow game: %d moves. %d pawn moves, %d captures\n"
-	 "%s"
-	 "Critical sections: %d\n",
-	 (int)moves.size(),
-	 pawn_moves, captures,
-	 maybe_checkmate,
-	 (int)crits.size());
+         "%s"
+         "Critical sections: %d\n",
+         (int)moves.size(),
+         pawn_moves, captures,
+         maybe_checkmate,
+         (int)crits.size());
 
   // This should be the case for a maximal input game.
   // CHECK(crits.size() == 118) << crits.size();
@@ -449,9 +449,9 @@ static vector<Critical> MakeCritical() {
 // account for the new positions (any intermediate ones, plus another
 // occurrence of orig_pos).
 static bool MakeEvenExcursion(const Position &orig_pos,
-			      ArcFour *rc,
-			      PositionMap<int> *seen,
-			      vector<Move> *excursion) {
+                              ArcFour *rc,
+                              PositionMap<int> *seen,
+                              vector<Move> *excursion) {
   // If we've already visited this position 4 times, then this is
   // not possible.
   if ((*seen)[orig_pos] >= POS_MAX)
@@ -466,8 +466,8 @@ static bool MakeEvenExcursion(const Position &orig_pos,
   for (const Move &cur_move : cur_moves) {
     // These are irreversible.
     if (pos.IsCapturing(cur_move) ||
-	pos.IsPawnMove(cur_move) ||
-	pos.IsCastling(cur_move))
+        pos.IsPawnMove(cur_move) ||
+        pos.IsCastling(cur_move))
       continue;
     Position pos2 = pos;
     pos2.ApplyMove(cur_move);
@@ -480,59 +480,59 @@ static bool MakeEvenExcursion(const Position &orig_pos,
     Shuffle(rc, &opp_moves);
     for (const Move &opp_move : opp_moves) {
       if (pos2.IsCapturing(opp_move) ||
-	  pos2.IsPawnMove(opp_move) ||
-	  pos2.IsCastling(opp_move))
-	continue;
+          pos2.IsPawnMove(opp_move) ||
+          pos2.IsCastling(opp_move))
+        continue;
       Position pos3 = pos2;
       pos3.ApplyMove(opp_move);
       if ((*seen)[pos3] >= POS_MAX)
-	continue;
+        continue;
 
       auto Rev = [](Move m) -> Move {
-	Move ret;
-	ret.src_row = m.dst_row;
-	ret.src_col = m.dst_col;
-	ret.dst_row = m.src_row;
-	ret.dst_col = m.src_col;
-	return ret;
+        Move ret;
+        ret.src_row = m.dst_row;
+        ret.src_col = m.dst_col;
+        ret.dst_row = m.src_row;
+        ret.dst_col = m.src_col;
+        return ret;
       };
 
       // Now unwind the moves, if possible.
       Move rcur_move = Rev(cur_move);
       Position pos4 = pos3;
       if (!pos4.IsLegal(rcur_move))
-	continue;
+        continue;
       pos4.ApplyMove(rcur_move);
       if ((*seen)[pos4] >= POS_MAX)
-	continue;
+        continue;
 
       Move ropp_move = Rev(opp_move);
       Position pos5 = pos4;
       if (!pos5.IsLegal(ropp_move))
-	continue;
+        continue;
       pos5.ApplyMove(ropp_move);
       if ((*seen)[pos5] >= POS_MAX)
-	continue;
+        continue;
       // And this should now equal the original pos. Note that we
       // ignore castling and e.p. state when comparing positions, since
       // we know that the input does not do this. It gives us a bit
       // more flexibility, especially in the early game where we may only
       // be able to move rooks.
       if (PositionEqIgnoringCastlingEp(orig_pos, pos5)) {
-	// Got one! Commit.
-	if (VERBOSE)
-	printf("Excursion: %s %s  %s %s\n",
-	       pos.ShortMoveString(cur_move).c_str(),
-	       pos2.ShortMoveString(opp_move).c_str(),
-	       pos3.ShortMoveString(rcur_move).c_str(),
-	       pos4.ShortMoveString(ropp_move).c_str());
-	
-	(*seen)[pos2]++;
-	(*seen)[pos3]++;
-	(*seen)[pos4]++;
-	(*seen)[pos5]++;
-	*excursion = {cur_move, opp_move, rcur_move, ropp_move};
-	return true;
+        // Got one! Commit.
+        if (VERBOSE)
+        printf("Excursion: %s %s  %s %s\n",
+               pos.ShortMoveString(cur_move).c_str(),
+               pos2.ShortMoveString(opp_move).c_str(),
+               pos3.ShortMoveString(rcur_move).c_str(),
+               pos4.ShortMoveString(ropp_move).c_str());
+
+        (*seen)[pos2]++;
+        (*seen)[pos3]++;
+        (*seen)[pos4]++;
+        (*seen)[pos5]++;
+        *excursion = {cur_move, opp_move, rcur_move, ropp_move};
+        return true;
       }
     }
   }
@@ -552,14 +552,14 @@ static bool MakeEvenExcursion(const Position &orig_pos,
 // (1w1b) ng1 (2w1b) nb8 (2w2b) nf3 (3w2b) nc6 (3w3b) and now it is
 // legal for white to play nf3 (4w3b -- note that only white has
 // played 4, not black; rule is *both*) and so now black can play
-// a critical move with e.g. a6. 
+// a critical move with e.g. a6.
 static bool MakeOddExcursion(const Position &orig_pos,
-			     ArcFour *rc,
-			     PositionMap<int> *seen,
-			     vector<Move> *excursion) {
+                             ArcFour *rc,
+                             PositionMap<int> *seen,
+                             vector<Move> *excursion) {
   // Here, both players need to play three moves. We'll
   // play them with the same piece each time.
-  
+
   // If we've already visited this position 4 times, then this is
   // not possible.
   if ((*seen)[orig_pos] >= POS_MAX)
@@ -590,7 +590,7 @@ static bool MakeOddExcursion(const Position &orig_pos,
       pos3.ApplyMove(opp_move);
       // Too many repeats?
       if ((*seen)[pos3] >= POS_MAX)
-	continue;
+        continue;
 
       // Both players have moved once. Now again, but only consider
       // the piece we moved the first time.
@@ -600,86 +600,86 @@ static bool MakeOddExcursion(const Position &orig_pos,
       vector<Move> cur2_moves = pos3.GetLegalMoves();
       Shuffle(rc, &cur2_moves);
       for (const Move &cur2_move : cur2_moves) {
-	if (cur2_move.src_row == cur_move.dst_row &&
-	    cur2_move.src_col == cur_move.dst_col) {
+        if (cur2_move.src_row == cur_move.dst_row &&
+            cur2_move.src_col == cur_move.dst_col) {
 
-	  Position pos4 = pos3;
-	  pos4.ApplyMove(cur2_move);
-	  if ((*seen)[pos4] >= POS_MAX)
-	    continue;
+          Position pos4 = pos3;
+          pos4.ApplyMove(cur2_move);
+          if ((*seen)[pos4] >= POS_MAX)
+            continue;
 
-	  vector<Move> opp2_moves = pos4.GetLegalMoves();
-	  Shuffle(rc, &opp2_moves);
-	  for (const Move &opp2_move : opp2_moves) {
-	    if (opp2_move.src_row == opp_move.dst_row &&
-		opp2_move.src_col == opp_move.dst_col) {
+          vector<Move> opp2_moves = pos4.GetLegalMoves();
+          Shuffle(rc, &opp2_moves);
+          for (const Move &opp2_move : opp2_moves) {
+            if (opp2_move.src_row == opp_move.dst_row &&
+                opp2_move.src_col == opp_move.dst_col) {
 
-	      Position pos5 = pos4;
-	      pos5.ApplyMove(opp2_move);
-	      if ((*seen)[pos5] >= POS_MAX)
-		continue;
+              Position pos5 = pos4;
+              pos5.ApplyMove(opp2_move);
+              if ((*seen)[pos5] >= POS_MAX)
+                continue;
 
-	      // Now, both players have moved twice. Try moving back
-	      // to the starting position.
+              // Now, both players have moved twice. Try moving back
+              // to the starting position.
 
-	      // Close the triangle, by moving from the destination of
-	      // move b to the source of move a.
-	      auto Triangle = [](Move ma, Move mb) -> Move {
-		  Move ret;
-		  ret.src_row = mb.dst_row;
-		  ret.src_col = mb.dst_col;
-		  ret.dst_row = ma.src_row;
-		  ret.dst_col = ma.src_col;
-		  return ret;
-		};
-	      
-	      // Now unwind the moves, if possible.
-	      Move rcur_move = Triangle(cur_move, cur2_move);
-	      Position pos6 = pos5;
-	      if (!pos6.IsLegal(rcur_move))
-		continue;
-	      pos6.ApplyMove(rcur_move);
-	      if ((*seen)[pos6] >= POS_MAX)
-		continue;
+              // Close the triangle, by moving from the destination of
+              // move b to the source of move a.
+              auto Triangle = [](Move ma, Move mb) -> Move {
+                  Move ret;
+                  ret.src_row = mb.dst_row;
+                  ret.src_col = mb.dst_col;
+                  ret.dst_row = ma.src_row;
+                  ret.dst_col = ma.src_col;
+                  return ret;
+                };
 
-	      Move ropp_move = Triangle(opp_move, opp2_move);
-	      Position pos7 = pos6;
-	      if (!pos7.IsLegal(ropp_move))
-		continue;
-	      pos7.ApplyMove(ropp_move);
-	      if ((*seen)[pos7] >= POS_MAX)
-		continue;
-	      
-	      // Like in the Even case.
-	      if (PositionEqIgnoringCastlingEp(orig_pos, pos7)) {
-		// Got one! Commit.
-		if (VERBOSE)
-		printf("Odd Excursion: %s %s  %s %s  %s %s\n",
-		       pos.ShortMoveString(cur_move).c_str(),
-		       pos2.ShortMoveString(opp_move).c_str(),
-		       pos3.ShortMoveString(cur2_move).c_str(),
-		       pos4.ShortMoveString(opp2_move).c_str(),
-		       pos5.ShortMoveString(rcur_move).c_str(),
-		       pos6.ShortMoveString(ropp_move).c_str());
+              // Now unwind the moves, if possible.
+              Move rcur_move = Triangle(cur_move, cur2_move);
+              Position pos6 = pos5;
+              if (!pos6.IsLegal(rcur_move))
+                continue;
+              pos6.ApplyMove(rcur_move);
+              if ((*seen)[pos6] >= POS_MAX)
+                continue;
 
-		(*seen)[pos2]++;
-		(*seen)[pos3]++;
-		(*seen)[pos4]++;
-		(*seen)[pos5]++;
-		(*seen)[pos6]++;
-		(*seen)[pos7]++;
-		*excursion = {cur_move, opp_move,
-			      cur2_move, opp2_move,
-			      rcur_move, ropp_move};
-		return true;
-	      }
-	    }
-	  }
-	}
+              Move ropp_move = Triangle(opp_move, opp2_move);
+              Position pos7 = pos6;
+              if (!pos7.IsLegal(ropp_move))
+                continue;
+              pos7.ApplyMove(ropp_move);
+              if ((*seen)[pos7] >= POS_MAX)
+                continue;
+
+              // Like in the Even case.
+              if (PositionEqIgnoringCastlingEp(orig_pos, pos7)) {
+                // Got one! Commit.
+                if (VERBOSE)
+                printf("Odd Excursion: %s %s  %s %s  %s %s\n",
+                       pos.ShortMoveString(cur_move).c_str(),
+                       pos2.ShortMoveString(opp_move).c_str(),
+                       pos3.ShortMoveString(cur2_move).c_str(),
+                       pos4.ShortMoveString(opp2_move).c_str(),
+                       pos5.ShortMoveString(rcur_move).c_str(),
+                       pos6.ShortMoveString(ropp_move).c_str());
+
+                (*seen)[pos2]++;
+                (*seen)[pos3]++;
+                (*seen)[pos4]++;
+                (*seen)[pos5]++;
+                (*seen)[pos6]++;
+                (*seen)[pos7]++;
+                *excursion = {cur_move, opp_move,
+                              cur2_move, opp2_move,
+                              rcur_move, ropp_move};
+                return true;
+              }
+            }
+          }
+        }
       }
     }
   }
-    
+
   // printf("No odd excursion...\n");
   return false;
 }
@@ -740,34 +740,34 @@ static int Expand(Critical *crit, ArcFour *rc) {
       printf("Finished with slack of %d\n", slack);
       return slack;
     }
-      
+
     auto TryExcursions = [crit, rc, &seen](
-	std::function<bool(const Position &,
-			   ArcFour *,
-			   PositionMap<int> *,
-			   vector<Move> *)> MakeExcursion) {
+        std::function<bool(const Position &,
+                           ArcFour *,
+                           PositionMap<int> *,
+                           vector<Move> *)> MakeExcursion) {
       // Otherwise, try to insert an excursion.
       Position pos = crit->start_pos;
       for (int idx = 0; idx <= crit->moves.size(); idx++) {
-	vector<Move> excursion;
+        vector<Move> excursion;
 
-	if (MakeExcursion(pos, rc, &seen, &excursion)) {
-	  vector<Move> newmoves;
-	  newmoves.reserve(crit->moves.size() + excursion.size());
-	  for (int i = 0; i < idx; i++) {
-	    newmoves.push_back(crit->moves[i]);
-	  }
-	  for (const Move &em : excursion) newmoves.push_back(em);
-	  for (int i = idx; i < crit->moves.size(); i++) {
-	    newmoves.push_back(crit->moves[i]);
-	  }
-	  crit->moves = std::move(newmoves);
+        if (MakeExcursion(pos, rc, &seen, &excursion)) {
+          vector<Move> newmoves;
+          newmoves.reserve(crit->moves.size() + excursion.size());
+          for (int i = 0; i < idx; i++) {
+            newmoves.push_back(crit->moves[i]);
+          }
+          for (const Move &em : excursion) newmoves.push_back(em);
+          for (int i = idx; i < crit->moves.size(); i++) {
+            newmoves.push_back(crit->moves[i]);
+          }
+          crit->moves = std::move(newmoves);
 
-	  return NEXT_LOOP;
-	}
+          return NEXT_LOOP;
+        }
 
-	if (idx < crit->moves.size())
-	  pos.ApplyMove(crit->moves[idx]);
+        if (idx < crit->moves.size())
+          pos.ApplyMove(crit->moves[idx]);
       }
       return NOT_FOUND;
     };
@@ -776,7 +776,7 @@ static int Expand(Critical *crit, ArcFour *rc) {
     if ((slack / 2) & 1) {
       auto odd = TryExcursions(MakeOddExcursion);
       if (odd == NEXT_LOOP)
-	continue;
+        continue;
       // If not found, fall through to Even.
     }
 
@@ -787,7 +787,7 @@ static int Expand(Critical *crit, ArcFour *rc) {
     if (even == NOT_FOUND) {
       printf("Failed to find a place for an excursion :(\n");
       for (const auto &p : seen) {
-	printf("\n%d times:\n%s\n", p.second, p.first.BoardString().c_str());
+        printf("\n%d times:\n%s\n", p.second, p.first.BoardString().c_str());
       }
       return slack;
     }
@@ -807,20 +807,20 @@ static string CriticalString(const Critical &crit) {
     }
     crit_move = p.ShortMoveString(crit.critical_move);
   }
-  
+
   return StringPrintf("ExpandMulti. Critical:\n"
-		      "== start ==\n"
-		      "%s"
-		      "== moves ==\n"
-		      "%s\n"
-		      "== end ==\n"
-		      "%s"
-		      "== critical ==\n"
-		      "%s\n",
-		      crit.start_pos.BoardString().c_str(),
-		      moves.c_str(),
-		      crit.end_pos.BoardString().c_str(),
-		      crit_move.c_str());
+                      "== start ==\n"
+                      "%s"
+                      "== moves ==\n"
+                      "%s\n"
+                      "== end ==\n"
+                      "%s"
+                      "== critical ==\n"
+                      "%s\n",
+                      crit.start_pos.BoardString().c_str(),
+                      moves.c_str(),
+                      crit.end_pos.BoardString().c_str(),
+                      crit_move.c_str());
 }
 
 // If OPTIMIZE is true, then keep calling Expand until we get a slack of 1.
@@ -829,7 +829,7 @@ static void ExpandMulti(Critical *crit) {
   ArcFour rc((string)"expand" + crit->start_pos.ToFEN(1, 2));
 
   printf("%s", CriticalString(*crit).c_str());
-  
+
   Critical orig = *crit;
   for (int tries = 0; true; tries++) {
     int slack = Expand(crit, &rc);
@@ -838,8 +838,8 @@ static void ExpandMulti(Critical *crit) {
       return;
 
     printf("Got with slack %d:\n%s\n", slack,
-	   CriticalString(*crit).c_str());
-    
+           CriticalString(*crit).c_str());
+
     printf("Slack %d. Try again (%d)...\n", slack, tries);
     // Replace and try again.
     *crit = orig;
@@ -859,11 +859,11 @@ static void MakeLongest() {
   int total_slack = 0;
 
   Position pos;
-  
+
   vector<Move> final_moves;
   // Indices in final_moves that are critical moves.
   std::set<int> critical_indices;
-  
+
   for (const Critical &crit : crits) {
     CHECK(PositionEqIgnoringCastlingEp(pos, crit.start_pos));
     for (const Move &m : crit.moves) {
@@ -871,9 +871,9 @@ static void MakeLongest() {
       CHECK(!pos.IsPawnMove(m));
       CHECK(!pos.IsCapturing(m));
       if (pos.BlackMove()) {
-	black_noncritical++;
+        black_noncritical++;
       } else {
-	white_noncritical++;
+        white_noncritical++;
       }
       CHECK(black_noncritical < MOVE_RULE || white_noncritical < MOVE_RULE);
       pos.ApplyMove(m);
@@ -889,23 +889,23 @@ static void MakeLongest() {
     const bool is_pawn_move = pos.IsPawnMove(crit.critical_move);
     const bool is_capturing = pos.IsCapturing(crit.critical_move);
     const bool is_checkmate = pos.MoveExcursion(crit.critical_move,
-						[&](){
-						  return pos.IsMated();
-						});
+                                                [&](){
+                                                  return pos.IsMated();
+                                                });
 
     CHECK(is_pawn_move || is_capturing || is_checkmate);
     int move_slack = (MOVE_RULE * 2 - 1) -
         (white_noncritical + black_noncritical);
     printf("Critical move (%s%s%s) with w %d, b %d",
-	   (is_pawn_move ? "p" : ""),
-	   (is_capturing ? "x" : ""),
-	   (is_checkmate ? "++" : ""),
-	   white_noncritical, black_noncritical);
+           (is_pawn_move ? "p" : ""),
+           (is_capturing ? "x" : ""),
+           (is_checkmate ? "++" : ""),
+           white_noncritical, black_noncritical);
     if (move_slack > 0) printf(" (slack %d)\n", move_slack);
     else printf("\n");
     slack_histo[move_slack]++;
     total_slack += move_slack;
-    
+
     white_noncritical = black_noncritical = 0;
     pos.ApplyMove(crit.critical_move);
     seen[pos]++;
@@ -927,21 +927,21 @@ static void MakeLongest() {
     Position p;
     for (const Move &m : final_moves) {
       string ms = p.ShortMoveString(m) +
-	p.PGNMoveSuffix(m);
+        p.PGNMoveSuffix(m);
       if (move_num == 1786) {
-	printf("Board:\n%s\n%s\nMove: %s\n",
-	       p.BoardString().c_str(),
-	       p.ToFEN(1, 1).c_str(),
-	       ms.c_str());
+        printf("Board:\n%s\n%s\nMove: %s\n",
+               p.BoardString().c_str(),
+               p.ToFEN(1, 1).c_str(),
+               ms.c_str());
       }
-      
+
       if (!p.BlackMove()) {
-	StringAppendF(&pgn, " %d. %s", move_num,
-		      ms.c_str());
+        StringAppendF(&pgn, " %d. %s", move_num,
+                      ms.c_str());
       } else {
-	StringAppendF(&pgn, " %s",
-		      ms.c_str());
-	move_num++;
+        StringAppendF(&pgn, " %s",
+                      ms.c_str());
+        move_num++;
       }
       p.ApplyMove(m);
     }
@@ -950,42 +950,42 @@ static void MakeLongest() {
 
   {
     // was 12 pages, 427176 bytes
-    
+
     string tex;
     int move_num = 1;
     Position p;
     for (int i = 0; i < final_moves.size(); i++) {
       const Move &m = final_moves[i];
       const bool is_critical =
-	critical_indices.find(i) != critical_indices.end();
+        critical_indices.find(i) != critical_indices.end();
       string ms = p.ShortMoveString(m) + p.PGNMoveSuffix(m);
       if (true) {
-	bool black = p.BlackMove();
-	string rest = ms.substr(1);
-	switch (ms[0]) {
-	case 'Q':
-	  ms = (string)(black ? "\\Queen " : "\\queen ") + rest;
-	  break;
-	case 'K':
-	  ms = (string)(black ? "\\King " : "\\king ") + rest;
-	  break;
-	case 'N':
-	  ms = (string)(black ? "\\Knight " : "\\knight ") + rest;
-	  break;
-	case 'R':
-	  ms = (string)(black ? "\\Rook " : "\\rook ") + rest;
-	  break;
-	case 'B':
-	  ms = (string)(black ? "\\Bishop " : "\\bishop ") + rest;
-	  break;
-	}
+        bool black = p.BlackMove();
+        string rest = ms.substr(1);
+        switch (ms[0]) {
+        case 'Q':
+          ms = (string)(black ? "\\Queen " : "\\queen ") + rest;
+          break;
+        case 'K':
+          ms = (string)(black ? "\\King " : "\\king ") + rest;
+          break;
+        case 'N':
+          ms = (string)(black ? "\\Knight " : "\\knight ") + rest;
+          break;
+        case 'R':
+          ms = (string)(black ? "\\Rook " : "\\rook ") + rest;
+          break;
+        case 'B':
+          ms = (string)(black ? "\\Bishop " : "\\bishop ") + rest;
+          break;
+        }
 
       }
       if (!p.BlackMove()) {
-	StringAppendF(&tex, " %d. ", move_num);
+        StringAppendF(&tex, " %d. ", move_num);
       } else {
-	StringAppendF(&tex, " ");
-	move_num++;
+        StringAppendF(&tex, " ");
+        move_num++;
       }
 
       if (is_critical) StringAppendF(&tex, "{\\scriptsize\\bf[");
@@ -993,12 +993,12 @@ static void MakeLongest() {
       if (is_critical) StringAppendF(&tex, "]}");
 
       if (i % 10 == 0) StringAppendF(&tex, "\n");
-      
+
       p.ApplyMove(m);
     }
     Util::WriteFile("papers/slow.tex", tex);
   }
-  
+
   if (false) {
     int move_num = 1;
     Position p;
@@ -1009,36 +1009,36 @@ static void MakeLongest() {
       const bool is_capturing = p.IsCapturing(m);
       const bool critical = is_pawn_move || is_capturing;
       if (critical) white_noncritical = black_noncritical = 0;
-      
+
       if (i % 10 == 0) {
-	printf("\n%s\n%s\n", p.BoardString().c_str(),
-	       p.ToFEN(1, 1).c_str());
+        printf("\n%s\n%s\n", p.BoardString().c_str(),
+               p.ToFEN(1, 1).c_str());
       }
-      
+
       if (!p.BlackMove()) {
-	if (!critical) white_noncritical++;
-	printf(" %d. %s [%d %d]", move_num,
-	       p.ShortMoveString(m).c_str(),
-	       white_noncritical, black_noncritical);
+        if (!critical) white_noncritical++;
+        printf(" %d. %s [%d %d]", move_num,
+               p.ShortMoveString(m).c_str(),
+               white_noncritical, black_noncritical);
       } else {
-	if (!critical) black_noncritical++;
-	printf(" %s [%d %d]",
-	       p.ShortMoveString(m).c_str(),
-	       white_noncritical, black_noncritical);
-	move_num++;
+        if (!critical) black_noncritical++;
+        printf(" %s [%d %d]",
+               p.ShortMoveString(m).c_str(),
+               white_noncritical, black_noncritical);
+        move_num++;
       }
       p.ApplyMove(m);
     }
   }
-  
+
   for (const auto &p : slack_histo)
     printf("Slack %d: %d time(s)\n", p.first, p.second);
 
   printf("Total slack: %d\n"
-	 "Final game is %d moves, ending with:\n%s\n",
-	 total_slack,
-	 (int)final_moves.size(),
-	 pos.BoardString().c_str());
+         "Final game is %d moves, ending with:\n%s\n",
+         total_slack,
+         (int)final_moves.size(),
+         pos.BoardString().c_str());
 }
 
 int main(int argc, char **argv) {

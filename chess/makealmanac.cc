@@ -52,7 +52,7 @@ struct Processor {
   Processor(string file_base) : file_base(file_base) {
     for (int i = 0; i < 16; i++) {
       string f = StringPrintf("d:\\chess\\packed\\%x-%s.pack",
-			      i, file_base.c_str());
+                              i, file_base.c_str());
       outputs.push_back(fopen(f.c_str(), "wb"));
     }
   }
@@ -63,13 +63,13 @@ struct Processor {
     }
     outputs.clear();
   }
-  
+
   // If false, we don't even look at the game.
   bool Eligible(const PGN &pgn) {
     // Ignore games that don't finish or where something
     // weird happens.
     if (pgn.result == PGN::Result::OTHER ||
-	pgn.GetTermination() != PGN::Termination::NORMAL) {
+        pgn.GetTermination() != PGN::Termination::NORMAL) {
       return false;
     }
 
@@ -80,7 +80,7 @@ struct Processor {
     PGN pgn;
     CHECK(parser.Parse(pgn_text, &pgn));
     if (!Eligible(pgn)) return;
-    
+
     Position pos;
     PackedGame pgame;
     for (int i = 0; i < pgn.moves.size(); i++) {
@@ -89,15 +89,15 @@ struct Processor {
       const bool move_ok = pos.ParseMove(m.move.c_str(), &move);
 
       if (!move_ok) {
-	fprintf(stderr, "Bad move %s from full PGN:\n%s",
-		m.move.c_str(), pgn_text.c_str());
-	// There are a few messed up games in 2016 and earlier.
-	// Return early if we find such a game.
-	{
-	  WriteMutexLock ml(&bad_games_m);
-	  bad_games++;
-	}
-	return;
+        fprintf(stderr, "Bad move %s from full PGN:\n%s",
+                m.move.c_str(), pgn_text.c_str());
+        // There are a few messed up games in 2016 and earlier.
+        // Return early if we find such a game.
+        {
+          WriteMutexLock ml(&bad_games_m);
+          bad_games++;
+        }
+        return;
       }
 
       pos.ApplyMove(move);
@@ -118,7 +118,7 @@ struct Processor {
       pgame.SetResult(PackedGame::Result::DRAW);
       break;
     }
-        
+
     uint64 hc = pgame.HashCode();
     WriteGame(hc, pgame.Serialize());
   }
@@ -134,7 +134,7 @@ struct Processor {
     fwrite(&hbytes[0], 8, 1, outputs[idx]);
     fwrite(bytes.data(), bytes.size(), 1, outputs[idx]);
   }
-  
+
   string Status() {
     return "";
   }
@@ -143,7 +143,7 @@ struct Processor {
   std::shared_mutex output_locks[16] = {};
 
   const string file_base;
-  
+
   std::shared_mutex bad_games_m;
   int64 bad_games = 0LL;
   Stats stat_buckets[NUM_BUCKETS];
@@ -158,7 +158,7 @@ static void ReadLargePGN(const char *filename, string file_base) {
   // TODO: How to get this to deduce second argument at least?
   auto work_queue =
     std::make_unique<WorkQueue<string, decltype(DoWork), 1>>(DoWork,
-							     MAX_PARALLELISM);
+                                                             MAX_PARALLELISM);
 
   const int64 start = time(nullptr);
 
@@ -171,26 +171,26 @@ static void ReadLargePGN(const char *filename, string file_base) {
 
       const int64 num_read = stream.NumRead();
       if (num_read % 20000LL == 0) {
-	int64 done, in_progress, pending;
-	work_queue->Stats(&done, &in_progress, &pending);
-	const bool should_pause = pending > 5000000;
-	const char *pausing = should_pause ? " (PAUSE READING)" : "";
-	fprintf(stderr,
-		"[Still reading; %lld games at %.1f/sec] %lld %lld %lld %s%s\n",
-		num_read,
-		num_read / (double)(time(nullptr) - start),
-		done, in_progress, pending, pausing,
-		processor.Status().c_str());
-	fflush(stderr);
-	if (MAX_GAMES > 0 && num_read >= MAX_GAMES)
-	  break;
+        int64 done, in_progress, pending;
+        work_queue->Stats(&done, &in_progress, &pending);
+        const bool should_pause = pending > 5000000;
+        const char *pausing = should_pause ? " (PAUSE READING)" : "";
+        fprintf(stderr,
+                "[Still reading; %lld games at %.1f/sec] %lld %lld %lld %s%s\n",
+                num_read,
+                num_read / (double)(time(nullptr) - start),
+                done, in_progress, pending, pausing,
+                processor.Status().c_str());
+        fflush(stderr);
+        if (MAX_GAMES > 0 && num_read >= MAX_GAMES)
+          break;
 
-	if (should_pause)
-	  sleep(60);
+        if (should_pause)
+          sleep(60);
       }
     }
   }
-  
+
   work_queue->SetNoMoreWork();
 
   // Show status until all games have been run.
@@ -198,9 +198,9 @@ static void ReadLargePGN(const char *filename, string file_base) {
     int64 done, in_progress, pending;
     work_queue->Stats(&done, &in_progress, &pending);
     fprintf(stderr, "[Done reading] %lld %lld %lld %.2f%% %s\n",
-	    done, in_progress, pending,
-	    (100.0 * (double)done) / (in_progress + done + pending),
-	    processor.Status().c_str());
+            done, in_progress, pending,
+            (100.0 * (double)done) / (in_progress + done + pending),
+            processor.Status().c_str());
     fflush(stderr);
     sleep(10);
   }

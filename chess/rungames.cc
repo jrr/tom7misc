@@ -89,63 +89,63 @@ struct Processor {
     // PERF not expensive, but we could avoid computing this if we
     // have no time control criteria.
     const PGN::TimeClass tc = pgn.GetTimeClass();
-    
+
     for (int crit = 0; crit < NUM_CRITERIA; crit++) {
       // Are we even looking for this criteria?
       if (0 != ((1 << crit) & want_crit_set)) {
-	// If so, perform the test and if it's satisfied,
-	// OR it into the result set.
-	switch (crit) {
-	case Criteria::ALL_GAMES:
-	  result |= (1 << crit);
-	  break;
-	case Criteria::TITLED_ONLY: {
-	  auto wit = pgn.meta.find("WhiteTitle");
-	  if (wit != pgn.meta.end() &&
-	      // "Lichess Master" not counted as a "real" title.
-	      wit->second != "LM") {
-	    result |= (1 << crit);
-	    break;
-	  }
-	  
-	  auto bit = pgn.meta.find("BlackTitle");
-	  if (bit != pgn.meta.end() &&
-	      bit->second != "LM") {
-	    result |= (1 << crit);
-	    break;
-	  }
-	  break;
-	}
+        // If so, perform the test and if it's satisfied,
+        // OR it into the result set.
+        switch (crit) {
+        case Criteria::ALL_GAMES:
+          result |= (1 << crit);
+          break;
+        case Criteria::TITLED_ONLY: {
+          auto wit = pgn.meta.find("WhiteTitle");
+          if (wit != pgn.meta.end() &&
+              // "Lichess Master" not counted as a "real" title.
+              wit->second != "LM") {
+            result |= (1 << crit);
+            break;
+          }
 
-	case Criteria::BULLET_ONLY:
-	  if (tc == PGN::TimeClass::BULLET) {
-	    result |= (1 << crit);
-	  }
-	  break;
+          auto bit = pgn.meta.find("BlackTitle");
+          if (bit != pgn.meta.end() &&
+              bit->second != "LM") {
+            result |= (1 << crit);
+            break;
+          }
+          break;
+        }
 
-	case Criteria::BLITZ_ONLY:
-	  if (tc == PGN::TimeClass::BLITZ) {
-	    result |= (1 << crit);
-	  }
-	  break;
+        case Criteria::BULLET_ONLY:
+          if (tc == PGN::TimeClass::BULLET) {
+            result |= (1 << crit);
+          }
+          break;
 
-	case Criteria::RAPID_ONLY:
-	  if (tc == PGN::TimeClass::RAPID) {
-	    result |= (1 << crit);
-	  }
-	  break;
+        case Criteria::BLITZ_ONLY:
+          if (tc == PGN::TimeClass::BLITZ) {
+            result |= (1 << crit);
+          }
+          break;
 
-	case Criteria::CLASSICAL_ONLY:
-	  if (tc == PGN::TimeClass::CLASSICAL ||
-	      tc == PGN::TimeClass::CORRESPONDENCE) {
-	    result |= (1 << crit);
-	  }
-	  break;
+        case Criteria::RAPID_ONLY:
+          if (tc == PGN::TimeClass::RAPID) {
+            result |= (1 << crit);
+          }
+          break;
 
-	default:
-	  LOG(FATAL) << "Impossible! Bad criteria";
-	  break;
-	}
+        case Criteria::CLASSICAL_ONLY:
+          if (tc == PGN::TimeClass::CLASSICAL ||
+              tc == PGN::TimeClass::CORRESPONDENCE) {
+            result |= (1 << crit);
+          }
+          break;
+
+        default:
+          LOG(FATAL) << "Impossible! Bad criteria";
+          break;
+        }
       }
     }
     return result;
@@ -164,7 +164,7 @@ struct Processor {
     // Can just skip because it matches no criteria.
     if (0 == has_crit_set)
       return;
-    
+
     auto wit = pgn.meta.find("White");
     uint64 bucket_hash = 0ULL;
     if (wit != pgn.meta.end()) {
@@ -188,37 +188,37 @@ struct Processor {
 
 #ifdef SELF_CHECK
       CHECK(move_ok)
-	<< "Could not parse move: "
-	<< ((i % 2 == 0) ? "(white) " : "(black) ") << (i >> 1) << ". "
-	<< m.move
-	<< "\nIn board:\n"
-	<< old_board
-	<< "\nFrom full PGN:\n"
-	<< pgn_text;
+        << "Could not parse move: "
+        << ((i % 2 == 0) ? "(white) " : "(black) ") << (i >> 1) << ". "
+        << m.move
+        << "\nIn board:\n"
+        << old_board
+        << "\nFrom full PGN:\n"
+        << pgn_text;
 #endif
       if (!move_ok) {
-	fprintf(stderr, "Bad move %s from full PGN:\n%s",
-		m.move.c_str(), pgn_text.c_str());
-	// There are a few messed up games in 2016 and earlier.
-	// Return early if we find such a game.
-	{
-	  WriteMutexLock ml(&bad_games_m);
-	  bad_games++;
-	}
-	return;
+        fprintf(stderr, "Bad move %s from full PGN:\n%s",
+                m.move.c_str(), pgn_text.c_str());
+        // There are a few messed up games in 2016 and earlier.
+        // Return early if we find such a game.
+        {
+          WriteMutexLock ml(&bad_games_m);
+          bad_games++;
+        }
+        return;
       }
-	
+
 #ifdef SELF_CHECK
       CHECK(old_board == pos.BoardString()) << "ParseMove modified board "
-	"state!";
+        "state!";
       CHECK(pos.IsLegal(move)) << m.move;
       CHECK(old_board == pos.BoardString()) << "IsLegal modified board "
-	"state!";
+        "state!";
 #endif
 
       // Use the move to update the fates of pieces.
       fates.Update(pos, move);
-	  
+
       pos.ApplyMove(move);
     }
 
@@ -239,21 +239,21 @@ struct Processor {
     if (false) {
       fprintf(stderr, "Fates:\n");
       for (int i = 0; i < 32; i++) {
-	fprintf(stderr, "%d (%s). %s on %c%c.\n",
-		i, PIECE_NAME[i],
-		(Fates::DIED & fates.fates[i]) ? "DIED" : "Survived",
-		'a' + (fates.fates[i] & 7),
-		'1' + (7 - ((fates.fates[i] & Fates::POS_MASK) >> 3)));
+        fprintf(stderr, "%d (%s). %s on %c%c.\n",
+                i, PIECE_NAME[i],
+                (Fates::DIED & fates.fates[i]) ? "DIED" : "Survived",
+                'a' + (fates.fates[i] & 7),
+                '1' + (7 - ((fates.fates[i] & Fates::POS_MASK) >> 3)));
       }
     }
-    
+
     for (int crit = 0; crit < NUM_CRITERIA; crit++) {
       if (0 != ((1 << crit) & has_crit_set)) {
-	stat_buckets[crit * NUM_BUCKETS + bucket].AddGame(fates);
+        stat_buckets[crit * NUM_BUCKETS + bucket].AddGame(fates);
       }
     }
   }
-  
+
   std::shared_mutex bad_games_m;
   int64 bad_games = 0LL;
   // Bitmask with (1 << crit).
@@ -266,8 +266,8 @@ struct Processor {
 };
 
 static void ReadLargePGN(uint32 want_crit_set,
-			 string input_filename,
-			 string outputbase) {
+                         string input_filename,
+                         string outputbase) {
   fprintf(stderr, "OK %s %s\n", input_filename.c_str(), outputbase.c_str());
   fflush(stderr);
 
@@ -282,16 +282,16 @@ static void ReadLargePGN(uint32 want_crit_set,
   // this becomes IO bound; use fewer workers.
   const int num_workers = 30;
   // (want_crit_set == Criteria::TITLED_ONLY) ? 16 : 30;
-  
+
   // TODO: How to get this to deduce second argument at least?
   auto work_queue =
     std::make_unique<WorkQueue<string, decltype(DoWork), 1>>(DoWork,
-							     num_workers);
+                                                             num_workers);
 
   const int64 start = time(nullptr);
   fprintf(stderr, "Start at %lld\n", start);
   fflush(stderr);
-  
+
   {
     PGNTextStream stream{input_filename.c_str()};
     string game;
@@ -301,29 +301,29 @@ static void ReadLargePGN(uint32 want_crit_set,
 
       const int64 num_read = stream.NumRead();
       if (num_read % 20000LL == 0) {
-	int64 done, in_progress, pending;
-	work_queue->Stats(&done, &in_progress, &pending);
-	fprintf(stderr,
-		"[Still reading; %lld games at %.1f/sec] %lld %lld %lld\n",
-		num_read,
-		num_read / (double)(time(nullptr) - start),
-		done, in_progress, pending);
-	fflush(stderr);
+        int64 done, in_progress, pending;
+        work_queue->Stats(&done, &in_progress, &pending);
+        fprintf(stderr,
+                "[Still reading; %lld games at %.1f/sec] %lld %lld %lld\n",
+                num_read,
+                num_read / (double)(time(nullptr) - start),
+                done, in_progress, pending);
+        fflush(stderr);
 
-	if (MAX_GAMES > 0 && num_read >= MAX_GAMES)
-	  break;
+        if (MAX_GAMES > 0 && num_read >= MAX_GAMES)
+          break;
       }
     }
   }
-  
+
   work_queue->SetNoMoreWork();
-  
+
   // Show status until all games have been run.
   while (work_queue->StillRunning()) {
     int64 done, in_progress, pending;
     work_queue->Stats(&done, &in_progress, &pending);
     fprintf(stderr, "[Done reading] %lld %lld %lld\n",
-	    done, in_progress, pending);
+            done, in_progress, pending);
     fflush(stderr);
     sleep(3);
   }
@@ -335,22 +335,22 @@ static void ReadLargePGN(uint32 want_crit_set,
     if (0 != ((1 << crit) & want_crit_set)) {
       // We computed stats for this criteria, so output a file.
       string filename = StringPrintf("%s-%s.txt",
-				     outputbase.c_str(),
-				     CriteriaName((Criteria)crit).c_str());
+                                     outputbase.c_str(),
+                                     CriteriaName((Criteria)crit).c_str());
       FILE *f = fopen(filename.c_str(), "wb");
       CHECK(f != nullptr) << filename;
       for (int bucket = 0; bucket < NUM_BUCKETS; bucket++) {
-	const Stats &s = processor.stat_buckets[crit * NUM_BUCKETS + bucket];
-	fprintf(f, "%lld\n", s.num_games);
-	for (int i = 0; i < 32; i++) {
-	  const PieceStats &p = s.pieces[i];
-	  for (int d = 0; d < 64; d++)
-	    fprintf(f, " %lld", p.died_on[d]);
-	  fprintf(f, "\n ");
-	  for (int d = 0; d < 64; d++)
-	    fprintf(f, " %lld", p.survived_on[d]);
-	  fprintf(f, "\n");
-	}
+        const Stats &s = processor.stat_buckets[crit * NUM_BUCKETS + bucket];
+        fprintf(f, "%lld\n", s.num_games);
+        for (int i = 0; i < 32; i++) {
+          const PieceStats &p = s.pieces[i];
+          for (int d = 0; d < 64; d++)
+            fprintf(f, " %lld", p.died_on[d]);
+          fprintf(f, "\n ");
+          for (int d = 0; d < 64; d++)
+            fprintf(f, " %lld", p.survived_on[d]);
+          fprintf(f, "\n");
+        }
       }
       fclose(f);
       fprintf(stderr, "Wrote %s.\n", filename.c_str());
@@ -393,7 +393,7 @@ int main(int argc, char **argv) {
   const string inputfile = argv[2];
   const string outputbase = argv[3];
   fprintf(stderr, "Reading %s and writing to %s*.txt\n",
-	  inputfile.c_str(), outputbase.c_str());
+          inputfile.c_str(), outputbase.c_str());
   fflush(stderr);
   ReadLargePGN(want_crit, inputfile, outputbase);
   return 0;

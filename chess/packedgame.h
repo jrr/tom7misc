@@ -6,8 +6,8 @@
 // * 4 (knight, bishop, rook, queen) = 176 of these (but they are not
 // densely packed; see below).
 
-#ifndef __PACKEDGAME_H
-#define __PACKEDGAME_H
+#ifndef _PACKEDGAME_H
+#define _PACKEDGAME_H
 
 #include <vector>
 #include <string>
@@ -29,17 +29,17 @@ struct PackedGame {
     BLACK_WINS,
     DRAW,
   };
-  
+
   static uint16_t PackMove(Position::Move move);
   static Position::Move UnpackMove(uint16_t twelve_bits);
-  
+
   std::vector<uint8_t> Serialize() const;
 
   int NumMoves() const { return num_moves; }
 
   void SetResult(Result r) { result = r; }
   Result GetResult() const { return result; }
-  
+
   uint16_t GetMove(int i) const;
 
   void PushMove(uint16_t twelve_bits) {
@@ -56,7 +56,7 @@ struct PackedGame {
   // Hash code for the game itself, which only depends on its exact
   // move sequence and result.
   uint64_t HashCode() const;
-  
+
 private:
   inline uint8_t PackedMovesBound(int idx) const {
     CHECK(idx >= 0);
@@ -81,22 +81,22 @@ private:
 inline uint16_t PackedGame::PackMove(Position::Move move) {
   if (move.promote_to != 0) {
     auto WhatBits = [](uint8_t p) {
-	switch (p & Position::TYPE_MASK) {
-	case Position::QUEEN:  return 0b01100000;
-	case Position::ROOK:   return 0b01000000;
-	case Position::BISHOP: return 0b00100000;
-	case Position::KNIGHT: return 0b00000000;
-	default:
-	  LOG(FATAL) << "Bad promote_to " << (int)p;
-	  return 0;
-	}
+        switch (p & Position::TYPE_MASK) {
+        case Position::QUEEN:  return 0b01100000;
+        case Position::ROOK:   return 0b01000000;
+        case Position::BISHOP: return 0b00100000;
+        case Position::KNIGHT: return 0b00000000;
+        default:
+          LOG(FATAL) << "Bad promote_to " << (int)p;
+          return 0;
+        }
       };
     auto DeltaBits = [](uint8_t src_col, uint8_t dst_col) {
-	if (dst_col < src_col) return 0b10;
-	else if (dst_col > src_col) return 0b01;
-	else return 0b00;
+        if (dst_col < src_col) return 0b10;
+        else if (dst_col > src_col) return 0b01;
+        else return 0b00;
       };
-    
+
     // If promoting, it must be a pawn move to the last
     // rank.
     CHECK(move.src_row == 6 || move.src_row == 1);
@@ -114,7 +114,7 @@ inline uint16_t PackedGame::PackMove(Position::Move move) {
     return PACK_SIZE + promote_offset;
   } else {
     return Pack(move.src_row, move.src_col,
-		move.dst_row, move.dst_col);
+                move.dst_row, move.dst_col);
   }
 }
 
@@ -137,7 +137,7 @@ inline Position::Move PackedGame::UnpackMove(uint16_t bits) {
       Position::QUEEN,
     };
     const uint16_t promote_bits = bits - PACK_SIZE;
-    
+
     const bool black_bit = !!(promote_bits & 0b10000000);
     const uint8_t typ = WHAT_TABLE[(promote_bits >> 5) & 0b11];
     const uint8_t col_bits = (promote_bits >> 2) & 0b111;

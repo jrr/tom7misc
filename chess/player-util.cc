@@ -72,7 +72,7 @@ EvalResultPlayer::EvalResultPlayer() : rc(PlayerUtil::GetSeed()) {
 
 
 Move EvalResultPlayer::MakeMove(const Position &orig_pos,
-				Explainer *explainer) {
+                                Explainer *explainer) {
   Position pos = orig_pos;
   std::vector<LabeledMove> labeled;
   for (const Move &m : pos.GetLegalMoves()) {
@@ -80,10 +80,10 @@ Move EvalResultPlayer::MakeMove(const Position &orig_pos,
     lm.m = m;
     lm.r = Rand32(&rc);
     pos.MoveExcursion(m,
-		      [this, &pos, &lm]() {
-			lm.penalty = PositionPenalty(&pos);
-			return 0;
-		      });
+                      [this, &pos, &lm]() {
+                        lm.penalty = PositionPenalty(&pos);
+                        return 0;
+                      });
     labeled.push_back(lm);
   }
   CHECK(!labeled.empty());
@@ -96,14 +96,14 @@ Move EvalResultPlayer::MakeMove(const Position &orig_pos,
     }
     explainer->SetScoredMoves(v);
   }
-  
+
   return PlayerUtil::GetBest(
       labeled,
       [](const LabeledMove &a,
-	 const LabeledMove &b) {
-	if (a.penalty != b.penalty)
-	  return a.penalty < b.penalty;
-	
-	return a.r < b.r;
+         const LabeledMove &b) {
+        if (a.penalty != b.penalty)
+          return a.penalty < b.penalty;
+
+        return a.r < b.r;
       }).m;
 }

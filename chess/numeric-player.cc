@@ -125,7 +125,7 @@ struct BinaryPlayer : public Player {
 
   struct BinaryGame : public PlayerGame {
     explicit BinaryGame(const BinaryPlayer &p) : player(p) {}
-    
+
     // Most canonical way to order these is asciibetically by their
     // algebraic move names.
     struct LabeledMove {
@@ -136,38 +136,38 @@ struct BinaryPlayer : public Player {
     // PERF: Could cache the previous call so that GetMove/ForceMove
     // pair doesn't need to repeat the work.
     void InternalMove(const Position &orig_pos,
-		      Position::Move *m, int *bits_used,
-		      Explainer *explainer) {
+                      Position::Move *m, int *bits_used,
+                      Explainer *explainer) {
       Position pos = orig_pos;
 
       std::vector<LabeledMove> labeled;
       std::vector<Position::Move> moves = pos.GetLegalMoves();
       CHECK(!moves.empty());
       if (moves.size() == 1) {
-	*m = moves[0];
-	*bits_used = 0;
-	if (explainer != nullptr) {
-	  explainer->SetMessage(
-	      StringPrintf("Forced move: %s",
-			   pos.ShortMoveString(moves[0]).c_str()));
-	}
-	return;
+        *m = moves[0];
+        *bits_used = 0;
+        if (explainer != nullptr) {
+          explainer->SetMessage(
+              StringPrintf("Forced move: %s",
+                           pos.ShortMoveString(moves[0]).c_str()));
+        }
+        return;
       }
-      
+
       labeled.reserve(moves.size());
       for (const Move &m : moves) {
-	LabeledMove lm;
-	lm.m = m;
-	lm.move_string = pos.ShortMoveString(m);
-	labeled.push_back(lm);
+        LabeledMove lm;
+        lm.m = m;
+        lm.move_string = pos.ShortMoveString(m);
+        labeled.push_back(lm);
       }
-      
+
       std::sort(labeled.begin(),
-		labeled.end(),
-		[](const LabeledMove &a,
-		   const LabeledMove &b) {
-		  return a.move_string < b.move_string;
-		});
+                labeled.end(),
+                [](const LabeledMove &a,
+                   const LabeledMove &b) {
+                  return a.move_string < b.move_string;
+                });
 
       int num_moves = labeled.size();
       // Mask all ones, and no more than 2047 (2^12 - 1), since there
@@ -181,52 +181,52 @@ struct BinaryPlayer : public Player {
       mask |= mask >> 16;
 
       auto GetNumBits = [mask]() {
-	  for (int i = 0; i < 13; i++) {
-	    if (!(mask & (1 << i))) {
-	      return i;
-	    }
-	  }
-	  LOG(FATAL) << "Impossible " << mask;
-	  return 0;
-	};
-      
+          for (int i = 0; i < 13; i++) {
+            if (!(mask & (1 << i))) {
+              return i;
+            }
+          }
+          LOG(FATAL) << "Impossible " << mask;
+          return 0;
+        };
+
       const int num_bits = GetNumBits();
       CHECK((1 << num_bits) - 1 == mask) << num_bits << " " << mask;
 
       CHECK(stream_idx < player.bits.size() - 16) << "Ran out of bits!! "
-						  << stream_idx;
+                                                  << stream_idx;
       int used = 0, rejections = 0;
       for (;;) {
-	uint32 r = 0u;
-	for (int i = 0; i < num_bits; i++) {
-	  r <<= 1;
-	  r |= player.bits[stream_idx + used + i];
-	}
-	used += num_bits;
-	if (r < num_moves) {
-	  *bits_used = used;
-	  *m = labeled[r].m;
-	  if (explainer != nullptr) {
-	    explainer->SetMessage(
-		StringPrintf("@%d Used %d bits (%d rejections) to select "
-			     "from %d moves:",
-			     stream_idx, used, rejections, num_moves));
-	    vector<tuple<Position::Move, int64_t, string>> vec;
-	    for (int i = 0; i < labeled.size(); i++) {
-	      vec.emplace_back(labeled[i].m, i,
-			       i == r ?
-			       StringPrintf("%s <-",
-					    labeled[i].move_string.c_str()) :
-			       labeled[i].move_string);
-	    }
-	    explainer->SetScoredMoves(vec);
-	  }
-	  return;
-	}
-	rejections++;
+        uint32 r = 0u;
+        for (int i = 0; i < num_bits; i++) {
+          r <<= 1;
+          r |= player.bits[stream_idx + used + i];
+        }
+        used += num_bits;
+        if (r < num_moves) {
+          *bits_used = used;
+          *m = labeled[r].m;
+          if (explainer != nullptr) {
+            explainer->SetMessage(
+                StringPrintf("@%d Used %d bits (%d rejections) to select "
+                             "from %d moves:",
+                             stream_idx, used, rejections, num_moves));
+            vector<tuple<Position::Move, int64_t, string>> vec;
+            for (int i = 0; i < labeled.size(); i++) {
+              vec.emplace_back(labeled[i].m, i,
+                               i == r ?
+                               StringPrintf("%s <-",
+                                            labeled[i].move_string.c_str()) :
+                               labeled[i].move_string);
+            }
+            explainer->SetScoredMoves(vec);
+          }
+          return;
+        }
+        rejections++;
       }
     }
-    
+
     // Conceptually we just want to use some of the bits to choose a
     // move. This is complicated by the get/force interface for
     // stateful players, alas. In any given state, we will use a
@@ -235,14 +235,14 @@ struct BinaryPlayer : public Player {
     // 0 (single move forced) to arbitrarily many if we get unlucky
     // with the rejection sampling! ForceMove ignores the move but
     // advances the stream this number of bits. GetMove computes the
-    // move but does not advance the stream. 
+    // move but does not advance the stream.
     void ForceMove(const Position &pos, Position::Move m_ignored) override {
       Position::Move move_ignored;
       int bits_used = 0;
       InternalMove(pos, &move_ignored, &bits_used, nullptr);
       stream_idx += bits_used;
     }
-    
+
     Move GetMove(const Position &pos, Explainer *explainer) override {
       Position::Move move;
       int bits_used = 0;
@@ -257,14 +257,14 @@ struct BinaryPlayer : public Player {
   PlayerGame *CreateGame() override {
     return new BinaryGame(*this);
   }
-  
+
   string Name() const override {
     return StringPrintf("binary_%s", CONSTANT());
   }
   string Desc() const override {
     return StringPrintf(
-	"Choose the nth legal move, using bits from the binary "
-	"expansion of %s", CONSTANT());
+        "Choose the nth legal move, using bits from the binary "
+        "expansion of %s", CONSTANT());
   }
 
   const vector<bool> &bits;
@@ -280,7 +280,7 @@ const char *EName() { return "e"; }
 // that it now nominally spans [0,1] and returns the new rational
 // r' within that.
 static void Forward(const BigRat &r, int n,
-		    int *k_chosen, BigRat *next_rat) {
+                    int *k_chosen, BigRat *next_rat) {
   // PERF!
   // CHECK(1 != BigRat::Compare(BigRat(0, 1), r));
   // CHECK(-1 == BigRat::Compare(r, BigRat(1, 1)));
@@ -305,8 +305,8 @@ static void Forward(const BigRat &r, int n,
       // which is nr - k.
 
       if (next_rat != nullptr) {
-	BigRat nr = BigRat::Times(BigRat(n, 1), r);
-	*next_rat = BigRat::Minus(nr, BigRat(k, 1));
+        BigRat nr = BigRat::Times(BigRat(n, 1), r);
+        *next_rat = BigRat::Minus(nr, BigRat(k, 1));
       }
       *k_chosen = k;
       return;
@@ -333,7 +333,7 @@ struct RationalPlayer : public Player {
   struct RationalGame : public PlayerGame {
     explicit RationalGame(const RationalPlayer &p)
       : player(p), rat_lb(p.start_lb), rat_ub(p.start_ub) {}
-    
+
     // Most canonical way to order these is asciibetically by their
     // algebraic move names.
     struct LabeledMove {
@@ -344,41 +344,41 @@ struct RationalPlayer : public Player {
     // PERF: Could cache the previous call so that GetMove/ForceMove
     // pair doesn't need to repeat the work.
     void InternalMove(const Position &orig_pos,
-		      Position::Move *m,
-		      BigRat *next_lb_out,
-		      BigRat *next_ub_out,
-		      Explainer *explainer) {
+                      Position::Move *m,
+                      BigRat *next_lb_out,
+                      BigRat *next_ub_out,
+                      Explainer *explainer) {
       Position pos = orig_pos;
 
       std::vector<LabeledMove> labeled;
       std::vector<Position::Move> moves = pos.GetLegalMoves();
       CHECK(!moves.empty());
       if (moves.size() == 1) {
-	*m = moves[0];
-	if (next_lb_out != nullptr) *next_lb_out = rat_lb;
-	if (next_ub_out != nullptr) *next_ub_out = rat_ub;
-	if (explainer != nullptr) {
-	  explainer->SetMessage(
-	      StringPrintf("Forced move: %s",
-			   pos.ShortMoveString(moves[0]).c_str()));
-	}
-	return;
+        *m = moves[0];
+        if (next_lb_out != nullptr) *next_lb_out = rat_lb;
+        if (next_ub_out != nullptr) *next_ub_out = rat_ub;
+        if (explainer != nullptr) {
+          explainer->SetMessage(
+              StringPrintf("Forced move: %s",
+                           pos.ShortMoveString(moves[0]).c_str()));
+        }
+        return;
       }
-      
+
       labeled.reserve(moves.size());
       for (const Move &m : moves) {
-	LabeledMove lm;
-	lm.m = m;
-	lm.move_string = pos.ShortMoveString(m);
-	labeled.push_back(lm);
+        LabeledMove lm;
+        lm.m = m;
+        lm.move_string = pos.ShortMoveString(m);
+        labeled.push_back(lm);
       }
-      
+
       std::sort(labeled.begin(),
-		labeled.end(),
-		[](const LabeledMove &a,
-		   const LabeledMove &b) {
-		  return a.move_string < b.move_string;
-		});
+                labeled.end(),
+                [](const LabeledMove &a,
+                   const LabeledMove &b) {
+                  return a.move_string < b.move_string;
+                });
 
       int num_moves = labeled.size();
 
@@ -387,32 +387,32 @@ struct RationalPlayer : public Player {
       Forward(rat_ub, num_moves, &chosen_ub, next_ub_out);
       CHECK(chosen_lb == chosen_ub) << "Imprecise!! " << CONSTANT();
       int chosen = chosen_lb;
-      
+
       CHECK(chosen < num_moves);
       *m = labeled[chosen].m;
 
       if (explainer != nullptr) {
-	explainer->SetMessage(
-	    StringPrintf("Select from %d moves:", num_moves));
-	vector<tuple<Position::Move, int64_t, string>> vec;
-	for (int i = 0; i < labeled.size(); i++) {
-	  vec.emplace_back(labeled[i].m, i,
-			   i == chosen ?
-			   StringPrintf("%s <-",
-					labeled[i].move_string.c_str()) :
-			   labeled[i].move_string);
-	}
-	explainer->SetScoredMoves(vec);
+        explainer->SetMessage(
+            StringPrintf("Select from %d moves:", num_moves));
+        vector<tuple<Position::Move, int64_t, string>> vec;
+        for (int i = 0; i < labeled.size(); i++) {
+          vec.emplace_back(labeled[i].m, i,
+                           i == chosen ?
+                           StringPrintf("%s <-",
+                                        labeled[i].move_string.c_str()) :
+                           labeled[i].move_string);
+        }
+        explainer->SetScoredMoves(vec);
       }
       return;
     }
-    
+
     // As above.
     void ForceMove(const Position &pos, Position::Move m_ignored) override {
       Position::Move move_ignored;
       InternalMove(pos, &move_ignored, &rat_lb, &rat_ub, nullptr);
     }
-    
+
     Move GetMove(const Position &pos, Explainer *explainer) override {
       Position::Move move;
       InternalMove(pos, &move, nullptr, nullptr, explainer);
@@ -426,14 +426,14 @@ struct RationalPlayer : public Player {
   PlayerGame *CreateGame() override {
     return new RationalGame(*this);
   }
-  
+
   string Name() const override {
     return StringPrintf("rational_%s", CONSTANT());
   }
   string Desc() const override {
     return StringPrintf(
-	"Choose the nth legal move, as though arithmetically coded "
-	"using %s", CONSTANT());
+        "Choose the nth legal move, as though arithmetically coded "
+        "using %s", CONSTANT());
   }
 
   BigRat start_lb, start_ub;

@@ -678,11 +678,11 @@ int Pack(int sr, int sc, int dr, int dc) {
 std::tuple<int, int, int, int> Unpack(int packed_idx) {
   const int p = unpack_table[packed_idx];
   return std::make_tuple((p >> 9) & 7,
-			 (p >> 6) & 7,
-			 (p >> 3) & 7,
-			 p & 7);
+                         (p >> 6) & 7,
+                         (p >> 3) & 7,
+                         p & 7);
 }
-  
+
 void Unpack(int packed_idx, int *sr, int *sc, int *dr, int *dc) {
-  std::tie(*sr, *sc, *dr, *dc) = Unpack(packed_idx);  
+  std::tie(*sr, *sc, *dr, *dc) = Unpack(packed_idx);
 }

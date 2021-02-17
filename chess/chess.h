@@ -1,6 +1,6 @@
 
-#ifndef __CHESS_H
-#define __CHESS_H
+#ifndef _CHESS_H
+#define _CHESS_H
 
 #include <cstdint>
 #include <initializer_list>
@@ -48,7 +48,7 @@ struct Position {
   };
 
   static constexpr uint8 EMPTY = 0U;
-  
+
   static constexpr uint8 BLACK = 0b1000U;
   static constexpr uint8 WHITE = 0b0000U;
   // Maybe we should distinguish between type and piece?
@@ -116,11 +116,11 @@ struct Position {
   // Returns "++" if the move is checkmate, else "+" if checking,
   // else "". Move must be legal.
   std::string PGNMoveSuffix(Move m) const;
-  
+
   // Like e2->e4 or a7->a8=Q, independent of board state. Does not
   // need the move to be legal as long it is in bounds.
   static std::string DebugMoveString(Move m);
-  
+
   // Show a 2D ASCII board.
   std::string BoardString() const;
   // Using capital letters for white, lowercase for black. Empty is space.
@@ -130,7 +130,7 @@ struct Position {
   static char DebugPieceChar(uint8 piece);
   // Distinguishes black and white pieces. Space for empty.
   static const char *HTMLEntity(uint8 piece);
-  
+
   // TODO: This does not handle castling and en passant correctly.
   // It ignores the move counts.
   // e.g. rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
@@ -141,7 +141,7 @@ struct Position {
   // and incremented after black moves), since we don't keep track
   // of those.
   std::string ToFEN(int halfmove_clock, int fullmove_number) const;
-  
+
   // Parse a PGN-style move m in the current board state.
   // A move is the "Nc3!?" part of PGN. Move numbers, evaluations,
   // etc. should not be included. Does not do syntactic validation
@@ -178,7 +178,7 @@ struct Position {
     return IsEnPassant(m) ||
       PieceAt(m.dst_row, m.dst_col) != EMPTY;
   }
-  
+
   // Is the move legal in this current board state? The move must be
   // well-formed (positions within the board).
   bool IsLegal(Move m);
@@ -186,7 +186,7 @@ struct Position {
   // Apply the move to the current board, modifying it in place.
   // IsLegal(move) must be true or the result is undefined.
   void ApplyMove(Move m);
-  
+
   // Get the row, col with the current player's king.
   inline std::pair<int, int> GetCurrentKing() const {
     return GetKing(!!(bits & BLACK_MOVE));
@@ -203,8 +203,8 @@ struct Position {
 
     for (int r = 0; r < 8; r++)
       for (int c = 0; c < 8; c++)
-	if (PieceAt(r, c) == king)
-	  return {r, c};
+        if (PieceAt(r, c) == king)
+          return {r, c};
 
     // Invalid board -- could assert here.
     return {0, 0};
@@ -222,7 +222,7 @@ struct Position {
       return (BLACK | C_ROOK) == PieceAt(0, king_side ? 7 : 0);
     }
   }
-  
+
   // True if the current player is in check.
   bool IsInCheck();
 
@@ -239,10 +239,10 @@ struct Position {
   // Number of distinct legal moves. Note that different promotions
   // count as different moves.
   int NumLegalMoves();
-  
+
   // Returns 0 if mated, 1 if exactly one, 2 if 2 or more.
   int ExactlyOneLegalMove();
-  
+
   // Returns true if the indicated square is attacked (by the other
   // player) in the current position. "Attacked" here means an otherwise
   // unrestricted piece would be able to move in its fashion to capture
@@ -285,12 +285,12 @@ struct Position {
     #endif
     return ret;
   }
-  
-  
+
+
   uint8 MovePieceType(Move m) const {
     return PieceAt(m.src_row, m.src_col) & TYPE_MASK;
   }
-  
+
   bool BlackMove() const {
     return !!(bits & BLACK_MOVE);
   }
@@ -306,12 +306,12 @@ struct Position {
   inline static bool IsBlackSquare(int r, int c) {
     return !!((r ^ c) & 1);
   }
-  
+
  private:
   // XXX document
   // Note: does not work for castling, e.p., other weird stuff?
   bool NotIntoCheck(Move m);
-  
+
   // Whose move?
   static constexpr uint8 BLACK_MOVE = 0b10000000U;
   // True if the previous move was a pawn double move.
@@ -377,7 +377,7 @@ struct Position {
 
 struct PositionEq {
   constexpr bool operator()(const Position &a,
-			    const Position &b) const {
+                            const Position &b) const {
     return a.bits == b.bits &&
       a.rows[0] == b.rows[0] &&
       a.rows[1] == b.rows[1] &&
@@ -431,14 +431,14 @@ auto Position::MoveExcursion(Move m, const F &f) -> decltype(f()) {
   // king, the castling state of the rooks is invalidated.
   UndoEntry undos[6];
   int num_undos = 0;
-  
+
   const uint8 old_src = PieceAt(m.src_row, m.src_col);
   const uint8 old_dst = PieceAt(m.dst_row, m.dst_col);
 
 # define MAKEUNDO(r, c, p) ((((r) << 3 | (c)) << 8) | (p))
   undos[num_undos++] = MAKEUNDO(m.src_row, m.src_col, old_src);
-  undos[num_undos++] = MAKEUNDO(m.dst_row, m.dst_col, old_dst);  
-  
+  undos[num_undos++] = MAKEUNDO(m.dst_row, m.dst_col, old_dst);
+
   uint8 source_piece = old_src;
   // If moving the king (this includes castling), remove the ability
   // to castle.
@@ -446,21 +446,21 @@ auto Position::MoveExcursion(Move m, const F &f) -> decltype(f()) {
     const bool blackmove = !!(bits & BLACK_MOVE);
     if (blackmove) {
       if (PieceAt(0, 0) == (BLACK | C_ROOK)) {
-	SetPiece(0, 0, BLACK | ROOK);
-	undos[num_undos++] = MAKEUNDO(0, 0, BLACK | C_ROOK);
+        SetPiece(0, 0, BLACK | ROOK);
+        undos[num_undos++] = MAKEUNDO(0, 0, BLACK | C_ROOK);
       }
       if (PieceAt(0, 7) == (BLACK | C_ROOK)) {
-	SetPiece(0, 7, BLACK | ROOK);
-	undos[num_undos++] = MAKEUNDO(0, 7, BLACK | C_ROOK);
+        SetPiece(0, 7, BLACK | ROOK);
+        undos[num_undos++] = MAKEUNDO(0, 7, BLACK | C_ROOK);
       }
     } else {
       if (PieceAt(7, 0) == (WHITE | C_ROOK)) {
-	SetPiece(7, 0, WHITE | ROOK);
-	undos[num_undos++] = MAKEUNDO(7, 0, WHITE | C_ROOK);
+        SetPiece(7, 0, WHITE | ROOK);
+        undos[num_undos++] = MAKEUNDO(7, 0, WHITE | C_ROOK);
       }
       if (PieceAt(7, 7) == (WHITE | C_ROOK)) {
-	SetPiece(7, 7, WHITE | ROOK);
-	undos[num_undos++] = MAKEUNDO(7, 7, WHITE | C_ROOK);
+        SetPiece(7, 7, WHITE | ROOK);
+        undos[num_undos++] = MAKEUNDO(7, 7, WHITE | C_ROOK);
       }
     }
   }
@@ -485,32 +485,32 @@ auto Position::MoveExcursion(Move m, const F &f) -> decltype(f()) {
     } else {
       undos[num_undos++] = MAKEUNDO(m.src_row, m.dst_col, WHITE | PAWN);
     }
-    
+
     // If a double pawn move, set the en passant state...
   } else if ((source_piece & TYPE_MASK) == PAWN &&
-	     ((m.src_row == 1 && m.dst_row == 3) ||
-	      (m.src_row == 6 && m.dst_row == 4))) {
+             ((m.src_row == 1 && m.dst_row == 3) ||
+              (m.src_row == 6 && m.dst_row == 4))) {
 
     bits |= (DOUBLE | m.dst_col);
 
     // And then for castling...
   } else if ((source_piece & TYPE_MASK) == KING &&
-	     m.src_col == 4 &&
-	     (m.dst_col == 6 || m.dst_col == 2)) {
+             m.src_col == 4 &&
+             (m.dst_col == 6 || m.dst_col == 2)) {
     // ... move the rook as well.
     if (m.dst_col == 6) {
       // King-side.
       SetPiece(m.dst_row, 7, EMPTY);
       SetPiece(m.dst_row, 5, ROOK | (COLOR_MASK & source_piece));
       undos[num_undos++] =
-	MAKEUNDO(m.dst_row, 7, C_ROOK | (COLOR_MASK & source_piece));
+        MAKEUNDO(m.dst_row, 7, C_ROOK | (COLOR_MASK & source_piece));
       undos[num_undos++] = MAKEUNDO(m.dst_row, 5, EMPTY);
     } else {
       // Queen-side.
       SetPiece(m.dst_row, 0, EMPTY);
       SetPiece(m.dst_row, 3, ROOK | (COLOR_MASK & source_piece));
       undos[num_undos++] =
-	MAKEUNDO(m.dst_row, 0, C_ROOK | (COLOR_MASK & source_piece));
+        MAKEUNDO(m.dst_row, 0, C_ROOK | (COLOR_MASK & source_piece));
       undos[num_undos++] = MAKEUNDO(m.dst_row, 3, EMPTY);
     }
   }
@@ -540,7 +540,7 @@ auto Position::MoveExcursion(Move m, const F &f) -> decltype(f()) {
     uint8 p = ue & 255;
     SetPiece(r, c, p);
   }
-    
+
   bits = old_bits;
   return ret;
 }

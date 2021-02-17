@@ -46,7 +46,7 @@ bool PGNParser::Parse(const string &s, PGN *pgn) const {
   // If text ends without termination marker, treat this
   // as OTHER.
   pgn->result = PGN::Result::OTHER;
-  
+
   while (RE2::Consume(&input, meta_line_re, &key, &value)) {
     // TODO: Actually need to unquote " and \ in value.
     // printf("[%s] [%s]\n", key.c_str(), value.c_str());
@@ -56,7 +56,7 @@ bool PGNParser::Parse(const string &s, PGN *pgn) const {
   // Now read moves.
   // Since the game can end on white's move, we simply allow
   // a move marker before white or black's move.
-    
+
   string move, post;
   while (RE2::Consume(&input, move_re, &move, &post)) {
     // printf("[%s] + [%s]\n", move.c_str(), post.c_str());
@@ -74,7 +74,7 @@ bool PGNParser::Parse(const string &s, PGN *pgn) const {
       pgn->result = PGN::Result::OTHER;
       return true;
     }
-      
+
     pgn->moves.emplace_back(move);
   }
 
@@ -126,7 +126,7 @@ std::pair<int, int> PGN::GetTimeControl() const {
   size_t plus = ctl.find('+');
   if (plus == string::npos) return {0, 0};
   return std::make_pair(atoi(ctl.substr(0, plus).c_str()),
-			atoi(ctl.substr(plus + 1, string::npos).c_str()));
+                        atoi(ctl.substr(plus + 1, string::npos).c_str()));
 }
 
 PGN::TimeClass PGN::GetTimeClass() const {
@@ -139,7 +139,7 @@ PGN::TimeClass PGN::GetTimeClass() const {
   size_t plus = ctl.find('+');
   if (plus == string::npos) return TimeClass::UNKNOWN;
 
-  
+
   const int time_start = atoi(ctl.substr(0, plus).c_str());
   const int time_inc = atoi(ctl.substr(plus + 1, string::npos).c_str());
 

@@ -1,6 +1,6 @@
 
-#ifndef __SUBPROCESS_H
-#define __SUBPROCESS_H
+#ifndef _SUBPROCESS_H
+#define _SUBPROCESS_H
 
 #include <string>
 

@@ -1,7 +1,7 @@
 // Local utilities for working with large amounts of chess data.
 
-#ifndef __BIGCHESS_H
-#define __BIGCHESS_H
+#ifndef _BIGCHESS_H
+#define _BIGCHESS_H
 
 #include <shared_mutex>
 #include <cstdint>
@@ -35,61 +35,61 @@ template<class W, class F, int64 max_chunk>
 struct WorkQueue {
   static_assert(max_chunk > 0LL, "Must take positive chunks!");
   WorkQueue(F f, int num_workers) : f(std::move(f)),
-				    num_workers(num_workers) {
+                                    num_workers(num_workers) {
     threads.reserve(num_workers);
     auto th =
       [this]() {
-	// This is to avoid having to take the mutex just to
-	// increment the done counter. We instead do this when
-	// we look for work again.
-	int64 local_done = 0LL;
-	for (;;) {
-	  m.lock();
-	  done += local_done;
-	  in_progress -= local_done;
-	  local_done = 0LL;
-	  if (todo.empty()) {
-	    if (no_more_work) {
-	      m.unlock();
-	      return;
-	    }
+        // This is to avoid having to take the mutex just to
+        // increment the done counter. We instead do this when
+        // we look for work again.
+        int64 local_done = 0LL;
+        for (;;) {
+          m.lock();
+          done += local_done;
+          in_progress -= local_done;
+          local_done = 0LL;
+          if (todo.empty()) {
+            if (no_more_work) {
+              m.unlock();
+              return;
+            }
 
-	    // PERF Else better to block on a second mutex here.
-	    m.unlock();
-	  } else {
-	    if /* constexpr */ (max_chunk > 1LL) {
-	      int64 get_up_to = std::max(1LL, pending / this->num_workers);
-	      std::vector<W> local_work;
-	      local_work.reserve(get_up_to);
-	      while (!todo.empty() && get_up_to--) {
-		local_work.emplace_back(todo.front());
-		todo.pop_front();
-		in_progress++;
-		pending--;
-	      }
+            // PERF Else better to block on a second mutex here.
+            m.unlock();
+          } else {
+            if /* constexpr */ (max_chunk > 1LL) {
+              int64 get_up_to = std::max(1LL, pending / this->num_workers);
+              std::vector<W> local_work;
+              local_work.reserve(get_up_to);
+              while (!todo.empty() && get_up_to--) {
+                local_work.emplace_back(todo.front());
+                todo.pop_front();
+                in_progress++;
+                pending--;
+              }
 
-	      m.unlock();
+              m.unlock();
 
-	      // Do work without lock.
-	      for (W &work : local_work)
-		this->f(std::move(work));
+              // Do work without lock.
+              for (W &work : local_work)
+                this->f(std::move(work));
 
-	      local_done += local_work.size();
-	    } else {
-	      auto local_work = todo.front();
-	      todo.pop_front();
-	      in_progress++;
-	      pending--;
+              local_done += local_work.size();
+            } else {
+              auto local_work = todo.front();
+              todo.pop_front();
+              in_progress++;
+              pending--;
 
-	      m.unlock();
+              m.unlock();
 
-	      this->f(std::move(local_work));
-	      local_done++;
-	    }
-	  }
-	}
+              this->f(std::move(local_work));
+              local_done++;
+            }
+          }
+        }
       };
-    
+
     for (int i = 0; i < num_workers; i++)
       threads.emplace_back(th);
   }
@@ -98,7 +98,7 @@ struct WorkQueue {
     for (std::thread &t : threads)
       t.join();
   }
-  
+
   void Add(W work) {
     WriteMutexLock ml(&m);
     pending++;
@@ -119,7 +119,7 @@ struct WorkQueue {
     ReadMutexLock ml(&m);
     return !no_more_work || pending > 0 || in_progress > 0;
   }
-  
+
   void Stats(int64 *done, int64 *in_progress, int64 *pending) {
     ReadMutexLock ml(&m);
     *done = this->done;
@@ -137,7 +137,7 @@ struct WorkQueue {
     pending = 0LL;
     no_more_work = true;
   }
-  
+
 private:
   const F f;
   const int num_workers;
@@ -161,7 +161,7 @@ struct PGNTextStream {
   bool NextPGN(std::string *pgn_text) {
     if (f == nullptr)
       return false;
-  
+
     pgn_text->clear();
     pgn_text->reserve(1024);
     int blank_lines = 0;
@@ -169,24 +169,24 @@ struct PGNTextStream {
     for (;;) {
       const int c = BigGetC();
       if (c == '\n' && lastc == '\n')
-	blank_lines++;
+        blank_lines++;
 
       // Don't require double blank lines at end of file.
       if (blank_lines == 2 || c == EOF) {
-	num_read++;
+        num_read++;
 
-	if (c == EOF) {
-	  fclose(f);
-	  f = nullptr;
-	}
-	
-	return true;
+        if (c == EOF) {
+          fclose(f);
+          f = nullptr;
+        }
+
+        return true;
 
       } else {
-	*pgn_text += c;
-	lastc = c;
+        *pgn_text += c;
+        lastc = c;
       }
-    } 
+    }
   }
 
   int64 NumRead() const { return num_read; }
@@ -197,29 +197,29 @@ struct PGNTextStream {
       f = nullptr;
     }
   }
-  
+
  private:
   int BigGetC() {
     if (data_idx == data.size()) {
       if (feof(f)) return EOF;
-	
+
       data_idx = 0LL;
       static constexpr int64 MAX_READ_SIZE = 1LL << 24;
       data.resize(MAX_READ_SIZE);
       const size_t bytes_read =
-	fread(&data.front(), 1, MAX_READ_SIZE, f);
+        fread(&data.front(), 1, MAX_READ_SIZE, f);
       if (bytes_read != MAX_READ_SIZE)
-	data.resize(bytes_read);
+        data.resize(bytes_read);
 
       if (data.empty()) {
-	return EOF;
+        return EOF;
       }
     }
     // Otherwise, data is non-empty and data_idx points at the
     // next element.
     return data[data_idx++];
   }
-  
+
   FILE *f = nullptr;
   std::vector<uint8> data;
   int64 data_idx = 0LL;

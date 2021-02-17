@@ -1,6 +1,6 @@
 
-#ifndef __BLIND_PLAYER_H
-#define __BLIND_PLAYER_H
+#ifndef _BLIND_PLAYER_H
+#define _BLIND_PLAYER_H
 
 struct Player;
 

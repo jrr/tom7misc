@@ -1,7 +1,7 @@
 // Snapshot of fate data from all games.
 
-#ifndef __ALL_FATE_DATA_H
-#define __ALL_FATE_DATA_H
+#ifndef _ALL_FATE_DATA_H
+#define _ALL_FATE_DATA_H
 
 struct LivedDied {
   double lived, died;

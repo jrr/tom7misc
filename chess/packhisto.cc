@@ -100,20 +100,20 @@ static void PrintMemoryUsage() {
   PROCESS_MEMORY_COUNTERS pmc;
   CHECK(GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof pmc));
   printf("PageFaultCount: %lld\n", (int64)pmc.PageFaultCount);
-  printf("PeakWorkingSetSize: %lld\n", 
-	 (int64)pmc.PeakWorkingSetSize);
+  printf("PeakWorkingSetSize: %lld\n",
+         (int64)pmc.PeakWorkingSetSize);
   printf("WorkingSetSize: %lld\n", (int64)pmc.WorkingSetSize);
   printf("QuotaPeakPagedPoolUsage: %lld\n",
-	 (int64)pmc.QuotaPeakPagedPoolUsage);
-  printf("QuotaPagedPoolUsage: %lld\n", 
-	 (int64)pmc.QuotaPagedPoolUsage);
-  printf("QuotaPeakNonPagedPoolUsage: %lld\n", 
-	 (int64)pmc.QuotaPeakNonPagedPoolUsage);
-  printf("QuotaNonPagedPoolUsage: %lld\n", 
-	 (int64)pmc.QuotaNonPagedPoolUsage);
-  printf("PagefileUsage: %lld\n", (int64)pmc.PagefileUsage); 
-  printf("PeakPagefileUsage: %lld\n", 
-	 (int64)pmc.PeakPagefileUsage);
+         (int64)pmc.QuotaPeakPagedPoolUsage);
+  printf("QuotaPagedPoolUsage: %lld\n",
+         (int64)pmc.QuotaPagedPoolUsage);
+  printf("QuotaPeakNonPagedPoolUsage: %lld\n",
+         (int64)pmc.QuotaPeakNonPagedPoolUsage);
+  printf("QuotaNonPagedPoolUsage: %lld\n",
+         (int64)pmc.QuotaNonPagedPoolUsage);
+  printf("PagefileUsage: %lld\n", (int64)pmc.PagefileUsage);
+  printf("PeakPagefileUsage: %lld\n",
+         (int64)pmc.PeakPagefileUsage);
   fflush(stdout);
 }
 
@@ -127,10 +127,10 @@ static void AddPackFile(const string &filename) {
     PackedGame::SplitFile(bytes);
 
   std::unordered_map<uint64, int32> lpc;
-  
+
   const int64 num_games = packed_games.size();
   fprintf(stderr, "Read %lld games from %s. Running...\n",
-	  num_games, filename.c_str());
+          num_games, filename.c_str());
   fflush(stderr);
 
   for (const auto &p : packed_games) {
@@ -150,33 +150,33 @@ static void AddPackFile(const string &filename) {
 
   const int64 num_pos = lpc.size();
   fprintf(stderr, "Got %lld distinct positions in %lld games from %s.\n",
-	  num_pos, num_games, filename.c_str());
+          num_pos, num_games, filename.c_str());
   fflush(stderr);
-  
+
   int64 secs = time(nullptr) - start;
   int64 insert_time = pos_histo->MergeHisto(lpc);
   double mem = MemUsage();
   fprintf(stderr, "Inserted %lld games from %s. "
-	  "(%llds total, %llds insert) [%.2f G mem]\n",
-	  num_games, filename.c_str(),
-	  secs, insert_time,
-	  (double)mem / 1000000000.0);
+          "(%llds total, %llds insert) [%.2f G mem]\n",
+          num_games, filename.c_str(),
+          secs, insert_time,
+          (double)mem / 1000000000.0);
   fflush(stderr);
 }
 
 static void AddPackFiles(const std::vector<string> &filenames) {
   pos_histo = new PosHisto;
-  
+
   int64 start = time(nullptr);
   ParallelApp(filenames,
-	      AddPackFile,
-	      MAX_PARALLELISM);
+              AddPackFile,
+              MAX_PARALLELISM);
 
   int64 secs = time(nullptr) - start;
-  
+
   fprintf(stderr, "Done loading (%lld positions) in %llds.\n",
-	  pos_histo->total_positions,
-	  secs);
+          pos_histo->total_positions,
+          secs);
   fflush(stderr);
 
   PrintMemoryUsage();
@@ -192,17 +192,17 @@ static void AddPackFiles(const std::vector<string> &filenames) {
   }
 
   fprintf(stderr, "[Elapsed %lld] There are %lld 'common' positions. Sort...\n",
-	  time(nullptr) - start,
-	  common.size());
+          time(nullptr) - start,
+          common.size());
   fflush(stderr);
 
   std::sort(common.begin(), common.end());
   fprintf(stderr, "[Elapsed %lld] Write %lld positions...\n",
-	  time(nullptr) - start,
-	  common.size());
+          time(nullptr) - start,
+          common.size());
   fflush(stderr);
   CHECK(Util::WriteUint64File("common.u64", common));
-  
+
   // Now, invert the histo.
   std::unordered_map<int32, int64> inverted;
   fprintf(stderr, "[Elapsed %lld] Invert...\n", time(nullptr) - start);
@@ -213,18 +213,18 @@ static void AddPackFiles(const std::vector<string> &filenames) {
     // have any good way to look these up today.
     inverted[p.second]++;
   }
-  
+
   // Now output this histo.
   std::map<int64, int64> sorted;
   fprintf(stderr, "[Done in %lld sec.] Sort...\n",
-	  time(nullptr) - start);
+          time(nullptr) - start);
   fflush(stderr);
   for (const auto &p : inverted) {
     sorted[p.first] = p.second;
   }
 
   fprintf(stderr, "[Done in %lld sec.] Output...\n",
-	  time(nullptr) - start);
+          time(nullptr) - start);
   fflush(stderr);
 
   string csv;
@@ -235,10 +235,10 @@ static void AddPackFiles(const std::vector<string> &filenames) {
   }
   fflush(stdout);
   Util::WriteFile("packhisto.csv", csv);
-  
-  
+
+
   sorted.clear();
-  
+
   delete pos_histo;
 }
 
@@ -253,6 +253,6 @@ int main(int argc, char **argv) {
     filenames.emplace_back(argv[i]);
 
   AddPackFiles(filenames);
-  
+
   return 0;
 }

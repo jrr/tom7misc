@@ -23,7 +23,7 @@ static bool AllEqual(const CommonMap::MoveCounts &mc) {
   if (mc.empty()) return true;
 
   const uint32 count = mc.begin()->second;
-  
+
   for (const auto &c : mc)
     if (c.second != count)
       return false;
@@ -50,16 +50,16 @@ CommonMap::CommonMap(const string &filename) {
   auto Get32 = [&GetByte]() -> uint32 {
       uint32 ret = 0LL;
       for (int i = 0; i < 4; i++) {
-	ret <<= 8;
-	ret |= GetByte();
+        ret <<= 8;
+        ret |= GetByte();
       }
       return ret;
     };
   auto Get64 = [&GetByte]() -> uint64 {
       uint64 ret = 0LL;
       for (int i = 0; i < 8; i++) {
-	ret <<= 8;
-	ret |= GetByte();
+        ret <<= 8;
+        ret |= GetByte();
       }
       return ret;
     };
@@ -72,22 +72,22 @@ CommonMap::CommonMap(const string &filename) {
     if (num & (1 << 15)) {
       // Flat.
       for (int i = 0; i < (num & ~(1 << 15)); i++) {
-	uint16 pm = Get16();
-	CHECK(mc->find(pm) == mc->end()) << idx << ", " << pm;
-	(*mc)[pm] = 1;
+        uint16 pm = Get16();
+        CHECK(mc->find(pm) == mc->end()) << idx << ", " << pm;
+        (*mc)[pm] = 1;
       }
     } else {
       for (int i = 0; i < num; i++) {
-	uint32 row = Get32();
-	uint16 pm = row >> 20;
-	uint32 count = row & ((1 << 20) - 1);
-	CHECK(mc->find(pm) == mc->end()) << idx << ", " << pm;
-	(*mc)[pm] = count;
+        uint32 row = Get32();
+        uint16 pm = row >> 20;
+        uint32 count = row & ((1 << 20) - 1);
+        CHECK(mc->find(pm) == mc->end()) << idx << ", " << pm;
+        (*mc)[pm] = count;
       }
     }
   }
 }
-    
+
 
 // File format is as follows.
 // 64-bit hash describes the position,
@@ -98,11 +98,11 @@ CommonMap::CommonMap(const string &filename) {
 void CommonMap::WriteFile(const string &filename) {
   FILE *f = fopen(filename.c_str(), "wb");
   CHECK(f) << filename;
-  
+
   auto Write64 = [&](uint64 w) {
       uint8 hbytes[8];
       for (int i = 0; i < 8; i++) {
-	hbytes[i] = (w >> (56 - (i * 8))) & 0xFF;
+        hbytes[i] = (w >> (56 - (i * 8))) & 0xFF;
       }
       fwrite(&hbytes[0], 8, 1, f);
     };
@@ -110,7 +110,7 @@ void CommonMap::WriteFile(const string &filename) {
   auto Write32 = [&](uint32 w) {
       uint8 hbytes[8];
       for (int i = 0; i < 4; i++) {
-	hbytes[i] = (w >> (24 - (i * 8))) & 0xFF;
+        hbytes[i] = (w >> (24 - (i * 8))) & 0xFF;
       }
       fwrite(&hbytes[0], 4, 1, f);
     };
@@ -132,20 +132,20 @@ void CommonMap::WriteFile(const string &filename) {
       normalized++;
       double total_mass = 0.0;
       for (const auto &c : mc)
-	total_mass += c.second;
-      
+        total_mass += c.second;
+
       for (const auto &c : mc) {
-	const uint32 packed_move = c.first;
-	double f = (double)c.second / total_mass;
-	uint32 norm_count = f * ((1 << 20) - 1);
-	// Don't allow counts of zero, and don't filter them because
-	// we already wrote the size.
-	if (norm_count == 0) norm_count++;
-	CHECK(norm_count < (1 << 20)) << norm_count;
-	const uint32 row = (packed_move << 20) | norm_count;
-	Write32(row);
+        const uint32 packed_move = c.first;
+        double f = (double)c.second / total_mass;
+        uint32 norm_count = f * ((1 << 20) - 1);
+        // Don't allow counts of zero, and don't filter them because
+        // we already wrote the size.
+        if (norm_count == 0) norm_count++;
+        CHECK(norm_count < (1 << 20)) << norm_count;
+        const uint32 row = (packed_move << 20) | norm_count;
+        Write32(row);
       }
-      
+
     } else if (AllEqual(mc)) {
       // If counts are all equal (typical because it's sparse and
       // the counts are exactly 1) then don't store counts. Just
@@ -155,23 +155,23 @@ void CommonMap::WriteFile(const string &filename) {
       Write16((1 << 15) | mc.size());
 
       for (const auto &c : mc) {
-	const uint16 packed_move = c.first;
-	Write16(packed_move);
+        const uint16 packed_move = c.first;
+        Write16(packed_move);
       }
-      
+
     } else {
       Write16(mc.size());
-      
+
       for (const auto &c : mc) {
-	const uint32 packed_move = c.first;
-	CHECK(c.second < (1 << 20)) << c.second;
-	const uint32 row = (packed_move << 20) | c.second;
-	Write32(row);
+        const uint32 packed_move = c.first;
+        CHECK(c.second < (1 << 20)) << c.second;
+        const uint32 row = (packed_move << 20) | c.second;
+        Write32(row);
       }
     }
   }
 
   fclose(f);
   fprintf(stderr, "Wrote to %s, %d normalized, %d eq\n",
-	  filename.c_str(), normalized, all_eq);
+          filename.c_str(), normalized, all_eq);
 }

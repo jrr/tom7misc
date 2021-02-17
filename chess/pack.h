@@ -2,8 +2,8 @@
 // Packs any potentially legal moves (as a pair of squares) into 1792
 // consecutive indices, and the inverse.
 
-#ifndef __PACK_H
-#define __PACK_H
+#ifndef _PACK_H
+#define _PACK_H
 
 #include <tuple>
 
