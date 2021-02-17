@@ -921,7 +921,7 @@ static float GetScore(const Position &pos, int letter) {
     return fo.value();
   }
 
-  // Compute new
+  // Compute new result.
   const ImageA sdf = FontProblem::SDF36From8x8(img8x8);
   vector<float> pred =
     FontProblem::RunSDFModelPredOnly(*GetNetwork(), sdf);
@@ -931,7 +931,7 @@ static float GetScore(const Position &pos, int letter) {
   //  - This is O(26*26)... might be better to do the work on
   //    each lookup instead of up front?
   std::array<float, 26> scores;
-  for (int i = 0; i < 26; i++) {
+  for (int target = 0; target < 26; target++) {
     // Distance from [0, .. 0, 1, 0, ... 0]
     // This produced the best looking results in hallucinate.exe,
     // and it should make the different letters play differently,
@@ -939,14 +939,14 @@ static float GetScore(const Position &pos, int letter) {
     float penalty = 0.0f;
     for (int j = 0; j < 26; j++) {
       double p = pred[j];
-      if (j == letter) {
+      if (j == target) {
         penalty += fabs(1.0 - p);
       } else {
         penalty += fabs(p);
       }
     }
 
-    scores[i] = penalty;
+    scores[target] = penalty;
   }
 
   float ret = scores[letter];
