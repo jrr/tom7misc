@@ -17,7 +17,9 @@
 #include "player.h"
 #include "chess.h"
 #include "player-util.h"
+// XXX should be able to do without headless-graphics?
 #include "headless-graphics.h"
+#include "../cc-lib/image.h"
 
 using namespace std;
 using uint8 = uint8_t;
@@ -405,7 +407,7 @@ struct ChessmasterPlayer : public StatelessPlayer {
   Position::Move MakeMove(const Position &pos, Explainer *explainer) override {
     Position::Move move = master.GetMove(pos);
     if (explainer != nullptr) {
-      explainer->SetGraphic(256, 256, master.GetScreenshot());
+      explainer->SetGraphic(ImageRGBA(master.GetScreenshot(), 256, 256));
     }
     if (move.src_row == 0 &&
         move.src_col == 0 &&
