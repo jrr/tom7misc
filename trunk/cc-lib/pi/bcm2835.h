@@ -1432,9 +1432,10 @@ typedef enum {
   */
 
   /* Read the System Timer Counter register.
-    \return the value read from the System Timer Counter Lower 32 bits register
+     Combines the 32-bit high and low registers to produce a 64-bit
+     timestamp (microseconds).
   */
-  extern uint64_t bcm2835_st_read(void);
+  extern uint64_t bcm2835_st_read();
 
   /* Delays for the specified number of microseconds with offset.
     \param[in] offset_micros Offset in microseconds
