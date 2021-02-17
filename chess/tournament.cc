@@ -58,7 +58,7 @@ using namespace std;
 // round would take hours. New version picks cells that have
 // the fewest number of games, and runs those in parallel.
 static constexpr int THREADS = 30;
-static constexpr int RUN_FOR_SECONDS = 60 * 20;
+static constexpr int RUN_FOR_SECONDS = 60 * 10;
 
 // Fill in the diagonal just a little. After reaching this number of games,
 // we don't bother prioritizing self-play at all.
@@ -685,6 +685,7 @@ static void TournamentThread(int thread_id,
       }
       }
     }
+
     games_done++;
     totals->Increment(white, black);
   }
