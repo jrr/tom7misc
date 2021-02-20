@@ -169,7 +169,8 @@ struct FontProblem {
                                     const ImageA &sdf,
                                     int width,
                                     int height,
-                                    int quality = 2);
+                                    int quality = 2,
+                                    float gamma = 1.0f);
 
 
   // Run the model on a single SDF. Returns the resulting SDF and
@@ -201,7 +202,8 @@ struct FontProblem {
       const ImageA &sdf,
       const std::vector<std::pair<float, uint32_t>> &layers,
       int out_width, int out_height,
-      int quality = 4);
+      int quality = 4,
+      float gamma = 1.0f);
 
 
   struct GenResult {
@@ -229,7 +231,9 @@ struct FontProblem {
                              const Network &make_uppercase,
                              const ImageA &sdf,
                              int scale,
-                             int quality = 3);
+                             int quality = 3,
+                             float gamma_low = 1.0f,
+                             float gamma_up = 1.0f);
 
   // Code for computing the error between a predicted vector shape ("loop")
   // and the expected one.

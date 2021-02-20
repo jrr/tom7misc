@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <cmath>
 
 #include "base/stringprintf.h"
 
@@ -228,11 +229,21 @@ ImageA FontProblem::SDFThresholdAAFloat(float onedge_value,
                                         const ImageA &sdf,
                                         int width,
                                         int height,
-                                        int quality) {
+                                        int quality,
+                                        float gamma) {
   const int scale = quality;
   // Resample to scaled size.
   // PERF we could sample directly from the 8-bit image
-  ImageF big = ImageF(sdf).ResizeBilinear(width * scale, height * scale);
+  ImageF sdff = ImageF(sdf);
+  if (gamma != 1.0f) {
+    for (int y = 0; y < sdff.Height(); y++) {
+      for (int x = 0; x < sdff.Width(); x++) {
+        sdff.SetPixel(x, y, powf(sdff.GetPixel(x, y), gamma));
+      }
+    }
+  }
+
+  ImageF big = sdff.ResizeBilinear(width * scale, height * scale);
   ImageA ret(width, height);
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
@@ -372,7 +383,7 @@ void FontProblem::RenderSDF(
            ImageRGBA thresh = ThresholdImageMulti(sdf, layers,
                                                   config.sdf_size,
                                                   config.sdf_size,
-                                                  4);
+                                                  4, 1.0f);
 
            img.BlendImage(startx, starty, thresh);
 
@@ -1219,13 +1230,15 @@ ImageRGBA FontProblem::ThresholdImageMulti(
     const ImageA &sdf,
     const std::vector<pair<float, uint32>> &layers,
     int out_width, int out_height,
-    int quality) {
+    int quality,
+    float gamma) {
   ImageRGBA out(out_width, out_height);
 
   for (const auto &[onedge_value, color] : layers) {
     ImageA thresh = SDFThresholdAAFloat(onedge_value, sdf,
                                         out_width, out_height,
-                                        quality);
+                                        quality,
+                                        gamma);
     const uint8 r = 0xFF & (color >> 24);
     const uint8 g = 0xFF & (color >> 16);
     const uint8 b = 0xFF & (color >> 8);
@@ -1241,8 +1254,10 @@ FontProblem::GenResult FontProblem::GenImages(
     const Network &make_uppercase,
     const ImageA &sdf,
     int scale,
-    int quality) {
-  // TODO: Threshold/gamma params
+    int quality,
+    float gamma_low,
+    float gamma_up) {
+
   const int sdf_size = config.sdf_size;
   const int THRESHOFF = sdf_size * scale;
 
@@ -1253,25 +1268,29 @@ FontProblem::GenResult FontProblem::GenImages(
       config.onedge_value / 255.0f,
       sdf,
       sdf_size * scale, sdf_size * scale,
-      quality);
+      quality, 1.0f);
   result.input.BlendImage(THRESHOFF, 0, thresh.GreyscaleRGBA());
 
   auto RunTo = [&config, scale, quality, sdf_size, THRESHOFF](
-      const Network &net, const ImageA &sdf, ImageRGBA *out,
+      const Network &net, const ImageA &sdf,
+      float gamma,
+      ImageRGBA *out,
       std::array<float, 26> *pred_out) {
       const auto [out_sdf, pred] =
         FontProblem::RunSDFModel(net, config, sdf);
       out->BlendImage(0, 0, out_sdf.GreyscaleRGBA().ScaleBy(scale));
 
-      vector<pair<float, uint32>> layers =
+      const vector<pair<float, uint32>> layers =
         {{config.onedge_value * 0.95f / 255.0f, 0x440000FF},
          {config.onedge_value * 0.975f / 255.0f, 0x66229FFF},
          {config.onedge_value / 255.0f, 0xFFFFFFFF}};
+
       ImageRGBA out_thresh = FontProblem::ThresholdImageMulti(
           out_sdf,
           layers,
           sdf_size * scale, sdf_size * scale,
-          quality);
+          quality,
+          gamma);
       out->BlendImage(THRESHOFF, 0, out_thresh);
 
       // Letter predictors.
@@ -1279,11 +1298,15 @@ FontProblem::GenResult FontProblem::GenImages(
       return out_sdf;
     };
 
-  ImageA lsdf = RunTo(make_lowercase, sdf, &result.low, &result.low_pred);
-  ImageA usdf = RunTo(make_uppercase, sdf, &result.up, &result.up_pred);
+  ImageA lsdf =
+    RunTo(make_lowercase, sdf, gamma_low, &result.low, &result.low_pred);
+  ImageA usdf =
+    RunTo(make_uppercase, sdf, gamma_up, &result.up, &result.up_pred);
 
-  (void)RunTo(make_uppercase, lsdf, &result.low_up, nullptr);
-  (void)RunTo(make_lowercase, usdf, &result.up_low, nullptr);
+  // Note gamma_low even when make_uppercase; the gamma_low parameter is
+  // about the "low side", and vice versa.
+  (void)RunTo(make_uppercase, lsdf, gamma_low, &result.low_up, nullptr);
+  (void)RunTo(make_lowercase, usdf, gamma_up, &result.up_low, nullptr);
   return result;
 }
 
