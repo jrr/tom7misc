@@ -75,6 +75,64 @@ using Flag = FontDB::Flag;
 
 static constexpr int WINDOW = 10;
 
+struct GammaSlider {
+  static constexpr float MIN = 0.05f;
+  static constexpr float MAX = 1.95f;
+
+  // screen coordinates
+  GammaSlider(int x, int y,
+              int width, int height) :
+    x(x), y(y), width(width), height(height) {
+  }
+
+  // screen coordinates
+  // returns true if dirty
+  bool MouseDown(int mousex, int mousey) {
+    if (mousex >= x && mousey >= y &&
+        mousex < x + width && mousey < y + height) {
+      dragging = true;
+      return MouseMove(mousex, mousey);
+    }
+    return false;
+  }
+
+  void MouseUp() {
+    dragging = false;
+  }
+
+  bool MouseMove(int mousex, int mousey) {
+    if (dragging) {
+      // XXX could use y for fine control?
+      float f = std::clamp((mousex - x) / (float)width, 0.0f, 1.0f);
+      value = f * (MAX - MIN) + MIN;
+      return true;
+    }
+    return false;
+  }
+
+  float Value() const { return value; }
+
+  void Draw() const {
+    sdlutil::drawbox(screen, x, y, width, height,
+                     0x55, 0x55, 0xCC);
+    float f = (value - MIN) / (MAX - MIN);
+    int pos = std::round(x + f * width);
+    sdlutil::FillRectRGB(screen, pos - 2, y + 1, 4, height - 2,
+                         0x77, 0xCC, 0xFF);
+    // Maybe make this disappear after a while?
+    font->draw(pos - 4, y + height + 2,
+               StringPrintf("^1%.2f", value));
+  }
+
+private:
+  bool dragging = false;
+
+  int x = 0, y = 0;
+  int width = 0;
+  int height = 0;
+  float value = 1.0;
+};
+
 struct UI {
   Mode mode = Mode::DRAW;
   DrawMode draw_mode = DrawMode::DRAWING;
@@ -123,6 +181,7 @@ struct UI {
   // be outside it.
   void DrawThick(int x0, int y0, int x1, int y1, Uint32 color);
   void FloodFill(int x, int y, Uint32 color);
+  void UpdateGamma();
 
   // current index (into cur_filenames, fonts, etc.) that we act
   // on with keypresses etc.
@@ -174,11 +233,27 @@ struct UI {
   static constexpr int DRAWING_Y = 32;
   static constexpr int DRAWING_SIZE = 800;
 
+  static constexpr int SDF_OUT_SCALE = 5;
+  static constexpr int SDF_OUT_H = SDF_CONFIG.sdf_size * SDF_OUT_SCALE;
+  static constexpr int SDF_OUT_W = SDF_OUT_H * 2;
+  // gap between the lower and lower-upper images
+  static constexpr int SDF_OUT_GAP = 32;
+
+  static constexpr int LOW_X = 132;
+  static constexpr int LOW_Y = 302;
+  static constexpr int UP_X = 1478;
+  static constexpr int UP_Y = 559;
+  GammaSlider gamma_low{LOW_X,
+                        LOW_Y + SDF_OUT_H * 2 + SDF_OUT_GAP + 4,
+                        SDF_OUT_W, 12};
+  GammaSlider gamma_up{UP_X, UP_Y + SDF_OUT_H + 4, SDF_OUT_W, 12};
+
   // Protects these.
   std::mutex result_m;
   std::condition_variable result_cv;
   SDL_Surface *drawing = nullptr;
   std::optional<FontProblem::GenResult> network_result;
+  // float gamma_low_value = 1.0f, gamma_up_value = 1.0f;
   bool result_dirty = true;
   bool result_should_die = false;
 };
@@ -188,6 +263,7 @@ void UI::ResultThread() {
   ImageA bitmap(DRAWING_SIZE, DRAWING_SIZE);
   for (;;) {
     double copy_ms = 0.0;
+    float gamma_low_value = 1.0f, gamma_up_value = 1.0f;
     {
       std::unique_lock<std::mutex> guard(result_m);
       result_cv.wait(guard, [this]() { return result_dirty; });
@@ -195,6 +271,9 @@ void UI::ResultThread() {
       if (result_should_die) return;
 
       Timer copy_timer;
+      gamma_low_value = gamma_low.Value();
+      gamma_up_value = gamma_up.Value();
+
       // Copy bitmap from drawing so we can work
       // without interference.
       for (int y = 0; y < DRAWING_SIZE; y++) {
@@ -217,11 +296,11 @@ void UI::ResultThread() {
     Timer result_timer;
     // Do work. Lock not held.
     ImageA sdf = FontProblem::SDFFromBitmap(SDF_CONFIG, bitmap);
-    constexpr int SIZE = 5;
     constexpr int QUALITY = 3;
     FontProblem::GenResult result =
       FontProblem::GenImages(SDF_CONFIG, *make_lowercase, *make_uppercase,
-                             sdf, SIZE, QUALITY);
+                             sdf, SDF_OUT_SCALE, QUALITY,
+                             gamma_low_value, gamma_up_value);
     double result_ms = result_timer.MS();
 
     {
@@ -610,6 +689,16 @@ void UI::DrawThick(int x0, int y0,
   result_cv.notify_all();
 }
 
+void UI::UpdateGamma() {
+  {
+    std::unique_lock<std::mutex> guard(result_m);
+    // gamma_low_value = gamma_low.Value();
+    // gamma_up_value = gamma_up.Value();
+    result_dirty = true;
+  }
+  result_cv.notify_all();
+}
+
 void UI::FloodFill(int x, int y, Uint32 color) {
   {
     std::unique_lock<std::mutex> guard(result_m);
@@ -701,26 +790,33 @@ void UI::Loop() {
         mousex = e->x;
         mousey = e->y;
 
-        if (dragging) {
-          if (mode == Mode::DRAW) {
-            switch (draw_mode) {
-            case DrawMode::DRAWING:
-              DrawThick(oldx - DRAWING_X, oldy - DRAWING_Y,
-                        mousex - DRAWING_X, mousey - DRAWING_Y,
-                        0xFFFFFFFF);
-              break;
-            case DrawMode::ERASING:
-              DrawThick(oldx - DRAWING_X, oldy - DRAWING_Y,
-                        mousex - DRAWING_X, mousey - DRAWING_Y,
-                        0xFF000000);
-              break;
-            default:
-              break;
-            }
+
+        if (mode == Mode::DRAW) {
+          if (gamma_low.MouseMove(mousex, mousey) ||
+              gamma_up.MouseMove(mousex, mousey)) {
+            UpdateGamma();
             SetDirty();
+          } else {
+            if (dragging) {
+              switch (draw_mode) {
+              case DrawMode::DRAWING:
+                DrawThick(oldx - DRAWING_X, oldy - DRAWING_Y,
+                          mousex - DRAWING_X, mousey - DRAWING_Y,
+                          0xFFFFFFFF);
+                break;
+              case DrawMode::ERASING:
+                DrawThick(oldx - DRAWING_X, oldy - DRAWING_Y,
+                          mousex - DRAWING_X, mousey - DRAWING_Y,
+                          0xFF000000);
+                break;
+              default:
+                break;
+              }
+              SetDirty();
+            }
           }
         }
-        // Do dragging...
+
         break;
       }
 
@@ -730,29 +826,36 @@ void UI::Loop() {
         mousex = e->x;
         mousey = e->y;
 
-        dragging = true;
-
         if (mode == Mode::DRAW) {
-          switch (draw_mode) {
-          case DrawMode::DRAWING:
-            // Make sure that a click also makes a pixel.
-            DrawThick(mousex - DRAWING_X, mousey - DRAWING_Y,
-                      mousex - DRAWING_X, mousey - DRAWING_Y,
-                      0xFFFFFFFF);
-            break;
-          case DrawMode::ERASING:
-            DrawThick(mousex - DRAWING_X, mousey - DRAWING_Y,
-                      mousex - DRAWING_X, mousey - DRAWING_Y,
-                      0xFF000000);
-            break;
-          case DrawMode::FILLING:
-            // XXX should be able to flood-fill erase too
-            FloodFill(mousex - DRAWING_X, mousey - DRAWING_Y,
-                      0xFFFFFFFF);
-            break;
-          }
 
-          SetDirty();
+          if (gamma_low.MouseDown(mousex, mousey) ||
+              gamma_up.MouseDown(mousex, mousey)) {
+            UpdateGamma();
+            SetDirty();
+          } else {
+            dragging = true;
+
+            switch (draw_mode) {
+            case DrawMode::DRAWING:
+              // Make sure that a click also makes a pixel.
+              DrawThick(mousex - DRAWING_X, mousey - DRAWING_Y,
+                        mousex - DRAWING_X, mousey - DRAWING_Y,
+                        0xFFFFFFFF);
+              break;
+            case DrawMode::ERASING:
+              DrawThick(mousex - DRAWING_X, mousey - DRAWING_Y,
+                        mousex - DRAWING_X, mousey - DRAWING_Y,
+                        0xFF000000);
+              break;
+            case DrawMode::FILLING:
+              // XXX should be able to flood-fill erase too
+              FloodFill(mousex - DRAWING_X, mousey - DRAWING_Y,
+                        0xFFFFFFFF);
+              break;
+            }
+
+            SetDirty();
+          }
 
         } else if (mode == Mode::LOOPTEST) {
           if (e->button == SDL_BUTTON_LEFT) {
@@ -771,6 +874,8 @@ void UI::Loop() {
 
       case SDL_MOUSEBUTTONUP: {
         // LMB/RMB, drag, etc.
+        gamma_low.MouseUp();
+        gamma_up.MouseUp();
         dragging = false;
         break;
       }
@@ -1408,25 +1513,24 @@ void UI::DrawDrawing() {
     if (network_result.has_value()) {
       const auto &res = network_result.value();
       BlitImage(res.input, 808, 849);
-      BlitImage(res.low, 132, 542);
-      BlitImage(res.low_up, 132, 302);
-      BlitImage(res.up, 1478, 559);
-      BlitImage(res.up_low, 1478, 856);
+      BlitImage(res.low, LOW_X, LOW_Y + SDF_OUT_H + SDF_OUT_GAP);
+      BlitImage(res.low_up, LOW_X, LOW_Y);
+      BlitImage(res.up, UP_X, 559);
+      BlitImage(res.up_low, UP_X, 856);
 
       constexpr int TEXTW = 100;
       // nominal
       constexpr int MAX_BAR_WIDTH = 200;
       constexpr int BAR_CENTER = 100;
       for (int i = 0; i < 26; i++) {
-        constexpr int LOWX = 132;
         const int lowy = 740 + i * (font->height + 2);
         const float f = res.low_pred[i];
-        font->draw(132, lowy,
+        font->draw(LOW_X, lowy,
                    StringPrintf("%c: %+.8f", 'A' + i, f));
         if (f < 0.0f) {
           const int BAR_WIDTH = std::clamp(-f, 0.0f, 2.0f) * MAX_BAR_WIDTH;
           sdlutil::FillRectRGB(screen,
-                               LOWX + TEXTW + BAR_CENTER - BAR_WIDTH,
+                               LOW_X + TEXTW + BAR_CENTER - BAR_WIDTH,
                                lowy + 2,
                                BAR_WIDTH,
                                font->height - 2,
@@ -1434,7 +1538,7 @@ void UI::DrawDrawing() {
         } else {
           const int BAR_WIDTH = std::clamp(f, 0.0f, 2.0f) * MAX_BAR_WIDTH;
           sdlutil::FillRectRGB(screen,
-                               LOWX + TEXTW + BAR_CENTER,
+                               LOW_X + TEXTW + BAR_CENTER,
                                lowy + 2,
                                BAR_WIDTH,
                                font->height - 2,
@@ -1443,10 +1547,13 @@ void UI::DrawDrawing() {
       }
 
       for (int i = 0; i < 26; i++) {
-        font->draw(1478, 150 + i * (font->height + 2),
+        font->draw(UP_X, 150 + i * (font->height + 2),
                    StringPrintf("%c: %+.8f", 'a' + i,
                                 res.up_pred[i]));
       }
+
+      gamma_low.Draw();
+      gamma_up.Draw();
 
       // TODO!
       // std::array<float, 26> low_pred;
