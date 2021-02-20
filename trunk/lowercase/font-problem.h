@@ -156,13 +156,21 @@ struct FontProblem {
   // assumes the bitmap is at least as big as the output sdf.
   static ImageA SDF36From8x8(Image8x8 bits);
 
-  // Render tresholded image at high resolution (each dimension scaled
-  // by scale), then downsample to get an anti-aliased image. Output
-  // image is the same size as the input sdf, so typically this follows
-  // upscaling the SDF with bilinear resampling.
+  // Deprecated!
   static ImageA SDFThresholdAA(uint8_t onedge_value,
                                const ImageA &sdf,
-                               int scale = 2);
+                               int scale);
+
+  // Prefer this new version. threshold is in [0, 1].
+  // width and height are the size of the output image. quality
+  // controls the amount of oversampling (this many pixels squared,
+  // per output pixel) for anti-aliasing.
+  static ImageA SDFThresholdAAFloat(float onedge_value,
+                                    const ImageA &sdf,
+                                    int width,
+                                    int height,
+                                    int quality = 2);
+
 
   // Run the model on a single SDF. Returns the resulting SDF and
   // the letter predictors (nominally in [0,1]).
@@ -185,15 +193,15 @@ struct FontProblem {
                       const ImageA &sdf_input);
 
   // Threshold the sdf at multiple values and emit an anti-aliased,
-  // layered image. The layers should have increasing threshold
-  // values (first field) and only the RGB channels of the color
-  // (second second) are used. Typical to include config.onedge_value
+  // layered image. The layers should have increasing threshold values
+  // (first field, in [0,1]) and only the RGB channels of the color
+  // (second) are used. Typical to include config.onedge_value/255.0f
   // as one of them!
-  // scale is a oversampling quality param.
   static ImageRGBA ThresholdImageMulti(
       const ImageA &sdf,
-      const std::vector<std::pair<uint8_t, uint32_t>> &layers,
-      int scale = 4);
+      const std::vector<std::pair<float, uint32_t>> &layers,
+      int out_width, int out_height,
+      int quality = 4);
 
 
   struct GenResult {
@@ -220,7 +228,8 @@ struct FontProblem {
                              const Network &make_lowercase,
                              const Network &make_uppercase,
                              const ImageA &sdf,
-                             int scale);
+                             int scale,
+                             int quality = 3);
 
   // Code for computing the error between a predicted vector shape ("loop")
   // and the expected one.

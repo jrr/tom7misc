@@ -89,7 +89,7 @@ struct UI {
     ReadMutexLock ml(&dirty_m);
     return ui_dirty;
   }
-  
+
   // quit confirmations.
   int confirmations = 0;
 
@@ -107,7 +107,7 @@ struct UI {
   void Draw();
 
   void RecomputeLoop();
-  
+
   int DrawChar(TTF *ttf, int sx, int sy, float scale, char c, char nc);
   int DrawString(TTF *ttf, int sx, int sy, float scale, const string &str);
   int DrawAlphabet(TTF *ttf, int sx, int sy, float scale);
@@ -118,12 +118,12 @@ struct UI {
   void DrawDrawing();
 
   void ClearDrawing();
-  
+
   // Draw line into drawing. Coordinates are relative to drawing, but may
   // be outside it.
   void DrawThick(int x0, int y0, int x1, int y1, Uint32 color);
   void FloodFill(int x, int y, Uint32 color);
-  
+
   // current index (into cur_filenames, fonts, etc.) that we act
   // on with keypresses etc.
   int cur = 0;
@@ -133,7 +133,7 @@ struct UI {
   vector<TTF *> fonts;
 
   void ResultThread();
-  
+
   TTF *GetFont(int idx) {
     CHECK(idx < cur_filenames.size());
     while (idx >= fonts.size()) {
@@ -164,11 +164,11 @@ struct UI {
   TTF times{"times.ttf"};
 
   vector<FontProblem::Point> looptest_expected;
-  vector<FontProblem::Point> looptest_actual;  
+  vector<FontProblem::Point> looptest_actual;
   std::optional<FontProblem::LoopAssignment> looptest_assignment;
 
   static constexpr FontProblem::SDFConfig SDF_CONFIG{};
-  std::unique_ptr<const Network> make_lowercase;  
+  std::unique_ptr<const Network> make_lowercase;
   std::unique_ptr<const Network> make_uppercase;
   static constexpr int DRAWING_X = 591;
   static constexpr int DRAWING_Y = 32;
@@ -217,11 +217,13 @@ void UI::ResultThread() {
     Timer result_timer;
     // Do work. Lock not held.
     ImageA sdf = FontProblem::SDFFromBitmap(SDF_CONFIG, bitmap);
+    constexpr int SIZE = 5;
+    constexpr int QUALITY = 3;
     FontProblem::GenResult result =
       FontProblem::GenImages(SDF_CONFIG, *make_lowercase, *make_uppercase,
-                             sdf, 5);
+                             sdf, SIZE, QUALITY);
     double result_ms = result_timer.MS();
-    
+
     {
       std::lock_guard<std::mutex> guard(result_m);
       if (result_should_die) return;
@@ -230,7 +232,7 @@ void UI::ResultThread() {
 
     // But now the UI is dirty.
     SetDirty();
-    
+
     printf("Got result in %.4fs copy + %.4fs work\n",
            copy_ms / 1000.0, result_ms / 1000.0);
   }
@@ -253,7 +255,7 @@ double BitmapDifference(const TTF &ttf,
                         // Offsets for c2. Maybe depends on scale?
                         float xmov2, float ymov2,
                         bool draw = false) {
-  
+
   const stbtt_fontinfo *info = ttf.Font();
   CHECK(info != nullptr);
 
@@ -263,7 +265,7 @@ double BitmapDifference(const TTF &ttf,
   }
 
   float stb_scale = stbtt_ScaleForPixelHeight(info, scale);
-  
+
   int width1, height1, xoff1, yoff1;
   uint8 *bit1 = stbtt_GetCodepointBitmapSubpixel(info,
                                                  // uniform scale
@@ -288,7 +290,7 @@ double BitmapDifference(const TTF &ttf,
     printf ("scale %.5f %.5f\n",
             stb_scale * xscale2, stb_scale * yscale2);
   }
-  
+
   int width2, height2, xoff2, yoff2;
   uint8 *bit2 =
     stbtt_GetCodepointBitmapSubpixel(info,
@@ -298,12 +300,12 @@ double BitmapDifference(const TTF &ttf,
                                      &width2, &height2,
                                      &xoff2, &yoff2);
 
-  CHECK(bit2 != nullptr);  
+  CHECK(bit2 != nullptr);
 
   // Draw to screen (separately).
   if (draw) {
     constexpr int X1 = 10, Y1 = 200;
-    constexpr int X2 = 400, Y2 = 200;  
+    constexpr int X2 = 400, Y2 = 200;
 
     auto DrawBitmap = [](int startx, int starty, uint8 *bm,
                          int width, int height,
@@ -323,12 +325,12 @@ double BitmapDifference(const TTF &ttf,
       };
 
     DrawBitmap(X1, Y1, bit1, width1, height1, 0xFF, 0x00, 0x00);
-    DrawBitmap(X2, Y2, bit2, width2, height2, 0x00, 0xFF, 0x00);      
+    DrawBitmap(X2, Y2, bit2, width2, height2, 0x00, 0xFF, 0x00);
 
     font->draw(X1, Y1 - font->height,
                StringPrintf("^3%d^1x^3%d", width1, height1));
     font->draw(X2, Y2 - font->height,
-               StringPrintf("^3%d^1x^3%d", width2, height2));  
+               StringPrintf("^3%d^1x^3%d", width2, height2));
 
     auto Locate = [](int x, int y) {
         for (int dy : {-1, 0, 1}) {
@@ -343,11 +345,11 @@ double BitmapDifference(const TTF &ttf,
       };
 
     Locate(X1 - xoff1, Y1 - yoff1);
-    Locate(X2 - xoff2, Y2 - yoff2);  
+    Locate(X2 - xoff2, Y2 - yoff2);
   }
 
   // overlapping style.
-  
+
   // Here we're working in a coordinate space where 0,0 is the origin
   // for both characters, and the scale is in pixels of the rendered
   // bitmaps. The top left of the bitmap (and the bounding box
@@ -407,7 +409,7 @@ double BitmapDifference(const TTF &ttf,
           x2 < width2 && y2 < height2) {
         numer255 += abs((int)v2 - (int)v1);
       }
-      
+
       if (draw) {
         sdlutil::drawclippixel(screen, BX + x, BY + y, v1, v2, 0);
       }
@@ -422,12 +424,12 @@ double BitmapDifference(const TTF &ttf,
                                               denom,
                                               err * 100.0));
   }
-  
+
   if (draw) {
     printf("Freeing..\n");
     fflush(stdout);
   }
-  
+
   stbtt_FreeBitmap(bit1, nullptr);
   stbtt_FreeBitmap(bit2, nullptr);
   return err;
@@ -436,7 +438,7 @@ double BitmapDifference(const TTF &ttf,
 
 UI::UI() {
   int64 sorted = 0, unsorted = 0;
-  int64 case_marked = 0, case_unmarked = 0;  
+  int64 case_marked = 0, case_unmarked = 0;
   // Done: random, (di)stressed, laser, helvetica, antique
   // "sans serif", serif, 3D, outline, handwriting, hand
   // shadow, arial, mirror, flipped, hollow, bats, icon
@@ -477,7 +479,7 @@ UI::UI() {
               auto bb = FontDB::GetBaseFilename(b);
               return aa < bb;
             });
-  
+
   // Optional. Might be good to keep fonts in the same family
   // together, really..
   // Shuffle(&rc, &cur_filenames);
@@ -493,7 +495,7 @@ UI::UI() {
       cut.emplace_back(std::move(cur_filenames[i]));
     cur_filenames = std::move(cut);
   }
-  
+
   printf("All fonts: %d\n"
          "Sorted fonts: %lld\n"
          "Unsorted fonts: %lld\n"
@@ -508,7 +510,7 @@ UI::UI() {
   make_lowercase.reset(Network::ReadNetworkBinary("net0.val"));
   make_uppercase.reset(Network::ReadNetworkBinary("net1.val"));
   printf("Loaded networks.\n");
-  
+
   drawing = sdlutil::makesurface(DRAWING_SIZE, DRAWING_SIZE, true);
   ClearDrawing();
   CHECK(drawing != nullptr);
@@ -554,7 +556,7 @@ void UI::RecomputeLoop() {
     for (const auto &[x, y] : looptest_actual) {
       printf("  {%d,%d},\n", (int)x, (int)y);
     }
-    
+
     Timer assn_timer;
     looptest_assignment.emplace(
         FontProblem::BestLoopAssignment(&rc,
@@ -616,7 +618,7 @@ void UI::FloodFill(int x, int y, Uint32 color) {
     CHECK(w == DRAWING_SIZE && h == DRAWING_SIZE);
     if (x < 0 || y < 0 || x >= w || y >= h)
       return;
-        
+
     Uint32 *bufp = (Uint32 *)drawing->pixels;
     int stride = drawing->pitch >> 2;
 
@@ -678,7 +680,7 @@ void UI::Run() {
 }
 
 void UI::Loop() {
-  
+
   int mousex = 0, mousey = 0;
   bool dragging = false;
   (void)mousex; (void)mousey;
@@ -695,7 +697,7 @@ void UI::Loop() {
         SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
 
         const int oldx = mousex, oldy = mousey;
-        
+
         mousex = e->x;
         mousey = e->y;
 
@@ -721,7 +723,7 @@ void UI::Loop() {
         // Do dragging...
         break;
       }
-        
+
       case SDL_MOUSEBUTTONDOWN: {
         // LMB/RMB, drag, etc.
         SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
@@ -751,7 +753,7 @@ void UI::Loop() {
           }
 
           SetDirty();
-          
+
         } else if (mode == Mode::LOOPTEST) {
           if (e->button == SDL_BUTTON_LEFT) {
             looptest_expected.emplace_back((float)mousex, (float)mousey);
@@ -772,7 +774,7 @@ void UI::Loop() {
         dragging = false;
         break;
       }
-        
+
       case SDL_KEYDOWN: {
 
         // Need to press this consecutively in order
@@ -794,16 +796,16 @@ void UI::Loop() {
           break;
 
         case SDLK_a: {
-          
+
           if (mode == Mode::SCALETEST) {
             printf("Solving...\n");
 
             TTF *ttf = GetFont(cur);
             CHECK(ttf != nullptr);
-            
+
             auto GetErr = [ttf](const std::array<double, 4> &args) {
                 const auto [xscale2, yscale2, xoff2, yoff2] = args;
-                return 
+                return
                   BitmapDifference(*ttf,
                                    'A', 'a',
                                    200,
@@ -813,14 +815,14 @@ void UI::Loop() {
                                    false);
               };
 
-            const auto [args, err] = 
+            const auto [args, err] =
               Opt::Minimize<4>(GetErr,
                                {0.1, 0.1, -50.0, -50.0},
                                {10.0, 10.0, 50.0, 50.0},
                                1000);
 
             const auto [xscale2, yscale2, xoff2, yoff2] = args;
-            
+
             printf("Done! Error: %.4f%%\n", err * 100.0);
             current_xscale = xscale2;
             current_yscale = yscale2;
@@ -829,12 +831,12 @@ void UI::Loop() {
 
             double rerr = GetErr({xscale2, yscale2, xoff2, yoff2});
             printf("Recomputed: %.4f%%\n", rerr * 100.0);
-            
+
             SetDirty();
           }
           break;
         }
-          
+
         case SDLK_TAB:
           printf("TAB.\n");
           switch (mode) {
@@ -887,10 +889,10 @@ void UI::Loop() {
           case Mode::DRAW:
             // TODO: Shift bitmap around
             break;
-            
+
           case Mode::LOOPTEST:
             break;
-          
+
           case Mode::SORTITION:
             cur += dy;
             if (cur < 0) cur = 0;
@@ -898,13 +900,13 @@ void UI::Loop() {
               cur = cur_filenames.size() - 1;
             SetDirty();
             break;
-            
+
           case Mode::BITMAP:
           case Mode::SDFTEST:
             cur += dy;
             if (cur < 0) cur = 0;
             if (cur >= cur_filenames.size()) cur = cur_filenames.size() - 1;
-            
+
             current_char += dx;
             if (current_char > 'z') current_char = 'z';
             else if (current_char < 'A') current_char = 'A';
@@ -921,7 +923,7 @@ void UI::Loop() {
               fdx *= 0.1;
               fdy *= 0.1;
             }
-              
+
             if (event.key.keysym.mod & KMOD_CTRL) {
               current_xscale += 0.05 * fdx;
               if (current_xscale < 0.01) current_xscale = 0.01;
@@ -962,7 +964,7 @@ void UI::Loop() {
             SetDirty();
           }
           break;
-          
+
         case SDLK_PLUS:
         case SDLK_EQUALS:
           current_scale += 5;
@@ -987,7 +989,7 @@ void UI::Loop() {
         case SDLK_x:
           SetFlag(Flag::SAME_CASE, true);
           break;
-          
+
         case SDLK_g:
           if (mode == Mode::DRAW) {
             draw_mode = DrawMode::FILLING;
@@ -1005,7 +1007,7 @@ void UI::Loop() {
             SetDirty();
           }
           break;
-          
+
         case SDLK_s:
           SetType(Type::SERIF);
           break;
@@ -1203,7 +1205,7 @@ void UI::DrawSortition() {
                  progress);
   }
 
-    
+
   int xpos = 64;
   int ypos = 64;
   constexpr int HISTORY = 2;
@@ -1237,7 +1239,7 @@ void UI::DrawSortition() {
         }
       }
 
-      
+
       string name = FontDB::GetBaseFilename(ff);
       font->draw(xpos, ypos, name);
       ypos += font->height + 1;
@@ -1247,7 +1249,7 @@ void UI::DrawSortition() {
       }
 
       font2x->draw(4, ypos + font2x->height, dest);
-      font2x->draw(4, ypos + font2x->height * 2, cstring);      
+      font2x->draw(4, ypos + font2x->height * 2, cstring);
 
       ypos += DrawAlphabet(GetFont(i), xpos, ypos, scale);
       ypos += 2;
@@ -1261,10 +1263,10 @@ void UI::DrawSortition() {
     }
   }
 }
-  
+
 void UI::DrawSDF() {
   static constexpr int SIZE = 32;
-  
+
   using SDFConfig = FontProblem::SDFConfig;
   SDFConfig config;
   config.sdf_size = SIZE;
@@ -1276,7 +1278,7 @@ void UI::DrawSDF() {
 
   /*
   const float base_padding = (config.pad_top + config.pad_bot) * 0.5f;
-  
+
   const float falloff_min =
     (float)config.onedge_value / (sqrtf(2.0f) * config.sdf_size * 0.5f);
   const float falloff_max = (float)config.onedge_value / base_padding;
@@ -1285,7 +1287,7 @@ void UI::DrawSDF() {
   config.falloff_per_pixel = 0.25f * falloff_max + 0.75 * falloff_min;
   */
   printf("Falloff per pixel: %.3f\n", config.falloff_per_pixel);
-  
+
   const TTF *font = GetFont(cur);
   std::optional<ImageA> sdf =
     font->GetSDF(current_char, config.sdf_size,
@@ -1293,7 +1295,7 @@ void UI::DrawSDF() {
                  config.onedge_value, config.falloff_per_pixel);
   if (sdf.has_value()) {
     constexpr int X1 = 10, Y1 = 200;
-    constexpr int X2 = 500, Y2 = 200;  
+    constexpr int X2 = 500, Y2 = 200;
     constexpr int X3 = 10, Y3 = 500;
     constexpr int X4 = 500, Y4 = 500;
     constexpr int X5 = 10, Y5 = 800;
@@ -1320,7 +1322,7 @@ void UI::DrawSDF() {
           for (int x = 0; x < sdf.Width(); x++) {
             uint8 v = sdf.GetPixel(x, y);
             int xx = startx + x;
-            
+
             uint8 vv = v >= thresh ? 0xFF : 0x00;
             sdlutil::drawclippixel(screen, xx, yy, vv, vv, vv);
             idx++;
@@ -1328,7 +1330,7 @@ void UI::DrawSDF() {
         }
       };
 
-    
+
     auto DrawBitmap2x = [](int startx, int starty, const ImageA &sdf) {
         int idx = 0;
         for (int y = 0; y < sdf.Height(); y++) {
@@ -1339,7 +1341,7 @@ void UI::DrawSDF() {
             sdlutil::drawclippixel(screen, xx, yy, v, v, v);
             sdlutil::drawclippixel(screen, xx + 1, yy, v, v, v);
             sdlutil::drawclippixel(screen, xx, yy + 1, v, v, v);
-            sdlutil::drawclippixel(screen, xx + 1, yy + 1, v, v, v);        
+            sdlutil::drawclippixel(screen, xx + 1, yy + 1, v, v, v);
             idx++;
           }
         }
@@ -1353,19 +1355,19 @@ void UI::DrawSDF() {
           for (int x = 0; x < sdf.Width(); x++) {
             uint8 v = sdf.GetPixel(x, y);
             int xx = startx + x * 2;
-            
+
             uint8 vv = v >= thresh ? 0xFF : 0x00;
             sdlutil::drawclippixel(screen, xx, yy, vv, vv, vv);
             sdlutil::drawclippixel(screen, xx + 1, yy, vv, vv, vv);
             sdlutil::drawclippixel(screen, xx, yy + 1, vv, vv, vv);
-            sdlutil::drawclippixel(screen, xx + 1, yy + 1, vv, vv, vv);     
-            
+            sdlutil::drawclippixel(screen, xx + 1, yy + 1, vv, vv, vv);
+
             idx++;
           }
         }
       };
 
-  
+
     DrawBitmap2x(X1, Y1, sdf.value());
     DrawBitmapThresh2x(config.onedge_value, X2, Y2, sdf.value());
 
@@ -1378,7 +1380,7 @@ void UI::DrawSDF() {
                                               sdf.value().Height() * 4);
     DrawBitmap(X5, Y5, fourx);
     DrawBitmapThresh(config.onedge_value, X6, Y6, fourx);
-    
+
   } else {
     ::font->draw(100, 100, "No SDF");
   }
@@ -1404,15 +1406,51 @@ void UI::DrawDrawing() {
     std::unique_lock<std::mutex> guard(result_m);
     sdlutil::blitall(drawing, screen, DRAWING_X, DRAWING_Y);
     if (network_result.has_value()) {
-      BlitImage(network_result.value().input, 808, 849);
-      BlitImage(network_result.value().low, 132, 592);
-      BlitImage(network_result.value().low_up, 132, 352);    
-      BlitImage(network_result.value().up, 1478, 559);
-      BlitImage(network_result.value().up_low, 1478, 856);
+      const auto &res = network_result.value();
+      BlitImage(res.input, 808, 849);
+      BlitImage(res.low, 132, 542);
+      BlitImage(res.low_up, 132, 302);
+      BlitImage(res.up, 1478, 559);
+      BlitImage(res.up_low, 1478, 856);
+
+      constexpr int TEXTW = 100;
+      // nominal
+      constexpr int MAX_BAR_WIDTH = 200;
+      constexpr int BAR_CENTER = 100;
+      for (int i = 0; i < 26; i++) {
+        constexpr int LOWX = 132;
+        const int lowy = 740 + i * (font->height + 2);
+        const float f = res.low_pred[i];
+        font->draw(132, lowy,
+                   StringPrintf("%c: %+.8f", 'A' + i, f));
+        if (f < 0.0f) {
+          const int BAR_WIDTH = std::clamp(-f, 0.0f, 2.0f) * MAX_BAR_WIDTH;
+          sdlutil::FillRectRGB(screen,
+                               LOWX + TEXTW + BAR_CENTER - BAR_WIDTH,
+                               lowy + 2,
+                               BAR_WIDTH,
+                               font->height - 2,
+                               0x88, 0x33, 0x00);
+        } else {
+          const int BAR_WIDTH = std::clamp(f, 0.0f, 2.0f) * MAX_BAR_WIDTH;
+          sdlutil::FillRectRGB(screen,
+                               LOWX + TEXTW + BAR_CENTER,
+                               lowy + 2,
+                               BAR_WIDTH,
+                               font->height - 2,
+                               0x33, 0x88, 0x33);
+        }
+      }
+
+      for (int i = 0; i < 26; i++) {
+        font->draw(1478, 150 + i * (font->height + 2),
+                   StringPrintf("%c: %+.8f", 'a' + i,
+                                res.up_pred[i]));
+      }
 
       // TODO!
       // std::array<float, 26> low_pred;
-      // std::array<float, 26> up_pred;  
+      // std::array<float, 26> up_pred;
     }
   }
 
@@ -1438,7 +1476,7 @@ void UI::Draw() {
   case Mode::DRAW:
     DrawDrawing();
     break;
-    
+
   case Mode::SORTITION:
     DrawSortition();
     break;
@@ -1453,7 +1491,7 @@ void UI::Draw() {
         //        0       1 2
         //        x       y z      <- expected
         //    a b c d e f g h i j  <- actual
-        //    0 1 2 3 4 5 6 7 8 9 
+        //    0 1 2 3 4 5 6 7 8 9
         // This would be represented with point0 = 2,
         // and groups = {4, 1, 5}.
 
@@ -1468,7 +1506,7 @@ void UI::Draw() {
                                   (int)apt.first, (int)apt.second,
                                   (int)ept.first, (int)ept.second,
                                   0xFF, 0x44, 0x44);
-            
+
             a++;
             if (a == looptest_actual.size()) a = 0;
           }
@@ -1477,7 +1515,7 @@ void UI::Draw() {
 
     if (looptest_assignment.has_value())
       DrawAssignment(looptest_assignment.value());
-    
+
     auto DrawLoop = [](const vector<FontProblem::Point> &pts,
                        uint8 r, uint8 g, uint8 b) {
         for (int i = 0; i < pts.size(); i++) {
@@ -1495,7 +1533,7 @@ void UI::Draw() {
 
     DrawLoop(looptest_expected, 0x00, 0xAA, 0x00);
     DrawLoop(looptest_actual,   0x44, 0xFF, 0x44);
-    
+
     const int LINE1 = SCREENH - 30 - font->height * 2;
     const int LINE2 = LINE1 + font->height;
     const int LINE3 = LINE2 + font->height;
@@ -1521,21 +1559,21 @@ void UI::Draw() {
     } else {
       font->draw(12, LINE3, "(No assignment)");
     }
-    
+
     break;
   }
 
   case Mode::SDFTEST:
     DrawSDF();
     break;
-    
+
   case Mode::BITMAP: {
 
     vector<TTF::Contour> contours = times.GetContours(current_char);
     if (only_bezier) contours = TTF::MakeOnlyBezier(contours);
     if (normalize) contours = TTF::NormalizeOrder(contours,
                                                   0.0f, 0.0f);
-    
+
     constexpr int XPOS = 128;
     constexpr int YPOS = 48;
     // Basically, the height of the font in pixels.
@@ -1554,7 +1592,7 @@ void UI::Draw() {
         int yy = YPOS + y * SCALE;
         font->draw(xx, yy, StringPrintf("%d", n));
       };
-    
+
     // One screen pixel in normalized coordinates.
     double sqerr = 1.0f / (SCALE * SCALE);
 
@@ -1611,7 +1649,7 @@ void UI::Draw() {
                  StringPrintf("scale ^5%.2f^1x^5%.2f  ^0off ^6%.2f %.2f",
                               current_xscale, current_yscale,
                               current_xoff, current_yoff));
-    
+
     TTF *ttf = GetFont(cur);
     CHECK(ttf != nullptr);
 
@@ -1625,7 +1663,7 @@ void UI::Draw() {
                        current_xscale, current_yscale,
                        current_xoff, current_yoff,
                        true);
-    
+
     break;
   }
   }
@@ -1682,7 +1720,7 @@ int main(int argc, char **argv) {
 
   SDL_SetCursor(cursor_arrow);
   SDL_ShowCursor(SDL_ENABLE);
-  
+
   UI ui;
   ui.Run();
 

@@ -664,7 +664,7 @@ static ImageA Random8x8(const Network &prednet,
       // (My handmade A had 33. Maybe should be fewer
       // for lowercase?)
       int pixels = img8x8.PixelsOn();
-      int pixel_cost = pixels - 32;
+      int pixel_cost = abs(pixels - 32);
       penalty += pixel_cost / 50.0;
 
       // Provide a small penalty for noisy images.
@@ -673,8 +673,8 @@ static ImageA Random8x8(const Network &prednet,
 
       num_calls++;
       if (num_calls % 1000 == 0)
-        printf("[%c] %d calls, %d edges, penalty: %.4f\n",
-               target_letter + 'a', num_calls, edges, penalty);
+        printf("[%c] %d calls, %d pixels, %d edges, penalty: %.4f\n",
+               target_letter + 'a', num_calls, pixels, edges, penalty);
 
       return penalty;
     };
@@ -709,8 +709,10 @@ int main(int argc, char **argv) {
   }
   #endif
 
+  // XXX actually for the lowercaser we want to place the 8x8 image
+  // lower so that it can hang below the baseline...
   // XXX make command-line option
-  const string model_file = "net0.val";
+  const string model_file = "net1.val";
 
   std::unique_ptr<Network> net;
   net.reset(Network::ReadNetworkBinary(model_file));
@@ -737,8 +739,11 @@ int main(int argc, char **argv) {
         ImageA best_sdf = Random8x8(*prednet, target_letter);
 
         // Pass same net twice, we'll just use the "lowercase"
+        constexpr int SIZE = 6;
+        constexpr int QUALITY = 4;
         FontProblem::GenResult result =
-          FontProblem::GenImages(SDF_CONFIG, *net, *net, best_sdf, 6);
+          FontProblem::GenImages(SDF_CONFIG, *net, *net, best_sdf,
+                                 SIZE, QUALITY);
 
         static constexpr int BAR = 16;
 

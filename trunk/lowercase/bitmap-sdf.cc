@@ -23,10 +23,11 @@ static void Gen(const FontProblem::SDFConfig &config,
                 const ImageA &sdf,
                 const string &filename) {
   const int SCALE = 5;
+  const int QUALITY = 4;
 
   FontProblem::GenResult result =
     FontProblem::GenImages(config, make_lowercase, make_uppercase,
-                           sdf, SCALE);
+                           sdf, SCALE, QUALITY);
 
   // All should be the same size.
   const int TILEW = result.input.Width();
@@ -79,12 +80,20 @@ int main(int argc, char **argv) {
     vector_sdf = sdf.value();
     const int BSIZE = 800;
 
+    // Comparing old and new approaches
     {
-      ImageRGBA bitmap = FontProblem::SDFThresholdAA(
+      ImageRGBA bitmap8 = FontProblem::SDFThresholdAA(
           config.onedge_value,
-          sdf.value().ResizeBilinear(BSIZE, BSIZE),
-          1).GreyscaleRGBA();
-      // for comparing the bitmap excursion to the round trip.
+          vector_sdf.ResizeBilinear(BSIZE, BSIZE),
+          4).GreyscaleRGBA();
+      bitmap8.Save("bitmapletter8-example.png");
+    }
+    {
+      ImageRGBA bitmap = FontProblem::SDFThresholdAAFloat(
+          config.onedge_value / 255.0f,
+          vector_sdf,
+          BSIZE, BSIZE,
+          4).GreyscaleRGBA();
       bitmap.Save("bitmapletter-example.png");
     }
 
@@ -100,9 +109,10 @@ int main(int argc, char **argv) {
       tpl.BlendRect32(0, BSIZE - pb * BSIZE,
                       BSIZE, pb * BSIZE, 0x003300FF);
 
-      ImageRGBA bitmap = FontProblem::SDFThresholdAA(
-          config.onedge_value,
-          sdf.value().ResizeBilinear(BSIZE, BSIZE),
+      ImageRGBA bitmap = FontProblem::SDFThresholdAAFloat(
+          config.onedge_value / 255.0f,
+          vector_sdf,
+          BSIZE, BSIZE,
           3).AlphaMaskRGBA(0x00, 0x00, 0x33);
       tpl.BlendImage(0, 0, bitmap);
       tpl.Save("bitmap-template.png");
@@ -116,6 +126,15 @@ int main(int argc, char **argv) {
 
   CHECK(make_lowercase.get() != nullptr);
   CHECK(make_uppercase.get() != nullptr);
+
+  // XXX temp
+  {
+    std::unique_ptr<Network> prednet(
+        FontProblem::MakePredOnlyNetwork(FontProblem::SDFConfig(),
+                                         *make_lowercase));
+    Network::SaveNetworkBinary(*prednet, "letterpred.val");
+  }
+
 
   std::unique_ptr<ImageRGBA> input_rgba(ImageRGBA::Load("bitmapletter.png"));
   CHECK(input_rgba.get() != nullptr);

@@ -1450,20 +1450,23 @@ static constexpr bool DRAW_ERRORS = false;
 // This is responsible for both the stimulations and errors (if enabled).
 // If the returned image is small, the driver may choose to render it
 // at 2x (or larger) size.
-static ImageRGBA RenderLayer(const Network &net,
-                             int layer,
-                             // Stimulation values
-                             const vector<float> &values,
-                             // Can be null; will always be null for input layer.
-                             const vector<float> *opt_error) {
+static ImageRGBA RenderLayer(
+    const Network &net,
+    int layer,
+    // Stimulation values
+    const vector<float> &values,
+    // Can be null; will always be null for input layer.
+    const vector<float> *opt_error) {
 
   // Render the SDF (at 2x size) and anti-aliased letter image. Each have the
   // same dimensions.
   auto MakeSDF = [](const vector<float> &values) -> pair<ImageRGBA, ImageRGBA> {
       ImageA img = FontProblem::SDFGetImage(SDF_CONFIG, values);
-      ImageA twox = img.ResizeBilinear(SDF_SIZE * 2, SDF_SIZE * 2);
-      ImageA letter = FontProblem::SDFThresholdAA(SDF_CONFIG.onedge_value,
-                                                  twox, 3);
+      ImageA letter = FontProblem::SDFThresholdAAFloat(
+          SDF_CONFIG.onedge_value / 255.0f,
+          img,
+          SDF_SIZE * 2, SDF_SIZE * 2,
+          3);
       return {img.GreyscaleRGBA().ScaleBy(2), letter.GreyscaleRGBA()};
     };
 
