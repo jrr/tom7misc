@@ -25,9 +25,9 @@ static void Gen(const FontProblem::SDFConfig &config,
   const int SCALE = 5;
   const int QUALITY = 4;
 
-  FontProblem::GenResult result =
-    FontProblem::GenImages(config, make_lowercase, make_uppercase,
-                           sdf, SCALE, QUALITY);
+  FontProblem::Gen5ImagesResult result =
+    FontProblem::Gen5Images(config, make_lowercase, make_uppercase,
+                            sdf, SCALE, QUALITY);
 
   // All should be the same size.
   const int TILEW = result.input.Width();

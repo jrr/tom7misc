@@ -252,68 +252,93 @@ struct UI {
   std::mutex result_m;
   std::condition_variable result_cv;
   SDL_Surface *drawing = nullptr;
-  std::optional<FontProblem::GenResult> network_result;
-  // float gamma_low_value = 1.0f, gamma_up_value = 1.0f;
-  bool result_dirty = true;
+  std::optional<FontProblem::Gen5ImagesResult> network_image_result;
+  // Recompute everything.
+  bool result_sdf_dirty = true;
+  // Can just recompute the images (e.g. for gamma changes).
+  bool result_images_dirty = true;
   bool result_should_die = false;
 };
 }  // namespace
 
 void UI::ResultThread() {
+  // Only this thread needs to access these temporaries.
   ImageA bitmap(DRAWING_SIZE, DRAWING_SIZE);
+  FontProblem::Gen5Result gen5result;
   for (;;) {
-    double copy_ms = 0.0;
+    double copy_ms = 0.0, result_ms = 0.0, images_ms = 0.0;
+    bool recompute_sdf = false;
     float gamma_low_value = 1.0f, gamma_up_value = 1.0f;
     {
       std::unique_lock<std::mutex> guard(result_m);
-      result_cv.wait(guard, [this]() { return result_dirty; });
+      result_cv.wait(guard, [this]() {
+          return result_sdf_dirty || result_images_dirty;
+        });
       // Lock held. First see if we should exit.
       if (result_should_die) return;
 
-      Timer copy_timer;
       gamma_low_value = gamma_low.Value();
       gamma_up_value = gamma_up.Value();
 
-      // Copy bitmap from drawing so we can work
-      // without interference.
-      for (int y = 0; y < DRAWING_SIZE; y++) {
-        for (int x = 0; x < DRAWING_SIZE; x++) {
-          // PERF: the surface getpixel routine is awful,
-          // and not inlineable. Can we assert a specific
-          // pixel format when we create it?
-          uint32 px = 0xFF00 & sdlutil::getpixel(drawing, x, y);
-          // PERF and if we're not copying, we could just
-          // generate the 1bpp image here?
-          bitmap.SetPixel(x, y, px > 0x7F00 ? 255 : 0);
+      // Now, do we have to re-run everything?
+      if (result_sdf_dirty) {
+        Timer copy_timer;
+
+        // Copy bitmap from drawing so we can work
+        // without interference.
+        for (int y = 0; y < DRAWING_SIZE; y++) {
+          for (int x = 0; x < DRAWING_SIZE; x++) {
+            // PERF: the surface getpixel routine is awful,
+            // and not inlineable. Can we assert a specific
+            // pixel format when we create it?
+            uint32 px = 0xFF00 & sdlutil::getpixel(drawing, x, y);
+            // PERF and if we're not copying, we could just
+            // generate the 1bpp image here?
+            bitmap.SetPixel(x, y, px > 0x7F00 ? 255 : 0);
+          }
         }
+        copy_ms = copy_timer.MS();
+
+        recompute_sdf = true;
       }
-      copy_ms = copy_timer.MS();
-      // Might get updated again while we're working.
-      // So we update this here.
-      result_dirty = false;
+
+      // Either way, we'll un-dirty the state. However,
+      // once we release the lock the inputs might be updated
+      // before we finish. So clear the dirty state now.
+      result_sdf_dirty = false;
+      result_images_dirty = false;
     }
 
-    Timer result_timer;
     // Do work. Lock not held.
-    ImageA sdf = FontProblem::SDFFromBitmap(SDF_CONFIG, bitmap);
-    constexpr int QUALITY = 3;
-    FontProblem::GenResult result =
-      FontProblem::GenImages(SDF_CONFIG, *make_lowercase, *make_uppercase,
-                             sdf, SDF_OUT_SCALE, QUALITY,
-                             gamma_low_value, gamma_up_value);
-    double result_ms = result_timer.MS();
+    if (recompute_sdf) {
+      Timer result_timer;
+      ImageA sdf = FontProblem::SDFFromBitmap(SDF_CONFIG, bitmap);
+      gen5result =
+        FontProblem::Gen5(SDF_CONFIG, *make_lowercase, *make_uppercase, sdf);
+      result_ms = result_timer.MS();
+    }
 
+    // Always recompute images if we got here.
+    Timer image_timer;
+    constexpr int SCALE = 5;
+    constexpr int QUALITY = 3;
+    FontProblem::Gen5ImagesResult result =
+      FontProblem::Gen5Images(gen5result, SCALE, QUALITY,
+                              gamma_low_value, gamma_up_value);
+    images_ms = image_timer.MS();
+
+    // Now write with lock.
     {
       std::lock_guard<std::mutex> guard(result_m);
       if (result_should_die) return;
-      network_result.emplace(std::move(result));
+      network_image_result.emplace(std::move(result));
     }
 
     // But now the UI is dirty.
     SetDirty();
 
-    printf("Got result in %.4fs copy + %.4fs work\n",
-           copy_ms / 1000.0, result_ms / 1000.0);
+    printf("Got result in %.4fs copy + %.4fs result + %.4fs image\n",
+           copy_ms / 1000.0, result_ms / 1000.0, images_ms / 1000.0);
   }
 }
 
@@ -599,7 +624,7 @@ void UI::ClearDrawing() {
   sdlutil::ClearSurface(drawing, 0, 0, 0, 0xFF);
   {
     std::unique_lock<std::mutex> guard(result_m);
-    result_dirty = true;
+    result_sdf_dirty = true;
   }
   result_cv.notify_all();
 }
@@ -684,7 +709,7 @@ void UI::DrawThick(int x0, int y0,
       ThickPixel(x, y);
     }
 
-    result_dirty = true;
+    result_sdf_dirty = true;
   }
   result_cv.notify_all();
 }
@@ -692,9 +717,7 @@ void UI::DrawThick(int x0, int y0,
 void UI::UpdateGamma() {
   {
     std::unique_lock<std::mutex> guard(result_m);
-    // gamma_low_value = gamma_low.Value();
-    // gamma_up_value = gamma_up.Value();
-    result_dirty = true;
+    result_images_dirty = true;
   }
   result_cv.notify_all();
 }
@@ -747,7 +770,7 @@ void UI::FloodFill(int x, int y, Uint32 color) {
         todo.emplace_back(xx, yy + 1);
       }
     }
-    result_dirty = true;
+    result_sdf_dirty = true;
   }
   result_cv.notify_all();
 }
@@ -761,7 +784,7 @@ void UI::Run() {
 
   {
     std::unique_lock<std::mutex> guard(result_m);
-    result_dirty = true;
+    result_sdf_dirty = true;
     result_should_die = true;
   }
   result_cv.notify_all();
@@ -1510,8 +1533,8 @@ void UI::DrawDrawing() {
   {
     std::unique_lock<std::mutex> guard(result_m);
     sdlutil::blitall(drawing, screen, DRAWING_X, DRAWING_Y);
-    if (network_result.has_value()) {
-      const auto &res = network_result.value();
+    if (network_image_result.has_value()) {
+      const auto &res = network_image_result.value();
       BlitImage(res.input, 808, 849);
       BlitImage(res.low, LOW_X, LOW_Y + SDF_OUT_H + SDF_OUT_GAP);
       BlitImage(res.low_up, LOW_X, LOW_Y);
