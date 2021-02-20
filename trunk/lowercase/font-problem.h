@@ -205,9 +205,29 @@ struct FontProblem {
       int quality = 4,
       float gamma = 1.0f);
 
+  // SDFs resulting from iterating the model.
+  struct Gen5Result {
+    SDFConfig config;
+    ImageA input;
+    std::array<float, 26> low_pred;
+    std::array<float, 26> up_pred;
 
-  struct GenResult {
-    GenResult(int w, int h) :
+    ImageA low;
+    ImageA low_up;
+    ImageA up;
+    ImageA up_low;
+  };
+
+  // Returns 5 sdfs and the letter predictions: A copy of the input
+  // SDF, the predicted uppercase and lowercase, uppercase(lowercase)
+  // and lowercase(uppercase).
+  static Gen5Result Gen5(const FontProblem::SDFConfig &config,
+                         const Network &make_lowercase,
+                         const Network &make_uppercase,
+                         const ImageA &sdf);
+
+  struct Gen5ImagesResult {
+    Gen5ImagesResult(int w, int h) :
       input(w, h),
       low(w, h),
       low_up(w, h),
@@ -217,23 +237,31 @@ struct FontProblem {
     ImageRGBA input;
     std::array<float, 26> low_pred;
     std::array<float, 26> up_pred;
+
     ImageRGBA low;
     ImageRGBA low_up;
     ImageRGBA up;
     ImageRGBA up_low;
   };
 
-  // Generate 5 images (scaled according to the parameter): The
-  // input SDF, the predicted uppercase and lowercase,
-  // uppercase(lowercase) and lowercase(uppercase).
-  static GenResult GenImages(const FontProblem::SDFConfig &config,
-                             const Network &make_lowercase,
-                             const Network &make_uppercase,
-                             const ImageA &sdf,
-                             int scale,
-                             int quality = 3,
-                             float gamma_low = 1.0f,
-                             float gamma_up = 1.0f);
+  // Using the result above, generate scaled images and thresholded
+  // AA images using the builtin layering, after applying the gamma
+  // params. (This should be pretty fast after running the model)
+  static Gen5ImagesResult Gen5Images(const Gen5Result &result,
+                                     int scale,
+                                     int quality = 3,
+                                     float gamma_low = 1.0f,
+                                     float gamma_up = 1.0f);
+
+  // Combines the above for convenience.
+  static Gen5ImagesResult Gen5Images(const FontProblem::SDFConfig &config,
+                                     const Network &make_lowercase,
+                                     const Network &make_uppercase,
+                                     const ImageA &sdf,
+                                     int scale,
+                                     int quality = 3,
+                                     float gamma_low = 1.0f,
+                                     float gamma_up = 1.0f);
 
   // Code for computing the error between a predicted vector shape ("loop")
   // and the expected one.

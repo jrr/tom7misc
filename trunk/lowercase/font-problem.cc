@@ -1248,7 +1248,34 @@ ImageRGBA FontProblem::ThresholdImageMulti(
   return out;
 }
 
-FontProblem::GenResult FontProblem::GenImages(
+FontProblem::Gen5Result FontProblem::Gen5(
+    const FontProblem::SDFConfig &config,
+    const Network &make_lowercase,
+    const Network &make_uppercase,
+    const ImageA &sdf) {
+  Gen5Result result;
+  result.config = config;
+  result.input = sdf;
+
+  auto RunTo = [&config](
+      const Network &net, const ImageA &sdf,
+      ImageA *out,
+      std::array<float, 26> *pred_out) {
+      auto [out_sdf, pred] = FontProblem::RunSDFModel(net, config, sdf);
+      if (out != nullptr) *out = std::move(out_sdf);
+      if (pred_out != nullptr) *pred_out = std::move(pred);
+    };
+
+  // First iter.
+  RunTo(make_lowercase, sdf, &result.low, &result.low_pred);
+  RunTo(make_uppercase, sdf, &result.up, &result.up_pred);
+  // Second iter.
+  RunTo(make_uppercase, result.low, &result.low_up, nullptr);
+  RunTo(make_lowercase, result.up, &result.up_low, nullptr);
+  return result;
+}
+
+FontProblem::Gen5ImagesResult FontProblem::Gen5Images(
     const FontProblem::SDFConfig &config,
     const Network &make_lowercase,
     const Network &make_uppercase,
@@ -1257,56 +1284,62 @@ FontProblem::GenResult FontProblem::GenImages(
     int quality,
     float gamma_low,
     float gamma_up) {
+  Gen5Result res = Gen5(config, make_lowercase, make_uppercase, sdf);
+  return Gen5Images(res, scale, quality, gamma_low, gamma_up);
+}
 
-  const int sdf_size = config.sdf_size;
+FontProblem::Gen5ImagesResult FontProblem::Gen5Images(
+    const Gen5Result &gr,
+    int scale,
+    int quality,
+    float gamma_low,
+    float gamma_up) {
+  const int sdf_size = gr.config.sdf_size;
   const int THRESHOFF = sdf_size * scale;
 
   // SDF and then thresholded image, side by side
-  GenResult result(sdf_size * scale * 2, sdf_size * scale);
-  result.input.BlendImage(0, 0, sdf.GreyscaleRGBA().ScaleBy(scale));
+  Gen5ImagesResult result(sdf_size * scale * 2, sdf_size * scale);
+  result.input.BlendImage(0, 0,
+                          gr.input.GreyscaleRGBA().ScaleBy(scale));
   ImageA thresh = FontProblem::SDFThresholdAAFloat(
-      config.onedge_value / 255.0f,
-      sdf,
+      gr.config.onedge_value / 255.0f,
+      gr.input,
       sdf_size * scale, sdf_size * scale,
       quality, 1.0f);
   result.input.BlendImage(THRESHOFF, 0, thresh.GreyscaleRGBA());
 
-  auto RunTo = [&config, scale, quality, sdf_size, THRESHOFF](
-      const Network &net, const ImageA &sdf,
-      float gamma,
-      ImageRGBA *out,
-      std::array<float, 26> *pred_out) {
-      const auto [out_sdf, pred] =
-        FontProblem::RunSDFModel(net, config, sdf);
-      out->BlendImage(0, 0, out_sdf.GreyscaleRGBA().ScaleBy(scale));
+  result.low_pred = gr.low_pred;
+  result.up_pred = gr.up_pred;
 
-      const vector<pair<float, uint32>> layers =
-        {{config.onedge_value * 0.95f / 255.0f, 0x440000FF},
-         {config.onedge_value * 0.975f / 255.0f, 0x66229FFF},
-         {config.onedge_value / 255.0f, 0xFFFFFFFF}};
+  const vector<pair<float, uint32>> layers =
+    {{gr.config.onedge_value * 0.95f / 255.0f, 0x440000FF},
+     {gr.config.onedge_value * 0.975f / 255.0f, 0x66229FFF},
+     {gr.config.onedge_value / 255.0f, 0xFFFFFFFF}};
+
+  auto DrawTo = [scale, quality, sdf_size, THRESHOFF, &layers](
+      const ImageA &sdf,
+      float gamma,
+      ImageRGBA *out) {
+      out->BlendImage(0, 0, sdf.GreyscaleRGBA().ScaleBy(scale));
 
       ImageRGBA out_thresh = FontProblem::ThresholdImageMulti(
-          out_sdf,
+          sdf,
           layers,
           sdf_size * scale, sdf_size * scale,
           quality,
           gamma);
       out->BlendImage(THRESHOFF, 0, out_thresh);
-
-      // Letter predictors.
-      if (pred_out != nullptr) *pred_out = pred;
-      return out_sdf;
     };
 
-  ImageA lsdf =
-    RunTo(make_lowercase, sdf, gamma_low, &result.low, &result.low_pred);
-  ImageA usdf =
-    RunTo(make_uppercase, sdf, gamma_up, &result.up, &result.up_pred);
+  // First iter.
+  DrawTo(gr.low, gamma_low, &result.low);
+  DrawTo(gr.up,  gamma_up,  &result.up);
 
+  // Second iter.
   // Note gamma_low even when make_uppercase; the gamma_low parameter is
   // about the "low side", and vice versa.
-  (void)RunTo(make_uppercase, lsdf, gamma_low, &result.low_up, nullptr);
-  (void)RunTo(make_lowercase, usdf, gamma_up, &result.up_low, nullptr);
+  DrawTo(gr.low_up, gamma_low, &result.low_up);
+  DrawTo(gr.up_low, gamma_up,  &result.up_low);
   return result;
 }
 

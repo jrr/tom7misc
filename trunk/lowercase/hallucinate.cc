@@ -741,9 +741,9 @@ int main(int argc, char **argv) {
         // Pass same net twice, we'll just use the "lowercase"
         constexpr int SIZE = 6;
         constexpr int QUALITY = 4;
-        FontProblem::GenResult result =
-          FontProblem::GenImages(SDF_CONFIG, *net, *net, best_sdf,
-                                 SIZE, QUALITY);
+        FontProblem::Gen5ImagesResult result =
+          FontProblem::Gen5Images(SDF_CONFIG, *net, *net, best_sdf,
+                                  SIZE, QUALITY);
 
         static constexpr int BAR = 16;
 
