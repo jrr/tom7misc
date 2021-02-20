@@ -7,6 +7,7 @@
 #include <utility>
 #include <cstring>
 #include <tuple>
+#include <algorithm>
 
 #include "lines.h"
 #include "stb_image.h"
@@ -204,7 +205,7 @@ ImageRGBA ImageRGBA::Crop32(int x, int y, int w, int h,
                             uint32 fill_color) const {
   CHECK(w > 0 && h > 0) << w << " " << h;
   const auto [r, g, b, a] = Unpack32(fill_color);
-  
+
   ImageRGBA ret{w, h};
   // xx,yy in new image's coordinates
   for (int yy = 0; yy < h; yy++) {
@@ -219,14 +220,14 @@ ImageRGBA ImageRGBA::Crop32(int x, int y, int w, int h,
         sr = rgba[sbase + 0];
         sg = rgba[sbase + 1];
         sb = rgba[sbase + 2];
-        sa = rgba[sbase + 3];   
+        sa = rgba[sbase + 3];
       }
 
       const int base = (yy * w + xx) << 2;
       ret.rgba[base + 0] = sr;
       ret.rgba[base + 1] = sg;
       ret.rgba[base + 2] = sb;
-      ret.rgba[base + 3] = sa;      
+      ret.rgba[base + 3] = sa;
     }
   }
   return ret;
@@ -326,7 +327,7 @@ void ImageRGBA::BlendRect(int x, int y, int w, int h,
   if (xover > 0) w -= xover;
 
   if (w <= 0 || h <= 0) return;
-  
+
   for (int yy = y; yy < y + h; yy++) {
     for (int xx = x; xx < x + w; xx++) {
       BlendPixel(xx, yy, r, g, b, a);
@@ -341,21 +342,42 @@ void ImageRGBA::BlendRect32(int x, int y, int w, int h, uint32 color) {
 
 void ImageRGBA::BlendBox32(int x, int y, int w, int h,
                            uint32 color, std::optional<uint32> cco) {
+  const uint32 corner_color = cco.has_value() ? cco.value() : color;
+
+  // Special cases
+  if (w == 0 || h == 0) return;
+  if (w == 1 && h == 1) {
+    BlendPixel32(x, y, corner_color);
+    return;
+  } else if (w == 1) {
+    BlendPixel32(x, y, corner_color);
+    BlendPixel32(x, y + h - 1, corner_color);
+    if (y + 1 < y + h - 1)
+      BlendLine32(x, y + 1, x, y + h - 1, color);
+  } else if (h == 1) {
+    BlendPixel32(x, y, corner_color);
+    BlendPixel32(x + w - 1, y, corner_color);
+    if (x + 1 < x + w - 1)
+      BlendLine32(x + 1, y, x + w - 1, y, color);
+  }
+
   const int x1 = x + w - 1;
   const int y1 = y + h - 1;
 
-  const uint32 corner_color = cco.has_value() ? cco.value() : color;
-
   // PERF: straight lines can be faster by skipping bresenham
-  // XXX this is wrong for 1x1 and 2x2 boxes. fix!
-  // Top
-  BlendLine32(x + 1, y, x1 - 1, y, color);
-  // Left
-  BlendLine32(x, y + 1, x, y1 - 1, color);
-  // Right
-  BlendLine32(x1, y + 1, x1, y1 - 1, color);
-  // Bottom
-  BlendLine32(x + 1, y1, x1 - 1, y1, color);
+
+  if (x + 1 <= x1 - 1) {
+    // Top
+    BlendLine32(x + 1, y, x1 - 1, y, color);
+    // Bottom
+    BlendLine32(x + 1, y1, x1 - 1, y1, color);
+  }
+  if (y + 1 <= y1 - 1) {
+    // Left
+    BlendLine32(x, y + 1, x, y1 - 1, color);
+    // Right
+    BlendLine32(x1, y + 1, x1, y1 - 1, color);
+  }
 
   BlendPixel32(x, y, corner_color);
   BlendPixel32(x1, y, corner_color);
@@ -395,7 +417,7 @@ void ImageRGBA::BlendText2x32(int x, int y, uint32 color, const string &s) {
         this->BlendPixel32(xx, yy, color);
         this->BlendPixel32(xx + 1, yy, color);
         this->BlendPixel32(xx, yy + 1, color);
-        this->BlendPixel32(xx + 1, yy + 1, color);      
+        this->BlendPixel32(xx + 1, yy + 1, color);
       };
 
     const uint8 c = s[i];
@@ -510,7 +532,7 @@ float ImageA::SampleBilinear(float x, float y) const {
   float fy = y - iy;
 
   // Get these four values.
-  //         
+  //
   //  v00 ----- v10
   //   |   :fy   |
   //   |...*     | 1.0
@@ -525,7 +547,7 @@ float ImageA::SampleBilinear(float x, float y) const {
       if (y >= height) y = height - 1;
       return GetPixel(x, y);
     };
-  
+
   uint8 v00 = BClipPixel(ix, iy);
   uint8 v10 = BClipPixel(ix + 1, iy);
   uint8 v01 = BClipPixel(ix, iy + 1);
@@ -536,7 +558,7 @@ float ImageA::SampleBilinear(float x, float y) const {
   float v1 = (float)v01 + (float)(v11 - v01) * fx;
 
   float v = v0 + (v1 - v0) * fy;
-  return v / 255.0f;
+  return std::clamp(v, 0.0f, 255.0f);
 }
 
 ImageA ImageA::ResizeBilinear(int nwidth, int nheight) const {
@@ -550,8 +572,7 @@ ImageA ImageA::ResizeBilinear(int nwidth, int nheight) const {
       const float sx = fx * width;
 
       float fv = SampleBilinear(sx, sy);
-      uint8 v = fv > 1.0f ? 255 : fv < 0.0f ? 0 : roundf(fv * 255.0f);
-      ret.SetPixel(x, y, v);
+      ret.SetPixel(x, y, std::roundf(fv));
     }
   }
   return ret;
@@ -596,4 +617,113 @@ ImageRGBA ImageA::AlphaMaskRGBA(uint8 r, uint8 g, uint8 b) const {
     }
   }
   return rgba;
+}
+
+
+// --- ImageF ---
+
+ImageF::ImageF(const vector<float> &alpha, int width, int height)
+    : width(width), height(height), alpha(alpha) {
+  CHECK((int)alpha.size() == width * height);
+}
+
+ImageF::ImageF(int width, int height) : width(width), height(height),
+                                        alpha(width * height, 0.0f) {
+}
+
+ImageF::ImageF(const ImageA &other) : width(other.Width()),
+                                      height(other.Height()) {
+  alpha.resize(width * height);
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      alpha[y * width + x] =
+        other.GetPixel(x, y) / 255.0f;
+    }
+  }
+}
+
+void ImageF::Clear(float value) {
+  for (int i = 0; i < (int)alpha.size(); i++) alpha[i] = value;
+}
+
+float ImageF::SampleBilinear(float x, float y) const {
+  // Truncate to integer pixels.
+  int ix = x;
+  int iy = y;
+
+  // subpixel values give us the interpolants
+  float fx = x - ix;
+  float fy = y - iy;
+
+  // Get these four values.
+  //
+  //  v00 ----- v10
+  //   |   :fy   |
+  //   |...*     | 1.0
+  //   | fx      |
+  //  v01 ----- v11
+  //       1.0
+
+  auto BClipPixel = [this](int x, int y) -> float {
+      if (x < 0) x = 0;
+      if (y < 0) y = 0;
+      if (x >= width) x = width - 1;
+      if (y >= height) y = height - 1;
+      return GetPixel(x, y);
+    };
+
+  float v00 = BClipPixel(ix, iy);
+  float v10 = BClipPixel(ix + 1, iy);
+  float v01 = BClipPixel(ix, iy + 1);
+  float v11 = BClipPixel(ix + 1, iy + 1);
+
+  // v0 interpolates between v00 and v10 at fx.
+  float v0 = (float)v00 + (float)(v10 - v00) * fx;
+  float v1 = (float)v01 + (float)(v11 - v01) * fx;
+
+  float v = v0 + (v1 - v0) * fy;
+  return v;
+}
+
+ImageF ImageF::ResizeBilinear(int nwidth, int nheight) const {
+  ImageF ret{nwidth, nheight};
+  // XXX Sampling is probably a little off wrt width-1 stuff?
+  for (int y = 0; y < nheight; y++) {
+    const float fy = y / (float)nheight;
+    const float sy = fy * height;
+    for (int x = 0; x < nwidth; x++) {
+      const float fx = x / (float)nwidth;
+      const float sx = fx * width;
+
+      float fv = SampleBilinear(sx, sy);
+      ret.SetPixel(x, y, fv);
+    }
+  }
+  return ret;
+}
+
+void ImageF::BlendText(int x, int y, float v, const string &s) {
+  auto SetPixel = [this, v](int xx, int yy) {
+      this->BlendPixel(xx, yy, v);
+    };
+  // SetPixel will clip, but exit early if we are totally off-screen.
+  if (y >= height || y < -EmbeddedFont::CHAR_HEIGHT) return;
+  for (int i = 0; i < (int)s.size(); i++) {
+    uint8 c = s[i];
+    int xx = x + i * EmbeddedFont::CHAR_WIDTH;
+    if (xx >= width) return;
+    EmbeddedFont::Blit(c, xx, y, SetPixel, [](int x, int y) {});
+  }
+}
+
+
+ImageA ImageF::Make8Bit() const {
+  ImageA out(width, height);
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      const uint8 v = std::roundf(GetPixel(x, y) * 255.0f);
+      out.SetPixel(x, y, v);
+    }
+  }
+  return out;
 }

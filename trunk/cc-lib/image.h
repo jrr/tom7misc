@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <tuple>
 #include <optional>
+#include <algorithm>
 
 #include "base/logging.h"
 
@@ -22,13 +23,14 @@ struct ImageRGBA {
   using uint32 = uint32_t;
   ImageRGBA(const std::vector<uint8> &rgba, int width, int height);
   ImageRGBA(int width, int height);
+  ImageRGBA() : width(0), height(0) {}
 
   // TODO: copy/assignment
-  
+
   int Width() const { return width; }
   int Height() const { return height; }
 
-  
+
   static ImageRGBA *Load(const std::string &filename);
   static ImageRGBA *LoadFromMemory(const std::vector<uint8> &bytes);
   static ImageRGBA *LoadFromMemory(const char *data, size_t size);
@@ -41,6 +43,7 @@ struct ImageRGBA {
   bool SaveJPG(const std::string &filename, int quality = 90) const;
   // TODO: jpg to vec, to string
 
+  // TODO: Replace with copy constructor
   ImageRGBA *Copy() const;
   // Crop (or pad), returning a new image of the given width and height.
   // If this includes any area outside the input image, fill with
@@ -50,11 +53,11 @@ struct ImageRGBA {
 
   // Scale by a positive integer factor, crisp pixels.
   ImageRGBA ScaleBy(int scale) const;
-  
+
   // In RGBA order, where R value is MSB. x/y must be in bounds.
   inline uint32 GetPixel32(int x, int y) const;
   inline std::tuple<uint8, uint8, uint8, uint8> GetPixel(int x, int y) const;
-  
+
   // Clear the image to a single value.
   void Clear(uint8 r, uint8 g, uint8 b, uint8 a);
   void Clear32(uint32 rgba);
@@ -77,7 +80,7 @@ struct ImageRGBA {
   // the corners to 50% alpha makes a subtle roundrect effect.
   void BlendBox32(int x, int y, int w, int h,
                   uint32 color, std::optional<uint32> corner_color);
-  
+
   // Embedded 9x9 pixel font.
   void BlendText(int x, int y,
                  uint8 r, uint8 g, uint8 b, uint8 a,
@@ -89,7 +92,7 @@ struct ImageRGBA {
                    uint8 r, uint8 g, uint8 b, uint8 a,
                    const std::string &s);
   void BlendText2x32(int x, int y, uint32 color, const std::string &s);
-  
+
   // Clipped. Alpha blending.
   // This draws a crisp pixel line using Bresenham's algorithm.
   void BlendLine(int x1, int y1, int x2, int y2,
@@ -110,15 +113,15 @@ struct ImageRGBA {
   ImageA Red() const;
   ImageA Green() const;
   ImageA Blue() const;
-  ImageA Alpha() const;  
-  
+  ImageA Alpha() const;
+
 private:
   int width, height;
   // Size width * height * 4.
   std::vector<uint8> rgba;
 };
 
-// Single-channel bitmap.
+// Single-channel 8-bit bitmap.
 struct ImageA {
   using uint8 = uint8_t;
   ImageA(const std::vector<uint8> &alpha, int width, int height);
@@ -133,7 +136,7 @@ struct ImageA {
 
   int Width() const { return width; }
   int Height() const { return height; }
-  
+
   ImageA *Copy() const;
   // Generally appropriate for enlarging, not shrinking.
   ImageA ResizeBilinear(int new_width, int new_height) const;
@@ -144,15 +147,16 @@ struct ImageA {
 
   // Only increases values.
   void BlendText(int x, int y, uint8 v, const std::string &s);
-  
+
   void Clear(uint8 value);
-  
+
   // Clipped.
   inline void SetPixel(int x, int y, uint8 v);
   // x/y must be in bounds.
   inline uint8 GetPixel(int x, int y) const;
   inline void BlendPixel(int x, int y, uint8 v);
-  
+
+  // Output value is a float in [0, 255].
   // Treats the input pixels as being "located" at their top-left
   // corners (not their centers).
   // x/y out of bounds will repeat edge pixels.
@@ -162,6 +166,49 @@ private:
   int width, height;
   // Size width * height.
   std::vector<uint8> alpha;
+};
+
+// Like ImageA, but float pixel values (clipped to [0,1]).
+struct ImageF {
+  ImageF(const std::vector<float> &alpha, int width, int height);
+  ImageF(int width, int height);
+  ImageF() : ImageF(0, 0) {}
+  explicit ImageF(const ImageA &other);
+  // Value semantics.
+  ImageF(const ImageF &other) = default;
+  ImageF(ImageF &&other) = default;
+  ImageF &operator =(const ImageF &other) = default;
+  ImageF &operator =(ImageF &&other) = default;
+
+  int Width() const { return width; }
+  int Height() const { return height; }
+
+  // Generally appropriate for enlarging, not shrinking.
+  ImageF ResizeBilinear(int new_width, int new_height) const;
+
+  // Convert to 8-bit ImageA, rounding.
+  ImageA Make8Bit() const;
+
+  // Only increases values.
+  void BlendText(int x, int y, float v, const std::string &s);
+
+  void Clear(float value);
+
+  // Clipped.
+  inline void SetPixel(int x, int y, float v);
+  // x/y must be in bounds.
+  inline float GetPixel(int x, int y) const;
+  inline void BlendPixel(int x, int y, float v);
+
+  // Treats the input pixels as being "located" at their top-left
+  // corners (not their centers).
+  // x/y out of bounds will repeat edge pixels.
+  float SampleBilinear(float x, float y) const;
+
+private:
+  int width, height;
+  // Size width * height.
+  std::vector<float> alpha;
 };
 
 
@@ -176,7 +223,7 @@ ImageRGBA::uint32 ImageRGBA::GetPixel32(int x, int y) const {
   const uint8_t r = rgba[base + 0];
   const uint8_t g = rgba[base + 1];
   const uint8_t b = rgba[base + 2];
-  const uint8_t a = rgba[base + 3];  
+  const uint8_t a = rgba[base + 3];
   return ((uint32)r << 24) | ((uint32)g << 16) | ((uint32)b << 8) | (uint32)a;
 }
 
@@ -226,10 +273,33 @@ void ImageA::BlendPixel(int x, int y, uint8_t v) {
   if (x < 0 || y < 0) return;
   if (x >= width || y >= height) return;
   // XXX test this blending math
-  uint8_t old = alpha[y * width + x];
+  uint8_t old = GetPixel(x, y);
   uint16_t opaque_part = 255 * v;
   uint16_t transparent_part = (255 - v) * old;
-  alpha[y * width + x] = 0xFF & ((opaque_part + transparent_part) / (uint16_t)255);
+  uint8_t new_value =
+    0xFF & ((opaque_part + transparent_part) / (uint16_t)255);
+  SetPixel(x, y, new_value);
 }
+
+
+float ImageF::GetPixel(int x, int y) const {
+  return alpha[y * width + x];
+}
+
+void ImageF::SetPixel(int x, int y, float value) {
+  if (x < 0 || y < 0) return;
+  if (x >= width || y >= height) return;
+  alpha[y * width + x] = std::clamp(value, 0.0f, 1.0f);
+}
+
+void ImageF::BlendPixel(int x, int y, float value) {
+  if (x < 0 || y < 0) return;
+  if (x >= width || y >= height) return;
+  const float old = GetPixel(x, y);
+  const float opaque_part = value;
+  const float transparent_part = (1.0f - value) * old;
+  SetPixel(x, y, opaque_part + transparent_part);
+}
+
 
 #endif
