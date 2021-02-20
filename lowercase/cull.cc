@@ -33,7 +33,7 @@ static constexpr bool CULL_UNREFERENCED_NODES = true;
 
 // If activation never exceeds an amount, remove the node.
 // Thresholds are absolute values.
-static constexpr bool CULL_WEAK_NODES = true;
+static constexpr bool CULL_WEAK_NODES = false;
 // Any node below this activation threshold is removed. Set
 // to 0 to disable this approach.
 static constexpr float ABSOLUTE_THRESHOLD = 0.00001f;
@@ -46,7 +46,7 @@ static constexpr float RANK_THRESHOLD = 0.05f;
 
 // Layers to cull, in the given order. Pretty much the same as running
 // cull.exe sequentially.
-static constexpr std::initializer_list<int> CULL_LAYERS = {2};
+static constexpr std::initializer_list<int> CULL_LAYERS = {0, 1, 2, 3};
 
 // How many random inputs to try. Approximate since we do the same number
 // per thread.
@@ -371,7 +371,10 @@ static void CullNetworkAt(ArcFour *rc, Network *net,
 
   Timer stimulate_timer;
   // PERF could skip this if we're not culling weak nodes?
-  const Stimulation max_stim = RandomlyStimulate(rc, *net);
+  const Stimulation max_stim =
+    CULL_WEAK_NODES ?
+    RandomlyStimulate(rc, *net) :
+    Stimulation(*net);
 
   // TODO: Also allow loading this same thing from the training
   // process (could be via an image?). The random stimulation has

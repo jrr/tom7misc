@@ -264,7 +264,6 @@ static void Test8x8() {
     }
   }
   CHECK_EQ(pix.Edges(), 42);
-
 }
 
 int main(int argc, char **argv) {

@@ -194,7 +194,7 @@ ImageA FontProblem::SDFThresholdAA(uint8 onedge_value,
                                    int scale) {
   if (scale == 1) {
     // No need for resampling step.
-    ImageA ret(sdf.Height(), sdf.Width());
+    ImageA ret(sdf.Width(), sdf.Height());
     for (int y = 0; y < ret.Height(); y++) {
       for (int x = 0; x < ret.Width(); x++) {
         uint8 v = sdf.GetPixel(x, y);
@@ -205,7 +205,7 @@ ImageA FontProblem::SDFThresholdAA(uint8 onedge_value,
   } else {
     // Resample to scaled size.
     ImageA big = sdf.ResizeBilinear(sdf.Height() * scale, sdf.Width() * scale);
-    ImageA ret(sdf.Height(), sdf.Width());
+    ImageA ret(sdf.Width(), sdf.Height());
     for (int y = 0; y < sdf.Height(); y++) {
       for (int x = 0; x < sdf.Width(); x++) {
         uint32 count = 0;
@@ -223,6 +223,34 @@ ImageA FontProblem::SDFThresholdAA(uint8 onedge_value,
     return ret;
   }
 }
+
+ImageA FontProblem::SDFThresholdAAFloat(float onedge_value,
+                                        const ImageA &sdf,
+                                        int width,
+                                        int height,
+                                        int quality) {
+  const int scale = quality;
+  // Resample to scaled size.
+  // PERF we could sample directly from the 8-bit image
+  ImageF big = ImageF(sdf).ResizeBilinear(width * scale, height * scale);
+  ImageA ret(width, height);
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      uint32 count = 0;
+      for (int yo = 0; yo < scale; yo++) {
+        for (int xo = 0; xo < scale; xo++) {
+          float f = big.GetPixel(x * scale + xo, y * scale + yo);
+          if (f >= onedge_value) count += 0xFF;
+        }
+      }
+
+      uint8 v = std::roundf(count / (float)(scale * scale));
+      ret.SetPixel(x, y, v);
+    }
+  }
+  return ret;
+}
+
 
 void FontProblem::RenderSDF(
     const std::string &font_filename,
@@ -327,52 +355,55 @@ void FontProblem::RenderSDF(
                // models, iteration number...
                // float th1 = pow(0.95, iter);
                // float th2 = pow(0.975, iter);
-               float th1 = 0.95;
+               float th1 = 0.95f;
                float th2 = 0.975f;
 
-               return vector<pair<uint8, uint32>>
-                 {{(uint8)(config.onedge_value * th1), 0x440000FF},
-                  {(uint8)(config.onedge_value * th2), 0x66229FFF},
-                  {(uint8)(config.onedge_value), 0xFFFFFFFF}};
+               return vector<pair<float, uint32>>
+                 {{config.onedge_value * th1 / 255.0f, 0x440000FF},
+                  {config.onedge_value * th2 / 255.0f, 0x66229FFF},
+                  {config.onedge_value / 255.0f, 0xFFFFFFFF}};
              };
 
-           const vector<pair<uint8, uint32>> layers = GetLayers();
+           const vector<pair<float, uint32>> layers = GetLayers();
 
 
-             ImageA sdf = SDFGetImage(config, stim.values[0]);
+           ImageA sdf = SDFGetImage(config, stim.values[0]);
 
-             ImageRGBA thresh = ThresholdImageMulti(sdf, layers, 4);
+           ImageRGBA thresh = ThresholdImageMulti(sdf, layers,
+                                                  config.sdf_size,
+                                                  config.sdf_size,
+                                                  4);
 
-             img.BlendImage(startx, starty, thresh);
+           img.BlendImage(startx, starty, thresh);
 
-             // (Don't bother if this is the last round)
-             if (iter == NUM_ITERS - 1)
-               break;
+           // (Don't bother if this is the last round)
+           if (iter == NUM_ITERS - 1)
+             break;
 
-             net.RunForward(&stim);
+           net.RunForward(&stim);
 
-             vector<float> *input = &stim.values[0];
-             const vector<float> &output = stim.values[stim.values.size() - 1];
+           vector<float> *input = &stim.values[0];
+           const vector<float> &output = stim.values[stim.values.size() - 1];
 
-             // We only have expected results (from the original font) for the
-             // first iteration.
-             if (iter == 0) {
-               CHECK(output.size() >= expected.size());
-               for (int i = 0; i < expected.size(); i++) {
-                 letter_loss += fabs(output[i] - expected[i]);
-               }
-             }
-
-             for (int i = 0; i < input->size(); i++) {
-               (*input)[i] = output[i];
+           // We only have expected results (from the original font) for the
+           // first iteration.
+           if (iter == 0) {
+             CHECK(output.size() >= expected.size());
+             for (int i = 0; i < expected.size(); i++) {
+               letter_loss += fabs(output[i] - expected[i]);
              }
            }
 
-           {
-             MutexLock ml(&loss_m);
-             total_loss += letter_loss;
+           for (int i = 0; i < input->size(); i++) {
+             (*input)[i] = output[i];
            }
-         }, 4);
+         }
+
+         {
+           MutexLock ml(&loss_m);
+           total_loss += letter_loss;
+         }
+       }, 4);
 
       img.BlendText2x32(
           LEFT_MARGIN, 4, 0xAAAACCFF,
@@ -1186,12 +1217,15 @@ FontProblem::RunSDFModelPredOnly(const Network &net,
 
 ImageRGBA FontProblem::ThresholdImageMulti(
     const ImageA &sdf,
-    const std::vector<pair<uint8, uint32>> &layers,
-    int scale) {
-  ImageRGBA out(sdf.Width(), sdf.Height());
+    const std::vector<pair<float, uint32>> &layers,
+    int out_width, int out_height,
+    int quality) {
+  ImageRGBA out(out_width, out_height);
 
   for (const auto &[onedge_value, color] : layers) {
-    ImageA thresh = SDFThresholdAA(onedge_value, sdf, scale);
+    ImageA thresh = SDFThresholdAAFloat(onedge_value, sdf,
+                                        out_width, out_height,
+                                        quality);
     const uint8 r = 0xFF & (color >> 24);
     const uint8 g = 0xFF & (color >> 16);
     const uint8 b = 0xFF & (color >> 8);
@@ -1206,20 +1240,19 @@ FontProblem::GenResult FontProblem::GenImages(
     const Network &make_lowercase,
     const Network &make_uppercase,
     const ImageA &sdf,
-    int scale) {
-  // TODO: Quality params
+    int scale,
+    int quality) {
   // TODO: Threshold/gamma params
-  const int quality = 3;
   const int sdf_size = config.sdf_size;
   const int THRESHOFF = sdf_size * scale;
 
   // SDF and then thresholded image, side by side
   GenResult result(sdf_size * scale * 2, sdf_size * scale);
   result.input.BlendImage(0, 0, sdf.GreyscaleRGBA().ScaleBy(scale));
-  ImageA thresh = FontProblem::SDFThresholdAA(
-      config.onedge_value,
-      sdf.ResizeBilinear(sdf_size * scale,
-                         sdf_size * scale),
+  ImageA thresh = FontProblem::SDFThresholdAAFloat(
+      config.onedge_value / 255.0f,
+      sdf,
+      sdf_size * scale, sdf_size * scale,
       quality);
   result.input.BlendImage(THRESHOFF, 0, thresh.GreyscaleRGBA());
 
@@ -1230,13 +1263,14 @@ FontProblem::GenResult FontProblem::GenImages(
         FontProblem::RunSDFModel(net, config, sdf);
       out->BlendImage(0, 0, out_sdf.GreyscaleRGBA().ScaleBy(scale));
 
-      vector<pair<uint8, uint32>> layers =
-        {{(uint8)(config.onedge_value * 0.95), 0x440000FF},
-         {(uint8)(config.onedge_value * 0.975), 0x66229FFF},
-         {(uint8)(config.onedge_value), 0xFFFFFFFF}};
+      vector<pair<float, uint32>> layers =
+        {{config.onedge_value * 0.95f / 255.0f, 0x440000FF},
+         {config.onedge_value * 0.975f / 255.0f, 0x66229FFF},
+         {config.onedge_value / 255.0f, 0xFFFFFFFF}};
       ImageRGBA out_thresh = FontProblem::ThresholdImageMulti(
-          out_sdf.ResizeBilinear(sdf_size * scale, sdf_size * scale),
+          out_sdf,
           layers,
+          sdf_size * scale, sdf_size * scale,
           quality);
       out->BlendImage(THRESHOFF, 0, out_thresh);
 
