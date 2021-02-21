@@ -25,9 +25,15 @@ static void Gen(const FontProblem::SDFConfig &config,
   const int SCALE = 5;
   const int QUALITY = 4;
 
+  ImageRGBA islands;
+  (void)FontProblem::VectorizeSDF(config, sdf, &islands);
+  islands = islands.ScaleBy(4);
+
+  FontProblem::Gen5Result gen5result =
+    FontProblem::Gen5(config, make_lowercase, make_uppercase, sdf);
+
   FontProblem::Gen5ImagesResult result =
-    FontProblem::Gen5Images(config, make_lowercase, make_uppercase,
-                            sdf, SCALE, QUALITY);
+    FontProblem::Gen5Images(gen5result, SCALE, QUALITY);
 
   // All should be the same size.
   const int TILEW = result.input.Width();
@@ -43,6 +49,8 @@ static void Gen(const FontProblem::SDFConfig &config,
   out.BlendImage(0, 0, result.low_up);
   out.BlendImage(TILEW * 2, TILEH, result.up);
   out.BlendImage(TILEW * 2, TILEH * 2, result.up_low);
+
+  out.BlendImage(TILEW + 4, 4, islands);
 
   auto DrawPreds = [&out](int startx, int starty,
                           const std::array<float, 26> &preds) {
