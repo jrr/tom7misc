@@ -221,7 +221,7 @@ struct FontProblem {
   // Returns 5 sdfs and the letter predictions: A copy of the input
   // SDF, the predicted uppercase and lowercase, uppercase(lowercase)
   // and lowercase(uppercase).
-  static Gen5Result Gen5(const FontProblem::SDFConfig &config,
+  static Gen5Result Gen5(const SDFConfig &config,
                          const Network &make_lowercase,
                          const Network &make_uppercase,
                          const ImageA &sdf);
@@ -254,7 +254,7 @@ struct FontProblem {
                                      float gamma_up = 1.0f);
 
   // Combines the above for convenience.
-  static Gen5ImagesResult Gen5Images(const FontProblem::SDFConfig &config,
+  static Gen5ImagesResult Gen5Images(const SDFConfig &config,
                                      const Network &make_lowercase,
                                      const Network &make_uppercase,
                                      const ImageA &sdf,
@@ -262,6 +262,11 @@ struct FontProblem {
                                      int quality = 3,
                                      float gamma_low = 1.0f,
                                      float gamma_up = 1.0f);
+
+  // Approximate the SDF with vectors.
+  static vector<TTF::Contour> VectorizeSDF(
+      const SDFConfig &config,
+      const ImageA &sdf);
 
   // Code for computing the error between a predicted vector shape ("loop")
   // and the expected one.
