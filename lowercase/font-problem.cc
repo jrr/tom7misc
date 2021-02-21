@@ -1366,6 +1366,40 @@ Network *FontProblem::MakePredOnlyNetwork(const SDFConfig &config,
 }
 
 
+// Imagine a series of nested islands, where the border is a transition
+// (along the grid edges, 4-connected) between less than onedge_value
+// and greater-or-equal to onedge_value. The nesting alternates "sea"
+// and "land", and an island can contain zero or more child islands.
+//
+// Goal is to fill in every pixel of the SDF with an equivalence class
+// id and parent pointer. The ids distinguish connected components in
+// the case that there are multiple at the same depth.
+//
+// The outside of the SDF is defined as sea--island zero--which may
+// connect with pixels inside the image. We initialize by creating
+// this boundary around the SDF and doing the flood-fill inside it;
+// as we continue we will do lower depths first, which gives the
+// algorithm its direction (and termination condition).
+//
+// In the flood fill, we pick a pixel with the lowest depth and expand.
+// Pixels in the queue already have an equivalence class (but maybe not
+// a final one) and parent pointer assigned. For their connected
+// neighbors:
+//  - If there's a border:
+//     - If already processed, should be nothing to do. (It should
+//       end up being our parent or child, but maybe not resolved yet?)
+//     - Otherwise, because we do this in depth order, this is
+//       a child of ours. Set it at depth+1, parent pointing to us,
+//       and a new equivalence class.
+//  - If there's no border:
+//     - If already processed, join the equivalence classes.
+//     - If not, join the equivalence classes, copy our parent pointer
+//       and depth to it, and enqueue.
+//
+// And actually it seems that the parent pointer is a property of the
+// equivalence class, although it's not known until a pixel is
+// processed.
+namespace {
 struct IslandState {
   // Bitmap >0 for land. We locally pad it.
   explicit IslandState(const ImageA &bitmap) :
@@ -1381,10 +1415,10 @@ struct IslandState {
   int Width() const { return img.Width(); }
 
   std::pair<int, int> GetXY(int index) const {
-    return make_pair(index % sdf.Width(), index / sdf_width());
+    return make_pair(index % img.Width(), index / img.Width());
   }
   int Index(int x, int y) const {
-    return y * sdf.Width() + x;
+    return y * img.Width() + x;
   }
 
   bool IsLand(int x, int y) const {
@@ -1414,7 +1448,8 @@ struct IslandState {
   vector<optional<ClassInfo>> classinfo;
 
   void SetInfo(int idx, int depth, int parent) {
-    CHECK(!classinfo[idx].has_value());
+    CHECK(!classinfo[idx].has_value()) << idx << " depth "
+                                       << depth << " par " << parent;
     classinfo[idx].emplace(depth, parent);
   }
 
@@ -1452,6 +1487,54 @@ struct IslandState {
     }
   }
 
+  ImageRGBA DebugBitmap() {
+    ImageRGBA out(img.Width(), img.Height());
+    out.Clear32(0x000000FF);
+    std::vector<uint16_t> COLORS_LEFT = {
+      0xFF00,
+      0x00FF,
+      0x4400,
+      0x0044,
+      0x9900,
+      0x0099,
+      0xAA00,
+      0x00AA,
+      0x44FF,
+      0xFF44,
+      0x4444,
+      0x9999,
+      0xAAAA,
+    };
+    std::unordered_map<int, uint16> colors;
+    for (int y = 0; y < img.Height(); y++) {
+      for (int x = 0; x < img.Width(); x++) {
+        int idx = Index(x, y);
+        if (Visited(idx)) {
+          ClassInfo info = GetInfo(idx);
+          uint8 r = info.depth * 0x20;
+          // green and blue from eq class.
+          int eq = GetClass(idx);
+          uint16 gb = 0;
+          auto c = colors.find(eq);
+          if (c == colors.end()) {
+            CHECK(!COLORS_LEFT.empty());
+            gb = COLORS_LEFT.back();
+            colors[eq] = gb;
+            COLORS_LEFT.pop_back();
+          } else {
+            gb = c->second;
+          }
+          uint8 g = (gb >> 8) & 0xFF;
+          uint8 b = gb & 0xFF;
+          out.SetPixel(x, y, r, g, b, 0xFF);
+        } else {
+          out.SetPixel32(x, y, 0xFF0000FF);
+        }
+      }
+    }
+    return out;
+  }
+
 private:
   // Pre-processed bitmap with pixels >0 for land, =0 for sea. The
   // image must be padded such that it has two pixels of sea on every
@@ -1465,47 +1548,12 @@ private:
   vector<int> eqclass;
 
   static ImageA Preprocess(const ImageA &bitmap) {
-    ImageA ret(sdf.Width() + 2, sdf.Height() + 2);
+    ImageA ret(bitmap.Width() + 4, bitmap.Height() + 4);
     ret.Clear(0);
     ret.BlendImage(2, 2, bitmap);
     return ret;
   }
 };
-
-// Revision of below.
-// Imagine a series of nested islands, where the border is a transition
-// (along the grid edges, 4-connected) between less than onedge_value
-// and greater-or-equal to onedge_value. The nesting alternates "sea"
-// and "land", and an island can contain zero or more child islands.
-//
-// Goal is to fill in every pixel of the SDF with an equivalence class
-// id and parent pointer. The ids distinguish connected components in
-// the case that there are multiple at the same depth.
-//
-// The outside of the SDF is defined as sea--island zero--which may
-// connect with pixels inside the image. We initialize by creating
-// this boundary around the SDF and doing the flood-fill inside it;
-// as we continue we will do lower depths first, which gives the
-// algorithm its direction (and termination condition).
-//
-// In the flood fill, we pick a pixel with the lowest depth and expand.
-// Pixels in the queue already have an equivalence class (but maybe not
-// a final one) and parent pointer assigned. For their connected
-// neighbors:
-//  - If there's a border:
-//     - If already processed, should be nothing to do. (It should
-//       end up being our parent or child, but maybe not resolved yet?)
-//     - Otherwise, because we do this in depth order, this is
-//       a child of ours. Set it at depth+1, parent pointing to us,
-//       and a new equivalence class.
-//  - If there's no border:
-//     - If already processed, join the equivalence classes.
-//     - If not, join the equivalence classes, copy our parent pointer
-//       and depth to it, and enqueue.
-//
-// And actually it seems that the parent pointer is a property of the
-// equivalence class, although it's not known until a pixel is
-// processed.
 
 struct Todo {
   void Add(int depth, int idx) {
@@ -1516,13 +1564,13 @@ struct Todo {
     return !m.empty();
   }
 
-  std::pair<int, int> Next() const {
+  std::pair<int, int> Next() {
     CHECK(!m.empty());
     auto it = m.begin();
     const int depth = it->first;
     const int idx = it->second.back();
     it->second.pop_back();
-    if (it->second.epty()) {
+    if (it->second.empty()) {
       m.erase(it);
     }
     return {depth, idx};
@@ -1532,11 +1580,12 @@ struct Todo {
   // Representation invariant: no vectors are empty.
   std::map<int, vector<int>> m;
 };
+}  // namespace
 
 // Coordinate in the SDF. Given a connected island (some 4-connected
 // subset of pixels in the SDF, given as 1D indices), return the
 // connected subsets within it:
-void GetIslands(const ImageA &bitmap) {
+ImageRGBA GetIslands(const ImageA &bitmap) {
   IslandState state{bitmap};
 
   const int TOP_LEFT = state.Index(0, 0);
@@ -1555,7 +1604,8 @@ void GetIslands(const ImageA &bitmap) {
     };
 
   for (int y = 0; y < state.Height(); y++) {
-    MarkBoundary(0, y);
+    if (y != 0)
+      MarkBoundary(0, y);
     MarkBoundary(state.Width() - 1, y);
   }
   // Top and bottom edges.
@@ -1583,7 +1633,7 @@ void GetIslands(const ImageA &bitmap) {
 
     const int src_parent = state.GetInfo(src_idx).parent_class;
 
-    const auto [src_x, src_y] : state.GetXY(src_idx);
+    const auto [src_x, src_y] = state.GetXY(src_idx);
     for (const auto [dx, dy] : initializer_list<pair<int, int>>{
         {-1, 0}, {1, 0}, {0, -1}, {0, 1}}) {
       const int x = src_x + dx;
@@ -1605,7 +1655,7 @@ void GetIslands(const ImageA &bitmap) {
         } else {
           // Otherwise, we found part of an island within this one.
           state.SetInfo(idx, src_depth + 1, src_idx);
-          todo.Add(idx);
+          todo.Add(src_depth + 1, idx);
         }
       } else {
         // If we haven't visited it yet, initialize at the same
@@ -1622,82 +1672,14 @@ void GetIslands(const ImageA &bitmap) {
     }
   }
 
-
-  // Get the value of the pixel if it's in the input region.
-  auto GetPixel =
-    [&sdf, &input](int x, int y) -> optional<float> {
-      int idx = sdf.Index(x, y);
-      if (!input.contains(x, y))
-        return {};
-      return {sdf.sdf.GetPixel(x, y)};
-    };
-
-  // Get the exterior edge of the input island. These become the seeds
-  // for the flood fill. We don't want to use the entire contents of
-  // the island because it may contain atolls; we don't want our output
-  // islands to contain each other (instead we'll find those recursively).
-  // A pixel is in the exterior edge if it has any 4-connected neighbor
-  // that isn't in the set.
-  std::vector<int> todo;
-  for (int idx : input) {
-    auto [x, y] = sdf.GetXY(idx);
-
-    int up = sdf.GetIndex(x, y - 1);
-    int down = sdf.GetIndex(x, y + 1);
-    int left = sdf.GetIndex(x - 1, y);
-    int right = sdf.GetIndex(x + 1, y);
-    if (!input.contains(up) &&
-        !input.contains(down) &&
-        !input.contains(left) &&
-        !input.contains(right)) {
-      todo.push_back(idx);
-    }
-  }
-
-  std::unordered_set<int> visited;
-
-  // Now explore the frontier, looking for pixels that meet the
-  // criteria.
-  while (!todo.empty()) {
-    const auto idx = todo.back();
-    todo.pop_back();
-
-    // Only consider pixels in the input island.
-    if (input.contains(idx)) {
-      auto [x, y] = sdf.GetXY(idx);
-      float f = sdf.sdf.GetPixel(x, y);
-
-      // HERE: if < threshold, just push its neighbors
-      // if > threshold, this is part of an island.
-
-      /*
-      SetPixel(xx, yy);
-      todo.emplace_back(xx - 1, yy);
-      todo.emplace_back(xx + 1, yy);
-      todo.emplace_back(xx, yy - 1);
-      todo.emplace_back(xx, yy + 1);
-      */
-    }
-  }
-
-  // After we've found these islands, we need to fill
-  // any interior parts... which might even be essentially
-  // what the recursive call does. So this may have a simpler
-  // description where we make the recursive call without
-  // first filling?
-
-  // At the end of the day, if we have a tree structure of islands =
-  // sets of indices, with a containment relationship, that is
-  // probably the right thing.
-
-  /// so like... flood fill but be trying to set the "depth"
-  // in this tree, as well as the "parent"
+  return state.DebugBitmap();
 }
 
 
 vector<TTF::Contour> FontProblem::VectorizeSDF(
     const FontProblem::SDFConfig &config,
-    const ImageA &sdf) {
+    const ImageA &sdf,
+    ImageRGBA *islands) {
 
   // Make thresholded bitmap.
   ImageA bitmap(sdf.Width(), sdf.Height());
@@ -1710,25 +1692,8 @@ vector<TTF::Contour> FontProblem::VectorizeSDF(
   }
 
   // XXX get return, do something with it..
-  GetIslands(bitmap);
+  ImageRGBA debug = GetIslands(bitmap);
+  if (islands != nullptr) *islands = std::move(debug);
 
-  // Candidate algorithm.
-  //
-  // Many letters have holes, which complicate this proces. First,
-  // decompose the image into alternating layers of "on" and "off".
-  // Do this with "flood fill" starting from the exterior until we
-  // find the set of pixels that are on the boundary. (The interior
-  // of this can be negated to form a new SDF. But have to think
-  // about pixels really close to this boundary. Putting that aside
-  // for now...)
-  //
-  // There may be multiple disconnected components here. Each one
-  // will generate its own contour and recursive call on its
-  // negated interior.
-  //
-  // So now we think about one component, which will yield a contour.
-  //
-
-
-
+  return {};
 }
