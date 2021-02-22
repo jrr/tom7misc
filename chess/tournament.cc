@@ -57,8 +57,8 @@ using namespace std;
 // quadratically, it got to the point that running even a single
 // round would take hours. New version picks cells that have
 // the fewest number of games, and runs those in parallel.
-static constexpr int THREADS = 30;
-static constexpr int RUN_FOR_SECONDS = 60 * 10;
+static constexpr int THREADS = 8;
+static constexpr int RUN_FOR_SECONDS = 60 * 20;
 
 // Fill in the diagonal just a little. After reaching this number of games,
 // we don't bother prioritizing self-play at all.
@@ -374,59 +374,6 @@ Result PlayGame(Player *white_player, Player *black_player,
   }
 }
 
-// Protects status.
-std::mutex status_m;
-int64 status_start_time = 0LL;
-int64 status_last_time = 0LL;
-struct Status {
-  int done_games = 0;
-  // "free" means we just replicated an existing
-  // deterministic result
-  int free_games = 0;
-  string row;
-  string col;
-  string msg;
-};
-
-vector<Status> status;
-static void ShowStatus(int64 now) {
-  MutexLock ml(&status_m);
-  // Update at most once per second.
-  if (now - status_last_time < 1)
-    return;
-  status_last_time = now;
-
-  int64 total_seconds = now - status_start_time;
-
-  int64 minutes = total_seconds / 60;
-  int seconds = total_seconds % 60;
-
-  for (int i = 0; i < status.size() + 2; i++) {
-    printf("%s", ANSI_PREVLINE);
-  }
-  int64 done_all = 0, free_all = 0;
-  for (int i = 0; i < status.size(); i++) {
-    done_all += status[i].done_games;
-    free_all += status[i].free_games;
-  }
-
-  printf("\n-------- %lld " ANSI_YELLOW " done " ANSI_RESET
-         " -- %lld " ANSI_GREEN " free ----- "
-         ANSI_CYAN "%lld" ANSI_RESET "m" ANSI_CYAN "%d" ANSI_RESET "s"
-         ANSI_WHITE " ---------" ANSI_CLEARTOEOL "\n",
-         done_all, free_all, minutes, seconds);
-  for (int i = 0; i < status.size(); i++) {
-    printf(ANSI_GREY "[" ANSI_BLUE "% 2d. " ANSI_YELLOW "%d"
-           ANSI_GREY "] " ANSI_GREEN "%s" ANSI_WHITE " vs " ANSI_GREEN "%s: "
-           ANSI_WHITE "%s" ANSI_CLEARTOEOL "\n",
-           i,
-           status[i].done_games,
-           status[i].row.c_str(),
-           status[i].col.c_str(),
-           status[i].msg.c_str());
-  }
-}
-
 static string RenderMoves(const vector<Move> &moves) {
   Position pos;
   string pgn;
@@ -500,6 +447,14 @@ struct Totals {
     totals[white * num + black]++;
   }
 
+  // white, black, games played so far
+  using Neediest = std::tuple<string, string, int64>;
+  Neediest neediest = {"?", "?", 0LL};
+  Neediest GetNeediest() {
+    MutexLock ml(&m);
+    return neediest;
+  }
+
   std::pair<int, int> GetAssignment() {
     MutexLock ml(&m);
     // If we have anything enqueued, return it.
@@ -535,6 +490,11 @@ struct Totals {
     }
 
     std::unique_ptr<std::vector<TCell>> tops{topn.Extract()};
+    CHECK(!tops->empty());
+    const TCell &most = (*tops)[0];
+    neediest = make_tuple(names[most.c.first],
+                          names[most.c.second], most.total);
+
     for (const TCell &tc : *tops) {
       todo.push_back(tc.c);
     }
@@ -545,6 +505,96 @@ struct Totals {
     return ret;
   }
 };
+
+// Protects status.
+std::shared_mutex status_m;
+int64 status_start_time = 0LL;
+int64 status_last_time = 0LL;
+struct Status {
+  int done_games = 0;
+  // "free" means we just replicated an existing
+  // deterministic result
+  int free_games = 0;
+  string row;
+  string col;
+  string msg;
+  // time we started running the game
+  int64 run_start = 0;
+};
+
+vector<Status> status;
+// Gross that we send the Totals object, but it's easier than
+// managing our own status thread...
+static void ShowStatus(int64 now, Totals *totals, bool force_show = false) {
+  // Update at most once per second.
+  {
+    ReadMutexLock ml(&status_m);
+    if (now - status_last_time < 1)
+      return;
+  }
+
+  Totals::Neediest neediest = totals->GetNeediest();
+
+  WriteMutexLock ml(&status_m);
+  // (Possible race...)
+  if (now - status_last_time < 1)
+    return;
+  status_last_time = now;
+
+  int64 total_seconds = now - status_start_time;
+
+  auto AnsiMinSec = [](int64 total_seconds) {
+      int64 minutes = total_seconds / 60;
+      int seconds = total_seconds % 60;
+      if (minutes == 0)
+        return StringPrintf(ANSI_CYAN "%d" ANSI_RESET "s",
+                            seconds);
+      else
+        return StringPrintf(ANSI_CYAN "%lld" ANSI_RESET "m"
+                            ANSI_CYAN "%d" ANSI_RESET "s",
+                            minutes, seconds);
+    };
+
+  for (int i = 0; i < status.size() + 3; i++) {
+    printf("%s", ANSI_PREVLINE);
+  }
+  int64 done_all = 0, free_all = 0;
+  for (int i = 0; i < status.size(); i++) {
+    done_all += status[i].done_games;
+    free_all += status[i].free_games;
+  }
+
+  printf("\n-------- %lld " ANSI_YELLOW " done " ANSI_RESET
+         " -- %lld " ANSI_GREEN " free ----- "
+         "%s"
+         ANSI_WHITE " ---------" ANSI_CLEARTOEOL "\n",
+         done_all, free_all, AnsiMinSec(total_seconds).c_str());
+  for (int i = 0; i < status.size(); i++) {
+    string num = Util::Pad(-2, StringPrintf("%d", i + 1));
+    string done = Util::Pad(-3, StringPrintf("%d", status[i].done_games));
+    string minsec;
+    if (status[i].run_start > 0)
+      minsec = AnsiMinSec(now - status[i].run_start);
+
+    printf(ANSI_GREY "[" ANSI_CYAN "%s. " ANSI_YELLOW "%s"
+           ANSI_GREY "] " ANSI_WHITE "%s" ANSI_GREEN " vs " ANSI_BLUE "%s"
+           ANSI_RESET ": "
+           ANSI_WHITE "%s   %s" ANSI_CLEARTOEOL "\n",
+           num.c_str(),
+           done.c_str(),
+           status[i].row.c_str(),
+           status[i].col.c_str(),
+           status[i].msg.c_str(),
+           minsec.c_str());
+  }
+  printf(ANSI_PURPLE "Neediest: " ANSI_WHITE "%s"
+         ANSI_GREEN " vs "
+         ANSI_BLUE "%s" ANSI_RESET " -- " ANSI_YELLOW "%lld"
+         ANSI_RESET " game(s) played" ANSI_CLEARTOEOL "\n",
+         std::get<0>(neediest).c_str(),
+         std::get<1>(neediest).c_str(),
+         std::get<2>(neediest));
+}
 
 static void TournamentThread(int thread_id,
                              Totals *totals,
@@ -561,14 +611,14 @@ static void TournamentThread(int thread_id,
   // }
 
   {
-    MutexLock ml(&status_m);
+    WriteMutexLock ml(&status_m);
     status[thread_id].msg = "start";
+    status[thread_id].run_start = time(nullptr);
   }
 
   const int64 start_time = time(nullptr);
 
   int games_done = 0, games_free = 0;
-  int64 last_message = 0LL; // time(nullptr);
 
   for (;;) {
     const int64 now = time(nullptr);
@@ -597,18 +647,16 @@ static void TournamentThread(int thread_id,
     const string white_name = white_player->Name();
     const string black_name = black_player->Name();
 
-    if (now - last_message > 1) {
-      {
-        MutexLock ml(&status_m);
-        status[thread_id].msg = first ? "run first" : "running";
-        status[thread_id].row = white_name;
-        status[thread_id].col = black_name;
-        status[thread_id].done_games = games_done;
-        status[thread_id].free_games = games_free;
-      }
-      ShowStatus(now);
-      last_message = now;
+    {
+      WriteMutexLock ml(&status_m);
+      status[thread_id].msg = first ? "run first" : "running";
+      status[thread_id].row = white_name;
+      status[thread_id].col = black_name;
+      status[thread_id].done_games = games_done;
+      status[thread_id].free_games = games_free;
+      status[thread_id].run_start = now;
     }
+    ShowStatus(now, totals, false);
 
     // TODO: If both players are deterministic, just pretend
     // the same outcome happened again.
@@ -691,13 +739,14 @@ static void TournamentThread(int thread_id,
   }
 
   {
-    MutexLock ml(&status_m);
+    WriteMutexLock ml(&status_m);
     status[thread_id].msg = "done";
     status[thread_id].row = "-";
     status[thread_id].col = "-";
     status[thread_id].done_games = games_done;
+    status[thread_id].run_start = 0;
   }
-  ShowStatus(time(nullptr));
+  ShowStatus(time(nullptr), totals, true);
 
   for (Player *p : entrants) delete p;
   entrants.clear();
