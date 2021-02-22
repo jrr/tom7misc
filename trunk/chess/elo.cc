@@ -346,7 +346,10 @@ struct ImageArgs {
 [[maybe_unused]]
 static void MakeImage(
     std::unordered_map<string, int> *mask,
+    // Horizontal names
     const std::unordered_map<string, string> &aliases,
+    // For vertical: only 4 chars used
+    const std::unordered_map<string, string> &valiases,
     const std::unordered_set<string> &highlight,
     const ImageArgs &args,
     const string &filename) {
@@ -542,6 +545,12 @@ static void MakeImage(
       else return it->second;
     };
 
+  auto VAlias = [&valiases](const string &name) -> string {
+      auto it = valiases.find(name);
+      if (it == valiases.end()) return name;
+      else return it->second;
+    };
+
   for (int erow = 0; erow < num_entrants; erow++) {
     const int row = by_elo[erow];
     if (Allowed(row)) {
@@ -579,14 +588,14 @@ static void MakeImage(
                   &rgba, WIDTH, HEIGHT, 0);
 
 
-  // And just the first letter for columns.
+  // And just the first few letters for columns.
   for (int ecol = 0; ecol < num_entrants; ecol++) {
     const int col = by_elo[ecol];
     if (Allowed(col)) {
       int style = (mask == nullptr) ? 0 :
         FindWithDefault(*mask, names[col], 0);
-      string name = Alias(names[col]);
-      for (int i = 0; i < TOP_CHARS; i++) {
+      string name = VAlias(names[col]);
+      for (int i = 0; i < std::min(TOP_CHARS, (int)name.size()); i++) {
         string n = name.substr(i, 1);
         rainbow->DrawPlain(MARGIN_LEFT + ecol * CELL + 5, i * 14 + 2,
                            n,
@@ -596,11 +605,14 @@ static void MakeImage(
   }
 
   // Now pad it to 1920x1080.
+  int OUT_WIDTH = std::max(1920, WIDTH);
+  int OUT_HEIGHT = std::max(1080, HEIGHT);
+
   std::vector<uint8> rgba1080 =
-    PadImageCenter(rgba, WIDTH, HEIGHT, 1920, 1080, 0, 0, 0, 0xFF);
+    PadImageCenter(rgba, WIDTH, HEIGHT, OUT_WIDTH, OUT_HEIGHT, 0, 0, 0, 0xFF);
 
   // SaveRGBA(rgba, WIDTH, HEIGHT, filename);
-  SaveRGBA(rgba1080, 1920, 1080, filename);
+  SaveRGBA(rgba1080, OUT_WIDTH, OUT_HEIGHT, filename);
   printf("Wrote to %s\n", filename.c_str());
   fflush(stdout);
 }
@@ -609,6 +621,7 @@ int main(int argc, char **argv) {
   printf("Reading outcomes db:\n");
 
   std::unordered_set<string> ignore = {
+    /*
     "stockfish1m_r64",
     "stockfish1m_r128",
     "stockfish1m_r256",
@@ -624,6 +637,7 @@ int main(int argc, char **argv) {
     "stockfish1m_r61440",
     "stockfish1m_r63488",
     "stockfish1m_r64512",
+    */
   };
 
   Outcomes sparse_outcomes = TournamentDB::LoadFromFile("tournament.db", /* XXX */ ignore);
@@ -872,44 +886,88 @@ int main(int argc, char **argv) {
     {"stockfish1m_r64512", "stockfish 1.5%"},
   };
 
-#if 0
-  MakeImage(nullptr, aliases, {}, image_args, "elo.png");
+  std::unordered_map<string, string> valiases{
+    {"stockfish1m_r64", "99.9%"},
+    {"stockfish1m_r128", "99.8%"},
+    {"stockfish1m_r256", "99.6%"},
+    {"stockfish1m_r512", "99.2%"},
+    {"stockfish1m_r1024", "98.4%"},
+    {"stockfish1m_r2048", "96.9%"},
+    {"stockfish1m_r4096", "93.7%"},
+    {"stockfish1m_r8192", "87.5%"},
+    {"stockfish1m_r16384", "75%"},
+    {"stockfish1m_r32768", "50%"},
+    {"stockfish1m_r49152", "25%"},
+    {"stockfish1m_r57344", "12.5%"},
+    {"stockfish1m_r61440", "6.2%"},
+    {"stockfish1m_r63488", "3.1%"},
+    {"stockfish1m_r64512", "1.5%"},
+    {"letter_a", "a"},
+    {"letter_b", "b"},
+    {"letter_c", "c"},
+    {"letter_d", "d"},
+    {"letter_e", "e"},
+    {"letter_f", "f"},
+    {"letter_g", "g"},
+    {"letter_h", "h"},
+    {"letter_i", "i"},
+    {"letter_j", "j"},
+    {"letter_k", "k"},
+    {"letter_l", "l"},
+    {"letter_m", "m"},
+    {"letter_n", "n"},
+    {"letter_o", "o"},
+    {"letter_p", "p"},
+    {"letter_q", "q"},
+    {"letter_r", "r"},
+    {"letter_s", "s"},
+    {"letter_t", "t"},
+    {"letter_u", "u"},
+    {"letter_v", "v"},
+    {"letter_w", "w"},
+    {"letter_x", "x"},
+    {"letter_y", "y"},
+    {"letter_z", "z"},
+  };
 
+  MakeImage(nullptr, aliases, valiases, {}, image_args, "elo.png");
+
+#if 0
   // But now staged...
   std::unordered_map<string, int> mask;
   mask["random_move"] = 1;
-  MakeImage(&mask, aliases, {}, image_args,
+  MakeImage(&mask, aliases, valiases, {}, image_args,
             "elo-images/random.png");
 
   mask["same_color"] = 9;
   mask["opposite_color"] = 9;
-  MakeImage(&mask, aliases, {"same_color", "opposite_color"}, image_args,
+  MakeImage(&mask, aliases, valiases, {"same_color", "opposite_color"}, image_args,
             "elo-images/color.png");
 
   mask["swarm"] = 13;
   mask["huddle"] = 13;
-  MakeImage(&mask, aliases, {"swarm", "huddle"}, image_args,
+  MakeImage(&mask, aliases, valiases, {"swarm", "huddle"}, image_args,
             "elo-images/huddle.png");
 
   mask["sym_mirror_y"] = 4;
   mask["sym_mirror_x"] = 4;
   mask["sym_180"] = 4;
-  MakeImage(&mask, aliases,
+  MakeImage(&mask, aliases, valiases,
             {"sym_mirror_y", "sym_mirror_x", "sym_180"}, image_args,
             "elo-images/symmetric.png");
 
   mask["reverse_starting"] = 5;
-  MakeImage(&mask, aliases, {"reverse_starting"}, image_args,
+  MakeImage(&mask, aliases, valiases, {"reverse_starting"}, image_args,
             "elo-images/reverse.png");
 
 
   mask["cccp"] = 2;
-  MakeImage(&mask, aliases, {"cccp"}, image_args,
+  MakeImage(&mask, aliases, valiases, {"cccp"}, image_args,
             "elo-images/cccp.png");
 
   mask["first_move"] = 18;
   mask["alphabetical"] = 18;
-  MakeImage(&mask, aliases, {"first_move", "alphabetical"}, image_args,
+  MakeImage(&mask, aliases, valiases, {"first_move", "alphabetical"}, image_args,
             "elo-images/lex.png");
 
   mask["safe"] = 16;
@@ -918,20 +976,20 @@ int main(int argc, char **argv) {
   mask["rare"] = 16;
   mask["survivalist"] = 16;
   mask["fatalist"] = 16;
-  MakeImage(&mask, aliases, {"safe", "dangerous", "popular", "rare",
+  MakeImage(&mask, aliases, valiases, {"safe", "dangerous", "popular", "rare",
                              "survivalist", "fatalist"}, image_args,
             "elo-images/fate.png");
 
   mask["pacifist"] = 14;
   mask["generous"] = 14;
   mask["no_i_insist"] = 14;
-  MakeImage(&mask, aliases,
+  MakeImage(&mask, aliases, valiases,
             {"pacifist", "generous", "no_i_insist"}, image_args,
             "elo-images/vegetarian.png");
 
 
   mask["suicide_king"] = 10;
-  MakeImage(&mask, aliases, {"suicide_king"}, image_args,
+  MakeImage(&mask, aliases, valiases, {"suicide_king"}, image_args,
             "elo-images/suicide.png");
 
 
@@ -943,7 +1001,7 @@ int main(int argc, char **argv) {
   mask["stockfish15"] = 19;
   mask["stockfish20"] = 19;
   mask["stockfish1m"] = 19;
-  MakeImage(&mask, aliases, {
+  MakeImage(&mask, aliases, valiases, {
       "topple10k",
       "topple1m",
       "stockfish0",
@@ -956,43 +1014,43 @@ int main(int argc, char **argv) {
             "elo-images/strong-engines.png");
 
   mask["worstfish"] = 3;
-  MakeImage(&mask, aliases, {"worstfish"}, image_args,
+  MakeImage(&mask, aliases, valiases, {"worstfish"}, image_args,
             "elo-images/worstfish.png");
 
   mask["chessmaster.nes_lv1"] = 17;
   mask["chessmaster.nes_lv2"] = 17;
-  MakeImage(&mask, aliases, {"chessmaster.nes_lv1",
+  MakeImage(&mask, aliases, valiases, {"chessmaster.nes_lv1",
                     "chessmaster.nes_lv2"}, image_args,
             "elo-images/chessmaster.png");
 
   mask["single_player4"] = 8;
-  MakeImage(&mask, aliases, {"single_player4"}, image_args,
+  MakeImage(&mask, aliases, valiases, {"single_player4"}, image_args,
             "elo-images/singleplayer.png");
 
   mask["binary_pi"] = 6;
   mask["binary_e"] = 6;
   mask["rational_pi"] = 6;
   mask["rational_e"] = 6;
-  MakeImage(&mask, aliases, {"binary_pi", "binary_e",
+  MakeImage(&mask, aliases, valiases, {"binary_pi", "binary_e",
                     "rational_pi", "rational_e"}, image_args,
             "elo-images/numeric.png");
 
   mask["equalizer"] = 15;
   mask["min_oppt_moves"] = 15;
-  MakeImage(&mask, aliases, {"equalizer", "min_oppt_moves"}, image_args,
+  MakeImage(&mask, aliases, valiases, {"equalizer", "min_oppt_moves"}, image_args,
             "elo-images/nice.png");
 
   mask["blind_yolo"] = 7;
   mask["blind_kings"] = 7;
   mask["blind_spycheck"] = 7;
-  MakeImage(&mask, aliases, {"blind_yolo", "blind_kings", "blind_spycheck"},
+  MakeImage(&mask, aliases, valiases, {"blind_yolo", "blind_kings", "blind_spycheck"},
             image_args,
             "elo-images/blind.png");
 
   // ---------
 
   mask["almanac_popular"] = 12;
-  MakeImage(&mask, aliases, {"almanac_popular"}, image_args,
+  MakeImage(&mask, aliases, valiases, {"almanac_popular"}, image_args,
             "elo-images/almanac.png");
 
   mask["stockfish1m_r64"] = 11;
@@ -1010,7 +1068,7 @@ int main(int argc, char **argv) {
   mask["stockfish1m_r61440"] = 11;
   mask["stockfish1m_r63488"] = 11;
   mask["stockfish1m_r64512"] = 11;
-  MakeImage(&mask, aliases, {
+  MakeImage(&mask, aliases, valiases, {
       "stockfish1m_r64",
       "stockfish1m_r128",
       "stockfish1m_r256",
@@ -1029,7 +1087,7 @@ int main(int argc, char **argv) {
     }, image_args,
             "elo-images/dilution.png");
 
-  MakeImage(&mask, aliases, {}, image_args, "elo-images/final.png");
+  MakeImage(&mask, aliases, valiases, {}, image_args, "elo-images/final.png");
 #endif
 
   fprintf(f, "<table><tr><td>player</td><td>25</td><td>elo</td><td>75</td>"
