@@ -1220,8 +1220,8 @@ int UI::DrawChar(TTF *ttf, int sx, int sy, float scale, char c, char nc) {
   const double sqerr = 1.0f / (scale * scale);
 
   for (const auto &contour : contours) {
-    float x = contour.startx;
-    float y = contour.starty;
+    float x = contour.StartX();
+    float y = contour.StartY();
     for (const auto &p : contour.paths) {
       switch (p.type) {
       case TTF::PathType::LINE: {
@@ -1263,7 +1263,7 @@ int UI::DrawChar(TTF *ttf, int sx, int sy, float scale, char c, char nc) {
     // Now draw vertices to give a hint when there are "too many"
     // control points.
     for (const auto &contour : contours) {
-      PointAt(contour.startx, contour.starty);
+      PointAt(contour.StartX(), contour.StartY());
 
       for (const auto &p : contour.paths) {
         switch (p.type) {
@@ -1727,8 +1727,8 @@ void UI::Draw() {
     double sqerr = 1.0f / (SCALE * SCALE);
 
     for (const auto &contour : contours) {
-      float x = contour.startx;
-      float y = contour.starty;
+      float x = contour.StartX();
+      float y = contour.StartY();
       printf("CONTOUR. Start %.5f %.5f\n", x, y);
       Point(x, y, -1);
       for (int i = 0; i < contour.paths.size(); i++) {

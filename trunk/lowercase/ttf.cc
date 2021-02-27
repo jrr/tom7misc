@@ -106,8 +106,7 @@ std::vector<TTF::Contour> TTF::GetContours(int codepoint) const {
   std::vector<Contour> out;
   out.reserve(ncs.size());
   for (const NativeContour &nc : ncs) {
-    const auto [sx, sy] = Norm(nc.startx, nc.starty);
-    Contour c{sx, sy};
+    Contour c;
     c.paths.reserve(nc.paths.size());
     for (const NativePath &np : nc.paths) {
       switch (np.type) {
@@ -124,6 +123,10 @@ std::vector<TTF::Contour> TTF::GetContours(int codepoint) const {
       }
       }
     }
+
+    const auto [sx, sy] = Norm(nc.StartX(), nc.StartY());
+    CHECK_EQ(c.StartX(), sx);
+    CHECK_EQ(c.StartY(), sy);
     out.emplace_back(std::move(c));
   }
   return out;
@@ -135,8 +138,8 @@ std::vector<TTF::Contour> TTF::MakeOnlyBezier(
   std::vector<Contour> out;
   out.reserve(contours.size());
   for (const Contour &c : contours) {
-    Contour o{c.startx, c.starty};
-    float x = c.startx, y = c.starty;
+    Contour o;
+    float x = c.StartX(), y = c.StartY();
     for (const Path &p : c.paths) {
       switch (p.type) {
       case PathType::LINE: {
@@ -176,7 +179,7 @@ std::vector<TTF::Contour> TTF::NormalizeOrder(
     // index (of end point) closest to the origin point.
     // -1 means the start point was already closest.
     int bestidx = -1;
-    float best_sqerr = SqDist(c.startx, c.starty);
+    float best_sqerr = SqDist(c.StartX(), c.StartY());
     for (int i = 0; i < c.paths.size(); i++) {
       // Both LINE and BEZIER have an end point.
       const float sqerr = SqDist(c.paths[i].x, c.paths[i].y);
@@ -193,7 +196,7 @@ std::vector<TTF::Contour> TTF::NormalizeOrder(
       // Start there instead.
       float x = c.paths[bestidx].x;
       float y = c.paths[bestidx].y;
-      Contour r{x, y};
+      Contour r;
       // Paths that come after it.
       for (int i = bestidx + 1; i < c.paths.size(); i++) {
         r.paths.push_back(c.paths[i]);
@@ -202,8 +205,8 @@ std::vector<TTF::Contour> TTF::NormalizeOrder(
       }
       // When we get to the end, we assume a closed path.
       // (If not, we could always insert a LINE here.
-      CHECK_EQ(c.startx, x) << c.startx << " " << x;
-      CHECK_EQ(c.starty, y) << c.starty << " " << y;
+      CHECK_EQ(c.StartX(), x) << c.StartX() << " " << x;
+      CHECK_EQ(c.StartY(), y) << c.StartY() << " " << y;
       // Because the path was closed, our cursor is already
       // on startx, starty.
       for (int i = 0; i <= bestidx; i++) {
@@ -329,7 +332,7 @@ std::vector<TTF::NativeContour> TTF::GetNativeContours(int codepoint) const {
       if (cur.has_value()) {
         out.emplace_back(cur.value());
       }
-      cur.emplace(v.x, v.y);
+      cur.emplace();
       break;
     case STBTT_vline:
       CHECK(cur.has_value());

@@ -268,7 +268,7 @@ static void Test8x8() {
 
 int main(int argc, char **argv) {
   // TestLoopAssignment();
-  // BenchmarkBitmapSDF();
+  BenchmarkBitmapSDF();
 
   Test8x8SDF();
   Test8x8();

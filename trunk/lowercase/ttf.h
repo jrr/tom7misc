@@ -111,20 +111,27 @@ struct TTF {
   // 'm' can be drawn with either winding order (XXX check), although
   // clockwise is normative.
   //
-  // XXX is this expected to be closed?
-  // (TODO: They are always closed. We can probably simplify some code
-  // by making StartX() and StartY() which just return the end point
-  // of the last path.)
+  // This is always closed; the last point in the path is the start
+  // point.
   struct Contour {
-    float startx = 0.0f, starty = 0.0f;
+    // Empty paths are degenerate and should be avoided, but we
+    // return 0,0 as the start point for these to avoid undefined
+    // behavior.
+    float StartX() const {
+      if (paths.empty()) return 0.0f;
+      else return paths.back().x;
+    }
+    float StartY() const {
+      if (paths.empty()) return 0.0f;
+      else return paths.back().y;
+    }
     std::vector<Path> paths;
-    Contour(float startx, float starty) : startx(startx), starty(starty) {}
   };
 
   // Get the contours for a codepoint (e.g. ascii character). Can be
   // empty (space character).
   std::vector<Contour> GetContours(int codepoint) const;
-  
+
   // For a vector of contours describing a shape, convert any lines
   // into equivalent Bezier curves (with the control point at the
   // midpoint of the line).
@@ -221,7 +228,7 @@ private:
   float norm = 0.0;
   float baseline = 0.0f;
   // By definition: ascent = 0.0, descent = 0.0
-  
+
   struct NativePath {
     PathType type = PathType::LINE;
     int x = 0, y = 0;
@@ -234,11 +241,17 @@ private:
   };
 
   // Note: Source integer coordinates are int16.
-  // XXX is this expected to be closed?
   struct NativeContour {
-    int startx = 0, starty = 0;
+    // int startx = 0, starty = 0;
+    int StartX() const {
+      if (paths.empty()) return 0;
+      else return paths.back().x;
+    }
+    int StartY() const {
+      if (paths.empty()) return 0;
+      else return paths.back().y;
+    }
     std::vector<NativePath> paths;
-    NativeContour(int startx, int starty) : startx(startx), starty(starty) {}
   };
 
   std::vector<NativeContour> GetNativeContours(int codepoint) const;
