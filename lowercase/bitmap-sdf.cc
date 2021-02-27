@@ -180,13 +180,10 @@ int main(int argc, char **argv) {
          pix.Edges());
   ImageA pixel_sdf = FontProblem::SDF36From8x8(pix);
 
-  // XXXXXX
-  // ImageA sdf = bitmap_sdf;
-  // sdf = vector_sdf;
-
-  Gen(config, *make_lowercase, *make_uppercase, vector_sdf, "vector-sdf.png");
+  // XXX put these back
+  // Gen(config, *make_lowercase, *make_uppercase, vector_sdf, "vector-sdf.png");
   Gen(config, *make_lowercase, *make_uppercase, bitmap_sdf, "bitmap-sdf.png");
-  Gen(config, *make_lowercase, *make_uppercase, pixel_sdf, "pixel-sdf.png");
+  // Gen(config, *make_lowercase, *make_uppercase, pixel_sdf, "pixel-sdf.png");
 
   return 0;
 }
