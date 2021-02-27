@@ -480,7 +480,7 @@ bool FontProblem::GetRows(const TTF *ttf, int codepoint,
   // the maximum number of contours.
   // We treat this as an empty path starting at 0,0.
   while (contours->size() < row_max_points.size()) {
-    TTF::Contour degenerate(0.0f, 0.0f);
+    TTF::Contour degenerate;
     contours->push_back(degenerate);
   }
 
@@ -507,19 +507,19 @@ bool FontProblem::FillVector(const TTF *ttf, int codepoint,
                               int max_pts,
                               const Contour &contour) {
       constexpr int HDR = 2;
-      buffer[row_start + 0] = contour.startx;
-      buffer[row_start + 1] = contour.starty;
+      buffer[row_start + 0] = contour.StartX();
+      buffer[row_start + 1] = contour.StartY();
       for (int i = 0; i < max_pts; i++) {
         // When we run out of real points, pad with degenerate
         // zero-length curves at the start point.
         float cx = i < contour.paths.size() ?
-                       contour.paths[i].cx : contour.startx;
+                       contour.paths[i].cx : contour.StartX();
         float cy = i < contour.paths.size() ?
-                       contour.paths[i].cy : contour.starty;
+                       contour.paths[i].cy : contour.StartY();
         float x = i < contour.paths.size() ?
-                      contour.paths[i].x : contour.startx;
+                      contour.paths[i].x : contour.StartX();
         float y = i < contour.paths.size() ?
-                      contour.paths[i].y : contour.starty;
+                      contour.paths[i].y : contour.StartY();
 
         buffer[row_start + HDR + i * 4 + 0] = cx;
         buffer[row_start + HDR + i * 4 + 1] = cy;
@@ -600,8 +600,8 @@ void FontProblem::FillExpectedVector(
 
     // Otherwise, the font is expected to be a closed loop.
     // We then ignore the start point.
-    CHECK(contour.paths.back().x == contour.startx);
-    CHECK(contour.paths.back().y == contour.starty);
+    CHECK(contour.paths.back().x == contour.StartX());
+    CHECK(contour.paths.back().y == contour.StartY());
 
     // Put in Point format for BestLoopAssignment.
     vector<Point> expected;
@@ -1980,8 +1980,14 @@ static TTF::Contour VectorizeOne(
     }
   }
 
-  // XXX
-  return TTF::Contour{0.0f, 0.0f};
+  // Return straight lines between these edge points.
+  // TODO: Clean this up, use beziers!
+  TTF::Contour ret;
+  for (const auto [ex, ey] : edge_points) {
+    ret.paths.emplace_back(ex, ey);
+  }
+
+  return ret;
 }
 
 vector<TTF::Contour> FontProblem::VectorizeSDF(

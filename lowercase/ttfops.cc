@@ -36,14 +36,14 @@ TTFOps::GetSameCase(const TTF &ttf) {
       return nullopt;
     }
 
-    Pair p;               
+    Pair p;
     // Each contour must have the same number of paths
     // (and be in the same order).
     for (int i = 0; i < ucase.size(); i++) {
       const TTF::Contour &ucont = ucase[i];
       const TTF::Contour &lcont = lcase[i];
-      p.ucase.emplace_back(ucont.startx, ucont.starty);
-      p.lcase.emplace_back(lcont.startx, lcont.starty);
+      p.ucase.emplace_back(ucont.StartX(), ucont.StartY());
+      p.lcase.emplace_back(lcont.StartX(), lcont.StartY());
 
       const auto &up = ucont.paths;
       const auto &lp = lcont.paths;
@@ -118,7 +118,7 @@ TTFOps::GetSameCase(const TTF &ttf) {
         // expectation is that the error is either really
         // close to zero or terrible.
         const double dx = tdx / p.ucase.size();
-        const double dy = tdy / p.ucase.size();             
+        const double dy = tdy / p.ucase.size();
 
         double err = 0.0f;
         for (int i = 0; i < p.ucase.size(); i++) {
@@ -153,7 +153,7 @@ double TTFOps::CharBitmapDifference(const TTF &ttf,
                                     float scale,
                                     float xscale2, float yscale2,
                                     float xmov2, float ymov2) {
-  
+
   const stbtt_fontinfo *info = ttf.Font();
   CHECK(info != nullptr);
 
@@ -164,7 +164,7 @@ double TTFOps::CharBitmapDifference(const TTF &ttf,
          "stb_scale: %.5f\n",
          c1, c2, scale, xscale2, yscale2, xmov2, ymov2,
          stb_scale);
-  */  
+  */
   int width1, height1, xoff1, yoff1;
   uint8 *bit1 = stbtt_GetCodepointBitmapSubpixel(info,
                                                  // uniform scale
@@ -176,13 +176,13 @@ double TTFOps::CharBitmapDifference(const TTF &ttf,
                                                  &xoff1, &yoff1);
   if (!bit1) return 1.0;
   CHECK(bit1 != nullptr);
-  
+
 #if 0
   int int_x = xmov2, int_y = ymov2;
   const float subpixel_x = xmov2 - int_x;
   const float subpixel_y = ymov2 - int_y;
 #endif
-  
+
   // Get integral part and remainder (always in [0, 1)).
   auto SubPx = [](float f) -> pair<int, float> {
     int i = floorf(f);
@@ -206,11 +206,11 @@ double TTFOps::CharBitmapDifference(const TTF &ttf,
                                                  &xoff2, &yoff2);
   if (!bit2) {
     // bit1 was successfully allocated though
-    stbtt_FreeBitmap(bit1, nullptr);    
+    stbtt_FreeBitmap(bit1, nullptr);
     return 1.0;
   }
   CHECK(bit2 != nullptr);
-  
+
   // Here we're working in a coordinate space where 0,0 is the origin for both
   // characters, and the scale is in pixels of the rendered bitmaps. The top left
   // of the bitmap (and the bounding box containing both bitmaps) is typically
@@ -298,7 +298,7 @@ double TTFOps::TotalAlphabetDifference(const TTF &ttf,
 */
     // PERF: If it were possible to provide a guess here, we could probably
     // provide a very good guess (start with identity, then use previous char).
-    const auto [args, err] = 
+    const auto [args, err] =
 //      Opt::Minimize<4>(GetErr, {0.8, 0.8, -10.0, -10.0}, {1.2, 1.2, 10.0, 10.0},
 //                     iters_per_char);
       Opt::Minimize<4>(GetErr, {0.33, 0.33, -50.0, -50.0}, {3.0, 3.0, 50.0, 50.0},
@@ -310,7 +310,7 @@ double TTFOps::TotalAlphabetDifference(const TTF &ttf,
     if (total_best_error >= threshold)
       return total_best_error;
   }
-  
+
   return total_best_error;
 }
 
