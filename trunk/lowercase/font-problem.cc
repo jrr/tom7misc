@@ -1,9 +1,12 @@
 
 #include "font-problem.h"
 
-#include <vector>
-#include <string>
+#include <algorithm>
 #include <cmath>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
 
 #include "base/stringprintf.h"
 
@@ -16,6 +19,7 @@
 #include "arcfour.h"
 #include "randutil.h"
 #include "timer.h"
+#include "opt/opt.h"
 
 #include "network-util.h"
 
@@ -33,6 +37,11 @@ static uint32 COLORS[NUM_COLORS] = {
   0x00FFFFFF,
   0xFF00FFFF,
 };
+
+template<class C, class K>
+static bool ContainsKey(const C &c, const K &k) {
+  return c.find(k) != c.end();
+}
 
 static void DrawFloats(const vector<int> &row_max_points,
                        const vector<float> &values,
@@ -1400,9 +1409,36 @@ Network *FontProblem::MakePredOnlyNetwork(const SDFConfig &config,
 // equivalence class, although it's not known until a pixel is
 // processed.
 namespace {
-struct IslandState {
+struct Todo {
+  void Add(int depth, int idx) {
+    m[depth].push_back(idx);
+  }
+
+  bool HasNext() const {
+    return !m.empty();
+  }
+
+  std::pair<int, int> Next() {
+    CHECK(!m.empty());
+    auto it = m.begin();
+    const int depth = it->first;
+    const int idx = it->second.back();
+    it->second.pop_back();
+    if (it->second.empty()) {
+      m.erase(it);
+    }
+    return {depth, idx};
+  }
+
+  // Map of depth to to-do list for that depth.
+  // Representation invariant: no vectors are empty.
+  std::map<int, vector<int>> m;
+};
+
+struct IslandFinder {
   // Bitmap >0 for land. We locally pad it.
-  explicit IslandState(const ImageA &bitmap) :
+  // Run "Fill" after constructing.
+  explicit IslandFinder(const ImageA &bitmap) :
     img(Preprocess(bitmap)),
     radix(img.Width() * img.Height()) {
     for (int i = 0; i < radix; i++) {
@@ -1427,14 +1463,17 @@ struct IslandState {
     else return img.GetPixel(x, y) > 0;
   }
 
-  // Information about an entire equivalence class.
-  struct ClassInfo {
-    ClassInfo(int d, int pc) : depth(d), parent_class(pc) {}
+  // Information about a pixel, which should be eventually
+  // shared with the full equivalence class.
+  struct Info {
+    Info(int d, int pc) : depth(d), parent_class(pc) {}
     int depth = -1;
     // Note: need to resolve this with GetClass, as the
     // parent could be unioned with something later (is
     // it actually possible? well in any case, it is right
     // to look up the class).
+
+    // XXX Do I even need parents?
     int parent_class = -1;
   };
 
@@ -1445,7 +1484,7 @@ struct IslandState {
   // For each pixel, nullopt if we have not yet visited it.
   // If we have visited, its depth (will never change) and
   // parent pixel (must canonicalize via GetClass).
-  vector<optional<ClassInfo>> classinfo;
+  vector<optional<Info>> classinfo;
 
   void SetInfo(int idx, int depth, int parent) {
     CHECK(!classinfo[idx].has_value()) << idx << " depth "
@@ -1453,7 +1492,7 @@ struct IslandState {
     classinfo[idx].emplace(depth, parent);
   }
 
-  ClassInfo GetInfo(int idx) const {
+  Info GetInfo(int idx) const {
     CHECK(classinfo[idx].has_value());
     return classinfo[idx].value();
   }
@@ -1487,6 +1526,156 @@ struct IslandState {
     }
   }
 
+  void Fill() {
+    const int TOP_LEFT = Index(0, 0);
+    // Parent of outermost region is itself.
+    SetInfo(TOP_LEFT, 0, TOP_LEFT);
+
+    // Start by marking the border as visited, and part of the same
+    // island. This prevents us from going off the map, and ensures
+    // that the outer region is all connected.
+    // Left and right edges.
+    auto MarkBoundary = [this, TOP_LEFT](int x, int y) {
+        int idx = Index(x, y);
+        SetInfo(idx, 0, TOP_LEFT);
+        Union(TOP_LEFT, idx);
+      };
+
+    for (int y = 0; y < Height(); y++) {
+      if (y != 0)
+        MarkBoundary(0, y);
+      MarkBoundary(Width() - 1, y);
+    }
+    // Top and bottom edges.
+    for (int x = 1; x < Width() - 1; x++) {
+      MarkBoundary(x, 0);
+      MarkBoundary(x, Height() - 1);
+    }
+
+    // To kick off the process, we start with the pixel at (1,1). It
+    // must be sea because we padded the whole thing with two pixels
+    // of sea.
+    CHECK(!IsLand(1, 1));
+
+    const int start_idx = Index(1, 1);
+    SetInfo(start_idx, 0, TOP_LEFT);
+    Union(TOP_LEFT, start_idx);
+
+    Todo todo;
+    todo.Add(0, Index(1, 1));
+
+    // Now, the steady state flood-fill.
+    while (todo.HasNext()) {
+      const auto [src_depth, src_idx] = todo.Next();
+      CHECK(Visited(src_idx));
+
+      const int src_parent = GetInfo(src_idx).parent_class;
+
+      const auto [src_x, src_y] = GetXY(src_idx);
+      for (const auto [dx, dy] : initializer_list<pair<int, int>>{
+          {-1, 0}, {1, 0}, {0, -1}, {0, 1}}) {
+        const int x = src_x + dx;
+        const int y = src_y + dy;
+        const int idx = Index(x, y);
+
+        const bool has_border =
+          IsLand(src_x, src_y) != IsLand(x, y);
+
+        if (has_border) {
+          if (Visited(idx)) {
+            // Nothing to do here, although we can sanity check...
+            const int depth = GetInfo(idx).depth;
+            // We could be reaching this pixel the second time (like if
+            // it's a corner, or on a one-wide strip), or we could be
+            // looking out of the outer edge of our own region.
+            CHECK(depth == src_depth + 1 ||
+                  depth == src_depth - 1);
+          } else {
+            // Otherwise, we found part of an island within this one.
+            SetInfo(idx, src_depth + 1, src_idx);
+            todo.Add(src_depth + 1, idx);
+          }
+        } else {
+          // If we haven't visited it yet, initialize at the same
+          // depth and put it in the queue.
+          if (!Visited(idx)) {
+            SetInfo(idx, src_depth, src_parent);
+            todo.Add(src_depth, idx);
+          }
+
+          // And either way, since we are connected neighbors, join
+          // the equivalence classes.
+          Union(src_idx, idx);
+        }
+      }
+    }
+  }
+
+  // Get the output of this process as three components:
+  //  - Two bitmaps the size of the original bitmap:
+  //      (removing the padding used for internal purposes).
+  //    - Depth map. Value is the depth.
+  //    - Equivalence classes. Value is arbitrary unique id,
+  //      though depth zero will be equivalence class 0.
+  //  - A map from each equivalence class in the second image
+  //    to its parent equivalence class. The exception is 0,
+  //    which has no parent and does not appear in the map.
+  // Since the output is 8-bit, there can only be up to 255
+  // in each case.
+  std::tuple<ImageA, ImageA, std::map<uint8, uint8>> GetMaps() {
+    const int w = img.Width() - 4;
+    const int h = img.Height() - 4;
+    ImageA depth(w, h);
+    ImageA eq(w, h);
+    std::map<uint8, uint8> parent;
+
+    const int zero_id = GetClass(Index(0, 0));
+    std::unordered_map<int, uint8> toeq = {{zero_id, 0}};
+    uint8 next_id = 1;
+    auto GetEq = [&toeq, &next_id](int eqc) {
+        auto it = toeq.find(eqc);
+        if (it == toeq.end()) {
+          CHECK(next_id < 255);
+          uint8 ret = next_id++;
+          toeq[eqc] = ret;
+          return ret;
+        } else {
+          return it->second;
+        }
+      };
+
+    for (int y = 0; y < h; y++) {
+      for (int x = 0; x < h; x++) {
+        int yy = y + 2;
+        int xx = x + 2;
+        int idx = Index(xx, yy);
+        CHECK(Visited(idx)) << "bug? or call Fill";
+        Info info = GetInfo(idx);
+        CHECK(info.depth >= 0 && info.depth < 256) << info.depth;
+        depth.SetPixel(x, y, info.depth);
+        const uint8 eq8 = GetEq(GetClass(idx));
+        eq.SetPixel(x, y, eq8);
+        // Don't set parent for class 0.
+        if (eq8 != 0) {
+          CHECK(info.parent_class >= 0);
+          const uint8 pq8 = GetEq(GetClass(info.parent_class));
+          auto it = parent.find(eq8);
+          if (it != parent.end()) {
+            CHECK(it->second == pq8) << "Inconsistent parents for "
+              "equivalence class " << GetClass(idx) << " = " << eq8 <<
+              ": " << GetClass(info.parent_class) << " = " << pq8 <<
+              " but already had (something) = " << it->second << "!";
+          } else {
+            parent[eq8] = pq8;
+          }
+        }
+      }
+    }
+    return make_tuple(depth, eq, parent);
+  }
+
+  // During or after Fill(), use this to generate a visualization of
+  // that process.
   ImageRGBA DebugBitmap() {
     ImageRGBA out(img.Width(), img.Height());
     out.Clear32(0x000000FF);
@@ -1510,7 +1699,7 @@ struct IslandState {
       for (int x = 0; x < img.Width(); x++) {
         int idx = Index(x, y);
         if (Visited(idx)) {
-          ClassInfo info = GetInfo(idx);
+          Info info = GetInfo(idx);
           uint8 r = info.depth * 0x20;
           // green and blue from eq class.
           int eq = GetClass(idx);
@@ -1555,145 +1744,376 @@ private:
   }
 };
 
-struct Todo {
-  void Add(int depth, int idx) {
-    m[depth].push_back(idx);
-  }
-
-  bool HasNext() const {
-    return !m.empty();
-  }
-
-  std::pair<int, int> Next() {
-    CHECK(!m.empty());
-    auto it = m.begin();
-    const int depth = it->first;
-    const int idx = it->second.back();
-    it->second.pop_back();
-    if (it->second.empty()) {
-      m.erase(it);
-    }
-    return {depth, idx};
-  }
-
-  // Map of depth to to-do list for that depth.
-  // Representation invariant: no vectors are empty.
-  std::map<int, vector<int>> m;
-};
 }  // namespace
 
-// Coordinate in the SDF. Given a connected island (some 4-connected
-// subset of pixels in the SDF, given as 1D indices), return the
-// connected subsets within it:
-ImageRGBA GetIslands(const ImageA &bitmap) {
-  IslandState state{bitmap};
 
-  const int TOP_LEFT = state.Index(0, 0);
-  // Parent of outermost region is itself.
-  state.SetInfo(TOP_LEFT, 0, TOP_LEFT);
+// For the tracing procedure we will do some operations on the
+// SDF, including negating it. It's easiest to work with if
+// we don't have to use integral values or worry about the
+// configured onedge_value or falloff. Use floats and normalize
+// the SDF so that the onedge_value is 0.5f and the falloff is
+// 0.1 per pixel. (Would probably be cleaner if we used a center
+// of zero, but ImageF clips to [0, 1].)
+static constexpr float EDGE = 0.5f;
+static constexpr float FALLOFF = 0.1f;
+static ImageF NormalizeSDF(const FontProblem::SDFConfig &config,
+                           const ImageA &sdf) {
+  ImageF out(sdf.Width(), sdf.Height());
 
-  // XXX inside IslandState?
-  // Start by marking the border as visited, and part of the same
-  // island. This prevents us from going off the map, and ensures
-  // that the outer region is all connected.
-  // Left and right edges.
-  auto MarkBoundary = [&state, TOP_LEFT](int x, int y) {
-      int idx = state.Index(x, y);
-      state.SetInfo(idx, 0, TOP_LEFT);
-      state.Union(TOP_LEFT, idx);
+  auto Map = [&config](uint8 v) {
+      // Convert to [0,1] nominal scale.
+      const float f = v / 255.0f;
+      // Center at zero.
+      const float fcentered = f - (config.onedge_value / 255.0f);
+      // Falloff in [0,1] nominal scale.
+      const float ffalloff = config.falloff_per_pixel / 255.0f;
+      // Now scale so that falloff is 0.1f.
+      const float fscaled = fcentered / (ffalloff / FALLOFF);
+      // Now recenter at 0.5f and saturate.
+      return std::clamp(fscaled + EDGE, 0.0f, 1.0f);
     };
 
-  for (int y = 0; y < state.Height(); y++) {
-    if (y != 0)
-      MarkBoundary(0, y);
-    MarkBoundary(state.Width() - 1, y);
+  for (int y = 0; y < sdf.Height(); y++) {
+    for (int x = 0; x < sdf.Width(); x++) {
+      out.SetPixel(x, y, Map(sdf.GetPixel(x, y)));
+    }
   }
-  // Top and bottom edges.
-  for (int x = 1; x < state.Width() - 1; x++) {
-    MarkBoundary(x, 0);
-    MarkBoundary(x, state.Height() - 1);
-  }
+  return out;
+}
 
-  // To kick off the process, we start with the pixel at (1,1). It
-  // must be sea because we padded the whole thing with two pixels
-  // of sea.
-  CHECK(!state.IsLand(1, 1));
+// Core of the problem: Trace a single pixel blob in a normalized
+// SDF, producing a single clockwise contour.
+static TTF::Contour VectorizeOne(
+    // Normalized. The interior is > 0.5f, the exterior is < 0.5f,
+    // and the falloff is 0.1f.
+    const ImageF &sdf,
+    // Bitmap of the same size. A contiguous non-empty region
+    // >0 is the shape to trace.
+    const ImageA &bitmap) {
 
-  const int start_idx = state.Index(1, 1);
-  state.SetInfo(start_idx, 0, TOP_LEFT);
-  state.Union(TOP_LEFT, start_idx);
+  auto InBlob = [&bitmap](int x, int y) -> bool {
+      if (x < 0 || y <0 || x >= bitmap.Width() || y >= bitmap.Height())
+        return false;
+      return bitmap.GetPixel(x, y) > 0;
+    };
 
-  Todo todo;
-  todo.Add(0, state.Index(1, 1));
-
-  // Now, the steady state flood-fill.
-  while (todo.HasNext()) {
-    const auto [src_depth, src_idx] = todo.Next();
-    CHECK(state.Visited(src_idx));
-
-    const int src_parent = state.GetInfo(src_idx).parent_class;
-
-    const auto [src_x, src_y] = state.GetXY(src_idx);
-    for (const auto [dx, dy] : initializer_list<pair<int, int>>{
-        {-1, 0}, {1, 0}, {0, -1}, {0, 1}}) {
-      const int x = src_x + dx;
-      const int y = src_y + dy;
-      const int idx = state.Index(x, y);
-
-      const bool has_border =
-        state.IsLand(src_x, src_y) != state.IsLand(x, y);
-
-      if (has_border) {
-        if (state.Visited(idx)) {
-          // Nothing to do here, although we can sanity check...
-          const int depth = state.GetInfo(idx).depth;
-          // We could be reaching this pixel the second time (like if
-          // it's a corner, or on a one-wide strip), or we could be
-          // looking out of the outer edge of our own region.
-          CHECK(depth == src_depth + 1 ||
-                depth == src_depth - 1);
-        } else {
-          // Otherwise, we found part of an island within this one.
-          state.SetInfo(idx, src_depth + 1, src_idx);
-          todo.Add(src_depth + 1, idx);
+  // First, find a pixel inside the blob.
+  // This pixel has the property that there is no pixel with
+  // a smaller y coordinate, which is also in the blob.
+  const auto [startpx, startpy] = [&bitmap, InBlob]() ->
+    std::pair<int, int> {
+      for (int y = 0; y < bitmap.Height(); y++) {
+        for (int x = 0; x < bitmap.Width(); x++) {
+          if (InBlob(x, y)) return make_pair(x, y);
         }
-      } else {
-        // If we haven't visited it yet, initialize at the same
-        // depth and put it in the queue.
-        if (!state.Visited(idx)) {
-          state.SetInfo(idx, src_depth, src_parent);
-          todo.Add(src_depth, idx);
-        }
-
-        // And either way, since we are connected neighbors, join
-        // the equivalence classes.
-        state.Union(src_idx, idx);
       }
+      CHECK(false) << "VectorizeOne requires a non-empty bitmap!";
+  }();
+
+  // The first phase is to wind around the pixel blob's exterior,
+  // always maintaining a direction and a pair of pixels, one in,
+  // and one out. The starting pixel we just found is such an
+  // example we scanned from top to bottom. We'll be done when we
+  // return to the start pixel.
+  CHECK(!InBlob(startpx, startpy - 1)) << "Need the uppermost pixel "
+    "in this column.";
+
+  printf("Start: %d,%d\n", startpx, startpy);
+
+  // Discrete direction. The code below is written for a pattern
+  // where we are moving right, with the blob down, and the
+  // exterior up (which is the start condition), but it naturally
+  // rotates to the other directions.
+  enum Dir {
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT,
+  };
+
+  // Get the orthogonal "normal" direction, which is up for Right.
+  auto Normal = [](Dir d) {
+      switch (d) {
+      case RIGHT: return UP;
+      case LEFT: return DOWN;
+      case DOWN: return RIGHT;
+      case UP: return LEFT;
+      }
+      CHECK(false) << "Bad dir";
+    };
+
+  auto TurnCCW = Normal;
+
+  auto TurnCW = [](Dir d) {
+      switch (d) {
+      case RIGHT: return DOWN;
+      case DOWN: return LEFT;
+      case LEFT: return UP;
+      case UP: return RIGHT;
+      }
+      CHECK(false) << "Bad dir";
+    };
+
+  auto Move = [](int x, int y, Dir d) -> pair<int, int> {
+    switch (d) {
+    case RIGHT: return make_pair(x + 1, y);
+    case LEFT: return make_pair(x - 1, y);
+    case DOWN: return make_pair(x, y + 1);
+    case UP: return make_pair(x, y - 1);
+    }
+    CHECK(false) << "Bad dir";
+  };
+
+  auto MoveF = [](float x, float y, Dir d, float r) -> pair<float, float> {
+    switch (d) {
+    case RIGHT: return make_pair(x + r, y);
+    case LEFT: return make_pair(x - r, y);
+    case DOWN: return make_pair(x, y + r);
+    case UP: return make_pair(x, y - r);
+    }
+    CHECK(false) << "Bad dir";
+  };
+
+
+  // Pixel we're currently looking at.
+  int px = startpx;
+  int py = startpy;
+
+  // Direction we're currently heading. We are at the top of the
+  // blob, so go right for clockwise. (It seems any local top
+  // would work; compare for example the inner top edges of an 's'
+  // shape.)
+  Dir right = RIGHT;
+
+  vector<std::pair<float, float>> edge_points;
+  for (;;) {
+    Dir up = Normal(right);
+    const auto [upx, upy] = Move(px, py, up);
+    // Invariant is that we are on the edge, so px,py is
+    // in the blob and the pixel "above" it is not.
+    CHECK(InBlob(px, py));
+    CHECK(!InBlob(upx, upy));
+
+    // First, trace a line straight up to find the point (in
+    // sampled bilinear space) where we hit 0.5, the onedge value.
+    // This point will be on our contour.
+
+    // We could solve for this point since the bilinear sampling is
+    // a simple formula, but even easier is to just search (and note
+    // that we have to deal with boundary cases like the edge of
+    // the image). The edge of the pixel will be between this pixel
+    // and the one above it, because it is outside the blob.
+    // (Perhaps in practice this could be violated, since we can't
+    // quite guarantee that the bitmap and SDF are in agreement; they
+    // are modified in the recursive decompositino below. But this
+    // keeps us close to the blob, which is desirable for other reasons!)
+
+    const float r = Opt::Minimize1D(
+        [&sdf, &MoveF, px, py, up](double r) -> double {
+          const auto [ex, ey] = MoveF((float)px, (float)py, up, r);
+          // Get close to EDGE.
+          return fabs(sdf.SampleBilinear(ex, ey) - EDGE);
+        },
+        // Up to 1 pixel along the normal.
+        0.0, 1.0, 1000).first;
+
+    printf("from %d,%d r=%.2f\n", px, py, r);
+
+    const auto [ex, ey] = MoveF((float)px, (float)py, up, r);
+    edge_points.emplace_back(ex, ey);
+
+    // We proceed by case analysis on the pixel grid.
+
+    // +--+--+
+    // |  |a?|
+    // +--+--+
+    // |##|b?|
+    // +--+--+
+
+    const auto [ax, ay] = Move(upx, upy, right);
+    const auto [bx, by] = Move(px, py, right);
+    const bool a = InBlob(ax, ay);
+    const bool b = InBlob(bx, by);
+
+    if (!a && b) {
+      // +--+--+
+      // |  |a |
+      // +--+--+
+      // |##|b#|
+      // +--+--+
+      // Just continue in the same direction.
+      px = bx;
+      py = by;
+    } else if (!a && !b) {
+      // +--+--+
+      // |  |a |
+      // +--+--+
+      // |##|b |
+      // +--+--+
+      // Make a 90 degree turn around this pixel, but
+      // stay on it.
+      right = TurnCW(right);
+    } else {
+      CHECK(a);
+      // +--+--+
+      // |  |a#|
+      // +--+--+
+      // |##|b?|
+      // +--+--+
+      // Don't care what b is (we are using 4-connectivity);
+      // if it's open we'll get there separately.
+
+      // (This case might produce weird inverted corners.
+      // Might be better to also look at the pixel above a
+      // and keep going right in shallow cases.)
+      px = ax;
+      py = ay;
+      right = TurnCCW(right);
+    }
+
+    // Consider the case of a single pixel. We should
+    // only end when we approach it with right = RIGHT, right?
+    if (px == startpx &&
+        py == startpy && right == RIGHT)  {
+      printf("Loop finished!\n");
+      break;
     }
   }
 
-  return state.DebugBitmap();
+  // XXX
+  return TTF::Contour{0.0f, 0.0f};
 }
-
 
 vector<TTF::Contour> FontProblem::VectorizeSDF(
     const FontProblem::SDFConfig &config,
-    const ImageA &sdf,
+    const ImageA &sdf8,
     ImageRGBA *islands) {
 
-  // Make thresholded bitmap.
-  ImageA bitmap(sdf.Width(), sdf.Height());
-  for (int y = 0; y < sdf.Height(); y++) {
-    for (int x = 0; x < sdf.Width(); x++) {
-      bitmap.SetPixel(x, y,
-                      sdf.GetPixel(x, y) >= config.onedge_value ?
-                      0xFF : 0x00);
+  const auto [depth, eqclass, parentmap] = [&config, &sdf8, islands](){
+      // Make thresholded bitmap.
+      ImageA bitmap(sdf8.Width(), sdf8.Height());
+      for (int y = 0; y < sdf8.Height(); y++) {
+        for (int x = 0; x < sdf8.Width(); x++) {
+          bitmap.SetPixel(x, y,
+                          sdf8.GetPixel(x, y) >= config.onedge_value ?
+                          0xFF : 0x00);
+        }
+      }
+
+      IslandFinder finder(bitmap);
+      finder.Fill();
+
+      if (islands != nullptr) *islands = finder.DebugBitmap();
+
+      return finder.GetMaps();
+    }();
+
+  // Get the depth of each equivalence class that occurs, and the
+  // maximum depth.
+  std::unordered_map<uint8, uint8> eqclass_depth;
+  int max_depth = 0;
+  for (int y = 0; y < depth.Height(); y++) {
+    for (int x = 0; x < depth.Width(); x++) {
+      uint8 d = depth.GetPixel(x, y);
+      uint8 eqc = eqclass.GetPixel(x, y);
+      auto it = eqclass_depth.find(eqc);
+      if (it == eqclass_depth.end()) {
+        eqclass_depth[eqc] = d;
+      } else {
+        CHECK(it->second == d) << "Inconsistent depth for eqclass "
+                               << eqc << " at " << x << "," << y;
+      }
+      max_depth = std::max((int)d, max_depth);
     }
   }
 
-  // XXX get return, do something with it..
-  ImageRGBA debug = GetIslands(bitmap);
-  if (islands != nullptr) *islands = std::move(debug);
+  // Assuming the depth of eqc is at least d, get the ancestor
+  // that is at depth exactly d.
+  auto GetAncestorAtDepth =
+    [&parentmap, &eqclass_depth](uint8 d, uint8 eqc) -> uint8 {
+      for (;;) {
+        if (d == 0) return 0;
+        auto dit = eqclass_depth.find(eqc);
+        CHECK(dit != eqclass_depth.end()) << eqc << " has no depth?";
+        if (dit->second == d) return eqc;
+
+        auto pit = parentmap.find(eqc);
+        CHECK(pit != parentmap.end()) << eqc << " has no parent?";
+        eqc = pit->second;
+      }
+    };
+
+
+  // Next up, generate a series of nested contours.
+  // For each equivalence class, first simplify matters by
+  // filling its interior so that it is never less than
+  // the onedge value; we'll deal with those cutouts separately.
+  // Similarly, make sure that the exterior is all less than
+  // the onedge value.
+  //
+  // When recursing, we can negate the SDF's interior so that we
+  // always generate these contours as though tracing the outside of
+  // land (and then we can reverse the contour if it's a cutout).
+
+  // We should probably be subtracting portions of the SDF that we
+  // have already processed (or that are part of a separate segment)
+  // so that we don't get confused. Not sure what the right way is?
+  // The pixels of the equivalence class do also set a bound on the
+  // distance for all pixels in the image. So we could use that to
+  // modify the SDF to reduce confusion, although it's not going to
+  // completely remove it, and might not address the cases that matter
+  // at all. I guess it would prevent us from getting more than a
+  // certain distance from the eqclass, which is at least a bound
+  // on the error.
+  // Since it would be imperfect anyway, this first version is not
+  // doing it at all.
+
+  // Work with normalized SDF to simplify matters a bit.
+  ImageF sdf = NormalizeSDF(config, sdf8);
+
+  // No contour for depth 0.
+  for (int d = 1; d <= max_depth; d++) {
+    printf("DEPTH %d\n", d);
+    // Get the equivalence classes at this depth, paired with the set
+    // of (inclusive) descendants of that class (we want to remove
+    // these holes when tracing the contour to simplify our lives).
+    // We'll run the routine below on each one.
+    std::map<uint8, std::set<uint8>> eqclasses;
+    for (int y = 0; y < eqclass.Height(); y++) {
+      for (int x = 0; x < eqclass.Height(); x++) {
+        if ((int)depth.GetPixel(x, y) >= d) {
+          uint8 eqc = eqclass.GetPixel(x, y);
+          // This must exist because the depth is at least d, and
+          // d > 0.
+          uint8 ancestor = GetAncestorAtDepth(d, eqc);
+          eqclasses[ancestor].insert(eqc);
+        }
+      }
+    }
+
+    for (const auto &[this_eqc, descendants] : eqclasses) {
+      // Simplified bitmap.
+      ImageA bitmap(eqclass.Width(), eqclass.Height());
+      for (int y = 0; y < eqclass.Height(); y++) {
+        for (int x = 0; x < eqclass.Width(); x++) {
+          uint8 eqc = eqclass.GetPixel(x, y);
+          bool inside = ContainsKey(descendants, eqc);
+          bitmap.SetPixel(x, y, inside ? 0xFF : 0x00);
+        }
+      }
+
+      /*
+      printf("Class %d includes: ", (int)this_eqc);
+      for (uint8 c : descendants) printf(" %d", (int)c);
+      printf("\n");
+      bitmap.GreyscaleRGBA().Save(
+          StringPrintf("eqclass-%d.png", (int)this_eqc));
+      */
+
+      TTF::Contour contour = VectorizeOne(sdf, bitmap);
+
+    }
+  }
 
   return {};
 }
