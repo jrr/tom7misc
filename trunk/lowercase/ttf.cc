@@ -220,6 +220,32 @@ std::vector<TTF::Contour> TTF::NormalizeOrder(
   return out;
 }
 
+TTF::Contour TTF::ReverseContour(const Contour &c) {
+  // All we have to do is reverse the "paths", which are given as
+  // endpoints. This also works with (quadratic) Beziers because the
+  // equation is symmetric, or put another way, reversing the
+  // singleton list of control points gives us the same list.
+  Contour out;
+  out.paths.reserve(c.paths.size());
+  for (int i = c.paths.size() - 1; i >= 0; i--)
+    out.paths.push_back(c.paths[i]);
+  return out;
+}
+
+bool TTF::IsClockwise(const Contour &c) {
+  float x = c.StartX();
+  float y = c.StartY();
+  float sum = 0.0f;
+  for (const Path &p : c.paths) {
+    float dx = p.x - x;
+    float sy = p.y + y;
+    sum += dx * sy;
+    x = p.x;
+    y = p.y;
+  }
+  return sum < 0.0f;
+}
+
 std::optional<ImageA> TTF::GetSDF(char c,
                                   int sdf_size,
                                   int pad_top, int pad_bot, int pad_left,

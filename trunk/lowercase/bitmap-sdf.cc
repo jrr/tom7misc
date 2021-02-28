@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
   CHECK(make_uppercase.get() != nullptr);
 
   // XXX temp
-  {
+  if (false) {
     std::unique_ptr<Network> prednet(
         FontProblem::MakePredOnlyNetwork(FontProblem::SDFConfig(),
                                          *make_lowercase));

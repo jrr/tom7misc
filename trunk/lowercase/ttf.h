@@ -148,6 +148,19 @@ struct TTF {
       const std::vector<Contour> &contours,
       float origin_x, float origin_y);
 
+  // Reverse the order of the path (e.g. from clockwise to
+  // counter-clockwise).
+  static Contour ReverseContour(const Contour &c);
+
+  // Return true if the contour has a clockwise winding order.
+  // Only really correct for simple polygons, but a self-intersecting
+  // one will still "kind of work". Note that this assumes screen y
+  // (smaller y is higher on the screen); the winding order is backwards
+  // if math y.
+  //
+  // Bezier control points do not affect the answer.
+  static bool IsClockwise(const Contour &c);
+
   // c2 may be 0 for no kerning.
   float NormKernAdvance(char c1, char c2) {
     int advance = 0;
