@@ -165,6 +165,7 @@ struct FontProblem {
   // width and height are the size of the output image. quality
   // controls the amount of oversampling (this many pixels squared,
   // per output pixel) for anti-aliasing.
+  // (TODO: Perhaps should take ImageF?)
   static ImageA SDFThresholdAAFloat(float onedge_value,
                                     const ImageA &sdf,
                                     int width,

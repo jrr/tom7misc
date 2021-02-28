@@ -1583,13 +1583,36 @@ struct IslandFinder {
 
         if (has_border) {
           if (Visited(idx)) {
-            // Nothing to do here, although we can sanity check...
-            const int depth = GetInfo(idx).depth;
+            Info info = GetInfo(idx);
+            const int depth = info.depth;
             // We could be reaching this pixel the second time (like if
             // it's a corner, or on a one-wide strip), or we could be
             // looking out of the outer edge of our own region.
-            CHECK(depth == src_depth + 1 ||
-                  depth == src_depth - 1);
+            if (depth == src_depth + 1) {
+              // If this is an island within this one, enforce that
+              // it has a single parent, by potentially joining the
+              // current area with its parent. This is important for
+              // cases like
+              //
+              //     ##
+              //   ##  ##
+              //   ##  ##
+              //     ##
+              //
+              // where the interior is not 4-connected to the exterior,
+              // but neither are the four blocks that cause it to be
+              // disconnected. The best way to treat this is as a single
+              // island with a single hole in it; this causes the four
+              // blocks to be joined as they discover the hole.
+              Union(src_idx, info.parent_class);
+
+            } else if (depth == src_depth - 1) {
+                // Nothing to do (or some sanity checking at least?)
+
+            } else {
+              LOG(FATAL) << "Upon reaching a pixel for the second "
+                "time, it should be depth - 1 or depth + 1!";
+            }
           } else {
             // Otherwise, we found part of an island within this one.
             SetInfo(idx, src_depth + 1, src_idx);
@@ -1661,10 +1684,11 @@ struct IslandFinder {
           const uint8 pq8 = GetEq(GetClass(info.parent_class));
           auto it = parent.find(eq8);
           if (it != parent.end()) {
-            CHECK(it->second == pq8) << "Inconsistent parents for "
-              "equivalence class " << GetClass(idx) << " = " << eq8 <<
-              ": " << GetClass(info.parent_class) << " = " << pq8 <<
-              " but already had (something) = " << it->second << "!";
+            CHECK(it->second == pq8) << "at " << x << "," << y <<
+              ", Inconsistent parents for equivalence class " <<
+              GetClass(idx) << " --> " << (int)eq8 <<
+              ": " << GetClass(info.parent_class) << " --> " << (int)pq8 <<
+              " but already had (something) --> " << (int)it->second << "!";
           } else {
             parent[eq8] = pq8;
           }
@@ -1917,7 +1941,7 @@ static TTF::Contour VectorizeOne(
         // Up to 1 pixel along the normal.
         0.0, 1.0, 1000).first;
 
-    printf("from %d,%d r=%.2f\n", px, py, r);
+    // printf("from %d,%d r=%.2f\n", px, py, r);
 
     const auto [ex, ey] = MoveF((float)px, (float)py, up, r);
     edge_points.emplace_back(ex, ey);
@@ -1975,7 +1999,7 @@ static TTF::Contour VectorizeOne(
     // only end when we approach it with right = RIGHT, right?
     if (px == startpx &&
         py == startpy && right == RIGHT)  {
-      printf("Loop finished!\n");
+      // printf("Loop finished!\n");
       break;
     }
   }
@@ -2049,6 +2073,22 @@ vector<TTF::Contour> FontProblem::VectorizeSDF(
       }
     };
 
+  // XXX seems that an explicit tree structure would have been
+  // nicer, but these tend to be very small, so no big deal to
+  // keep doing map lookups.
+  auto HasAncestor = [&parentmap](uint8 eqc, uint8 parent) -> bool {
+      for (;;) {
+        // First test this, allowing 0 as a parent.
+        if (eqc == parent) return true;
+        // ... but if we are not looking for 0, this means we reached
+        // the root.
+        if (eqc == 0) return false;
+
+        auto pit = parentmap.find(eqc);
+        CHECK(pit != parentmap.end()) << eqc << " has no parent?";
+        eqc = pit->second;
+      }
+    };
 
   // Next up, generate a series of nested contours.
   // For each equivalence class, first simplify matters by
@@ -2074,52 +2114,84 @@ vector<TTF::Contour> FontProblem::VectorizeSDF(
   // Since it would be imperfect anyway, this first version is not
   // doing it at all.
 
+
+  // (This could be cleaned up to more explicitly work on a tree
+  // of contained equivalence classes, instead of recomputing it
+  // each time...)
+  std::function<vector<TTF::Contour>(const ImageF &, int, uint8)>
+    VectorizeRec =
+    [&](const ImageF &sdf, int d, uint8 parent) -> vector<TTF::Contour> {
+      printf("DEPTH %d/%d\n", d, max_depth);
+      if (d > max_depth) return {};
+
+      std::vector<TTF::Contour> contours;
+
+      // Get the equivalence classes at this depth, paired with the set
+      // of (strict) descendants of that class (we want to remove
+      // these holes when tracing the contour to simplify our lives).
+      // Only consider classes that have 'parent' as an ancestor.
+      // We'll run the routine below on each one.
+      std::map<uint8, std::set<uint8>> eqclasses;
+      for (int y = 0; y < eqclass.Height(); y++) {
+        for (int x = 0; x < eqclass.Height(); x++) {
+          if ((int)depth.GetPixel(x, y) >= d) {
+            uint8 eqc = eqclass.GetPixel(x, y);
+            if (HasAncestor(eqc, parent)) {
+              // This must exist because the depth is at least d, and
+              // d > 0.
+              uint8 ancestor = GetAncestorAtDepth(d, eqc);
+              eqclasses[ancestor].insert(eqc);
+            }
+          }
+        }
+      }
+
+      // Now, for each component...
+      for (const auto &[this_eqc, descendants] : eqclasses) {
+        printf("Tracing eqc %d (descendants:", this_eqc);
+        for (uint8 d : descendants) printf(" %d", d);
+        printf(")\n");
+        // Generate a simplified bitmap.
+        ImageA bitmap(eqclass.Width(), eqclass.Height());
+        for (int y = 0; y < eqclass.Height(); y++) {
+          for (int x = 0; x < eqclass.Width(); x++) {
+            uint8 eqc = eqclass.GetPixel(x, y);
+            bool inside = eqc == this_eqc || ContainsKey(descendants, eqc);
+            bitmap.SetPixel(x, y, inside ? 0xFF : 0x00);
+          }
+        }
+
+        // TODO: Consider modifying the SDF to enforce something
+        // about the exterior condition (values should not be
+        // larger than onedge?) and interior (values should
+        // be at least onedge).
+
+        contours.push_back(VectorizeOne(sdf, bitmap));
+
+        // Now recurse on descendants, if any.
+        if (!descendants.empty()) {
+          // Invert SDF because we want to think about this as always
+          // tracing outer edges.
+          ImageF inv_sdf(sdf.Width(), sdf.Height());
+          for (int y = 0; y < inv_sdf.Height(); y++)
+            for (int x = 0; x < inv_sdf.Width(); x++)
+              inv_sdf.SetPixel(x, y, 1.0f - sdf.GetPixel(x, y));
+
+          vector<TTF::Contour> child_contours =
+            VectorizeRec(inv_sdf, d + 1, this_eqc);
+          // ... but reverse the winding order so that these cut out
+          // (or maybe get reversed again).
+          for (TTF::Contour cc : child_contours)
+            contours.push_back(TTF::ReverseContour(cc));
+        }
+      }
+
+      return contours;
+    };
+
+
   // Work with normalized SDF to simplify matters a bit.
   ImageF sdf = NormalizeSDF(config, sdf8);
 
-  // No contour for depth 0.
-  for (int d = 1; d <= max_depth; d++) {
-    printf("DEPTH %d\n", d);
-    // Get the equivalence classes at this depth, paired with the set
-    // of (inclusive) descendants of that class (we want to remove
-    // these holes when tracing the contour to simplify our lives).
-    // We'll run the routine below on each one.
-    std::map<uint8, std::set<uint8>> eqclasses;
-    for (int y = 0; y < eqclass.Height(); y++) {
-      for (int x = 0; x < eqclass.Height(); x++) {
-        if ((int)depth.GetPixel(x, y) >= d) {
-          uint8 eqc = eqclass.GetPixel(x, y);
-          // This must exist because the depth is at least d, and
-          // d > 0.
-          uint8 ancestor = GetAncestorAtDepth(d, eqc);
-          eqclasses[ancestor].insert(eqc);
-        }
-      }
-    }
-
-    for (const auto &[this_eqc, descendants] : eqclasses) {
-      // Simplified bitmap.
-      ImageA bitmap(eqclass.Width(), eqclass.Height());
-      for (int y = 0; y < eqclass.Height(); y++) {
-        for (int x = 0; x < eqclass.Width(); x++) {
-          uint8 eqc = eqclass.GetPixel(x, y);
-          bool inside = ContainsKey(descendants, eqc);
-          bitmap.SetPixel(x, y, inside ? 0xFF : 0x00);
-        }
-      }
-
-      /*
-      printf("Class %d includes: ", (int)this_eqc);
-      for (uint8 c : descendants) printf(" %d", (int)c);
-      printf("\n");
-      bitmap.GreyscaleRGBA().Save(
-          StringPrintf("eqclass-%d.png", (int)this_eqc));
-      */
-
-      TTF::Contour contour = VectorizeOne(sdf, bitmap);
-
-    }
-  }
-
-  return {};
+  return VectorizeRec(sdf, 1, 0);
 }
