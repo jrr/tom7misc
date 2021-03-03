@@ -1805,9 +1805,11 @@ static ImageF NormalizeSDF(const FontProblem::SDFConfig &config,
   return out;
 }
 
-// Core of the problem: Trace a single pixel blob in a normalized
-// SDF, producing a single clockwise contour.
-static TTF::Contour VectorizeOne(
+// Core of the problem: Trace a single pixel blob in a normalized SDF,
+// producing a single clockwise contour. This produces a series of
+// points, about one per cell on the pixel grid, to be connected e.g.
+// by straight lines or further simplified.
+static vector<pair<float, float>> VectorizeOne(
     // Normalized. The interior is > 0.5f, the exterior is < 0.5f,
     // and the falloff is 0.1f.
     const ImageF &sdf,
@@ -2004,17 +2006,244 @@ static TTF::Contour VectorizeOne(
     }
   }
 
-  // Return straight lines between these edge points.
-  // TODO: Clean this up, use beziers!
+  return edge_points;
+}
+
+// Returns (x, y, dist).
+// PERF! There are definitely analytical solutions to this, and also
+// much faster ways to optimize (root of a third-degree polynomial).
+static std::tuple<float, float, float>
+DistanceFromPointToBezier(
+    // The point to test
+    float px, float py,
+    // Bezier start point
+    float sx, float sy,
+    // Bezier ontrol point
+    float cx, float cy,
+    // Bezier end point
+    float ex, float ey) {
+
+  auto Bezier = [sx, sy, cx, cy, ex, ey](float t) ->
+    std::pair<float, float> {
+    float tt = t * t;
+    // Get point on curve at t:
+    float omt = 1.0 - t;
+    float omtt = omt * omt;
+    float bx = omtt * sx  +  2.0 * omt * t * cx  +  tt * ex;
+    float by = omtt * sy  +  2.0 * omt * t * cy  +  tt * ey;
+    return make_pair(bx, by);
+  };
+
+  auto [t, sqdist] =
+    Opt::Minimize1D([&Bezier, px, py](double t) {
+        const auto [bx, by] = Bezier(t);
+        const float dx = bx - px;
+        const float dy = by - py;
+        return (dx * dx) + (dy * dy);
+    }, 0.0, 1.0, 100);
+
+  const auto [bx, by] = Bezier(t);
+  return make_tuple(bx, by, sqrtf(sqdist));
+}
+
+static void PrintPath(float sx, float sy, TTF::Path p) {
+  switch (p.type) {
+  case TTF::PathType::LINE:
+    printf("line %.2f,%.2f -> %.2f,%.2f",
+           sx, sy, p.x, p.y);
+    break;
+  case TTF::PathType::BEZIER:
+    printf("bezier %.2f,%.2f (via %.2f,%.2f) %.2f,%.2f",
+           sx, sy, p.cx, p.cy, p.x, p.y);
+    break;
+  default:
+    printf("???");
+  }
+}
+
+static TTF::Contour UnoptimizedContour(
+    const ImageF &sdf,
+    const ImageA &bitmap,
+    const vector<pair<float, float>> &points) {
+  // Just return straight lines between these edge points.
   TTF::Contour ret;
-  for (const auto [ex, ey] : edge_points) {
+  for (const auto [ex, ey] : points) {
     ret.paths.emplace_back(ex, ey);
   }
-
   return ret;
 }
 
-vector<TTF::Contour> FontProblem::VectorizeSDF(
+
+TTF::Contour FontProblem::OptimizedContour(
+    const ImageF &sdf,
+    const ImageA &bitmap,
+    const vector<pair<float, float>> &points) {
+
+  // XXX! How to set this? And it should trade off
+  // error with the number of points covered, I think?
+  constexpr float ERROR_THRESHOLD = 0.1f; // 1.0f;
+  printf("OptimizedContour on %d points:\n", (int)points.size());
+  for (const auto [x, y] : points)
+    printf("  %.2f,%.2f\n", x, y);
+
+  Timer optimize_timer;
+
+  TTF::Contour ret;
+
+  // Return straight lines between these edge points.
+  // TODO: Clean this up, use beziers!
+  /*
+  TTF::Contour ret;
+  for (const auto [ex, ey] : points) {
+    ret.paths.emplace_back(ex, ey);
+  }
+  */
+
+  // We aren't trying to minimize the number of points, just clean up.
+  // (For example, a circle-like shape can be made with just two quadratic
+  // beziers, but we will likely generate a lot more points here.)
+
+  // What we are looking for are a series of points that are "almost a line".
+  // What it means to be "almost a line" is that the interior points are
+  // not far from the line defined by the endpoints. (A quadratic bezier
+  // allows us to bend the line out to one side, so if there was some way
+  // of saying "not far from the line but also okay if they are a bit
+  // far from the line but only on one side and only towards the middle",
+  // that might be preferable. But another way of saying that is that they
+  // are close to an unspecified bezier.)
+
+  // XXX: Rotate so that the start point has a large angle; we don't
+  // want to start in the middle of a straight line!
+
+  // Actually, even simpler. Just try fitting bezier to the set of
+  // points, and taking an absolute error bound. (Could also force
+  // using a line.)
+
+  const auto [startx, starty] = points.back();
+
+  // Start position for the segment, updated as we loop through.
+  float sx = startx, sy = starty;
+  // Keep track of the bounding box; this gives us search bounds
+  // for the control point.
+  float minx = sx, maxx = sx;
+  float miny = sy, maxy = sy;
+  vector<pair<float, float>> intermediate;
+  optional<TTF::Path> last;
+  for (int end = 0; end < points.size(); /* in loop */) {
+    const auto [ex, ey] = points[end];
+    minx = std::min(minx, ex);
+    maxx = std::max(maxx, ex);
+    miny = std::min(miny, ey);
+    maxy = std::max(maxy, ey);
+
+    // PERF sanity check.
+    {
+      CHECK(sx >= minx && sx <= maxx);
+      CHECK(sy >= miny && sy <= maxy);
+      for (const auto [ix, iy] : intermediate) {
+        CHECK(ix >= minx && ix <= maxx);
+        CHECK(iy >= miny && iy <= maxy);
+      }
+    }
+
+    // If we have no points, we use a line, which is always
+    // acceptable.
+    if (intermediate.empty()) {
+      CHECK(!last.has_value());
+      last.emplace(ex, ey);
+      // if we continue, we need to cover this point.
+      intermediate.emplace_back(ex, ey);
+      end++;
+    } else {
+      // Otherwise, try a bezier that comes close to the interior
+      // points.
+      CHECK(last.has_value());
+
+      // Possibly it's kept in check by the bounds, but this may
+      // still overfit badly for a small number of points?
+      const auto [ctrl, err] = Opt::Minimize2D(
+          [sx, sy, ex, ey, &intermediate](double cx, double cy) {
+            // for each intermediate point, find distance
+            // from the point to the curve; add up error.
+            // (The endpoints would always contribute 0 error
+            // since they are by definition on the curve.)
+            double err = 0.0;
+            for (const auto [px, py] : intermediate) {
+              const auto [x_, y_, dist] =
+                DistanceFromPointToBezier(
+                    px, py,
+                    sx, sy,
+                    cx, cy,
+                    ex, ey);
+              err += dist;
+            }
+            return err;
+          },
+          // lower and upper bounds from the points themselves.
+          // Multiple problems here:
+          //  - it's too conservative; for three points the control
+          //    point would generally be outside the triangle.
+          //  - it's not symmetric under rotation. A diagonal line
+          //    has much bigger search space than a horizontal one
+          //    (can even be zero area!)
+          make_tuple(minx, miny),
+          make_tuple(maxx, maxy),
+          1000);
+
+      printf("[s %.2f,%.2f]->[e %.2f, %.2f] (+%d) "
+             "Best curve %.2f,%.2f err %.5f\n",
+             sx, sy,
+             ex, ey,
+             (int)intermediate.size(),
+             std::get<0>(ctrl), std::get<1>(ctrl),
+             err);
+
+      // Is this bezier acceptable?
+      if (err < ERROR_THRESHOLD) {
+        const auto [cx, cy] = ctrl;
+        last.reset();
+        // If we stop, we'd use the bezier we just optimized.
+        last.emplace(ex, ey, cx, cy);
+        // But to continue, we'd also need to cover this endpoint.
+        intermediate.emplace_back(ex, ey);
+        end++;
+      } else {
+        // Emit the last one then, and reset.
+        CHECK(last.has_value());
+        printf("... so using ");
+        PrintPath(sx, sy, last.value());
+        printf("\n");
+        ret.paths.push_back(last.value());
+        last.reset();
+
+        // Since we didn't take this end point, the next
+        // start point is the last one in that vector.
+        CHECK(!intermediate.empty());
+        std::tie(sx, sy) = intermediate.back();
+        minx = maxx = sx;
+        miny = maxy = sy;
+        intermediate.clear();
+        // and don't advance 'end'; we'll pick it up on the
+        // next loop.
+      }
+    }
+  }
+
+
+
+  CHECK(last.has_value()) << "Degenerate input to OptimizedContour?";
+  printf("Plus final path ");
+  PrintPath(sx, sy, last.value());
+  printf("\n");
+  ret.paths.push_back(last.value());
+  double optimize_ms = optimize_timer.MS();
+  printf("Optimized %d points to %d in %.3fs\n",
+         (int)points.size(), (int)ret.paths.size(), optimize_ms / 1000.0);
+  return ret;
+}
+
+pair<vector<TTF::Contour>, vector<TTF::Contour>>
+FontProblem::VectorizeSDF(
     const FontProblem::SDFConfig &config,
     const ImageA &sdf8,
     ImageRGBA *islands) {
@@ -2114,17 +2343,21 @@ vector<TTF::Contour> FontProblem::VectorizeSDF(
   // Since it would be imperfect anyway, this first version is not
   // doing it at all.
 
+  // Returns unoptimized contours (straight lines, for diagnostics)
+  // and optimized ones, as a pair.
 
   // (This could be cleaned up to more explicitly work on a tree
   // of contained equivalence classes, instead of recomputing it
   // each time...)
-  std::function<vector<TTF::Contour>(const ImageF &, int, uint8)>
+  std::function<pair<vector<TTF::Contour>, vector<TTF::Contour>>(
+      const ImageF &, int, uint8)>
     VectorizeRec =
-    [&](const ImageF &sdf, int d, uint8 parent) -> vector<TTF::Contour> {
+    [&](const ImageF &sdf, int d, uint8 parent) ->
+    pair<vector<TTF::Contour>, vector<TTF::Contour>> {
       printf("DEPTH %d/%d\n", d, max_depth);
       if (d > max_depth) return {};
 
-      std::vector<TTF::Contour> contours;
+      std::vector<TTF::Contour> unopt_contours, contours;
 
       // Get the equivalence classes at this depth, paired with the set
       // of (strict) descendants of that class (we want to remove
@@ -2166,7 +2399,9 @@ vector<TTF::Contour> FontProblem::VectorizeSDF(
         // larger than onedge?) and interior (values should
         // be at least onedge).
 
-        contours.push_back(VectorizeOne(sdf, bitmap));
+        vector<pair<float, float>> points = VectorizeOne(sdf, bitmap);
+        unopt_contours.push_back(UnoptimizedContour(sdf, bitmap, points));
+        contours.push_back(OptimizedContour(sdf, bitmap, points));
 
         // Now recurse on descendants, if any.
         if (!descendants.empty()) {
@@ -2177,16 +2412,18 @@ vector<TTF::Contour> FontProblem::VectorizeSDF(
             for (int x = 0; x < inv_sdf.Width(); x++)
               inv_sdf.SetPixel(x, y, 1.0f - sdf.GetPixel(x, y));
 
-          vector<TTF::Contour> child_contours =
+          const auto [child_unopt, child_contours] =
             VectorizeRec(inv_sdf, d + 1, this_eqc);
           // ... but reverse the winding order so that these cut out
           // (or maybe get reversed again).
+          for (TTF::Contour cc : child_unopt)
+            unopt_contours.push_back(TTF::ReverseContour(cc));
           for (TTF::Contour cc : child_contours)
             contours.push_back(TTF::ReverseContour(cc));
         }
       }
 
-      return contours;
+      return make_pair(unopt_contours, contours);
     };
 
 

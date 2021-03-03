@@ -3,8 +3,11 @@
 #include <string>
 #include <vector>
 #include <optional>
+#include <tuple>
 
 #include "base/logging.h"
+
+using namespace std;
 
 TTF::TTF(const string &filename) {
   ttf_bytes = Util::ReadFileBytes(filename);
@@ -221,14 +224,40 @@ std::vector<TTF::Contour> TTF::NormalizeOrder(
 }
 
 TTF::Contour TTF::ReverseContour(const Contour &c) {
-  // All we have to do is reverse the "paths", which are given as
-  // endpoints. This also works with (quadratic) Beziers because the
-  // equation is symmetric, or put another way, reversing the
-  // singleton list of control points gives us the same list.
+  // Intermediate representation as [start, control, end]
+  using Point = pair<float, float>;
+  using Segment = tuple<Point, optional<Point>, Point>;
+  vector<Segment> segments;
+
+  Point prev = make_pair(c.StartX(), c.StartY());
+  for (const Path &p : c.paths) {
+    Point next = make_pair(p.x, p.y);
+    switch (p.type) {
+    case PathType::LINE:
+      segments.emplace_back(prev, nullopt, next);
+      break;
+    case PathType::BEZIER:
+      segments.push_back(Segment(prev, {make_pair(p.cx, p.cy)}, next));
+      break;
+    default:
+      CHECK(false) << "Bad path type";
+    }
+    prev = next;
+  }
+
   Contour out;
   out.paths.reserve(c.paths.size());
-  for (int i = c.paths.size() - 1; i >= 0; i--)
-    out.paths.push_back(c.paths[i]);
+  for (int i = segments.size() - 1; i >= 0; i--) {
+    const auto &[start, ctrl, end_] = segments[i];
+    if (ctrl.has_value()) {
+      // Bezier
+      out.paths.emplace_back(start.first, start.second,
+                             ctrl.value().first, ctrl.value().second);
+    } else {
+      // Line
+      out.paths.emplace_back(start.first, start.second);
+    }
+  }
   return out;
 }
 
