@@ -265,11 +265,19 @@ struct FontProblem {
                                      float gamma_up = 1.0f);
 
   // Approximate the SDF with vectors.
-  static std::vector<TTF::Contour> VectorizeSDF(
+  // Returns {unoptimized, optimized}.
+  static std::pair<std::vector<TTF::Contour>, std::vector<TTF::Contour>>
+  VectorizeSDF(
       const SDFConfig &config,
       const ImageA &sdf,
       // debugging image
       ImageRGBA *islands = nullptr);
+
+  static TTF::Contour OptimizedContour(
+      const ImageF &sdf,
+      const ImageA &bitmap,
+      const std::vector<std::pair<float, float>> &points);
+
 
   // Code for computing the error between a predicted vector shape ("loop")
   // and the expected one.

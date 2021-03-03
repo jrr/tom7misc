@@ -10,6 +10,7 @@
 
 #include "image.h"
 #include "lines.h"
+#include "base/stringprintf.h"
 
 using namespace std;
 
@@ -19,6 +20,7 @@ using uint8 = uint8_t;
 using uint32 = uint32_t;
 using int64 = int64_t;
 
+// XXX To TTF etc?
 template<class DrawPixel, class DrawPoint>
 static void DrawChar(const std::vector<TTF::Contour> &contours,
                      float sx, float sy, float scale,
@@ -45,7 +47,7 @@ static void DrawChar(const std::vector<TTF::Contour> &contours,
     };
 
   // One screen pixel.
-  constexpr double sqerr = 1.0f;
+  const double sqerr = 1.0f / (scale * scale);
 
   for (const auto &contour : contours) {
     const bool cw = TTF::IsClockwise(contour);
@@ -87,6 +89,7 @@ static void DrawChar(const std::vector<TTF::Contour> &contours,
       }
       case TTF::PathType::BEZIER: {
         // auto [cx, cy] = ttf->Norm(p.cx, p.cy);
+        ScaledPoint(p.cx, p.cy);
         ScaledPoint(p.x, p.y);
         break;
       }
@@ -96,6 +99,29 @@ static void DrawChar(const std::vector<TTF::Contour> &contours,
 
 }
 
+static void DrawCharTo(
+    const std::vector<TTF::Contour> &contours,
+    int sx, int sy, float scale,
+    ImageRGBA *img) {
+
+  int ncontours = contours.size();
+  int npaths = 0;
+  for (const auto &c : contours) npaths += c.paths.size();
+
+  DrawChar(contours,
+           sx, sy,
+           scale,
+           [&](int x, int y, bool cw) {
+             img->BlendPixel32(x, y, cw ? 0x33FF33FF : 0xFF3333FF);
+           },
+           [&](int x, int y) {
+             img->BlendPixel32(x, y, 0x7777FF66);
+           });
+
+  img->BlendText32(sx, sy + 2,
+                   0xCCCCCCFF,
+                   StringPrintf("%d contours, %d paths", ncontours, npaths));
+}
 
 static void MakeTrace(const ImageA &sdf, const string &filename) {
   const int SIZE = SDF_CONFIG.sdf_size;
@@ -103,13 +129,15 @@ static void MakeTrace(const ImageA &sdf, const string &filename) {
   const int QUALITY = 3;
 
   const int TILE = SIZE * SCALE;
+  const int TILESW = 3;
 
-  ImageRGBA out(TILE * 4, TILE);
+  ImageRGBA out(TILE * TILESW, TILE * 2);
   out.Clear32(0x000000FF);
   int tile = 0;
 
   // Input SDF.
-  out.BlendImage(tile * TILE, 0, sdf.ScaleBy(SCALE).GreyscaleRGBA());
+  out.BlendImage((tile % TILESW) * TILE, (tile / TILESW) * TILE,
+                 sdf.ScaleBy(SCALE).GreyscaleRGBA());
   tile++;
 
   // Thresholded, AA.
@@ -120,25 +148,30 @@ static void MakeTrace(const ImageA &sdf, const string &filename) {
       SIZE * SCALE,
       QUALITY,
       1.0f);
-  out.BlendImage(tile * TILE, 0, thresh.GreyscaleRGBA());
+  out.BlendImage((tile % TILESW) * TILE, (tile / TILESW) * TILE,
+                 thresh.GreyscaleRGBA());
   tile++;
 
   ImageRGBA islands;
   Timer vectorize_timer;
-  std::vector<TTF::Contour> contours =
+  const auto [unopt_contours, contours] =
     FontProblem::VectorizeSDF(SDF_CONFIG, sdf, &islands);
   double vectorize_ms = vectorize_timer.MS();
-  out.BlendImage(tile * TILE, 0, islands.ScaleBy(SCALE));
+  out.BlendImage((tile % TILESW) * TILE, (tile / TILESW) * TILE,
+                 islands.ScaleBy(SCALE));
   tile++;
 
-  DrawChar(contours,
-           tile * TILE, 0, SCALE,
-           [&](int x, int y, bool cw) {
-             out.BlendPixel32(x, y, cw ? 0x33FF33FF : 0xFF3333FF);
-           },
-           [&](int x, int y) {
-             out.BlendPixel32(x, y, 0x7777FF66);
-           });
+  DrawCharTo(unopt_contours,
+             (tile % TILESW) * TILE, (tile / TILESW) * TILE,
+             SCALE,
+             &out);
+  tile++;
+
+  DrawCharTo(contours,
+             (tile % TILESW) * TILE, (tile / TILESW) * TILE,
+             SCALE,
+             &out);
+  tile++;
 
   out.Save(filename);
   printf("Vectorized in %.3fs\nWrote %s.\n", vectorize_ms / 1000.0,

@@ -266,12 +266,28 @@ static void Test8x8() {
   CHECK_EQ(pix.Edges(), 42);
 }
 
+static void TestOptimized() {
+  vector<pair<float, float>> rect =
+    {{4.0f, 3.0f},
+     {6.0f, 3.0f},
+     {6.0f, 7.0f},
+     {4.0f, 7.0f}};
+
+  ImageF dummy_sdf(10, 10);
+  ImageA dummy_bitmap(10, 10);
+  TTF::Contour contour = FontProblem::OptimizedContour(
+      dummy_sdf, dummy_bitmap, rect);
+
+}
+
 int main(int argc, char **argv) {
   // TestLoopAssignment();
-  BenchmarkBitmapSDF();
+  // BenchmarkBitmapSDF();
 
-  Test8x8SDF();
-  Test8x8();
+  // Test8x8SDF();
+  // Test8x8();
+
+  TestOptimized();
 
   printf("OK\n");
   return 0;
