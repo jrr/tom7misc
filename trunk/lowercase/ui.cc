@@ -36,6 +36,8 @@
 #include "loadfonts.h"
 #include "network.h"
 
+#include "bezier.h"
+
 #define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" /* removed icons */
 #define FONTSTYLES 7
 
@@ -60,6 +62,7 @@ enum class Mode {
   SDFTEST,
   SCALETEST,
   LOOPTEST,
+  BEZDIST,
   DRAW,
 };
 
@@ -134,7 +137,7 @@ private:
 };
 
 struct UI {
-  Mode mode = Mode::DRAW;
+  Mode mode = Mode::BEZDIST;
   DrawMode draw_mode = DrawMode::DRAWING;
 
   std::shared_mutex dirty_m;
@@ -174,6 +177,7 @@ struct UI {
   void DrawSortition();
   void DrawSDF();
   void DrawDrawing();
+  void DrawBez();
 
   void ClearDrawing();
 
@@ -221,6 +225,13 @@ struct UI {
   float current_xscale = 1.0, current_yscale = 1.0;
   float current_xoff = 0.0, current_yoff = 0.0;
   TTF times{"times.ttf"};
+
+  int bez_startx = 800, bez_starty = 128;
+  int bez_cx = SCREENW - 32, bez_cy = SCREENH / 2;
+  int bez_endx = 10, bez_endy = 188;
+  int bez_px = 100, bez_py = 100;
+  // double bez_time = 0.0;
+  // int bez_cpx = 0, bez_cpy = 0;
 
   vector<FontProblem::Point> looptest_expected;
   vector<FontProblem::Point> looptest_actual;
@@ -775,6 +786,44 @@ void UI::FloodFill(int x, int y, Uint32 color) {
   result_cv.notify_all();
 }
 
+// Returns (x, y, dist).
+// PERF! There are definitely analytical solutions to this, and also
+// much faster ways to optimize (root of a third-degree polynomial).
+static std::tuple<float, float, float>
+DistanceFromPointToBezierSearch(
+    // The point to test
+    float px, float py,
+    // Bezier start point
+    float sx, float sy,
+    // Bezier ontrol point
+    float cx, float cy,
+    // Bezier end point
+    float ex, float ey) {
+
+  auto Bezier = [sx, sy, cx, cy, ex, ey](float t) ->
+    std::pair<float, float> {
+    float tt = t * t;
+    // Get point on curve at t:
+    float omt = 1.0 - t;
+    float omtt = omt * omt;
+    float bx = omtt * sx  +  2.0 * omt * t * cx  +  tt * ex;
+    float by = omtt * sy  +  2.0 * omt * t * cy  +  tt * ey;
+    return make_pair(bx, by);
+  };
+
+   auto [t, sqdist] =
+    Opt::Minimize1D([&Bezier, px, py](double t) {
+        const auto [bx, by] = Bezier(t);
+        const float dx = bx - px;
+        const float dy = by - py;
+        return (dx * dx) + (dy * dy);
+    }, 0.0, 1.0, 100);
+
+  const auto [bx, by] = Bezier(t);
+  return make_tuple(bx, by, sqrtf(sqdist));
+}
+
+
 
 void UI::Run() {
   std::thread result_thread([this]() { ResultThread(); });
@@ -795,6 +844,7 @@ void UI::Loop() {
 
   int mousex = 0, mousey = 0;
   bool dragging = false;
+  int dragging_button = 0;
   (void)mousex; (void)mousey;
   for (;;) {
 
@@ -838,6 +888,28 @@ void UI::Loop() {
               SetDirty();
             }
           }
+        } else if (mode == Mode::BEZDIST) {
+          if (dragging_button > 0) {
+            switch (dragging_button) {
+            case SDL_BUTTON_LEFT:
+              bez_startx = e->x;
+              bez_starty = e->y;
+              break;
+            case SDL_BUTTON_RIGHT:
+              bez_endx = e->x;
+              bez_endy = e->y;
+              break;
+            case SDL_BUTTON_MIDDLE:
+              bez_cx = e->x;
+              bez_cy = e->y;
+              break;
+            }
+            SetDirty();
+          } else {
+            bez_px = e->x;
+            bez_py = e->y;
+            SetDirty();
+          }
         }
 
         break;
@@ -848,6 +920,7 @@ void UI::Loop() {
         SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
         mousex = e->x;
         mousey = e->y;
+        dragging_button = e->button;
 
         if (mode == Mode::DRAW) {
 
@@ -881,6 +954,7 @@ void UI::Loop() {
           }
 
         } else if (mode == Mode::LOOPTEST) {
+
           if (e->button == SDL_BUTTON_LEFT) {
             looptest_expected.emplace_back((float)mousex, (float)mousey);
           } else {
@@ -888,6 +962,25 @@ void UI::Loop() {
           }
 
           RecomputeLoop();
+
+          SetDirty();
+
+        } else if (mode == Mode::BEZDIST) {
+
+          switch (e->button) {
+          case SDL_BUTTON_LEFT:
+            bez_startx = e->x;
+            bez_starty = e->y;
+            break;
+          case SDL_BUTTON_RIGHT:
+            bez_endx = e->x;
+            bez_endy = e->y;
+            break;
+          case SDL_BUTTON_MIDDLE:
+            bez_cx = e->x;
+            bez_cy = e->y;
+            break;
+          }
 
           SetDirty();
         }
@@ -900,6 +993,7 @@ void UI::Loop() {
         gamma_low.MouseUp();
         gamma_up.MouseUp();
         dragging = false;
+        dragging_button = 0;
         break;
       }
 
@@ -982,6 +1076,9 @@ void UI::Loop() {
             mode = Mode::LOOPTEST;
             break;
           case Mode::LOOPTEST:
+            mode = Mode::BEZDIST;
+            break;
+          case Mode::BEZDIST:
             mode = Mode::DRAW;
             break;
           case Mode::DRAW:
@@ -1016,6 +1113,9 @@ void UI::Loop() {
 
           case Mode::DRAW:
             // TODO: Shift bitmap around
+            break;
+
+          case Mode::BEZDIST:
             break;
 
           case Mode::LOOPTEST:
@@ -1191,6 +1291,8 @@ void UI::Loop() {
     if (IsDirty()) {
       if (mode == Mode::DRAW) {
         sdlutil::clearsurface(screen, 0xFF000033);
+      } else if (mode == Mode::BEZDIST) {
+        sdlutil::clearsurface(screen, 0xFF000000);
       } else {
         sdlutil::clearsurface(screen, 0xFFFFFFFF);
       }
@@ -1601,6 +1703,54 @@ void UI::DrawDrawing() {
                     0xFF, 0x00, 0x00);
 }
 
+void UI::DrawBez() {
+
+  Timer bez_timer;
+  auto [cpx, cpy, dist] =
+    DistanceFromPointToQuadBezier(
+        // The point to test
+        bez_px, bez_py,
+        // Bezier start point
+        bez_startx, bez_starty,
+        // Bezier control point
+        bez_cx, bez_cy,
+        // Bezier end point
+        bez_endx, bez_endy);
+  double bez_ms = bez_timer.MS();
+  printf("Distance %.2f in %.6fs\n", dist, bez_ms / 1000.0);
+  int bez_cpx = cpx, bez_cpy = cpy;
+
+  auto DrawPt = [](int xx, int yy, uint8 r, uint8 g, uint8 b) {
+      sdlutil::drawclippixel(screen, xx, yy, r, g, b);
+      sdlutil::drawclippixel(screen, xx + 1, yy, r, g, b);
+      sdlutil::drawclippixel(screen, xx, yy + 1, r, g, b);
+      sdlutil::drawclippixel(screen, xx + 1, yy + 1, r, g, b);
+    };
+
+  constexpr float sqerr = 1.0f;
+  int x = bez_startx;
+  int y = bez_starty;
+  for (const auto [xx, yy] :
+         TesselateQuadraticBezier<double>(
+             bez_startx, bez_starty, bez_cx, bez_cy, bez_endx, bez_endy,
+             sqerr)) {
+    sdlutil::drawclipline(screen, x, y, xx, yy, 0x33, 0x33, 0xFF);
+    x = xx;
+    y = yy;
+  }
+
+  sdlutil::drawclipline(screen,
+                        bez_px, bez_py,
+                        bez_cpx, bez_cpy, 0xFF, 0xFF, 033);
+
+  DrawPt(bez_px, bez_py, 0xFF, 0xFF, 0xFF);
+  DrawPt(bez_cpx, bez_cpy, 0xFF, 0xFF, 0xFF);
+
+  DrawPt(bez_startx, bez_starty, 0x33, 0xFF, 0x33);
+  DrawPt(bez_cx, bez_cy, 0x99, 0x99, 0x33);
+  DrawPt(bez_endx, bez_endy, 0xFF, 0x33, 0x33);
+}
+
 void UI::Draw() {
   switch (mode) {
   case Mode::DRAW:
@@ -1609,6 +1759,10 @@ void UI::Draw() {
 
   case Mode::SORTITION:
     DrawSortition();
+    break;
+
+  case Mode::BEZDIST:
+    DrawBez();
     break;
 
   case Mode::LOOPTEST: {

@@ -49,7 +49,7 @@ CPPFLAGS= -DDISABLE_SOUND=1 -DPSS_STYLE=1 -DDUMMY_UI -DHAVE_ASPRINTF -Wno-write-
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 	@echo -n "."
 
-OBJECTS=$(UTIL_OBJECTS) $(RE2_OBJECTS) ttf.o ttfops.o fontdb.o network.o font-problem.o error-history.o modelinfo.o
+OBJECTS=$(UTIL_OBJECTS) $(RE2_OBJECTS) ttf.o ttfops.o fontdb.o network.o font-problem.o error-history.o modelinfo.o bezier.o
 
 # without static, can't find lz or lstdcxx maybe?
 LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -lpsapi -static
