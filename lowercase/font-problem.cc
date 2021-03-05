@@ -18,6 +18,7 @@
 #include "lines.h"
 #include "arcfour.h"
 #include "randutil.h"
+#include "bezier.h"
 #include "timer.h"
 #include "opt/opt.h"
 
@@ -2009,43 +2010,6 @@ static vector<pair<float, float>> VectorizeOne(
   return edge_points;
 }
 
-// Returns (x, y, dist).
-// PERF! There are definitely analytical solutions to this, and also
-// much faster ways to optimize (root of a third-degree polynomial).
-static std::tuple<float, float, float>
-DistanceFromPointToBezier(
-    // The point to test
-    float px, float py,
-    // Bezier start point
-    float sx, float sy,
-    // Bezier ontrol point
-    float cx, float cy,
-    // Bezier end point
-    float ex, float ey) {
-
-  auto Bezier = [sx, sy, cx, cy, ex, ey](float t) ->
-    std::pair<float, float> {
-    float tt = t * t;
-    // Get point on curve at t:
-    float omt = 1.0 - t;
-    float omtt = omt * omt;
-    float bx = omtt * sx  +  2.0 * omt * t * cx  +  tt * ex;
-    float by = omtt * sy  +  2.0 * omt * t * cy  +  tt * ey;
-    return make_pair(bx, by);
-  };
-
-  auto [t, sqdist] =
-    Opt::Minimize1D([&Bezier, px, py](double t) {
-        const auto [bx, by] = Bezier(t);
-        const float dx = bx - px;
-        const float dy = by - py;
-        return (dx * dx) + (dy * dy);
-    }, 0.0, 1.0, 100);
-
-  const auto [bx, by] = Bezier(t);
-  return make_tuple(bx, by, sqrtf(sqdist));
-}
-
 static void PrintPath(float sx, float sy, TTF::Path p) {
   switch (p.type) {
   case TTF::PathType::LINE:
@@ -2170,7 +2134,7 @@ TTF::Contour FontProblem::OptimizedContour(
             double err = 0.0;
             for (const auto [px, py] : intermediate) {
               const auto [x_, y_, dist] =
-                DistanceFromPointToBezier(
+                DistanceFromPointToQuadBezier(
                     px, py,
                     sx, sy,
                     cx, cy,

@@ -157,6 +157,9 @@ static void MakeTrace(const ImageA &sdf, const string &filename) {
   const auto [unopt_contours, contours] =
     FontProblem::VectorizeSDF(SDF_CONFIG, sdf, &islands);
   double vectorize_ms = vectorize_timer.MS();
+  islands = islands.Crop32(2, 2,
+                           islands.Width() - 4,
+                           islands.Height() - 4);
   out.BlendImage((tile % TILESW) * TILE, (tile / TILESW) * TILE,
                  islands.ScaleBy(SCALE));
   tile++;
