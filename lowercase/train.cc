@@ -1461,13 +1461,13 @@ static ImageRGBA RenderLayer(
   // Render the SDF (at 2x size) and anti-aliased letter image. Each have the
   // same dimensions.
   auto MakeSDF = [](const vector<float> &values) -> pair<ImageRGBA, ImageRGBA> {
-      ImageA img = FontProblem::SDFGetImage(SDF_CONFIG, values);
+      ImageF img = FontProblem::SDFGetImageF(SDF_CONFIG, values);
       ImageA letter = FontProblem::SDFThresholdAAFloat(
           SDF_CONFIG.onedge_value / 255.0f,
           img,
           SDF_SIZE * 2, SDF_SIZE * 2,
           3);
-      return {img.GreyscaleRGBA().ScaleBy(2), letter.GreyscaleRGBA()};
+      return {img.Make8Bit().GreyscaleRGBA().ScaleBy(2), letter.GreyscaleRGBA()};
     };
 
   // Errors, just from the SDF region (beginning of the array), at 2x size.

@@ -1671,8 +1671,9 @@ void UI::DrawDrawing() {
         }
       }
 
+      // XXX bars here too
       for (int i = 0; i < 26; i++) {
-        font->draw(UP_X, 150 + i * (font->height + 2),
+        font->draw(UP_X, 80 + i * (font->height + 2),
                    StringPrintf("%c: %+.8f", 'a' + i,
                                 res.up_pred[i]));
       }

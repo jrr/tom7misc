@@ -97,6 +97,10 @@ struct FontProblem {
   static ImageA SDFGetImage(const SDFConfig &config,
                             const std::vector<float> &buffer);
 
+  // Same but yielding [0,1] float image.
+  static ImageF SDFGetImageF(const SDFConfig &config,
+                             const std::vector<float> &buffer);
+
   // Compute an SDF from a bitmap image. The image should be
   // square and significantly larger than the SDF size, or
   // else the results will probably be quite bad. Not efficient.
@@ -165,9 +169,8 @@ struct FontProblem {
   // width and height are the size of the output image. quality
   // controls the amount of oversampling (this many pixels squared,
   // per output pixel) for anti-aliasing.
-  // (TODO: Perhaps should take ImageF?)
   static ImageA SDFThresholdAAFloat(float onedge_value,
-                                    const ImageA &sdf,
+                                    const ImageF &sdf,
                                     int width,
                                     int height,
                                     int quality = 2,
@@ -180,6 +183,12 @@ struct FontProblem {
   RunSDFModel(const Network &net,
               const SDFConfig &config,
               const ImageA &sdf_input);
+
+  // Same but using ImageF in [0,1], which has a bit more precision.
+  static std::pair<ImageF, std::array<float, 26>>
+  RunSDFModelF(const Network &net,
+               const SDFConfig &config,
+               const ImageF &sdf_input);
 
 
   // Delete nodes from the final layer such that it predicts
@@ -200,7 +209,7 @@ struct FontProblem {
   // (second) are used. Typical to include config.onedge_value/255.0f
   // as one of them!
   static ImageRGBA ThresholdImageMulti(
-      const ImageA &sdf,
+      const ImageF &sdf,
       const std::vector<std::pair<float, uint32_t>> &layers,
       int out_width, int out_height,
       int quality = 4,
@@ -209,14 +218,14 @@ struct FontProblem {
   // SDFs resulting from iterating the model.
   struct Gen5Result {
     SDFConfig config;
-    ImageA input;
+    ImageF input;
     std::array<float, 26> low_pred;
     std::array<float, 26> up_pred;
 
-    ImageA low;
-    ImageA low_up;
-    ImageA up;
-    ImageA up_low;
+    ImageF low;
+    ImageF low_up;
+    ImageF up;
+    ImageF up_low;
   };
 
   // Returns 5 sdfs and the letter predictions: A copy of the input

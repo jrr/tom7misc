@@ -142,7 +142,7 @@ static void DrawCharTo(
                    StringPrintf("%d contours, %d paths", ncontours, npaths));
 }
 
-static void MakeTraceImage(const ImageA &sdf,
+static void MakeTraceImage(const ImageF &sdf,
                            const ImageRGBA &islands,
                            const std::vector<TTF::Contour> &unopt_contours,
                            const std::vector<TTF::Contour> &contours,
@@ -161,7 +161,7 @@ static void MakeTraceImage(const ImageA &sdf,
 
   // Input SDF.
   out.BlendImage((tile % TILESW) * TILE, (tile / TILESW) * TILE,
-                 sdf.ScaleBy(SCALE).GreyscaleRGBA());
+                 sdf.Make8Bit().ScaleBy(SCALE).GreyscaleRGBA());
   tile++;
 
   // Thresholded, AA.
@@ -245,7 +245,7 @@ int main(int argc, char **argv) {
 
   TTF ttf("helvetica.ttf");
   std::optional<ImageA> sdf =
-    ttf.GetSDF('e', SDF_CONFIG.sdf_size,
+    ttf.GetSDF('E', SDF_CONFIG.sdf_size,
                SDF_CONFIG.pad_top, SDF_CONFIG.pad_bot, SDF_CONFIG.pad_left,
                SDF_CONFIG.onedge_value, SDF_CONFIG.falloff_per_pixel);
   CHECK(sdf.has_value());
@@ -259,13 +259,13 @@ int main(int argc, char **argv) {
   FontProblem::Gen5Result gen5result =
     FontProblem::Gen5(SDF_CONFIG, *make_lowercase, *make_uppercase, vector_sdf);
 
-  const ImageA &trace_sdf = gen5result.input;
+  const ImageF &trace_sdf = gen5result.low;
 
   ImageRGBA islands;
   Timer vectorize_timer;
   const auto [unopt_contours, contours] =
-    FontProblem::VectorizeSDF(SDF_CONFIG, trace_sdf, &islands);
-  const float right_edge = FontProblem::GuessRightEdge(SDF_CONFIG, ImageF(trace_sdf));
+    FontProblem::VectorizeSDF(SDF_CONFIG, trace_sdf.Make8Bit(), &islands);
+  const float right_edge = FontProblem::GuessRightEdge(SDF_CONFIG, trace_sdf);
   double vectorize_ms = vectorize_timer.MS();
   printf("Traced in %.2fs\n", vectorize_ms / 1000.0f);
 
