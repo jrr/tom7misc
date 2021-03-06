@@ -18,7 +18,7 @@
 struct TTF {
   using string = std::string;
 
-  const stbtt_fontinfo *Font() const { return &font; }
+  const stbtt_fontinfo *FontInfo() const { return &font; }
 
   explicit TTF(const string &filename);
 
@@ -179,13 +179,13 @@ struct TTF {
     // TODO: linegap?
 
     // Serialize and deserialize.
-    string ToString() const;
-    static Font FromString(const string &s);
+    std::string ToString() const;
+    static Font FromString(const std::string &s);
 
     // Not to be confused with SDF! This is the text file format for
     // FontForge. Extremely simple subset with many fields hackily
     // hard-coded.
-    string ToSFD() const;
+    std::string ToSFD(const std::string &name) const;
   };
 
   // c2 may be 0 for no kerning.

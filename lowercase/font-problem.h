@@ -271,13 +271,15 @@ struct FontProblem {
       const SDFConfig &config,
       const ImageA &sdf,
       // debugging image
-      ImageRGBA *islands = nullptr);
+      ImageRGBA *islands = nullptr,
+      bool verbose = false);
 
   static TTF::Contour OptimizedContour(
       const ImageF &sdf,
       const ImageA &bitmap,
       const std::vector<std::pair<float, float>> &points,
-      float error_threshold = 0.05f);
+      float error_threshold = 0.05f,
+      bool verbose = false);
 
   // Guess the right edge of a character. Result is in SDF coordinates
   // (i.e. in [0, 36]). Assumes that we want symmetric padding on the
@@ -286,12 +288,15 @@ struct FontProblem {
       const SDFConfig &config,
       const ImageF &sdf);
 
-  // TODO: Rote conversion to TTF "Char" format. Basically just normalizes the
-  // coordinates.
+  // TODO: Rote conversion to TTF "Char" format. Normalizes the coordinates
+  // and resolves the padding from the config and right edge.
   static TTF::Char ToChar(
       const SDFConfig &config,
       const std::vector<TTF::Contour> &contours,
       float right_edge);
+
+  // Derive the TTF::Font baseline from the SDF config (the bottom padding).
+  static float TTFBaseline(const SDFConfig &config);
 
   // Code for computing the error between a predicted vector shape ("loop")
   // and the expected one.

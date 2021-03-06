@@ -203,6 +203,8 @@ static void MakeTraceImage(const ImageA &sdf,
 
 
 int main(int argc, char **argv) {
+
+#if 1
   std::unique_ptr<ImageRGBA> input_rgba(ImageRGBA::Load("bitmapletter.png"));
   CHECK(input_rgba.get() != nullptr);
   // Threshold input at r>127, so that template markings can
@@ -243,7 +245,7 @@ int main(int argc, char **argv) {
 
   TTF ttf("helvetica.ttf");
   std::optional<ImageA> sdf =
-    ttf.GetSDF('J', SDF_CONFIG.sdf_size,
+    ttf.GetSDF('e', SDF_CONFIG.sdf_size,
                SDF_CONFIG.pad_top, SDF_CONFIG.pad_bot, SDF_CONFIG.pad_left,
                SDF_CONFIG.onedge_value, SDF_CONFIG.falloff_per_pixel);
   CHECK(sdf.has_value());
@@ -257,7 +259,7 @@ int main(int argc, char **argv) {
   FontProblem::Gen5Result gen5result =
     FontProblem::Gen5(SDF_CONFIG, *make_lowercase, *make_uppercase, vector_sdf);
 
-  const ImageA &trace_sdf = gen5result.low;
+  const ImageA &trace_sdf = gen5result.input;
 
   ImageRGBA islands;
   Timer vectorize_timer;
@@ -273,5 +275,30 @@ int main(int argc, char **argv) {
                  contours,
                  right_edge,
                  "trace.png");
+
+  TTF::Char ttf_char = FontProblem::ToChar(SDF_CONFIG, contours, right_edge);
+
+  TTF::Font font;
+  font.baseline = FontProblem::TTFBaseline(SDF_CONFIG);
+  font.chars = {{'e', ttf_char}};
+
+  Util::WriteFile("trace.sfd", font.ToSFD("Traced"));
+#else
+
+  TTF::Char ttf_char;
+  ttf_char.width = 1.0f;
+  ttf_char.contours = {
+    TTF::Contour{.paths = {TTF::Path(0.50, 0.30),
+                           TTF::Path(0.70, 0.70),
+                           TTF::Path(0.30, 0.70)}}
+  };
+
+  TTF::Font font;
+  font.baseline = 0.75;
+  font.chars = {{'e', ttf_char}};
+
+  Util::WriteFile("trace.sfd", font.ToSFD("Traced"));
+#endif
+  printf("Wrote trace.sfd\n");
   return 0;
 }

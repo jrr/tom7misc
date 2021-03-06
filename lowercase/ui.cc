@@ -371,7 +371,7 @@ double BitmapDifference(const TTF &ttf,
                         float xmov2, float ymov2,
                         bool draw = false) {
 
-  const stbtt_fontinfo *info = ttf.Font();
+  const stbtt_fontinfo *info = ttf.FontInfo();
   CHECK(info != nullptr);
 
   if (draw) {

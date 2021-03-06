@@ -1845,7 +1845,7 @@ static vector<pair<float, float>> VectorizeOne(
   CHECK(!InBlob(startpx, startpy - 1)) << "Need the uppermost pixel "
     "in this column.";
 
-  printf("Start: %d,%d\n", startpx, startpy);
+  // printf("Start: %d,%d\n", startpx, startpy);
 
   // Discrete direction. The code below is written for a pattern
   // where we are moving right, with the blob down, and the
@@ -2042,11 +2042,14 @@ TTF::Contour FontProblem::OptimizedContour(
     const ImageF &sdf,
     const ImageA &bitmap,
     const vector<pair<float, float>> &points,
-    float error_threshold) {
+    float error_threshold,
+    bool verbose) {
 
-  printf("OptimizedContour on %d points:\n", (int)points.size());
-  for (const auto [x, y] : points)
-    printf("  %.2f,%.2f\n", x, y);
+  if (verbose) {
+    printf("OptimizedContour on %d points:\n", (int)points.size());
+    for (const auto [x, y] : points)
+      printf("  %.2f,%.2f\n", x, y);
+  }
 
   Timer optimize_timer;
 
@@ -2168,13 +2171,15 @@ TTF::Contour FontProblem::OptimizedContour(
           make_tuple(maxx, maxy),
           1000);
 
-      printf("[s %.2f,%.2f]->[e %.2f, %.2f] (+%d) "
-             "Best curve %.2f,%.2f err %.5f\n",
-             sx, sy,
-             ex, ey,
-             (int)intermediate.size(),
-             std::get<0>(ctrl), std::get<1>(ctrl),
-             err);
+      if (verbose) {
+        printf("[s %.2f,%.2f]->[e %.2f, %.2f] (+%d) "
+               "Best curve %.2f,%.2f err %.5f\n",
+               sx, sy,
+               ex, ey,
+               (int)intermediate.size(),
+               std::get<0>(ctrl), std::get<1>(ctrl),
+               err);
+      }
 
       // Is this bezier acceptable?
       if (err < error_threshold) {
@@ -2188,9 +2193,11 @@ TTF::Contour FontProblem::OptimizedContour(
       } else {
         // Emit the last one then, and reset.
         CHECK(last.has_value());
-        printf("... so using ");
-        PrintPath(sx, sy, last.value());
-        printf("\n");
+        if (verbose) {
+          printf("... so using ");
+          PrintPath(sx, sy, last.value());
+          printf("\n");
+        }
         ret.paths.push_back(last.value());
         last.reset();
 
@@ -2210,13 +2217,17 @@ TTF::Contour FontProblem::OptimizedContour(
 
 
   CHECK(last.has_value()) << "Degenerate input to OptimizedContour?";
-  printf("Plus final path ");
-  PrintPath(sx, sy, last.value());
-  printf("\n");
+  if (verbose) {
+    printf("Plus final path ");
+    PrintPath(sx, sy, last.value());
+    printf("\n");
+  }
   ret.paths.push_back(last.value());
   double optimize_ms = optimize_timer.MS();
-  printf("Optimized %d points to %d in %.3fs\n",
-         (int)points.size(), (int)ret.paths.size(), optimize_ms / 1000.0);
+  if (verbose) {
+    printf("Optimized %d points to %d in %.3fs\n",
+           (int)points.size(), (int)ret.paths.size(), optimize_ms / 1000.0);
+  }
   return ret;
 }
 
@@ -2224,7 +2235,8 @@ pair<vector<TTF::Contour>, vector<TTF::Contour>>
 FontProblem::VectorizeSDF(
     const FontProblem::SDFConfig &config,
     const ImageA &sdf8,
-    ImageRGBA *islands) {
+    ImageRGBA *islands,
+    bool verbose) {
 
   const auto [depth, eqclass, parentmap] = [&config, &sdf8, islands](){
       // Make thresholded bitmap.
@@ -2332,7 +2344,7 @@ FontProblem::VectorizeSDF(
     VectorizeRec =
     [&](const ImageF &sdf, int d, uint8 parent) ->
     pair<vector<TTF::Contour>, vector<TTF::Contour>> {
-      printf("DEPTH %d/%d\n", d, max_depth);
+      if (verbose) printf("DEPTH %d/%d\n", d, max_depth);
       if (d > max_depth) return {};
 
       std::vector<TTF::Contour> unopt_contours, contours;
@@ -2359,9 +2371,11 @@ FontProblem::VectorizeSDF(
 
       // Now, for each component...
       for (const auto &[this_eqc, descendants] : eqclasses) {
-        printf("Tracing eqc %d (descendants:", this_eqc);
-        for (uint8 d : descendants) printf(" %d", d);
-        printf(")\n");
+        if (verbose) {
+          printf("Tracing eqc %d (descendants:", this_eqc);
+          for (uint8 d : descendants) printf(" %d", d);
+          printf(")\n");
+        }
         // Generate a simplified bitmap.
         ImageA bitmap(eqclass.Width(), eqclass.Height());
         for (int y = 0; y < eqclass.Height(); y++) {
@@ -2463,4 +2477,57 @@ float FontProblem::GuessRightEdge(
   LOG(FATAL) << "Bug: The left edge should have sufficient power to "
     "stop this search??";
   return config.sdf_size;
+}
+
+// See discussion of scale in ToChar.
+float FontProblem::TTFBaseline(const SDFConfig &config) {
+  return 1.0f - (config.pad_bot / (float)(config.sdf_size - config.pad_top));
+}
+
+
+TTF::Char FontProblem::ToChar(
+    const SDFConfig &config,
+    const std::vector<TTF::Contour> &contours,
+    float right_edge) {
+  // Offsets
+  float left_edge = config.pad_left;
+  float top_edge = config.pad_top;
+
+  // Multiply by this to scale coordinates to the nominal [0,1] box.
+  // The output box includes the "ascent" portion (which is the unpadded
+  // region in the center of the sdf) as well as the "descent" (which is
+  // the bottom padding below that).
+  float scale = 1.0f / (config.sdf_size - config.pad_top);
+
+  auto MapX = [left_edge, scale](float x) -> float {
+      return (x - left_edge) * scale;
+    };
+
+  auto MapY = [top_edge, scale](float y) -> float {
+      return (y - top_edge) * scale;
+    };
+
+  TTF::Char ret;
+  ret.contours.reserve(contours.size());
+  for (const TTF::Contour &contour : contours) {
+    TTF::Contour c;
+    c.paths.reserve(contour.paths.size());
+    for (const TTF::Path &p : contour.paths) {
+      switch (p.type) {
+      case TTF::PathType::LINE:
+        c.paths.emplace_back(MapX(p.x), MapY(p.y));
+        break;
+      case TTF::PathType::BEZIER:
+        c.paths.emplace_back(MapX(p.x), MapY(p.y),
+                             MapX(p.cx), MapY(p.cy));
+        break;
+      }
+    }
+    ret.contours.push_back(std::move(c));
+  }
+
+  // Right edge is the right edge of the box, so simply mapping
+  // it as an x coordinate gives us the width.
+  ret.width = MapX(right_edge);
+  return ret;
 }
