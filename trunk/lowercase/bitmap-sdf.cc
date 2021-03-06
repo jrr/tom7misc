@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
     {
       ImageRGBA bitmap = FontProblem::SDFThresholdAAFloat(
           config.onedge_value / 255.0f,
-          vector_sdf,
+          ImageF(vector_sdf),
           BSIZE, BSIZE,
           4).GreyscaleRGBA();
       bitmap.Save("bitmapletter-example.png");
@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
 
       ImageRGBA bitmap = FontProblem::SDFThresholdAAFloat(
           config.onedge_value / 255.0f,
-          vector_sdf,
+          ImageF(vector_sdf),
           BSIZE, BSIZE,
           3).AlphaMaskRGBA(0x00, 0x00, 0x33);
       tpl.BlendImage(0, 0, bitmap);

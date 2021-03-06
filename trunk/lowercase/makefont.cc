@@ -25,8 +25,8 @@ using int64 = int64_t;
 
 
 int main(int argc, char **argv) {
-  //  TTF ttf("helvetica.ttf");
-  TTF ttf("comic.ttf");
+  TTF ttf("helvetica.ttf");
+  // TTF ttf("comic.ttf");
 
   std::unique_ptr<Network> make_lowercase, make_uppercase;
   make_lowercase.reset(Network::ReadNetworkBinary("net0.val"));
@@ -35,12 +35,16 @@ int main(int argc, char **argv) {
   CHECK(make_lowercase.get() != nullptr);
   CHECK(make_uppercase.get() != nullptr);
 
-  vector<char> letters;
-  for (int i = 0; i < 26; i++) letters.push_back('A' + i);
+  vector<pair<char, bool>> letters;
+  for (int i = 0; i < 26; i++) {
+    letters.emplace_back('A' + i, true);
+    letters.emplace_back('a' + i, false);
+  }
 
   vector<pair<char, TTF::Char>> chars =
     ParallelMap(letters,
-                [&](char c) {
+                [&](std::pair<char, bool> arg) {
+                  const auto [c, lowercasing] = arg;
                   std::optional<ImageA> sdfo =
                     ttf.GetSDF(c, SDF_CONFIG.sdf_size,
                                SDF_CONFIG.pad_top, SDF_CONFIG.pad_bot, SDF_CONFIG.pad_left,
@@ -51,13 +55,12 @@ int main(int argc, char **argv) {
                   FontProblem::Gen5Result gen5result =
                     FontProblem::Gen5(SDF_CONFIG, *make_lowercase, *make_uppercase, input_sdf);
 
-                  const ImageA sdf = gen5result.up;
+                  const ImageF &sdf = lowercasing ? gen5result.low : gen5result.up;
 
-                  // XXX run network or whatever
                   const auto [unopt_contours_, contours] =
-                    FontProblem::VectorizeSDF(SDF_CONFIG, sdf);
+                    FontProblem::VectorizeSDF(SDF_CONFIG, sdf.Make8Bit());
                   const float right_edge =
-                    FontProblem::GuessRightEdge(SDF_CONFIG, ImageF(sdf));
+                    FontProblem::GuessRightEdge(SDF_CONFIG, sdf);
                   TTF::Char ttf_char =
                     FontProblem::ToChar(SDF_CONFIG, contours, right_edge);
                   return make_pair(c, std::move(ttf_char));
@@ -69,14 +72,6 @@ int main(int argc, char **argv) {
     font.chars[c] = ch;
 
   Util::WriteFile("font.sfd", font.ToSFD("Tracevetica"));
-
-#if 0
-  std::unique_ptr<Network> make_lowercase, make_uppercase;
-  make_lowercase.reset(Network::ReadNetworkBinary("net0.val"));
-  make_uppercase.reset(Network::ReadNetworkBinary("net1.val"));
-  FontProblem::Gen5Result gen5result =
-    FontProblem::Gen5(SDF_CONFIG, *make_lowercase, *make_uppercase, vector_sdf);
-#endif
 
   return 0;
 }

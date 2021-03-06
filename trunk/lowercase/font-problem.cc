@@ -188,6 +188,20 @@ static void SDFFillVector(
   }
 }
 
+static void SDFFillVectorF(
+    const ImageF &sdf,
+    vector<float> *buffer) {
+  CHECK(buffer->size() >= sdf.Width() * sdf.Height());
+
+  int idx = 0;
+  for (int y = 0; y < sdf.Height(); y++) {
+    for (int x = 0; x < sdf.Width(); x++) {
+      (*buffer)[idx++] = sdf.GetPixel(x, y);
+    }
+  }
+}
+
+
 ImageA FontProblem::SDFGetImage(const SDFConfig &config,
                                 const vector<float> &buffer) {
   CHECK(buffer.size() >= config.sdf_size * config.sdf_size);
@@ -199,6 +213,19 @@ ImageA FontProblem::SDFGetImage(const SDFConfig &config,
   }
   return img;
 }
+
+ImageF FontProblem::SDFGetImageF(const SDFConfig &config,
+                                 const vector<float> &buffer) {
+  CHECK(buffer.size() >= config.sdf_size * config.sdf_size);
+  ImageF img(config.sdf_size, config.sdf_size);
+  for (int y = 0; y < config.sdf_size; y++) {
+    for (int x = 0; x < config.sdf_size; x++) {
+      img.SetPixel(x, y, buffer[y * config.sdf_size + x]);
+    }
+  }
+  return img;
+}
+
 
 ImageA FontProblem::SDFThresholdAA(uint8 onedge_value,
                                    const ImageA &sdf,
@@ -236,19 +263,21 @@ ImageA FontProblem::SDFThresholdAA(uint8 onedge_value,
 }
 
 ImageA FontProblem::SDFThresholdAAFloat(float onedge_value,
-                                        const ImageA &sdf,
+                                        const ImageF &sdf,
                                         int width,
                                         int height,
                                         int quality,
                                         float gamma) {
   const int scale = quality;
   // Resample to scaled size.
-  // PERF we could sample directly from the 8-bit image
-  ImageF sdff = ImageF(sdf);
-  if (gamma != 1.0f) {
+  ImageF sdff(sdf.Width(), sdf.Height());
+  // Update in place, but don't bother in the common case of gamma = 1.0.
+  if (gamma == 1.0f) {
+    sdff = sdf;
+  } else {
     for (int y = 0; y < sdff.Height(); y++) {
       for (int x = 0; x < sdff.Width(); x++) {
-        sdff.SetPixel(x, y, powf(sdff.GetPixel(x, y), gamma));
+        sdff.SetPixel(x, y, powf(sdf.GetPixel(x, y), gamma));
       }
     }
   }
@@ -388,7 +417,7 @@ void FontProblem::RenderSDF(
            const vector<pair<float, uint32>> layers = GetLayers();
 
 
-           ImageA sdf = SDFGetImage(config, stim.values[0]);
+           ImageF sdf = SDFGetImageF(config, stim.values[0]);
 
            ImageRGBA thresh = ThresholdImageMulti(sdf, layers,
                                                   config.sdf_size,
@@ -1223,6 +1252,23 @@ FontProblem::RunSDFModel(const Network &net,
   return make_pair(sdf_output, letters);
 }
 
+std::pair<ImageF, std::array<float, 26>>
+FontProblem::RunSDFModelF(const Network &net,
+                          const SDFConfig &config,
+                          const ImageF &sdf_input) {
+  const int sdf_size = config.sdf_size;
+  Stimulation stim{net};
+  SDFFillVectorF(sdf_input, &stim.values[0]);
+  net.RunForward(&stim);
+  const std::vector<float> &output = stim.values.back();
+  CHECK(output.size() >= sdf_size * sdf_size + 26);
+  ImageF sdf_output = SDFGetImageF(config, output);
+  std::array<float, 26> letters;
+  for (int i = 0; i < 26; i++)
+    letters[i] = output[sdf_size * sdf_size + i];
+  return make_pair(sdf_output, letters);
+}
+
 std::vector<float>
 FontProblem::RunSDFModelPredOnly(const Network &net,
                                  const SDFConfig &config,
@@ -1237,7 +1283,7 @@ FontProblem::RunSDFModelPredOnly(const Network &net,
 
 
 ImageRGBA FontProblem::ThresholdImageMulti(
-    const ImageA &sdf,
+    const ImageF &sdf,
     const std::vector<pair<float, uint32>> &layers,
     int out_width, int out_height,
     int quality,
@@ -1265,20 +1311,20 @@ FontProblem::Gen5Result FontProblem::Gen5(
     const ImageA &sdf) {
   Gen5Result result;
   result.config = config;
-  result.input = sdf;
+  result.input = ImageF(sdf);
 
   auto RunTo = [&config](
-      const Network &net, const ImageA &sdf,
-      ImageA *out,
+      const Network &net, const ImageF &sdf,
+      ImageF *out,
       std::array<float, 26> *pred_out) {
-      auto [out_sdf, pred] = FontProblem::RunSDFModel(net, config, sdf);
+      auto [out_sdf, pred] = FontProblem::RunSDFModelF(net, config, sdf);
       if (out != nullptr) *out = std::move(out_sdf);
       if (pred_out != nullptr) *pred_out = std::move(pred);
     };
 
   // First iter.
-  RunTo(make_lowercase, sdf, &result.low, &result.low_pred);
-  RunTo(make_uppercase, sdf, &result.up, &result.up_pred);
+  RunTo(make_lowercase, result.input, &result.low, &result.low_pred);
+  RunTo(make_uppercase, result.input, &result.up, &result.up_pred);
   // Second iter.
   RunTo(make_uppercase, result.low, &result.low_up, nullptr);
   RunTo(make_lowercase, result.up, &result.up_low, nullptr);
@@ -1310,7 +1356,7 @@ FontProblem::Gen5ImagesResult FontProblem::Gen5Images(
   // SDF and then thresholded image, side by side
   Gen5ImagesResult result(sdf_size * scale * 2, sdf_size * scale);
   result.input.BlendImage(0, 0,
-                          gr.input.GreyscaleRGBA().ScaleBy(scale));
+                          gr.input.Make8Bit().GreyscaleRGBA().ScaleBy(scale));
   ImageA thresh = FontProblem::SDFThresholdAAFloat(
       gr.config.onedge_value / 255.0f,
       gr.input,
@@ -1327,10 +1373,10 @@ FontProblem::Gen5ImagesResult FontProblem::Gen5Images(
      {gr.config.onedge_value / 255.0f, 0xFFFFFFFF}};
 
   auto DrawTo = [scale, quality, sdf_size, THRESHOFF, &layers](
-      const ImageA &sdf,
+      const ImageF &sdf,
       float gamma,
       ImageRGBA *out) {
-      out->BlendImage(0, 0, sdf.GreyscaleRGBA().ScaleBy(scale));
+      out->BlendImage(0, 0, sdf.Make8Bit().GreyscaleRGBA().ScaleBy(scale));
 
       ImageRGBA out_thresh = FontProblem::ThresholdImageMulti(
           sdf,
@@ -1611,7 +1657,7 @@ struct IslandFinder {
                 // Nothing to do (or some sanity checking at least?)
 
             } else {
-              LOG(FATAL) << "Upon reaching a pixel for the second "
+              CHECK(false) << "Upon reaching a pixel for the second "
                 "time, it should be depth - 1 or depth + 1!";
             }
           } else {
@@ -2474,7 +2520,7 @@ float FontProblem::GuessRightEdge(
     }
   }
 
-  LOG(FATAL) << "Bug: The left edge should have sufficient power to "
+  CHECK(false) << "Bug: The left edge should have sufficient power to "
     "stop this search??";
   return config.sdf_size;
 }
