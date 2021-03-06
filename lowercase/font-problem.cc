@@ -2041,11 +2041,9 @@ static TTF::Contour UnoptimizedContour(
 TTF::Contour FontProblem::OptimizedContour(
     const ImageF &sdf,
     const ImageA &bitmap,
-    const vector<pair<float, float>> &points) {
+    const vector<pair<float, float>> &points,
+    float error_threshold) {
 
-  // XXX! How to set this? And it should trade off
-  // error with the number of points covered, I think?
-  constexpr float ERROR_THRESHOLD = 0.1f; // 1.0f;
   printf("OptimizedContour on %d points:\n", (int)points.size());
   for (const auto [x, y] : points)
     printf("  %.2f,%.2f\n", x, y);
@@ -2054,34 +2052,48 @@ TTF::Contour FontProblem::OptimizedContour(
 
   TTF::Contour ret;
 
-  // Return straight lines between these edge points.
-  // TODO: Clean this up, use beziers!
-  /*
-  TTF::Contour ret;
-  for (const auto [ex, ey] : points) {
-    ret.paths.emplace_back(ex, ey);
-  }
-  */
+  // We aren't really trying to minimize the number of points, just
+  // clean up. (For example, a circle-like shape can be made with just
+  // two quadratic beziers, but we will likely generate a lot more
+  // points here.) But fewer points is generally cleaner.
 
-  // We aren't trying to minimize the number of points, just clean up.
-  // (For example, a circle-like shape can be made with just two quadratic
-  // beziers, but we will likely generate a lot more points here.)
+  // What we are looking for are a series of points that can be
+  // approximated by a quad bezier. We take longer and longer
+  // sequences of points, and fit a quad bezier to them to minimize
+  // the distance from the point to the curve (black box optimizer)
+  // and stop if we can't do that within a given error threshold. We
+  // always make progress because two points can be represented with 0
+  // error (any bezier according to the formal criteria, but we use a
+  // straight line obviously). This works pretty well!
 
-  // What we are looking for are a series of points that are "almost a line".
-  // What it means to be "almost a line" is that the interior points are
-  // not far from the line defined by the endpoints. (A quadratic bezier
-  // allows us to bend the line out to one side, so if there was some way
-  // of saying "not far from the line but also okay if they are a bit
-  // far from the line but only on one side and only towards the middle",
-  // that might be preferable. But another way of saying that is that they
-  // are close to an unspecified bezier.)
+  // Some possible improvements:
+  //  - EZ: The start point is always in the output, so we should
+  //    rotate to pick one with a sharp angle. It's a little wasteful
+  //    for this one to be in the middle of a nice straight line,
+  //    for example.
+  //  - EZ: Generate straight lines when they are almost as good as
+  //    a bezier (this may be undesirable because it makes the shapes
+  //    look less "organic").
+  //  - EZ: Might want to include some cost for longer curves, since
+  //    nothing really prevents them from going really far away
+  //    if they also come close to the intermediate points (other than
+  //    the control point bounds).
+  //  - Error threshold should somehow trade off with the number of
+  //    points being covered, rather than an absolute bound?
+  //  - Rather than only checking the points (which are supposed
+  //    to be at the onedge value in the SDF), we can consult the
+  //    SDF directly. Ideally the curve should be "iso" on the
+  //    onedge value.
+  //  - The bounds for the control points don't really make sense;
+  //    see below.
+  //  - Could be using the bitmap, too: The output curve should
+  //    contain the whole island. I think this could be a local
+  //    constraint during optimization? Is it violated in practice
+  //    and does it matter?
+  //  - Add some cost for C1 discontinuities when the points have
+  //    wide angles. This can just be built into the function
+  //    being minimized, at least at one end.
 
-  // XXX: Rotate so that the start point has a large angle; we don't
-  // want to start in the middle of a straight line!
-
-  // Actually, even simpler. Just try fitting bezier to the set of
-  // points, and taking an absolute error bound. (Could also force
-  // using a line.)
 
   const auto [startx, starty] = points.back();
 
@@ -2150,6 +2162,8 @@ TTF::Contour FontProblem::OptimizedContour(
           //  - it's not symmetric under rotation. A diagonal line
           //    has much bigger search space than a horizontal one
           //    (can even be zero area!)
+          // A good choice might be a circle with the start and
+          // end points as its diameter?
           make_tuple(minx, miny),
           make_tuple(maxx, maxy),
           1000);
@@ -2163,7 +2177,7 @@ TTF::Contour FontProblem::OptimizedContour(
              err);
 
       // Is this bezier acceptable?
-      if (err < ERROR_THRESHOLD) {
+      if (err < error_threshold) {
         const auto [cx, cy] = ctrl;
         last.reset();
         // If we stop, we'd use the bezier we just optimized.
@@ -2395,4 +2409,58 @@ FontProblem::VectorizeSDF(
   ImageF sdf = NormalizeSDF(config, sdf8);
 
   return VectorizeRec(sdf, 1, 0);
+}
+
+float FontProblem::GuessRightEdge(
+    const SDFConfig &config,
+    const ImageF &sdf) {
+
+  CHECK(sdf.Width() == config.sdf_size &&
+        sdf.Height() == config.sdf_size);
+
+  //         sdf_size
+  //  +---------------------+
+  //  |      |              |
+  //  |     pad top         |
+  //  |      |              | s
+  //  | - - +---------+ - - | d
+  //  |     |         :     | f
+  //  |     |         : h   | _
+  //  |-pad-|         : t   | s
+  //  | left|         :     | i
+  //  | - - +---------+ - - | z
+  //  |   origin   |        | e
+  //  |           pad bot   |
+  //  |            |        |
+  //  +---------------------+
+
+
+  // The inner box is the nominal character box, and we are trying to
+  // guess its right edge (like how pad_left defines a left edge).
+  // Consider only pixels >pad_top and <pad_bot. Sum up the
+  // total SDF power in each column:
+
+  vector<float> power;
+  for (int x = 0; x < config.sdf_size; x++) {
+    float col_power = 0.0f;
+    for (int y = config.pad_top; y < config.sdf_size - config.pad_bot; y++) {
+      col_power += sdf.GetPixel(x, y);
+    }
+    power.push_back(col_power);
+  }
+
+  // Now find the last column that has power less than the left edge's
+  // power.
+  CHECK(config.pad_left >= 0 && config.pad_left < power.size());
+  const float target = power[config.pad_left];
+  for (int x = config.sdf_size - 1; x >= 0; x--) {
+    if (power[x] >= target) {
+      // TODO: interpolate for better quality!
+      return x + 1;
+    }
+  }
+
+  LOG(FATAL) << "Bug: The left edge should have sufficient power to "
+    "stop this search??";
+  return config.sdf_size;
 }

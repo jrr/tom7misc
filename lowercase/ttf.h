@@ -161,6 +161,33 @@ struct TTF {
   // Bezier control points do not affect the answer.
   static bool IsClockwise(const Contour &c);
 
+  // Extremely simple "font" representation as a database of characters.
+  // Uses the normalized float cordinates so that the font nominally
+  // falls in the box (0,0)-(1,1) with y-0 at the top (screen coordinate
+  // style), the baseline somewhere in [0,1].
+  //
+  // Can be serialized. Can be exported to SFD, which FontForge
+  // can make into a TTF (etc.) file. No support for anything other than
+  // line and quad contours.
+  struct Char {
+    std::vector<Contour> contours;
+    float width = 1.0f;
+  };
+  struct Font {
+    std::map<char, Char> chars;
+    float baseline = 0.75f;
+    // TODO: linegap?
+
+    // Serialize and deserialize.
+    string ToString() const;
+    static Font FromString(const string &s);
+
+    // Not to be confused with SDF! This is the text file format for
+    // FontForge. Extremely simple subset with many fields hackily
+    // hard-coded.
+    string ToSFD() const;
+  };
+
   // c2 may be 0 for no kerning.
   float NormKernAdvance(char c1, char c2) {
     int advance = 0;

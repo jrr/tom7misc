@@ -12,6 +12,8 @@
 #include "lines.h"
 #include "base/stringprintf.h"
 
+#include "network.h"
+
 using namespace std;
 
 static constexpr FontProblem::SDFConfig SDF_CONFIG = {};
@@ -101,6 +103,7 @@ static void DrawChar(const std::vector<TTF::Contour> &contours,
 
 static void DrawCharTo(
     const std::vector<TTF::Contour> &contours,
+    float right_edge,
     int sx, int sy, float scale,
     ImageRGBA *img) {
 
@@ -118,12 +121,33 @@ static void DrawCharTo(
              img->BlendPixel32(x, y, 0x7777FF66);
            });
 
+  // Top, bottom, left come from config.
+  float ty = sy + SDF_CONFIG.pad_top * scale;
+  img->BlendLine32(sx, ty, sx + scale * SDF_CONFIG.sdf_size, ty,
+                   0x4444FF6F);
+  float by = sy + (SDF_CONFIG.sdf_size - SDF_CONFIG.pad_bot) * scale;
+  img->BlendLine32(sx, by, sx + scale * SDF_CONFIG.sdf_size, by,
+                   0x4444FF6F);
+  float lx = sx + SDF_CONFIG.pad_left * scale;
+  img->BlendLine32(lx, sy + 11, lx, sy + scale * SDF_CONFIG.sdf_size,
+                   0x4444FF6F);
+
+  // Right is a parameter; determined by heuristic.
+  float rx = sx + right_edge * scale;
+  img->BlendLine32(rx, sy + 11, rx, sy + scale * SDF_CONFIG.sdf_size,
+                   0xFF44445F);
+
   img->BlendText32(sx, sy + 2,
                    0xCCCCCCFF,
                    StringPrintf("%d contours, %d paths", ncontours, npaths));
 }
 
-static void MakeTrace(const ImageA &sdf, const string &filename) {
+static void MakeTraceImage(const ImageA &sdf,
+                           const ImageRGBA &islands,
+                           const std::vector<TTF::Contour> &unopt_contours,
+                           const std::vector<TTF::Contour> &contours,
+                           float right_edge,
+                           const string &filename) {
   const int SIZE = SDF_CONFIG.sdf_size;
   const int SCALE = 16;
   const int QUALITY = 3;
@@ -152,33 +176,29 @@ static void MakeTrace(const ImageA &sdf, const string &filename) {
                  thresh.GreyscaleRGBA());
   tile++;
 
-  ImageRGBA islands;
-  Timer vectorize_timer;
-  const auto [unopt_contours, contours] =
-    FontProblem::VectorizeSDF(SDF_CONFIG, sdf, &islands);
-  double vectorize_ms = vectorize_timer.MS();
-  islands = islands.Crop32(2, 2,
-                           islands.Width() - 4,
-                           islands.Height() - 4);
+  ImageRGBA crop_islands = islands.Crop32(2, 2,
+                                          islands.Width() - 4,
+                                          islands.Height() - 4);
   out.BlendImage((tile % TILESW) * TILE, (tile / TILESW) * TILE,
-                 islands.ScaleBy(SCALE));
+                 crop_islands.ScaleBy(SCALE));
   tile++;
 
   DrawCharTo(unopt_contours,
+             right_edge,
              (tile % TILESW) * TILE, (tile / TILESW) * TILE,
              SCALE,
              &out);
   tile++;
 
   DrawCharTo(contours,
+             right_edge,
              (tile % TILESW) * TILE, (tile / TILESW) * TILE,
              SCALE,
              &out);
   tile++;
 
   out.Save(filename);
-  printf("Vectorized in %.3fs\nWrote %s.\n", vectorize_ms / 1000.0,
-         filename.c_str());
+  printf("Wrote %s.\n", filename.c_str());
 }
 
 
@@ -196,8 +216,62 @@ int main(int argc, char **argv) {
   }
   Timer sdf_timer;
   ImageA bitmap_sdf = FontProblem::SDFFromBitmap(SDF_CONFIG, input);
+
+  FontProblem::Image8x8 pix;
+  for (int i = 0; i < 64; i++) {
+    char *c =
+      "  ###   "
+      "  ###   "
+      " ## ##  "
+      " ## ##  "
+      "####### "
+      "##   ## "
+      "##   ## "
+      "##   ## ";
+    int y = i / 8;
+    int x = i % 8;
+    pix.SetPixel(x, y, c[i] == '#');
+  }
+  printf("Num pixels: %d\n"
+         "Num edges: %d\n",
+         pix.PixelsOn(),
+         pix.Edges());
+  ImageA pixel_sdf = FontProblem::SDF36From8x8(pix);
+
   printf("Took %.3f sec\n", sdf_timer.MS() / 1000.0);
 
-  MakeTrace(bitmap_sdf, "trace.png");
+
+  TTF ttf("helvetica.ttf");
+  std::optional<ImageA> sdf =
+    ttf.GetSDF('J', SDF_CONFIG.sdf_size,
+               SDF_CONFIG.pad_top, SDF_CONFIG.pad_bot, SDF_CONFIG.pad_left,
+               SDF_CONFIG.onedge_value, SDF_CONFIG.falloff_per_pixel);
+  CHECK(sdf.has_value());
+  ImageA vector_sdf = sdf.value();
+
+  std::unique_ptr<Network> make_lowercase, make_uppercase;
+  make_lowercase.reset(Network::ReadNetworkBinary("net0.val"));
+  make_uppercase.reset(Network::ReadNetworkBinary("net1.val"));
+  CHECK(make_lowercase.get() != nullptr);
+  CHECK(make_uppercase.get() != nullptr);
+  FontProblem::Gen5Result gen5result =
+    FontProblem::Gen5(SDF_CONFIG, *make_lowercase, *make_uppercase, vector_sdf);
+
+  const ImageA &trace_sdf = gen5result.low;
+
+  ImageRGBA islands;
+  Timer vectorize_timer;
+  const auto [unopt_contours, contours] =
+    FontProblem::VectorizeSDF(SDF_CONFIG, trace_sdf, &islands);
+  const float right_edge = FontProblem::GuessRightEdge(SDF_CONFIG, ImageF(trace_sdf));
+  double vectorize_ms = vectorize_timer.MS();
+  printf("Traced in %.2fs\n", vectorize_ms / 1000.0f);
+
+  MakeTraceImage(trace_sdf,
+                 islands,
+                 unopt_contours,
+                 contours,
+                 right_edge,
+                 "trace.png");
   return 0;
 }
