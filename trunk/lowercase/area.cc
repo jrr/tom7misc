@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
 
   // TTF ttf{"laser-italic.ttf"};
   TTF ttf{"exedoreli.ttf"};
-  const stbtt_fontinfo *info = ttf.Font();
+  const stbtt_fontinfo *info = ttf.FontInfo();
 
   float stb_scale = stbtt_ScaleForPixelHeight(info, 200.0f);
 
@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
                                                  'd',
                                                  &width2, &height2,
                                                  &x2, &y2);
-  
+
   stbtt_FreeBitmap(bit2, nullptr);
 
   printf("OK.\n");

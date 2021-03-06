@@ -154,7 +154,7 @@ double TTFOps::CharBitmapDifference(const TTF &ttf,
                                     float xscale2, float yscale2,
                                     float xmov2, float ymov2) {
 
-  const stbtt_fontinfo *info = ttf.Font();
+  const stbtt_fontinfo *info = ttf.FontInfo();
   CHECK(info != nullptr);
 
   float stb_scale = stbtt_ScaleForPixelHeight(info, scale);

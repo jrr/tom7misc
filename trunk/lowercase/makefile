@@ -1,7 +1,7 @@
 
 default: train.exe collate-errors.exe vacuum.exe cull.exe widen.exe deepen.exe ui.exe
 
-all: ui.exe cleandb.exe samecase.exe train.exe collate-errors.exe vacuum.exe widen.exe get-modelinfo.exe font-problem_test.exe top_test.exe vector-eval.exe sdf-eval.exe vector-info.exe sdf-info.exe area.exe get-layerweights.exe makefeatures.exe plot.exe bitmap-sdf.exe trace-sdf.exe hallucinate.exe
+all: ui.exe cleandb.exe samecase.exe train.exe collate-errors.exe vacuum.exe widen.exe get-modelinfo.exe font-problem_test.exe top_test.exe vector-eval.exe sdf-eval.exe vector-info.exe sdf-info.exe area.exe get-layerweights.exe makefeatures.exe plot.exe bitmap-sdf.exe trace-sdf.exe makefont.exe hallucinate.exe
 
 modelinfos: modelinfo0.png modelinfo1.png
 layerweights: weights0-layer0.png weights1-layer0.png
@@ -134,6 +134,9 @@ bitmap-sdf.exe : bitmap-sdf.o $(OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 trace-sdf.exe : trace-sdf.o $(OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+makefont.exe : makefont.o $(OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 hallucinate.exe : hallucinate.o $(OBJECTS)
