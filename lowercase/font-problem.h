@@ -278,7 +278,7 @@ struct FontProblem {
   static std::pair<std::vector<TTF::Contour>, std::vector<TTF::Contour>>
   VectorizeSDF(
       const SDFConfig &config,
-      const ImageA &sdf,
+      const ImageF &sdf,
       // debugging image
       ImageRGBA *islands = nullptr,
       bool verbose = false);

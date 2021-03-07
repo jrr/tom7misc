@@ -1828,12 +1828,10 @@ private:
 static constexpr float EDGE = 0.5f;
 static constexpr float FALLOFF = 0.1f;
 static ImageF NormalizeSDF(const FontProblem::SDFConfig &config,
-                           const ImageA &sdf) {
+                           const ImageF &sdf) {
   ImageF out(sdf.Width(), sdf.Height());
 
-  auto Map = [&config](uint8 v) {
-      // Convert to [0,1] nominal scale.
-      const float f = v / 255.0f;
+  auto Map = [&config](float f) {
       // Center at zero.
       const float fcentered = f - (config.onedge_value / 255.0f);
       // Falloff in [0,1] nominal scale.
@@ -2280,17 +2278,17 @@ TTF::Contour FontProblem::OptimizedContour(
 pair<vector<TTF::Contour>, vector<TTF::Contour>>
 FontProblem::VectorizeSDF(
     const FontProblem::SDFConfig &config,
-    const ImageA &sdf8,
+    const ImageF &sdf,
     ImageRGBA *islands,
     bool verbose) {
 
-  const auto [depth, eqclass, parentmap] = [&config, &sdf8, islands](){
+  const auto [depth, eqclass, parentmap] = [&config, &sdf, islands](){
       // Make thresholded bitmap.
-      ImageA bitmap(sdf8.Width(), sdf8.Height());
-      for (int y = 0; y < sdf8.Height(); y++) {
-        for (int x = 0; x < sdf8.Width(); x++) {
+      ImageA bitmap(sdf.Width(), sdf.Height());
+      for (int y = 0; y < sdf.Height(); y++) {
+        for (int x = 0; x < sdf.Width(); x++) {
           bitmap.SetPixel(x, y,
-                          sdf8.GetPixel(x, y) >= config.onedge_value ?
+                          sdf.GetPixel(x, y) >= (config.onedge_value / 255.0f) ?
                           0xFF : 0x00);
         }
       }
@@ -2466,9 +2464,9 @@ FontProblem::VectorizeSDF(
 
 
   // Work with normalized SDF to simplify matters a bit.
-  ImageF sdf = NormalizeSDF(config, sdf8);
+  ImageF norm_sdf = NormalizeSDF(config, sdf);
 
-  return VectorizeRec(sdf, 1, 0);
+  return VectorizeRec(norm_sdf, 1, 0);
 }
 
 float FontProblem::GuessRightEdge(

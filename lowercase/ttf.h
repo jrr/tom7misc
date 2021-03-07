@@ -176,7 +176,7 @@ struct TTF {
   struct Font {
     std::map<char, Char> chars;
     float baseline = 0.75f;
-    // TODO: linegap?
+    float linegap = 0.0f;
 
     // Serialize and deserialize.
     std::string ToString() const;
