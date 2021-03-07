@@ -264,7 +264,7 @@ int main(int argc, char **argv) {
   ImageRGBA islands;
   Timer vectorize_timer;
   const auto [unopt_contours, contours] =
-    FontProblem::VectorizeSDF(SDF_CONFIG, trace_sdf.Make8Bit(), &islands);
+    FontProblem::VectorizeSDF(SDF_CONFIG, trace_sdf, &islands);
   const float right_edge = FontProblem::GuessRightEdge(SDF_CONFIG, trace_sdf);
   double vectorize_ms = vectorize_timer.MS();
   printf("Traced in %.2fs\n", vectorize_ms / 1000.0f);
