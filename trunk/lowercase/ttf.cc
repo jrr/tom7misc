@@ -532,13 +532,21 @@ string TTF::Font::ToSFD(const string &name) const {
   // At least for SFD, ascent and descent seem to both be defined as
   // both positive. They are determined from the baseline.
   const int ascent = baseline * BOX;
-  const int descent = BOX - ascent;
+  int descent = BOX - ascent;
   CHECK(baseline > 0.0f && baseline < 1.0f && ascent && descent) <<
     "This code is not set up to handle baselines outside the box, "
     "or zero ascent/descent.";
 
   // TODO: compute underline position/width from BOX
-  const int native_linegap = linegap * BOX;
+  int native_linegap = linegap * BOX;
+  if (native_linegap < 0) {
+    // Doesn't seem to work in FontForge to have negative linegap,
+    // so instead subtract this from the descent.
+    descent += native_linegap;
+    native_linegap = 0;
+  }
+
+  CHECK(descent >= 0) << "negative linegap removed entire descent?";
 
   // FYI the values in the Layer: command are what tell it that
   // we are using quadratic beziers.
@@ -594,10 +602,10 @@ BeginChars: 256 %d
      native_linegap, native_linegap, native_linegap,
      numchars);
 
-  auto MapX = [](float x) -> int {
-      return roundf(x * BOX);
+  auto MapX = [this](float x) -> int {
+      return roundf(x * BOX * extra_scale);
     };
-  auto MapY = [ascent](float y) -> int {
+  auto MapY = [this, ascent](float y) -> int {
       // 0 should map to ascent
       // baseline should map to zero
 
@@ -605,7 +613,7 @@ BeginChars: 256 %d
       y -= ascent;
       y = -y;
 
-      return roundf(y);
+      return roundf(y * extra_scale);
     };
 
   auto CharToSFD = [&](char c, const Char &ch, int index) {
@@ -621,42 +629,45 @@ BeginChars: 256 %d
           "StartChar: %s\n"
           // ascii codepoint twice, then index in file
           "Encoding: %d %d %d\n"
+          // Explicit width
+          "Flags: W\n"
           "Width: %d\n"
           "Layercount: 2\n"
-          "Fore\n"
-          "SplineSet\n",
+          "Fore\n",
           char_name.c_str(),
           c, c, index,
           width);
 
-      for (const Contour &ucontour : ch.contours) {
-        // Flipping y axis, so orientation of clockwise changes.
-        const Contour contour = ucontour; // ReverseContour(ucontour);
-        StringAppendF(&ret, "%d %d m 0\n",
-                      MapX(contour.StartX()),
-                      MapY(contour.StartY()));
-        for (const Path &path : contour.paths) {
-          int x = MapX(path.x);
-          int y = MapY(path.y);
-          switch (path.type) {
-          case PathType::LINE:
-            StringAppendF(&ret, " %d %d l 0\n", x, y);
-            break;
-          case PathType::BEZIER: {
-            int cx = MapX(path.cx);
-            int cy = MapY(path.cy);
-            // Seems that FontForge wants two control points (this is how it saves
-            // quad beziers itself), so duplicate.
-            StringAppendF(&ret, " %d %d %d %d %d %d c 0\n", cx, cy, cx, cy, x, y);
-            break;
-          }
+      if (!ch.contours.empty()) {
+        ret += "SplineSet\n";
+        for (const Contour &ucontour : ch.contours) {
+          // Flipping y axis, so orientation of clockwise changes.
+          const Contour contour = ucontour; // ReverseContour(ucontour);
+          StringAppendF(&ret, "%d %d m 0\n",
+                        MapX(contour.StartX()),
+                        MapY(contour.StartY()));
+          for (const Path &path : contour.paths) {
+            int x = MapX(path.x);
+            int y = MapY(path.y);
+            switch (path.type) {
+            case PathType::LINE:
+              StringAppendF(&ret, " %d %d l 0\n", x, y);
+              break;
+            case PathType::BEZIER: {
+              int cx = MapX(path.cx);
+              int cy = MapY(path.cy);
+              // Seems that FontForge wants two control points (this is how it saves
+              // quad beziers itself), so duplicate.
+              StringAppendF(&ret, " %d %d %d %d %d %d c 0\n", cx, cy, cx, cy, x, y);
+              break;
+            }
+            }
           }
         }
+        ret += "EndSplineSet\n";
       }
 
-      ret +=
-        "EndSplineSet\n"
-        "EndChar\n";
+      ret += "EndChar\n";
 
       return ret;
     };

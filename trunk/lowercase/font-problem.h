@@ -304,6 +304,10 @@ struct FontProblem {
       const std::vector<TTF::Contour> &contours,
       float right_edge);
 
+  // Scale the glyph using an origin of 0,0. This changes its location
+  // relative to the baseline so it might not be that useful.
+  static void ScaleChar(float scale, TTF::Char *ch);
+
   // Derive the TTF::Font baseline from the SDF config (the bottom padding).
   static float TTFBaseline(const SDFConfig &config);
 
