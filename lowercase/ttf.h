@@ -177,6 +177,10 @@ struct TTF {
     std::map<char, Char> chars;
     float baseline = 0.75f;
     float linegap = 0.0f;
+    // Additional scale factor with baseline origin. Typical use is to
+    // remove unwanted space above the character. Affects widths but
+    // not baseline, ascent, or descent.
+    float extra_scale = 1.0f;
 
     // Serialize and deserialize.
     std::string ToString() const;

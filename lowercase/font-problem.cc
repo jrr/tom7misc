@@ -2496,15 +2496,21 @@ float FontProblem::GuessRightEdge(
   // The inner box is the nominal character box, and we are trying to
   // guess its right edge (like how pad_left defines a left edge).
   // Consider only pixels >pad_top and <pad_bot. Sum up the
-  // total SDF power in each column:
+  // total SDF power in each column, and the number of pixels above
+  // the onedge value.
 
   vector<float> power;
+  vector<int> content;
   for (int x = 0; x < config.sdf_size; x++) {
     float col_power = 0.0f;
+    int col_content = 0;
     for (int y = config.pad_top; y < config.sdf_size - config.pad_bot; y++) {
-      col_power += sdf.GetPixel(x, y);
+      const float f = sdf.GetPixel(x, y);
+      col_power += f;
+      if (f > config.onedge_value / 255.0f) col_content++;
     }
     power.push_back(col_power);
+    content.push_back(col_content);
   }
 
   // Now find the last column that has power less than the left edge's
@@ -2514,6 +2520,11 @@ float FontProblem::GuessRightEdge(
   for (int x = config.sdf_size - 1; x >= 0; x--) {
     if (power[x] >= target) {
       // TODO: interpolate for better quality!
+      return x + 1;
+    }
+    // Don't allow any of the actual shape to protrude, either.
+    // (Could also interpolate here.)
+    if (content[x] > 0) {
       return x + 1;
     }
   }
@@ -2528,6 +2539,21 @@ float FontProblem::TTFBaseline(const SDFConfig &config) {
   return 1.0f - (config.pad_bot / (float)(config.sdf_size - config.pad_top));
 }
 
+// XXX probably useless?
+void FontProblem::ScaleChar(float scale, TTF::Char *ch) {
+  for (TTF::Contour &contour : ch->contours) {
+    for (TTF::Path &p : contour.paths) {
+      p.x *= scale;
+      p.y *= scale;
+      if (p.type == TTF::PathType::BEZIER) {
+        p.cx *= scale;
+        p.cy *= scale;
+      }
+    }
+  }
+
+  ch->width *= scale;
+}
 
 TTF::Char FontProblem::ToChar(
     const SDFConfig &config,
