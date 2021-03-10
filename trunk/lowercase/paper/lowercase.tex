@@ -133,8 +133,7 @@ let's just roll with it!
 
 \section{Capital A Artificial Intelligence}
 
-% XXX want some macro for referring to a letter's shape, maybe
-% with a box around it?
+% XXX introduce the meaning of the \letterform syntax somewhere?
 
 \newcommand\letterform[1]{\tcbox[
     nobeforeafter,
@@ -193,8 +192,9 @@ Figure~\ref{fig:manual}).
 
 \newcommand\trainingexample[2]{$\langle$\letterform{#1}$,\,$\letterform{#2}$\rangle$}
 
-\newcommand\weirdcharlo{\includegraphics[width=0.8em]{weirdchar-lo}}
-\newcommand\weirdcharup{\includegraphics[width=0.8em]{weirdchar-up}}
+\newcommand\weirdcharlo{\includegraphics[width=0.75em]{weirdchar-lo}}
+\newcommand\weirdcharup{\includegraphics[width=0.75em]{weirdchar-up}}
+\newcommand\lowerlowera{\includegraphics[width=0.6em]{lowerlowera}}
 
 This brings us to the one decent idea in this paper (which by the way
 only sort of works, but let's just roll with it). We can at least
@@ -217,14 +217,26 @@ simultaneously do the symmetric thing, using the output of
 \makelowercase\ to create training examples for
 \makeuppercase\ (Figure~\ref{fig:cotraining}).
 
+
+
 \begin{figure}[ht]
-% \includegraphics[width=0.9 \linewidth]{manual}
-\caption{TODO cotraining} \label{fig:cotraining}
+\includegraphics[width=0.9 \linewidth]{training}
+\caption{ Simultaneously training the two models. This example
+  illustrates how a pair of letterforms \letterform{A} and
+  \letterform{a} from the same font becomes four training examples.
+  The pair straightforwardly generates an example
+  \trainingexample{A}{a} for the \makelowercase\ queue, and an example
+  \trainingexample{a}{A} for the \makeuppercase\ queue. Separately, we
+  supply \letterform{a} to the \makelowercase\ model, simply to get
+  the current output \letterform{\lowerlowera} (no model updates are
+  performed). But this pair reversed becomes a training example
+  \trainingexample{\lowerlowera}{a} for the \makeuppercase\ queue.
+} \label{fig:cotraining}
 \end{figure}
 
 Because \makelowercase\ is getting training examples of
 uppercase/lowercase pairs from real fonts, it remains grounded on real
-letters. It is also free to generate new shapes in the open domain
+letters. It is also free to generate new shapes for the open domain
 (outside \letterform{A}--\letterform{Z}). However, it is penalized if
 its behavior is not the inverse of whatever \makeuppercase\ is
 currently doing. And since we do the symmetric thing for
@@ -234,26 +246,225 @@ examples. The idea is that this allows them to do some creative
 generalization outside their native domains, but in a way that
 still has some constraint.
 
-In practice, we don't feed arbitrary shapes to the models. We
-just need something letter-like, and in fact we have a large
-collection of letter-like shapes among our existing fonts. So
-we pass already-lowercase shapes to \makelowercase, in order
-to generate inversion examples for training \makeuppercase.
-These shapes are clearly letter-like (they {\em are} letters) and
-are also of interest to us anyway, since we want to try to
-generate lowerercase and upperercase letters with these models.
+In practice, we don't feed arbitrary shapes to the models. We just
+need something letter-like, and in fact we have a large collection of
+letter-like shapes among our existing fonts! We pass already-lowercase
+shapes to \makelowercase, in order to generate inversion examples for
+training \makeuppercase. These shapes are clearly letter-like (they
+{\em are} letters) and are also of interest to us anyway, since we
+want to try to generate lowerercase and upperercase letters from
+the trained models.
 
-
-% $\langle\,$\letterform{Q}, \letterform{q}$\,\rangle$
-% $\langle\,$\letterform{e}, \letterform{E}$\,\rangle$
 
 \section{1000001 Free Fonts}
 
+Sprechen of fonts, I downloaded every font I could find on the whole
+internet. This was overkill. The resulting directory tree contained
+over 100,000 files, many of which were duplicates. Exact duplicates
+are easy to find, but since many of these files were the result of 30
+years of community transmission, they had acquired various mutations.
+One of the first things I did was write software to automatically
+remove files that were essentially duplicates even if they weren't
+exactly the same bytes.
+
+Next, my lord, do people have bad taste! And I say this as someone who
+made dozens of amateurish fonts\cite{dbzfonts} as a high school and
+college student and who is contributing several new questionable
+fonts\label{sec:newfonts} as a result of this paper. The database is
+just filled with garbage that is unusable for this project: Fonts that
+are completely illegible, fonts that are missing most of their
+characters, fonts with millions of control points, Comic Sans MS,
+fonts where every glyph is a drawing of a train, fonts where
+everything is fine except that just the lowercase r has a width of
+{\tt MAX\_INT}, and so on. So I built a UI
+(Figure~\ref{fig:sortition}) for efficiently and mind-numbingly
+cleaning up the database by marking fonts as broken or suitable (and
+also categorizing them as serif, sans-serif, decorative, techno, etc.,
+which I never used). In doing this I noticed another extremely common
+problem, which was that many fonts had the same letter shapes for
+uppercase and lowercase letters. This would not do for the current
+application!
+
+\begin{figure*}[ht]
+\includegraphics[width=0.9 \linewidth]{sortition}
+\caption{ The interactive font data-cleaning UI. A seemingly endless
+  series of fonts presents, with single keypresses putting the fonts
+  into common categories such as (b)roken.
+  % XXX maybe write more?
+} \label{fig:sortition}
+\end{figure*}
+
+But why manually mark fonts with nearly the same upper- and
+lowercase letters, when you could build a complicated automatic
+solution? The first pass identified fonts whose letters were
+exactly the same, but this was only a small fraction of the
+problematic fonts. A common issue was that the lowercase characters
+were very slightly modified versions of the uppercase ones, often
+scaled and translated and then perhaps ``optimized'' during the
+font export.
+
+So, for a given font, I want to reject it if for most pairs of cased
+letters \letterform{A},\letterform{a}, \letterform{a} is close to a
+linear transformation of \letterform{A}. This problem can probably be
+solved with math, but it didn't sound that fun. Instead I tried out
+a new tool, and it worked well enough that I've now added it to the
+permanent rotation: Black-box function optimizers.
+
+\paragraph{Black-box optimization.} If you have a function and want
+to find arguments that minimize its output, the most efficient
+techniques are generally those like gradient descent. (In fact, the
+backpropagation algorithm we use to training the neural network in
+Section~\ref{sec:neural} is gradient descent on the function that
+takes the model weights and produces an error value for each output
+node.) The problem with this is that you need to do some math to
+compute the gradient function, and anyway you need to deal with fiddly
+bits (Section~\ref{sec:fiddly}) unless the function is convex and
+smooth, which it will not be. If you don't want to deal with that,
+and have a fast computer (and who doesn't?), black-box optimization
+algorithms are worth considering. Here, the interface\footnote{
+  Here a simplfied wrapper around BiteOpt~\cite{biteopt} in my {\tt cc-lib}
+  library. See \url{https://sourceforge.net/p/tom7misc/svn/HEAD/tree/trunk/cc-lib/opt/}.}
+  is just something like (C++):
+
+\begin{verbatim}
+  double Minimize1D(
+      const std::function<double(double)> &f,
+      double lower_bound,
+      double upper_bound,
+      int iters);
+\end{verbatim}
+
+which takes a function \verb+f+ of type \verb+double+ $\rightarrow$
+\verb+double+, finite bounds on the argument's value, the maximum
+number of times to call that function, and returns the argument it
+found that produced the minimal value. Not as fast as gradient
+descent, but in practice ``if the function is kinda smooth'' these
+optimizers produce excellent results! The chief selling point for me
+is that I don't need to think about anything except for writing the
+function that I want minimized, which I just express in normal code.
+
+\begin{figure}[ht]
+\includegraphics[width=0.9 \linewidth]{casealignment}
+\caption{ Example alignment to reject the font
+  {\tt DrippingGooExtended}.
+  At left, \letterform{A} (red) and
+  \letterform{a} (green) rendered with the identity transform, and
+  their alignment ($35\%$ difference) below. At right, the transform
+  found by the black-box optimizer and the resulting alignment with
+  $1.7\%$ difference. Note that the shapes are still not an exact
+  match (the export process has to round the data to integers and
+  might apply other non-linear transformations like curve
+  simplification), but these are clearly not a useful pair for
+  the current problem.} \label{fig:casealignment}
+\end{figure}
+
+In this case, I render the letterform \letterform{A} and then optimize
+a four argument function taking {\tt xoff}, {\tt yoff}, {\tt xscale},
+{\tt yscale}. This function renders \letterform{a} with those
+parameters, then just computes the difference in the two rendered
+bitmaps. This finds the best alignment of the two letterforms (under
+the linear transformation) in a few hundred milliseconds
+(Figure~\ref{fig:casealignment}). If the disagreement is low as a
+function of the total pixels, then we say that the letters have the
+same case. If enough of them have the same case, we reject the font. I
+set the thresholds by looking at the P/R curve computed on random
+hand-labeled examples (Figure~\ref{fig:samecasepr}).
+
+\begin{figure}[ht]
+\includegraphics[width=0.9 \linewidth]{samecasepr}
+\caption{ Precision--recall curve for automatically detecting fonts
+  that have basically the same upper- and lowercase shapes. It's good!
+  This is how you want 'em to look!
+} \label{fig:samecasepr}
+\end{figure}
+
+\medskip
+
+I labeled fonts using the UI until I had 10,000 that were clean enough
+for a training set and passed the same-case heuristic.
+
+\section{The simplest thing that might work}
+
+Before getting fancy (which we we will) it's good engineering hygiene
+to try the simpliest thing that might just work (it doesn't). Fonts
+are represented as vector data (lines and quadratic B\'ezier curves).
+Can we just train a network that takes these lines and curves as input
+and predicts the lower- or uppercased letter in the same format? (No.)
+
+We'll at least put the data in a somewhat normalized form. The neural
+network will take a fixed number of inputs to a fixed number of
+outputs, so a simple approach is to decide on some maximum number
+control points per letter, and only try training on fonts whose
+letterforms fit within that budget. Letterforms can be made of
+multiple contours (e.g. a stacked \letterform{g} typically has two
+holes in it, and \letterform{j} has two disjoint parts). I found that
+most clean fonts had three or fewer contours, and when sorting them by
+descending length, most fit within 38, 14, and 10 endpoints for the
+three. So, I only train on fonts where all of the letters fit within
+this budget.\footnote{It would not be a good idea to reject only the letters
+that don't fit, because it might result in the network being trained
+on more \letterform{l}s (tends to be simple) than \letterform{g}s
+(tends to be complex).}
+
+% TODO: Illustrate a letterform and its contours?
+
+Rather than try to work with both lines and B\'ezier curves, I
+normalize each contour to only contain B\'eziers, by turning a line
+segment into an equivalent B\'ezier with its control point at the
+midpoint. This frees us from having to distinguish the two types in
+the data. We also need each of the three contours to not be {\em too
+  short}, so I fill out the fixed-size buffers by repeating the last
+point. This is not great but does have the correct meaning (bunch of
+useless zero-length edges). It has the property that any predicted
+data can be rendered and has a straightforward point-by-point error
+function (which might not be the case if we were predicting a dynamic
+number of points). Finally, I output the contour's points starting
+from the point closest to the origin in order to reduce one needless
+degree of freedom.
+
+% XXX total number of parameters?
+The network I trained has an input layer size of $154 = (38 + 14 + 10)
+\times 4 + 3 \times 2$ (one control point and one end point per
+B\'ezier curve), plus a starting point for each of the three contours.
+The output layer is the same size, plus 26 (see below). There are
+three hidden layers of size 308, 308, 360. The first two layers are
+dense and the third sparse (about half of the weights are zero). All
+layers are leaky rectified linear units. If you're taking notes,
+don't, as again this does not work well, and I don't know how people
+figure out what the right network size is anyway. I just made it up.
+You can give {\em me} your notes.
+
+\newcommand\nan{\textsf{NaN}}
+\renewcommand\inf{\textsf{inf}}
+
+I trained the network using a home-grown (why??) GPU-based package
+that I wrote for {\em Red i removal with artificial retina
+  networks}~\cite{murphy2015redi}---an example of ``lowercase i
+artificial intelligence''---and have improved as I repurposed it for
+other projects, such as {\em Color- and piece-blind
+  chess}~\cite{murphy2019blind}. It is ``tried and true'' in the
+sense that ``every time I tried using it, I truly wanted to throw
+my computer out the window, and retire to a hermitage in the glade
+whenceforth I shall nevermore be haunted by a model which has
+overnight become a sea of \inf{}s and \nan{}s.''
+
+% TODO: Screenshot of this thing's output.
+% TODO: Font file generated from this.
+% TODO: Fitting the prediction to the actual in order to coax
+% better results, failing.
+
+
+% the sdf problem
+
+\section{The care and feeding of sparse matrices} \label{sec:neural}
+
+\label{sec:fiddly}
+
 % no copyright intended
 
-% (lowercase i intelligence: redi)
+% stretch the loss function near the onedge value
 
-% The care and feeding of sparse matrices
+%
 
 % Perfect letters, hallucinated
 
