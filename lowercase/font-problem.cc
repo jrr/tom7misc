@@ -98,6 +98,39 @@ static void DrawFloats(const vector<int> &row_max_points,
   }
 }
 
+std::vector<TTF::Contour> FontProblem::VectorGetContours(
+    const vector<int> &row_max_points,
+    const vector<float> &values) {
+  std::vector<TTF::Contour> contours;
+
+  auto EmitPath = [&values](int idx, int num_pts, vector<TTF::Path> *paths) -> int {
+
+      // Start values are now ignored. We always generate a closed loop.
+
+      for (int i = 0; i < num_pts; i++) {
+        CHECK(idx + 2 * i * 4 + 3 < values.size());
+        float cx = values[idx + 2 + i * 4 + 0];
+        float cy = values[idx + 2 + i * 4 + 1];
+        float x  = values[idx + 2 + i * 4 + 2];
+        float y  = values[idx + 2 + i * 4 + 3];
+
+        // Could generate a line if this is basically straight?
+        // Could emit this if it has basically no length (very common at the end)?
+        paths->emplace_back(cx, cy, x, y);
+      }
+
+      return idx + 2 + (num_pts * 4);
+    };
+
+  int next_idx = 0;
+  contours.resize(row_max_points.size());
+  for (int i = 0; i < row_max_points.size(); i++) {
+    next_idx = EmitPath(next_idx, row_max_points[i], &contours[i].paths);
+  }
+  return contours;
+}
+
+
 void FontProblem::RenderVector(const string &font_filename,
                                const Network &net,
                                const vector<int> &row_max_points,
@@ -129,12 +162,15 @@ void FontProblem::RenderVector(const string &font_filename,
     // We assume the given font fits for evaluation!
     if (!FillVector(&ttf, codepoint, row_max_points,
                     stim.values[0].data())) {
-      for (const TTF::Contour &contour :
-             TTF::MakeOnlyBezier(ttf.GetContours(codepoint))) {
+      const std::vector<Contour> contours =
+        TTF::MakeOnlyBezier(ttf.GetContours(codepoint));
+
+      for (const TTF::Contour &contour : contours) {
         printf("FAIL: contour length %d\n", (int)contour.paths.size());
       }
-      CHECK(false) << "Eval font doesn't fit in input vector?? "
-                   << (char)codepoint;
+      CHECK(false) << "Eval font doesn't fit in input vector??\n"
+                   << (char)codepoint << " with " << (int)contours.size()
+                   << " contour(s)";
     }
 
     for (int iter = 0; iter < NUM_ITERS; iter++) {
@@ -2467,6 +2503,43 @@ FontProblem::VectorizeSDF(
   ImageF norm_sdf = NormalizeSDF(config, sdf);
 
   return VectorizeRec(norm_sdf, 1, 0);
+}
+
+void FontProblem::GuessWidth(TTF::Char *ch) {
+  // compute minimum and maximum x values. would be better
+  // if we allowed for overhang when below the baseline, like
+  // with GuessRightEdge.
+
+  float xmin = 1.0f, xmax = 0.0f;
+  for (const TTF::Contour contour : TTF::MakeOnlyBezier(ch->contours)) {
+    float x = contour.StartX();
+    float y = contour.StartY();
+    for (const TTF::Path &path : contour.paths) {
+      CHECK(path.type == TTF::PathType::BEZIER);
+      // What we really want here is the minimum/maximum extent along
+      // the x axis, but that's approximated by the closest point on
+      // the curve to a point at "infinity".
+      const auto [xright, yright_, dright_] =
+        DistanceFromPointToQuadBezier(
+            100.0f, 0.5f,
+            x, y, path.cx, path.cy, path.x, path.y);
+      const auto [xleft, yleft_, dleft_] =
+        DistanceFromPointToQuadBezier(
+            -100.0f, 0.5f,
+            x, y, path.cx, path.cy, path.x, path.y);
+
+      xmax = std::max(xmax, xright);
+      xmin = std::min(xmin, xleft);
+
+      x = path.x;
+      y = path.y;
+    }
+  }
+
+  // Don't allow overhang even if there is some on the left.
+  float left_margin = std::max(xmin, 0.0f);
+
+  ch->width = xmax + left_margin;
 }
 
 float FontProblem::GuessRightEdge(

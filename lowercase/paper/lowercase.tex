@@ -383,7 +383,7 @@ hand-labeled examples (Figure~\ref{fig:samecasepr}).
 I labeled fonts using the UI until I had 10,000 that were clean enough
 for a training set and passed the same-case heuristic.
 
-\section{The simplest thing that might work}
+\section{The simplest thing that might work} \label{sec:vectorversion}
 
 Before getting fancy (which we we will) it's good engineering hygiene
 to try the simpliest thing that might just work (it doesn't). Fonts
@@ -422,17 +422,37 @@ number of points). Finally, I output the contour's points starting
 from the point closest to the origin in order to reduce one needless
 degree of freedom.
 
-% XXX total number of parameters?
 The network I trained has an input layer size of $154 = (38 + 14 + 10)
 \times 4 + 3 \times 2$ (one control point and one end point per
 B\'ezier curve), plus a starting point for each of the three contours.
 The output layer is the same size, plus 26 (see below). There are
-three hidden layers of size 308, 308, 360. The first two layers are
-dense and the third sparse (about half of the weights are zero). All
-layers are leaky rectified linear units. If you're taking notes,
-don't, as again this does not work well, and I don't know how people
-figure out what the right network size is anyway. I just made it up.
-You can give {\em me} your notes.
+three hidden layers of size 308, 308, 360. The first layer is dense
+and the remainder are sparse (two thirds to a half of the weights are
+zero), for just about 1 million total parameters. All layers are leaky
+rectified linear units. If you're taking notes, don't, as again this
+does not work well, and I don't know how people figure out what the
+right network size is anyway. I just made it up. You can give {\em me}
+your notes.
+
+\paragraph{Bonus outputs}. The output includes the predicted shape,
+and also 26 individual predictors for each of the 26 letters. So a
+training example is actually like \letterform{C} $\rightarrow$
+\letterform{c} $[0, 0, 1, 0, 0, \ldots, 0]$, with the 1 in the third
+place because C is the third letter. We don't need these outputs for
+the problem itself (e.g. to lowercase new letter shapes), but there
+are several ideas behind this. First, the lowercasing function we're
+trying to learn does take into account the letter of the alphabet
+being lowercased. By asking the network to learn this as well (it is
+penalized when it gets the prediction wrong), it must learn features
+that allow it to distinguish different letters, and those features are
+available for use by outputs we {\em do} care about. This is an easy
+way to coax it to learn features that I know are meaningful without
+having to actually engineer feature extractors by hand (or first train
+separate models, etc.). Perhaps the most useful thing is that it's
+very clear what the right answer is, so it gives me an easy way to see
+if the network is learning anything {\em at all}. (It does.) Finally,
+we can do some silly stuff with these; see
+Section~\ref{sec:hallucination}.
 
 \newcommand\nan{\textsf{NaN}}
 \renewcommand\inf{\textsf{inf}}
@@ -448,10 +468,60 @@ my computer out the window, and retire to a hermitage in the glade
 whenceforth I shall nevermore be haunted by a model which has
 overnight become a sea of \inf{}s and \nan{}s.''
 
-% TODO: Screenshot of this thing's output.
+\begin{figure}[ht]
+\includegraphics[width=0.9 \linewidth]{trainingvector}
+\caption{ Screenshot of {\tt train.exe} running on the vector-based
+  version of the problem. Shown is the \makelowercase\ model's output
+  (bottom) on four shapes from four fonts (top). Some dust in between
+  is the activation of the network's layers. At the very bottom, the
+  26 predictions for ``what letter is this?''. The output for
+  \letterform{j} is not too bad; you can see the distinct dot (a
+  separate contour) and it sort of looks like a \letterform{j}. The
+  \letterform{e} also has two pieces as expected but is otherwise
+  garbage. The model is unsure whether the second input is an H
+  or a K, and has predicted a shape sort of ambiguously between those
+  two. The \lowercase{z} is also an embarrassment.
+} \label{fig:trainingvector}
+\end{figure}
+
+I was so {\tiny confident} that this wouldn't work that I only trained
+a \makelowercase\ model and didn't even worry about the more
+complicated simultaneous training setup yet. I ran this for about
+22,000 rounds, some 90 million training examples. Indeed it does not
+work (Figure~\ref{fig:trainingvector}). It is not a total catastrophe,
+though. The model can clearly recognize letters (though perhaps just by
+memorization) and some of the shapes it generates are along the right
+lines. ({\em Along the right lines}, get it??)
+
+It's a bit hard on the
+
 % TODO: Font file generated from this.
 % TODO: Fitting the prediction to the actual in order to coax
 % better results, failing.
+
+
+% XXX cite futura
+% XXX add downloadable font too
+\begin{figure*}[tp]
+\includegraphics[width=0.9 \linewidth]{futurda}
+\caption{ Type specimen for the generated font {\bf Futurda}. This is the
+  classic font Futura, run through the vector based lowercasing model
+  (Section~\ref{sec:vectorversion}). At top are Futura's letterforms
+  \letterform{A}--\letterform{Z} run through the model and so ``made
+  lowercase'' (it's obviously garbage). Next are the \letterform{a}--\letterform{z},
+  made even more lowercase. Also rubbish.
+  At the bottom are the pangrams ``Dr.~Jock, TV Quiz Ph.D., bags few lynx''
+  and ``Sphinx of black quartz, judge my vow!'' Although the text is
+  illegible and kind of uninteresting, it does have a certain dynamic
+  Rorschach aesthetic, like a collection of delicate moths pinned
+  to paperboard, that one could consider framing or publishing in
+  the proceedings of SIGBOVIK 2021.
+} \label{fig:futurda}
+\end{figure*}
+
+
+% lowerercase Franklin Gothic. Franklin mint... not guaranteed
+% to go up in value
 
 
 % the sdf problem
@@ -466,7 +536,8 @@ overnight become a sea of \inf{}s and \nan{}s.''
 
 %
 
-% Perfect letters, hallucinated
+\section{Perfect letters, hallucinated}
+\label{sec:hallucination}
 
 % autotracing
 

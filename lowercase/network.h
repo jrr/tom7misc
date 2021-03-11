@@ -59,7 +59,7 @@ struct Errors;
 struct Network {
   template<class T> using vector = std::vector<T>;
   using string = std::string;
-  
+
   // Creates arrays of the appropriate size, but all zeroes. Note that
   // this uninitialized network is invalid, since the inverted indices
   // are not correct.
@@ -71,6 +71,9 @@ struct Network {
   // and inverted indices for dense layers (which are indeed still stored)
   // even though they are not used or represented on disk.
   int64_t Bytes() const;
+  // Return the total number of parameters in the model (weights and biases
+  // across all layers; the indices are not "paramters" in this sense).
+  int64_t TotalParameters() const;
 
   void CopyFrom(const Network &other) {
     CHECK_EQ(this->num_layers, other.num_layers);
@@ -96,7 +99,7 @@ struct Network {
   // Check the inverted indices specifically. Maybe can just
   // be private.
   void CheckInvertedIndices() const;
-  
+
   static Network *Clone(const Network &other);
 
   // Note: These use local byte order, so the serialized format is not
@@ -115,11 +118,11 @@ struct Network {
   // the input layer should be filled.
   void RunForward(Stimulation *stim) const;
   // Same, but only one layer. src_layer is the input layer.
-  void RunForwardLayer(Stimulation *stim, int src_layer) const;  
+  void RunForwardLayer(Stimulation *stim, int src_layer) const;
   // Same, but print lots of garbage and abort if a NaN is encountered
   // at any point.
   void RunForwardVerbose(Stimulation *stim) const;
-  
+
   // Just used for serialization. Whenever changing the interpretation
   // of the data in an incomplete way, please change.
   static constexpr uint32_t FORMAT_ID = 0x27000730U;
@@ -135,7 +138,7 @@ struct Network {
   // Same, but a hint to the UI about how to render. Normal for this
   // to contain values outside the enum (i.e. in USER_RENDERSTYLE range).
   vector<uint32_t> renderstyle;
-  
+
   // "Real" layer; none for the input.
   struct Layer {
     // Same number of input indices for each node.
@@ -274,7 +277,7 @@ struct Errors {
   // compute errors for the input) and error[num_layers] is the error
   // for the output.
   std::vector<std::vector<float>> error;
-  
+
   int64_t Bytes() const;
 
   void CopyFrom(const Errors &other) {

@@ -262,6 +262,8 @@ struct TTF {
                                uint8_t onedge_value,
                                float falloff_per_pixel) const;
 
+  float Baseline() const { return baseline; }
+
 private:
 
   // font uses "y positive up" coordinates.
