@@ -82,6 +82,14 @@ struct FontProblem {
                            const std::vector<int> &row_max_points,
                            const std::string &out_filename);
 
+  // For the vector problem, get the fixed number of contours from the
+  // output values, in the nominal [0,1] box. There will usually be many
+  // useless points at the end of the contour, and often entire useless
+  // contours.
+  static std::vector<TTF::Contour> VectorGetContours(
+      const std::vector<int> &row_max_points,
+      const std::vector<float> &values);
+
   // Because this generates SDFs and runs two large networks, it's
   // significantly slower than the above.
   static void RenderSDF(const std::string &font_filename,
@@ -289,6 +297,9 @@ struct FontProblem {
       const std::vector<std::pair<float, float>> &points,
       float error_threshold = 0.05f,
       bool verbose = false);
+
+  // Fill in the width field from the contours.
+  static void GuessWidth(TTF::Char *ch);
 
   // Guess the right edge of a character. Result is in SDF coordinates
   // (i.e. in [0, 36]). Assumes that we want symmetric padding on the

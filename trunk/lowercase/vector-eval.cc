@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
 
   // Try loading from disk; null on failure.
   printf("Load network...\n");
-  net.reset(Network::ReadNetworkBinary("net.val"));
+  net.reset(Network::ReadNetworkBinary("first-vectornet/net.val"));
 
   CHECK(net.get() != nullptr);
 
@@ -31,10 +31,10 @@ int main(int argc, char **argv) {
   };
 
 
-  FontProblem::RenderVector("helvetica.ttf",
+  FontProblem::RenderVector("franklin.ttf",
                             *net,
                             row_max_points,
-                            "eval.png");
+                            "vector-eval.png");
 
 
   printf("Done.\n");

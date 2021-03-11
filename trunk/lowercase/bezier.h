@@ -6,6 +6,7 @@
 
 #include <tuple>
 
+// Returns {closest_x, closest_y, dist}.
 std::tuple<float, float, float>
 DistanceFromPointToQuadBezier(
     // The point to test

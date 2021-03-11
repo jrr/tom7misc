@@ -97,6 +97,14 @@ int64 Network::Bytes() const {
   return ret;
 }
 
+int64 Network::TotalParameters() const {
+  int64 params = 0LL;
+  for (int i = 0; i < num_layers; i++) {
+    params += layers[i].weights.size() + layers[i].biases.size();
+  }
+  return params;
+}
+
 void Network::RunForward(Stimulation *stim) const {
   for (int src = 0; src < num_layers; src++) {
     RunForwardLayer(stim, src);
@@ -249,7 +257,7 @@ void Network::StructuralCheck() const {
   CHECK(renderstyle.size() == num_layers + 1);
 
   CHECK(inverted_indices.size() == num_layers);
-  
+
   for (int i = 0; i < num_layers; i++) {
     const Layer &layer = layers[i];
     const int num_prev_nodes = num_nodes[i];
