@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <unordered_map>
 
 #include "timer.h"
 #include "font-problem.h"
@@ -25,6 +26,8 @@ using namespace std;
 using uint8 = uint8_t;
 using uint32 = uint32_t;
 using int64 = int64_t;
+
+using Image8x8 = FontProblem::Image8x8;
 
 // If true, find the input that maximizes the prediction
 // for the target letter, and minimizes others.
@@ -623,8 +626,8 @@ static ImageA DrawSDFShapes(const Network &net,
 }
 
 // Generate random 8x8 bitmap images.
-static ImageA Random8x8(const Network &prednet,
-                        int target_letter) {
+static std::pair<FontProblem::Image8x8, ImageA>
+Random8x8(const Network &prednet, int target_letter) {
   constexpr int N = 8 * 8;
 
   auto Make8x8 = [](const std::vector<double> &inputs) {
@@ -640,13 +643,27 @@ static ImageA Random8x8(const Network &prednet,
   int num_calls = 0;
   double sdf_time = 0.0;
   double run_time = 0.0;
+
+  int64 cache_hits = 0;
+  std::unordered_map<uint64, double> cache;
+  // TODO: Cache result, since optimizer doesn't know that these
+  // are rounded to bools?
   std::function<double(const std::vector<double> &inputs)> IsLetter =
     [&prednet, target_letter, &Make8x8, &num_calls,
-     &sdf_time, &run_time](
+     &sdf_time, &run_time, &cache_hits, &cache](
         const std::vector<double> &inputs) -> double {
-
+      num_calls++;
+      
       Timer sdf_timer;
       FontProblem::Image8x8 img8x8 = Make8x8(inputs);
+      {
+        auto it = cache.find(img8x8.To64());
+        if (it != cache.end()) {
+          cache_hits++;
+          return it->second;
+        }
+      }
+
       ImageA sdf = FontProblem::SDF36From8x8(img8x8);
       sdf_time += sdf_timer.MS();
       Timer run_timer;
@@ -671,11 +688,12 @@ static ImageA Random8x8(const Network &prednet,
       int edges = img8x8.Edges();
       penalty += edges / 100.0;
 
-      num_calls++;
       if (num_calls % 1000 == 0)
-        printf("[%c] %d calls, %d pixels, %d edges, penalty: %.4f\n",
-               target_letter + 'a', num_calls, pixels, edges, penalty);
+        printf("[%c] %d calls %d hits, %d pixels, %d edges, penalty: %.4f\n",
+               target_letter + 'a', num_calls,
+               cache_hits, pixels, edges, penalty);
 
+      cache[img8x8.To64()] = penalty;
       return penalty;
     };
 
@@ -697,7 +715,8 @@ static ImageA Random8x8(const Network &prednet,
   printf("SDF time %.2f ms/run, run time %.2f ms/run\n",
          sdf_time / num_calls, run_time / num_calls);
   CHECK(best.size() == N);
-  return FontProblem::SDF36From8x8(Make8x8(best));
+  const FontProblem::Image8x8 img = Make8x8(best);
+  return make_pair(img, FontProblem::SDF36From8x8(img));
 }
 
 
@@ -712,7 +731,7 @@ int main(int argc, char **argv) {
   // XXX actually for the lowercaser we want to place the 8x8 image
   // lower so that it can hang below the baseline...
   // XXX make command-line option
-  const string model_file = "net1.val";
+  const string model_file = "net0.val";
 
   std::unique_ptr<Network> net;
   net.reset(Network::ReadNetworkBinary(model_file));
@@ -726,18 +745,28 @@ int main(int argc, char **argv) {
                              FIND_MAX ? "max" : "perfect");
   int num_complete = 0;
 
+  std::mutex gen_m;
+  // letter in 0-26
+  std::map<int, FontProblem::Image8x8> gen64;
+  
   ParallelComp(
       // 26,
       26,
       [&net, &prednet,
+       &gen_m, &gen64,
        &text_m, &all_timer, &text, &num_complete](int target_letter) {
         Timer letter_timer;
         // ImageA best_sdf = DirectOptimizeSDF(*net, target_letter);
         // ImageA best_sdf = DrawBitmapShapes(*net, target_letter);
         // ImageA best_sdf = DrawSDFShapes(*net, target_letter);
         // ImageA best_sdf = DrawPoly(*net, target_letter);
-        ImageA best_sdf = Random8x8(*prednet, target_letter);
+        const auto [img8, best_sdf] = Random8x8(*prednet, target_letter);
 
+        {
+          MutexLock ml(&gen_m);
+          gen64[target_letter] = img8;
+        }
+            
         // Pass same net twice, we'll just use the "lowercase"
         constexpr int SIZE = 6;
         constexpr int QUALITY = 4;
@@ -817,5 +846,14 @@ int main(int argc, char **argv) {
   printf("%s", timing.c_str());
 
   Util::WriteFile("hallucinated.txt", text);
+
+  if (!gen64.empty()) {
+    string out;
+    for (const auto &[_, img] : gen64) {
+      StringAppendF(&out, "0x%llx,\n", img.To64());
+    }
+    Util::WriteFile("gen64.txt", out);
+  }
+  
   return 0;
 }
