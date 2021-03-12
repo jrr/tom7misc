@@ -192,6 +192,14 @@ struct TTF {
     std::string ToSFD(const std::string &name) const;
   };
 
+  // In-place update control point coordinates (only -- metrics are
+  // not affected) by calling f(x,y) for each in the font.
+  template<class F>
+  static void MapCoords(F f, Font *font);
+  template<class F>
+  static void MapCoords(F f, Char *ch);
+  
+  
   // c2 may be 0 for no kerning.
   float NormKernAdvance(char c1, char c2) {
     int advance = 0;
@@ -370,6 +378,26 @@ void TTF::BlitString(int x, int y, int size_px,
       // Or floor?
       xpos = roundf(xpos);
     }
+  }
+}
+
+
+template<class F>
+void TTF::MapCoords(F f, TTF::Char *ch) {
+  for (Contour &cc : ch->contours) {
+    for (Path &p : cc.paths) {
+      std::tie(p.x, p.y) = f(p.x, p.y);
+      if (p.type == PathType::BEZIER) {
+        std::tie(p.cx, p.cy) = f(p.cx, p.cy);
+      }
+    }
+  }
+}
+
+template<class F>
+void TTF::MapCoords(F f, TTF::Font *font) {
+  for (auto &[c, ch] : font->chars) {
+    MapCoords(f, &ch);
   }
 }
 

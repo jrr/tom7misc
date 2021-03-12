@@ -121,6 +121,13 @@ struct FontProblem {
   // A tiny bitmap, like a letter. Intended for 8x8 bitmaps,
   // but can be used for any size <= 8x8.
   struct Image8x8 {
+    explicit Image8x8(uint64_t bits) : bits(bits) {}
+    Image8x8() : bits(0LL) {}
+    Image8x8(const Image8x8 &other) = default;
+    Image8x8(Image8x8 &&other) = default;
+    Image8x8 &operator =(const Image8x8 &other) = default;
+    Image8x8 &operator =(Image8x8 &&other) = default;
+    
     inline void SetPixel(int x, int y, bool v) {
       int b = y * 8 + x;
       if (v) {
@@ -156,12 +163,16 @@ struct FontProblem {
       // return std::popcount(bits);
       return __builtin_popcountll(bits);
     }
+
+    uint64_t To64() const { return bits; }
+    
     uint64_t bits = 0;
   };
 
   // Specific to the 36x36 bitmap problem I mostly worked with;
   // tuned for speed. The 8x8 bitmap is placed at 4,6, which
-  // empirically seems to be the "right" place for it.
+  // empirically seems to be the "right" place for it, for uppercase
+  // letterforms at least.
   //
   // Note that these SDFs agree with SDFFromBitmap but are not
   // really right (they are too "low res") because that routine
