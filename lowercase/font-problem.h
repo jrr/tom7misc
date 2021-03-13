@@ -170,14 +170,16 @@ struct FontProblem {
   };
 
   // Specific to the 36x36 bitmap problem I mostly worked with;
-  // tuned for speed. The 8x8 bitmap is placed at 4,6, which
-  // empirically seems to be the "right" place for it, for uppercase
-  // letterforms at least.
+  // tuned for speed.
+  // Uppercase letters place the 8x8 bitmap at 4,6, which
+  // empirically seems to be the "right" place for it.
+  // Lowercase letters go at 4,9.
   //
   // Note that these SDFs agree with SDFFromBitmap but are not
   // really right (they are too "low res") because that routine
   // assumes the bitmap is at least as big as the output sdf.
-  static ImageA SDF36From8x8(Image8x8 bits);
+  static ImageA SDF36From8x8Uppercase(Image8x8 bits);
+  static ImageA SDF36From8x8Lowercase(Image8x8 bits);  
 
   // Deprecated!
   static ImageA SDFThresholdAA(uint8_t onedge_value,

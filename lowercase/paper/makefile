@@ -2,7 +2,7 @@ default : lowercase.pdf
 
 MAKEPDF=../../pactom/rsvg/rsvg-convert -f pdf
 
-GRAPHICS=weirdchar-lo.pdf weirdchar-up.pdf training.pdf lowerlowera.pdf samecasepr.pdf
+GRAPHICS=weirdchar-lo.pdf weirdchar-up.pdf training.pdf lowerlowera.pdf samecasepr.pdf perfecthallucination.pdf
 
 lowercase.pdf : lowercase.tex lowercase.bib $(GRAPHICS)
 	pdflatex lowercase
