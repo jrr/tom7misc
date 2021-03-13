@@ -103,20 +103,22 @@ std::vector<TTF::Contour> FontProblem::VectorGetContours(
     const vector<float> &values) {
   std::vector<TTF::Contour> contours;
 
-  auto EmitPath = [&values](int idx, int num_pts, vector<TTF::Path> *paths) -> int {
+  auto EmitPath = [&values](
+      int idx, int num_pts, vector<TTF::Path> *paths) -> int {
 
       // Start values are now ignored. We always generate a closed loop.
 
       for (int i = 0; i < num_pts; i++) {
-        CHECK(idx + 2 * i * 4 + 3 < values.size());
+        CHECK(idx + 2 + i * 4 + 3 < values.size());
         float cx = values[idx + 2 + i * 4 + 0];
         float cy = values[idx + 2 + i * 4 + 1];
         float x  = values[idx + 2 + i * 4 + 2];
         float y  = values[idx + 2 + i * 4 + 3];
 
-        // Could generate a line if this is basically straight?
-        // Could emit this if it has basically no length (very common at the end)?
-        paths->emplace_back(cx, cy, x, y);
+        // Could generate a line if this is basically straight? Could
+        // emit this if it has basically no length (very common at the
+        // end)?
+        paths->emplace_back(x, y, cx, cy);
       }
 
       return idx + 2 + (num_pts * 4);
@@ -130,6 +132,26 @@ std::vector<TTF::Contour> FontProblem::VectorGetContours(
   return contours;
 }
 
+void FontProblem::VectorRemoveDegenerateContours(TTF::Char *ch,
+                                                 float min_box) {
+  vector<TTF::Contour> out;
+  out.reserve(ch->contours.size());
+
+  auto IsDegenerate = [min_box](const TTF::Contour &contour) {
+      for (const TTF::Path &p : contour.paths) {
+        if (p.x >= min_box || p.y >= min_box) return false;
+        if (p.type == TTF::PathType::BEZIER &&
+            (p.cx >= min_box || p.cy >= min_box)) return false;
+      }
+      return true;
+    };
+  
+  for (TTF::Contour &c : ch->contours) {
+    if (!IsDegenerate(c)) out.emplace_back(std::move(c));
+  }
+
+  ch->contours = std::move(out);
+}
 
 void FontProblem::RenderVector(const string &font_filename,
                                const Network &net,

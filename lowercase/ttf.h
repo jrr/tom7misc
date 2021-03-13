@@ -188,8 +188,12 @@ struct TTF {
 
     // Not to be confused with SDF! This is the text file format for
     // FontForge. Extremely simple subset with many fields hackily
-    // hard-coded.
-    std::string ToSFD(const std::string &name) const;
+    // hard-coded. Name is the font name (spaces are stripped to
+    // produce the internal name; avoid weird characters) and
+    // copyright is a free-form line of text which seems to be the
+    // standard place to put something like a URL, too.
+    std::string ToSFD(const std::string &name,
+                      const std::string &copyright) const;
   };
 
   // In-place update control point coordinates (only -- metrics are

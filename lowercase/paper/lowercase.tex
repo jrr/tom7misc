@@ -6,7 +6,12 @@
 \usepackage[top=0.75in, left=0.65in, right=0.65in, bottom=0.6in]{geometry}
 
 \usepackage{float}
-\usepackage{url}
+
+% \usepackage{url}
+% \usepackage{xurl}
+\usepackage[pdftex]{hyperref}
+
+
 % \usepackage{code}
 % \usepackage{cite}
 \usepackage{latexsym}
@@ -284,7 +289,8 @@ uppercase and lowercase letters. This would not do for the current
 application!
 
 \begin{figure*}[ht]
-\includegraphics[width=0.9 \linewidth]{sortition}
+\centering
+  \includegraphics[width=0.9 \linewidth]{sortition}
 \caption{ The interactive font data-cleaning UI. A seemingly endless
   series of fonts presents, with single keypresses putting the fonts
   into common categories such as (b)roken.
@@ -342,7 +348,8 @@ is that I don't need to think about anything except for writing the
 function that I want minimized, which I just express in normal code.
 
 \begin{figure}[ht]
-\includegraphics[width=0.9 \linewidth]{casealignment}
+\centering
+  \includegraphics[width=0.9 \linewidth]{casealignment}
 \caption{ Example alignment to reject the font {\tt
     DrippingGooExtended}. At left, \letterform{A} (red) and
   \letterform{a} (green) rendered with the identity transform, and
@@ -369,7 +376,8 @@ set the thresholds by looking at the P/R curve computed on random
 hand-labeled examples (Figure~\ref{fig:samecasepr}).
 
 \begin{figure}[ht]
-\includegraphics[width=0.9 \linewidth]{samecasepr}
+\centering
+  \includegraphics[width=0.9 \linewidth]{samecasepr}
 \caption{ Precision--recall curve for automatically detecting fonts
   that have basically the same upper- and lowercase shapes. It's good!
   This is how you want 'em to look!
@@ -397,12 +405,12 @@ letterforms fit within that budget. Letterforms can be made of
 multiple contours (e.g. a stacked \letterform{g} typically has two
 holes in it, and \letterform{j} has two disjoint parts). I found that
 most clean fonts had three or fewer contours, and when sorting them by
-descending length, most fit within 38, 14, and 10 endpoints for the
-three. So, I only train on fonts where all of the letters fit within
-this budget.\footnote{It would not be a good idea to reject only the letters
-that don't fit, because it might result in the network being trained
-on more \letterform{l}s (tends to be simple) than \letterform{g}s
-(tends to be complex).}
+descending length, basically all of them fit within 100, 25, and 16
+endpoints for the three. So, I only train on fonts where all of the
+letters fit within this budget.\footnote{It would not be a good idea
+  to reject only the letters that don't fit, because it might result
+  in the network being trained on more \letterform{l}s (tends to be
+  simple) than \letterform{g}s (tends to be complex).}
 
 % TODO: Illustrate a letterform and its contours?
 
@@ -416,11 +424,9 @@ point. This is not great but does have the correct meaning (bunch of
 useless zero-length edges). It has the property that any predicted
 data can be rendered and has a straightforward point-by-point error
 function (which might not be the case if we were predicting a dynamic
-number of points). Finally, I output the contour's points starting
-from the point closest to the origin in order to reduce one needless
-degree of freedom.
+number of points).
 
-The network I trained has an input layer size of $154 = (38 + 14 + 10)
+The network I trained has an input layer size of $570 = (100 + 25 + 16)
 \times 4 + 3 \times 2$ (one control point and one end point per
 B\'ezier curve), plus a starting point for each of the three contours.
 The output layer is the same size, plus 26 (see below). There are
@@ -428,7 +434,9 @@ three hidden layers of size 308, 308, 360. The first layer is dense
 and the remainder are sparse,
 %(two thirds to a half of the weights are zero),
 for just about 1 million total parameters. All layers are leaky
-rectified linear units. If you're taking notes, don't, as again this
+rectified linear units ({\tt x > 0 ? x : 0.1 * x}), which is fast to
+compute and better than sigmoids in the output since correct values
+will not just be 0 and 1. If you're taking notes, don't, as again this
 does not work well, and I don't know how people figure out what the
 right network size is anyway. I just made it up. You can give {\em me}
 your notes.
@@ -440,18 +448,22 @@ training example is actually like \letterform{C} $\rightarrow$
 place because C is the third letter. We don't need these outputs for
 the problem itself (e.g. to lowercase new letter shapes), but there
 are several ideas behind this. First, the lowercasing function we're
-trying to learn does take into account the letter of the alphabet
-being lowercased. By asking the network to learn this as well (it is
-penalized when it gets the prediction wrong), it must learn features
-that allow it to distinguish different letters, and those features are
-available for use by outputs we {\em do} care about. This is an easy
-way to coax it to learn features that I know are meaningful without
-having to actually engineer feature extractors by hand (or first train
-separate models, etc.). Perhaps the most useful thing is that it's
-very clear what the right answer is, so it gives me an easy way to see
-if the network is learning anything {\em at all}. (It does.) Finally,
-we can do some silly stuff with these; see
-Section~\ref{sec:hallucination}.
+trying to learn does depend on the letter of the alphabet being
+lowercased (in an extreme case, consider the lowercase-L
+\letterform{l} and the uppercase-i \letterform{I}, which look the same
+in many fonts but have different lowercase letterforms). By asking the
+network to learn this as well (it is penalized when it gets the
+prediction wrong), it must learn features that allow it to distinguish
+different letters, and those features are available for use by outputs
+we {\em do} care about. This is an easy way to coax it to learn
+features that I know are meaningful without having to actually
+engineer feature extractors by hand (or first train separate models,
+etc.). Similarly, I could have asked it to predict whether the font
+is italic, serif, the character's width, or anything else I have on
+hand. Perhaps the most useful thing is that it's very clear what the
+right answer is, so it gives me an easy way to see if the network is
+learning anything {\em at all}. (It does.) Finally, we can do some
+silly stuff with these; see Section~\ref{sec:hallucination}.
 
 \newcommand\nan{\textsf{NaN}}
 \renewcommand\inf{\textsf{inf}}
@@ -468,8 +480,9 @@ whenceforth I shall nevermore be haunted by a model which has
 overnight become a sea of \inf{}s and \nan{}s.''
 
 \begin{figure}[ht]
-\includegraphics[width=0.9 \linewidth]{trainingvector}
-\caption{ Screenshot of {\tt train.exe} running on the vector-based
+\centering
+  \includegraphics[width=0.9 \linewidth]{trainingvector}
+\caption{ Screenshot of {\tt train.exe} running on the first vector-based
   version of the problem. Shown is the \makelowercase\ model's output
   (bottom) on four shapes from four fonts (top). Some dust in between
   is the activation of the network's layers. At the very bottom, the
@@ -491,74 +504,142 @@ work (Figure~\ref{fig:trainingvector}). It is not a total catastrophe,
 though. We can tell from the 26 bonus outputs that the model can
 clearly recognize letters (though perhaps just by memorization). Some
 of the shapes it generates are along the right lines. ({\em Along the
-  right lines}, get it??) I did not feel ANGRY at these results because
-I expected it to not really work.
+  right lines}, get it??) I did not feel ANGRY at these results
+because I expected it to not really work. Still, it ``has output'' and
+so it can be used to generate a font. I made every glyph in Comic Sans
+MS~\cite{comicsans} lowercase using the model (with the exception of the
+\letterform{\%} character, which has too many contours---{\it five}!).
+Mostly this model produces small, non-confident scrawls, like little
+grains of sand, so this font is called {\bf Comic Sands}
+(Figure~\ref{fig:comicsands}). The TrueType version can be downloaded
+from my website and installed for your desktop publishing
+needs.\footnote{Font downloads are available at
+  \url{http://tom7.org/lowercase/}.}
 
-\paragraph{Just try making it more complicated!} This
-problem of predicting the vector shape directly is a lot to ask of a
-neural network, at least set up this way. One thing that did not sit
-well with me is that the network could generate a perfect-looking
-result, but because it didn't have the points in the expected order,
-it would be penalized. This makes it harder to learn. True, but
-my reflex to make things more complicated XXX
-
-
-Ideally we would compute the difference between the predicted shape
-and the expected shape, regardless of how they're drawn. Aside from
-being a bit computationally challenging, this won't really work
-because we need to attribute error directly to each output in order to
-actually update the model in training. So I spent an afternoon writing
-a routine to compute the best alignment of points between the actual
-and expected outputs (Figure~\ref{fig:rotatej}). Aside from being
-harder than it looked, my alignment code ended up being pretty slow
-relative to the rest of training, even worse since it ran on the CPU
-instead of GPU, and the training speed became UPSETTINGLY SLOW. So, I
-discarded this excursion and threw this whole endeavour in the trash!
-But I must have confused the Recycle~Bin icon with the fairly
-complicated export-to-Truetype Font process that I built, because I
-ran the model on the venerable Futura~\cite{futura} font and generated
-{\bf Futurda} (Figure~\ref{fig:futurda}), which can be downloaded from my
-website and installed for your desktop publishing needs.\footnote{Font
-  downloads are available at \url{http://tom7.org/lowercase/}.}
-
-% TODO: actually upload the fonts and make sure the URL is what you want
-
-\begin{figure}[ht]
-\begin{centering}
-  \includegraphics[width=0.5 \linewidth]{rotatej}
-\end{centering}
-\caption{ Example alignment (from debug UI) of predicted shape (blue)
-  to expected shape (green). We require each point to be mapped (red)
-  to a point from the expected contour in a monotonic order (but
-  several can be mapped to the same one), so that we can attribute
-  error to each point. I hope it was fun to write this code because
-  it was too slow to do pretty much anything but generate this figure!
-} \label{fig:rotatej}
-\end{figure}
-
-% FIXME: Wait I had much better screenshots, see video/lowercase
-
-% XXX add downloadable font too
 \begin{figure*}[tp]
-\begin{centering}
-  \includegraphics[width=0.9 \linewidth]{futurda}
-\end{centering}
-\caption{ Type specimen for the generated font {\bf Futurda}. This is the
-  classic font Futura, run through the vector based lowercasing model
-  (Section~\ref{sec:vectorversion}). At top are Futura's letterforms
+\centering
+  \includegraphics[width=0.95 \linewidth]{comicsands}
+\caption{
+  Type specimen for the generated font {\bf Comic Sands}. This is
+  the hateful Comic Sans MS run through an early vector-based lowercasing
+  model (Section~\ref{sec:vectorversion}). At top are Comic Sans's letterforms
   \letterform{A}--\letterform{Z} run through the model and so ``made
   lowercase'' (it's obviously garbage). Next are
   \letterform{a}--\letterform{z},
   made even more lowercase. Also rubbish.
-  At the bottom are the pangrams ``Dr.~Jock, TV Quiz Ph.D., bags few lynx''
-  and ``Sphinx of black quartz, judge my vow!'' Although the text is
-  illegible and kind of uninteresting, it does have a certain dynamic
+  At the bottom are the illegible pangrams
+  ``Dr.~Jock, TV Quiz Ph.D., bags few lynx''
+  and ``Sphinx of black quartz, judge my vow!'' Although the output
+  barely resembles letters, it does have a certain dynamic
   Rorschach aesthetic, like a collection of delicate moths pinned
   to paperboard, that one could consider framing or publishing in
-  the proceedings of SIGBOVIK 2021.
-} \label{fig:futurda}
+  the proceedings of SIGBOVIK 2021. It is certainly an improvement on
+  the original font.
+} \label{fig:comicsands}
 \end{figure*}
 
+
+\subsection{Just try making it more complicated!} \label{sec:complicated}
+
+This problem of predicting the vector shape directly is a lot to ask
+of a neural network, at least set up this way. One thing that did not
+sit well with me is that the network could in principle generate a
+perfect-looking result, but because it didn't have the points in the
+expected order, it would be penalized. This makes it harder to learn,
+and more prone to overfitting.\footnote{For example, imagine if the database
+contains two versions of Helvetica that just have their points in a
+different order---which is very likely the case btw---the model will
+have to learn how to distinguish between these, but using information
+we just don't care about.} This was one case where my questionable
+reflex to make things more complicated did pay off!
+
+First, I reduced the number of points in the input and output.
+Reducing the dimension of the function being learned generally makes
+learning a lot faster. This had the side-effect of reducing the number
+of eligible fonts (by about half), and by nature these fonts are
+simpler shapes. These effects alone could be responsible for the
+improved performance of this second try.
+
+I also output each contour's points in a normalized order, starting
+from the point closest to the origin. This removes one needless
+degree of freedom.\footnote{We can see how this manifests in
+  the biases on the output layer, which are a proxy for the
+  ``average prediction''. In the first model, because of the
+  unstructured order, these are mostly near 0.5 (center of the
+  character) or 0.0 (degenerate, unused contours). In this new model,
+  the distribution of biases is much more flat; it can learn that
+  ``the first point tends to be near 0.25,0.25'' and ``the seventh
+  point tends to be near 0.64,0.3.''}
+
+Aside from the changes in the input (now 254 nodes) and output (280),
+this second version has three sparse hidden layers of size 508, 508,
+and 560 nodes; the first two are dense and the latter sparse. The
+final model after some pruning had 609k parameters.
+
+As this was training, I worked on another improvement. Ideally we
+would compute the difference between the predicted shape and the
+expected shape, regardless of how they're drawn. Aside from being a
+bit computationally challenging, this won't really work because we
+need to attribute error directly to each output in order to actually
+update the model in training. I spent a valuable vacation day writing
+a routine to compute the best alignment of points between the actual
+and expected outputs (Figure~\ref{fig:trainingrotate}). Aside from being
+harder than it looked, my alignment code ended up being pretty slow
+relative to the rest of training, even worse since it ran on the CPU
+instead of GPU, which reduced the training speed by $50\%$. I let it
+run for 80,000 rounds, some 331 million training examples, but
+eventually got bored of waiting on this approach that was slow to
+train and seemed like a complicated version of an bad, oversimplified
+approach. So, I control-C'd that thing and threw this whole endeavour
+in the trash! But I must have confused the Recycle~Bin icon with the
+fairly complicated export-to-TrueType Font process that I built,
+because I ran the model on the venerable Futura~\cite{futura} font and
+generated {\bf Futurda} (Figure~\ref{fig:futurda}).
+% 
+% \begin{figure}[ht]
+% \centering
+%   \includegraphics[width=0.5 \linewidth]{rotatej}
+% \caption{ Example alignment (from debug UI) of predicted shape (blue)
+%   to expected shape (green). We require each point to be mapped (red)
+%   to a point from the expected contour in a monotonic order (but
+%   several can be mapped to the same one), so that we can attribute
+%   error to each point. I hope it was fun to write this code because
+%   it was too slow to do pretty much anything but generate this figure!
+% } \label{fig:rotatej}
+% \end{figure}
+%
+
+\begin{figure}[ht]
+\centering
+  \includegraphics[width=0.95 \linewidth]{trainingrotate}
+\caption{ Screenshot (somewhat compacted) of training from near the
+  final round of the vector model's training, illustrating the
+  permissive loss function that finds the best alignment. At the bottom are
+  the predicted lowercase shapes (blue), also shown with their
+  expected shape (green). We require each point to be mapped (red)
+  to a point from the expected contour in a monotonic order (but
+  several can be mapped to the same one), so that we can attribute
+  error to each point.
+} \label{fig:trainingrotate}
+\end{figure}
+
+% XXX downloadable
+
+\begin{figure*}[tp]
+\centering
+  \includegraphics[width=0.95 \linewidth]{futurda}
+\caption{ Type specimen for the generated font {\bf Futurda}. This is
+  the classic font Futura, run through the final, improved
+  vector-based model (Section~\ref{sec:complicated}) to make each
+  letter lowercase. The letterforms \letterform{A}--\letterform{Z}
+  (top) become quite readable lowercase versions. The extra-lowercase
+  \letterform{a}--\letterform{z} are also almost legible, but are
+  mostly just scaled-down and screwed up versions of the lowercase
+  letterforms. Could definitely imagine this appear in the
+  ``distressed fonts'' category of a 10001 Free TrueType Fonts CD-ROM
+  in the 1990s, though.
+} \label{fig:futurda}
+\end{figure*}
 
 % lowerercase Franklin Gothic. Franklin mint... not guaranteed
 % to go up in value
@@ -591,20 +672,21 @@ interpolation, and then simply threshold the image. This works
 surprisingly well (Figure~\ref{fig:sdf}).
 
 \begin{figure}[ht]
+\centering
   \includegraphics[width=0.95 \linewidth]{sdf-figure}
-  \caption{
-    The signed distance function representation of a letterform.
-    At the very left, a $36\times 36$ pixel rasterization of
-    the character without anti-aliasing, for comparison. Any
-    scaling of this will have chunky pixel artifacts. Next,
-    a $36\times 36$ pixel SDF of same. Third, simply scaling
-    that $36\times 36$ image to $180 \times 180$ pixels with
-    bilinear sampling. Finally, that image thresholded to
-    produce a $180 \times 180$ pixel rasterization, which is
-    far superior despite being derived from a $36 \times 36$ pixel
-    bitmap. Typically this process is performed at an even higher
-    scale and then downsampled to produce an anti-aliased image.
-    } \label{fig:sdf}
+\caption{
+  The signed distance function representation of a letterform.
+  At the very left, a $36\times 36$ pixel rasterization of
+  the character without anti-aliasing, for comparison. Any
+  scaling of this will have chunky pixel artifacts. Next,
+  a $36\times 36$ pixel SDF of same. Third, simply scaling
+  that $36\times 36$ image to $180 \times 180$ pixels with
+  bilinear sampling. Finally, that image thresholded to
+  produce a $180 \times 180$ pixel rasterization, which is
+  far superior despite being derived from a $36 \times 36$ pixel
+  bitmap. Typically this process is performed at an even higher
+  scale and then downsampled to produce an anti-aliased image.
+} \label{fig:sdf}
 \end{figure}
 
 SDFs seem well-suited for machine learning. They contain more
@@ -628,7 +710,7 @@ value'' of 220 (because much more of the SDF is outside the letter
 than inside) and the distance is scaled as 15 units per pixel (so that
 pixels on the outer edge often have non-zero values). Compared to the
 first version, I was somewhat more permissive in what fonts I trained
-on, since there was no inherent limit to the number of contours their
+on, since there was no inherent limit to the number of contours or their
 complexity. I did exclude fonts whose rasterizations exceeded the
 bounds of the SDF, which is possible (very wide \letterform{W} or
 low-descending \letterform{j} perhaps) but rare.
@@ -648,30 +730,77 @@ the next layer's node) but due to a bug the spatial locality is
 actually pretty strange.
 % XXX if I show layer weights, forward-reference them here:
 % It's responsible for the XXX
-Every layer's transfer function is ``leaky relu'' ({\tt x > 0 \? x : 0.1 * x})
-which is fast to compute and better than sigmoids in the output since
-correct values will not just be 0 and 1. It would definitely make sense
-to use convolutional layers for this problem, as features like serifs,
-lines, curves, and so on could appear throughout the input and output.
-I just haven't built support for that in my weird home-grown software,
-yet.
+Every layer's transfer function is ``leaky relu'' again. It would
+definitely make sense to use convolutional layers for this problem, as
+features like serifs, lines, curves, and so on could appear throughout
+the input and output. I just haven't built support for that in my
+weird home-grown software, yet.
 
 I also adapted my weird home-grown software to train the
 \makeuppercase\ and \makelowercase\ models simultanously. Two models
-fit comfortably in GPU memory, with plenty of space for a stream of
+fit easily in GPU memory, with plenty of space for a stream of
 training data (one training instance is only about 10kb). The only
 challenging thing is arranging for them to feed each other generated
 ``inversion'' examples (Figure~\ref{fig:cotraining}), but this is just
 a matter of programming, thank God. I should remember to do projects
 that are mostly a matter of programming. Each round, $25\%$ of the
 batch consists of inverted examples from the symmetric model's output
-from a recent round. I make sure that one model is not allowed to
-get too far ahead (more than 2 rounds) of the other in training,
-because I want this feedback loop to be somewhat tight.
+from a recent round. Training happens asynchronously, but I make sure
+that one model is not allowed to get more than 2 rounds ahead of the
+other, because I want this feedback loop to be somewhat tight.
 
 So I did that and let it run for a month. Actually I had to start over
 several times with different parameters and initialization weights
-because it would get stuck 
+because it would get stuck (Figure~\ref{fig:nans}) right away. I
+prayed to the dark wizard of hyperparameter tuning until he smiled
+upon my initial conditions, knowing that somewhere he was adding
+another tick-mark next to my name in a tidy but ultimately scary
+Moleskine notebook that he bought on a whim in the Norman Y.~Mineta
+San Jose International Airport on a business trip, and still feels
+was overpriced for what it is.
+
+\begin{figure}[ht]
+\centering
+  \includegraphics[width=0.9 \linewidth]{nans}
+\caption{
+  Divergent training after only 29 rounds. We have \nan{} total error
+  (is that good?). The example in column one is an inversion example
+  generated by the \makeuppercase\ model, which is why it also looks
+  like the Tunguska event, just of the opposite sign. The other two
+  are regular inputs, whose predicted outputs are black holes. Start
+  over!
+} \label{fig:nans}
+\end{figure}
+
+The training error over time appears in
+Figure~\ref{fig:sdfmergederror}. It looks like the ones I have seen in
+machine learning papers, although I don't like to read other people's
+papers because it just seems like spoilers.
+
+\begin{figure}[ht]
+\centering
+  \includegraphics[width=0.99 \linewidth]{sdfmergederror}
+\caption{ The training error for the SDF models. The red curve is the
+  \makeuppercase\ model, which generally has a higher error rate
+  (perhaps simply because uppercase letters usually have more pixels
+  set) and blue is \makelowercase. The first few rounds have error
+  that's off the charts, well above 100. The most dramatic event is
+  around round 200,000, where I reduced the weight decay factor to
+  $0.999995$ (from $0.9995$). I guess you just need more nines to be
+  more reliable. There are some other visible peaks, which occur when
+  I do things like remove nodes with very low weights or which are
+  almost never activated (Section~\ref{sec:fiddly}). These momentarily
+  increase error but it is easily fine-tuned away (e.g. by learning
+  new biases). The peak at around 1.4M rounds is when I added a new
+  layer to the end of the model, which does seem to create a new
+  training regime (clear downward slope now); but this also
+  significantly increases the training cost per round. Even after
+  2,000,000 rounds, the network is still apparently improving, but at
+  a speed of about 1 pixel per several weeks. Eventually the extremely
+  strict SIGBOVIK deadlines mean you just have to call it done.
+} \label{fig:sdfmergederror}
+\end{figure}
+
 
 % you propagate my back, I'll propagate yours
 
@@ -697,9 +826,8 @@ lorem ipsum (Figure~\ref{fig:perfect})
 
 
 \begin{figure*}[tp]
-\begin{centering}
+\centering
   \includegraphics[width=0.9 \linewidth]{perfecthallucination}
-\end{centering}
 \caption{
 %  XXX Why doesn't this caption come out the way I'm expecting?
 %  (in amsart style... can't have two figure*s on the same page?)
