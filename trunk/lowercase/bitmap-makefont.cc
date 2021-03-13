@@ -75,9 +75,44 @@ struct Config {
     {'Y', 0x3070787c7e66e2e4},
     {'Z', 0x228e8e1c787e7e86},
 
+    {'a', 0xccce6030761e1800},
+    {'b', 0x1f9f5e4200020e06},
+    {'c', 0xc7e1e060070383c},
+    {'d', 0x840c063f38786070},
+    {'e', 0xccc00027e3e1e10},
+    {'f', 0x4e0c1910f1f0f8},
+    {'g', 0xfad8383e84848010},
+    {'h', 0x6cccf0f872300004},
+    {'i', 0x8f8403a1838381f},
+    {'j', 0x74f0f16005070107},
+    {'k', 0x8280061e0f4f0706},
+    {'l', 0xf0dc5858183c3010},
+    {'m', 0x8282e2c0db1f0610},
+    {'n', 0x2c28260607efc30},
+    {'o', 0x701c00c6ce0f3c00},
+    {'p', 0x60c00c0c753707e},
+    {'q', 0x303232e260e0fc18},
+    {'r', 0x100c0e1cfc3c2e20},
+    {'s', 0xc404030fe9cbe08},
+    {'t', 0x18981c1e1f4c1e},
+    {'u', 0x507c7c747840c800},
+    {'v', 0x87c6c60667cc4},
+    {'w', 0x1e4466666061e0c0},
+    {'x', 0x70717c3c1c1c0110},
+    {'y', 0x40078f9f1fc8008},
+    {'z', 0x8c3f1c606072f000},
+    
     {' ', 0x0000000000000000},
   };
 };
+
+static bool IsUppercase(char c) {
+  return (c >= 'A' && c <= 'Z');
+}
+
+static bool IsLowercase(char c) {
+  return (c >= 'a' && c <= 'z');
+}
 
 static bool IsLetter(char c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
@@ -98,8 +133,10 @@ static void GenerateOne(Config cfg) {
                   // XXX Of course we could trace the bitmap directly,
                   // and this would produce more faithful results!
                   // Fake SDF.
-                  ImageF sdf(FontProblem::SDF36From8x8(img8));
-                  constexpr float onedge = SDF_CONFIG.onedge_value / 255.0f;
+                  ImageF sdf(
+                      IsUppercase(codepoint) ? 
+                      FontProblem::SDF36From8x8Uppercase(img8) :
+                      FontProblem::SDF36From8x8Lowercase(img8));
 
                   const auto [unopt_contours, contours] =
                     FontProblem::VectorizeSDF(SDF_CONFIG, sdf);

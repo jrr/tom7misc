@@ -35,6 +35,9 @@ using Image8x8 = FontProblem::Image8x8;
 // to the vector [0, 0, ... 0, 1, 0, ... 0].
 static constexpr bool FIND_MAX = false;
 
+// Generating perfect uppercase letters, or lowercase?
+static constexpr bool FIND_UPPERCASE = false;
+
 
 static constexpr FontProblem::SDFConfig SDF_CONFIG = {};
 
@@ -645,9 +648,10 @@ Random8x8(const Network &prednet, int target_letter) {
   double run_time = 0.0;
 
   int64 cache_hits = 0;
+  // Cache results, since optimizer doesn't know that these doubles
+  // are discretized to bools. Helps a lot!
   std::unordered_map<uint64, double> cache;
-  // TODO: Cache result, since optimizer doesn't know that these
-  // are rounded to bools?
+  
   std::function<double(const std::vector<double> &inputs)> IsLetter =
     [&prednet, target_letter, &Make8x8, &num_calls,
      &sdf_time, &run_time, &cache_hits, &cache](
@@ -664,7 +668,10 @@ Random8x8(const Network &prednet, int target_letter) {
         }
       }
 
-      ImageA sdf = FontProblem::SDF36From8x8(img8x8);
+      ImageA sdf =
+        FIND_UPPERCASE ? FontProblem::SDF36From8x8Uppercase(img8x8) :
+        FontProblem::SDF36From8x8Lowercase(img8x8);
+      
       sdf_time += sdf_timer.MS();
       Timer run_timer;
       const auto pred =
@@ -677,11 +684,11 @@ Random8x8(const Network &prednet, int target_letter) {
                         return pred[i];
                       });
 
-      // Target about 50% of pixels set.
-      // (My handmade A had 33. Maybe should be fewer
-      // for lowercase?)
+      // Target about 50% of pixels set for uppercase (my handmade A had 33)
+      // and 37.5% for lowercase.
       int pixels = img8x8.PixelsOn();
-      int pixel_cost = abs(pixels - 32);
+      constexpr int target_pixels = FIND_UPPERCASE ? 32 : 24;
+      int pixel_cost = abs(pixels - target_pixels);
       penalty += pixel_cost / 50.0;
 
       // Provide a small penalty for noisy images.
@@ -716,7 +723,10 @@ Random8x8(const Network &prednet, int target_letter) {
          sdf_time / num_calls, run_time / num_calls);
   CHECK(best.size() == N);
   const FontProblem::Image8x8 img = Make8x8(best);
-  return make_pair(img, FontProblem::SDF36From8x8(img));
+  return make_pair(img,
+                   FIND_UPPERCASE ?
+                   FontProblem::SDF36From8x8Uppercase(img) :
+                   FontProblem::SDF36From8x8Lowercase(img));
 }
 
 
@@ -728,10 +738,9 @@ int main(int argc, char **argv) {
   }
   #endif
 
-  // XXX actually for the lowercaser we want to place the 8x8 image
-  // lower so that it can hang below the baseline...
   // XXX make command-line option
-  const string model_file = "net0.val";
+  const string model_file =
+    FIND_UPPERCASE ? "net0.val" : "net1.val";
 
   std::unique_ptr<Network> net;
   net.reset(Network::ReadNetworkBinary(model_file));
@@ -740,17 +749,17 @@ int main(int argc, char **argv) {
 
   std::mutex text_m;
   Timer all_timer;
-  string text = StringPrintf("From model %s, find %s\n",
+  string text = StringPrintf("From model %s, find %s %s\n",
                              model_file.c_str(),
-                             FIND_MAX ? "max" : "perfect");
+                             FIND_MAX ? "max" : "perfect",
+                             FIND_UPPERCASE ? "uppercase" : "lowercase");
   int num_complete = 0;
 
   std::mutex gen_m;
-  // letter in 0-26
+  // letter in 0-26, when making 8x8 bitmaps
   std::map<int, FontProblem::Image8x8> gen64;
   
   ParallelComp(
-      // 26,
       26,
       [&net, &prednet,
        &gen_m, &gen64,

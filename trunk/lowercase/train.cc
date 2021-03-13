@@ -1837,7 +1837,9 @@ struct UI {
             static constexpr int MIN_WIDTH = SDF_SIZE * 4;
 
             int ystart = 24;
-            for (int layer_idx = 0; layer_idx < stim.values.size(); layer_idx++) {
+            for (int layer_idx = 0;
+                 layer_idx < stim.values.size();
+                 layer_idx++) {
 
               const int error_layer = layer_idx - 1;
               const vector<float> *opt_errors =
@@ -1863,7 +1865,9 @@ struct UI {
 
               // Separator.
               if (layer_idx != stim.values.size() - 1) {
-                sdlutil::drawclipline(screen, xstart + 8, ystart + 2, xstart + 32, ystart + 2,
+                sdlutil::drawclipline(screen,
+                                      xstart + 8, ystart + 2,
+                                      xstart + 32, ystart + 2,
                                       0x77, 0x77, 0x77);
               }
 
@@ -2240,7 +2244,8 @@ struct Training {
   // Number of examples that are eval inputs (not trained); the
   // remainder are training examples.
   static constexpr int EVAL_INPUTS_PER_ROUND = EXAMPLES_PER_ROUND / 4;
-  static constexpr int TRAINING_PER_ROUND = EXAMPLES_PER_ROUND - EVAL_INPUTS_PER_ROUND;
+  static constexpr int TRAINING_PER_ROUND =
+    EXAMPLES_PER_ROUND - EVAL_INPUTS_PER_ROUND;
   static_assert(TRAINING_PER_ROUND > 0);
   static_assert(TRAINING_PER_ROUND <= EXAMPLES_PER_ROUND);
   static_assert(EVAL_INPUTS_PER_ROUND < EXAMPLES_PER_ROUND);
@@ -2329,25 +2334,25 @@ struct Training {
     const string experiment =
       StringPrintf("sdf-%d.%d", EXAMPLES_PER_ROUND, model_index);
 
-    stim_init_comp = std::make_unique<AutoParallelComp>(32, 50, false,
-                                                        StringPrintf("autoparallel.%s.stim.txt",
-                                                                     experiment.c_str()));
+    stim_init_comp = std::make_unique<AutoParallelComp>(
+        32, 50, false,
+        StringPrintf("autoparallel.%s.stim.txt", experiment.c_str()));
 
-    forward_comp = std::make_unique<AutoParallelComp>(32, 50, false,
-                                                      StringPrintf("autoparallel.%s.fwd.txt",
-                                                                   experiment.c_str()));
+    forward_comp = std::make_unique<AutoParallelComp>(
+        32, 50, false,
+        StringPrintf("autoparallel.%s.fwd.txt", experiment.c_str()));
 
-    error_comp = std::make_unique<AutoParallelComp>(32, 50, false,
-                                                    StringPrintf("autoparallel.%s.err.txt",
-                                                                 experiment.c_str()));
+    error_comp = std::make_unique<AutoParallelComp>(
+        32, 50, false,
+        StringPrintf("autoparallel.%s.err.txt", experiment.c_str()));
 
-    backward_comp = std::make_unique<AutoParallelComp>(32, 50, false,
-                                                       StringPrintf("autoparallel.%s.bwd.txt",
-                                                                    experiment.c_str()));
-
-    decay_comp = std::make_unique<AutoParallelComp>(8, 50, false,
-                                                    StringPrintf("autoparallel.%s.dec.txt",
-                                                                 experiment.c_str()));
+    backward_comp = std::make_unique<AutoParallelComp>(
+        32, 50, false,
+        StringPrintf("autoparallel.%s.bwd.txt", experiment.c_str()));
+    
+    decay_comp = std::make_unique<AutoParallelComp>(
+        8, 50, false,
+        StringPrintf("autoparallel.%s.dec.txt", experiment.c_str()));
   }
 
   std::unique_ptr<AutoParallelComp> stim_init_comp, forward_comp,
@@ -2658,7 +2663,8 @@ struct Training {
 
     if (rounds_executed % EXPORT_EVERY == 0) {
       for (int example_idx = 0;
-           example_idx < NUM_VIDEO_STIMULATIONS && example_idx < TRAINING_PER_ROUND;
+           example_idx < NUM_VIDEO_STIMULATIONS &&
+             example_idx < TRAINING_PER_ROUND;
            example_idx++) {
         Errors err{*net};
         training[example_idx]->ExportErrors(&err);
@@ -2771,8 +2777,9 @@ struct Training {
     rounds_executed++;
   }
 
-  // Generate training examples in another thread and feed them to AddExampleToQueue.
-  // To avoid overloading, throttle while WantsExamples is false.
+  // Generate training examples in another thread and feed them to
+  // AddExampleToQueue. To avoid overloading, throttle while
+  // WantsExamples is false.
   bool WantsExamples() {
     ReadMutexLock ml(&example_queue_m);
     return example_queue.size() < EXAMPLE_QUEUE_TARGET;
@@ -2820,7 +2827,8 @@ struct Training {
 
   // Not thread safe.
   void Save() {
-    CHECK(net_gpu.get() != nullptr && net.get() != nullptr) << "Never initialized!";
+    CHECK(net_gpu.get() != nullptr && net.get() != nullptr) <<
+      "Never initialized!";
     net_gpu->ReadFromGPU();
     Printf("Saving to %s...\n", model_filename.c_str());
     Network::SaveNetworkBinary(*net, model_filename);
@@ -2828,7 +2836,8 @@ struct Training {
 
   // Not thread safe.
   const Network &Net() {
-    CHECK(net_gpu.get() != nullptr && net.get() != nullptr) << "Never initialized!";
+    CHECK(net_gpu.get() != nullptr && net.get() != nullptr) <<
+      "Never initialized!";
     net_gpu->ReadFromGPU();
     return *net;
   }
@@ -2889,7 +2898,8 @@ private:
   // (Note: This could just be a vector and use stack ordering, but
   // we want to make sure that we get to every training example for cases
   // that they are not randomly sampled (e.g. co-training).)
-  // (Actually since these are separate, it probably could just be a vector now.)
+  // (Actually since these are separate, it probably could just be a
+  // vector now.)
   deque<TrainingExample> example_queue;
 
   // Same idea but eval examples, for which we don't have an "expected output".
@@ -2982,7 +2992,8 @@ static void MakeTrainingExamplesThread(
     };
 
   // These are symmetric, so call this function twice.
-  auto GenExample = [&rc, make_lowercase, make_uppercase, &PopulateExampleFromFont](
+  auto GenExample = [&rc, make_lowercase, make_uppercase,
+                     &PopulateExampleFromFont](
       bool lowercasing) -> bool {
       Training *me = lowercasing ? make_lowercase : make_uppercase;
       Training *other = lowercasing ? make_uppercase : make_lowercase;
@@ -2999,7 +3010,8 @@ static void MakeTrainingExamplesThread(
             ReadMutexLock ml(&load_fonts->fonts_m);
             const int idx = RandTo(&rc, load_fonts->fonts.size());
             // Here if we are lowercasing, the input should be uppercase.
-            ok = PopulateExampleFromFont(!lowercasing, true, load_fonts->fonts[idx], &example);
+            ok = PopulateExampleFromFont(
+                !lowercasing, true, load_fonts->fonts[idx], &example);
           }
           if (ok) me->AddExampleToQueue(std::move(example));
         }
@@ -3009,17 +3021,21 @@ static void MakeTrainingExamplesThread(
           auto fwd = other->GetEvalResult();
           if (fwd.has_value()) {
             TrainingExample example = std::move(fwd.value());
-            // To create an inversion example, we basically just want to swap the input
-            // and output. But we also want to keep the "hints" that are in the output.
-            // (Probably it would be better if we kept the actual letter this represents,
-            // but that would mean keeping some metadata along with the eval example.)
-            vector<float> new_input(example.output.begin(),
-                                    example.output.begin() + SDF_SIZE * SDF_SIZE);
+            // To create an inversion example, we basically just want
+            // to swap the input and output. But we also want to keep
+            // the "hints" that are in the output. (Probably it would
+            // be better if we kept the actual letter this represents,
+            // but that would mean keeping some metadata along with
+            // the eval example.)
+            vector<float> new_input(
+                example.output.begin(),
+                example.output.begin() + SDF_SIZE * SDF_SIZE);
             CHECK(new_input.size() == SDF_SIZE * SDF_SIZE);
-            // The prediction could have all sorts of wild values, which can
-            // lead to feedback loops and divergent training. Put it in the
-            // range [0,1]. (Alternatively, we could consider normalizing it, but
-            // this may not actually be faithful?)
+            // The prediction could have all sorts of wild values,
+            // which can lead to feedback loops and divergent
+            // training. Put it in the range [0,1]. (Alternatively, we
+            // could consider normalizing it, but this may not
+            // actually be faithful?)
             for (int i = 0; i < SDF_SIZE * SDF_SIZE; i++) {
               if (new_input[i] < 0.0f) new_input[i] = 0.0f;
               if (new_input[i] > 1.0f) new_input[i] = 1.0f;
@@ -3050,10 +3066,12 @@ static void MakeTrainingExamplesThread(
         {
           ReadMutexLock ml(&load_fonts->fonts_m);
           const int idx = RandTo(&rc, load_fonts->fonts.size());
-          // Here if we are lowercasing, the input should be lowercase (we want letter-like
-          // shapes that don't have known lowercase shapes). XXX it would be okay/good to
-          // include uppercase examples as well?
-          ok = PopulateExampleFromFont(lowercasing, false, load_fonts->fonts[idx], &example);
+          // Here if we are lowercasing, the input should be lowercase
+          // (we want letter-like shapes that don't have known
+          // lowercase shapes). XXX it would be okay/good to include
+          // uppercase examples as well? numbers and punctuation even?
+          ok = PopulateExampleFromFont(lowercasing, false,
+                                       load_fonts->fonts[idx], &example);
         }
         CHECK(example.output.empty());
         if (ok) me->AddEvalInputToQueue(std::move(example));
@@ -3144,7 +3162,9 @@ int SDL_main(int argc, char **argv) {
   ui = new UI;
 
   vector<Training *> training = {nullptr, nullptr};
-  ParallelComp(2, [&training](int idx) { training[idx] = new Training(idx); }, 2);
+  ParallelComp(2, [&training](int idx) {
+      training[idx] = new Training(idx); },
+  2);
   // Aliases for convenience.
   Training *make_lowercase = training[0];
   Training *make_uppercase = training[1];
@@ -3208,18 +3228,21 @@ int SDL_main(int argc, char **argv) {
           int total_rounds = lrounds + urounds + 2;
           if ((total_rounds / 2) % EVAL_SCREENSHOT_EVERY == 0) {
             Printf("Eval...\n");
-            FontProblem::RenderSDF("helvetica.ttf",
-                                   make_lowercase->Net(),
-                                   make_uppercase->Net(),
-                                   SDF_CONFIG,
-                                   StringPrintf("eval/eval%d", total_rounds / 2));
+            FontProblem::RenderSDF(
+                "helvetica.ttf",
+                make_lowercase->Net(),
+                make_uppercase->Net(),
+                SDF_CONFIG,
+                StringPrintf("eval/eval%d", total_rounds / 2));
           }
         }
 
-        auto RecordError = [&training, &error_history, &last_error_round](int idx) {
+        auto RecordError =
+          [&training, &error_history, &last_error_round](int idx) {
             const auto [round, err] = training[idx]->GetRecentError();
             if (round > 0) {
-              // We don't compute error on every round. Make sure it's a new reading.
+              // We don't compute error on every round. Make sure it's
+              // a new reading.
               if (round > last_error_round[idx]) {
                 last_error_round[idx] = round;
                 // is_eval = false because this is always training error.

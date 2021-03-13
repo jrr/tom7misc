@@ -2,9 +2,10 @@
 
 % TODO: SDF vs SFD typo factory!
 
-\documentclass[twocolumn]{amsart}
+\documentclass[twocolumn]{article} % {amsart}
 \usepackage[top=0.75in, left=0.65in, right=0.65in, bottom=0.6in]{geometry}
 
+\usepackage{float}
 \usepackage{url}
 % \usepackage{code}
 % \usepackage{cite}
@@ -149,17 +150,12 @@ let's just roll with it!
     colframe=white!50!black
     ]{\textrm{#1}}}
 
-%     leftrule=0.2pt,rightrule=0.2pt,toprule=0.2pt,bottomrule=0.2pt,
-%     enhanced jigsaw,
-%    borderline horizontal={0.2pt}{0pt}{dashed},
-%    borderline vertical={0.2pt}{0pt}{dashed}
-
-
-We want to machine-learn~\cite{neuralnetwork} two functions, \makelowercase\ and
-\makeuppercase. Each takes a letterform and returns a letterform (we
-can choose how these are represented) and does the needful, e.g.
-\makelowercase(\letterform{A}) should return \letterform{a}. In order to learn this function, we'll at least need a lot of
-examples to use as training data. A training example for
+We want to machine-learn~\cite{neuralnetwork} two functions,
+\makelowercase\ and \makeuppercase. Each takes a letterform and
+returns a letterform (we can choose how these are represented) and
+does the needful, e.g. \makelowercase(\letterform{A}) should return
+\letterform{a}. In order to learn this function, we'll at least need a
+lot of examples to use as training data. A training example for
 \makelowercase\ is a letterform and its expected corresponding
 lowercase one. We can ``easily'' find a large amount of examples by
 using existing fonts, and pairing their \letterform{A} with their
@@ -506,6 +502,7 @@ result, but because it didn't have the points in the expected order,
 it would be penalized. This makes it harder to learn. True, but
 my reflex to make things more complicated XXX
 
+
 Ideally we would compute the difference between the predicted shape
 and the expected shape, regardless of how they're drawn. Aside from
 being a bit computationally challenging, this won't really work
@@ -527,7 +524,9 @@ website and installed for your desktop publishing needs.\footnote{Font
 % TODO: actually upload the fonts and make sure the URL is what you want
 
 \begin{figure}[ht]
-\includegraphics[width=0.5 \linewidth]{rotatej}
+\begin{centering}
+  \includegraphics[width=0.5 \linewidth]{rotatej}
+\end{centering}
 \caption{ Example alignment (from debug UI) of predicted shape (blue)
   to expected shape (green). We require each point to be mapped (red)
   to a point from the expected contour in a monotonic order (but
@@ -537,9 +536,13 @@ website and installed for your desktop publishing needs.\footnote{Font
 } \label{fig:rotatej}
 \end{figure}
 
+% FIXME: Wait I had much better screenshots, see video/lowercase
+
 % XXX add downloadable font too
 \begin{figure*}[tp]
-\includegraphics[width=0.9 \linewidth]{futurda}
+\begin{centering}
+  \includegraphics[width=0.9 \linewidth]{futurda}
+\end{centering}
 \caption{ Type specimen for the generated font {\bf Futurda}. This is the
   classic font Futura, run through the vector based lowercasing model
   (Section~\ref{sec:vectorversion}). At top are Futura's letterforms
@@ -587,24 +590,99 @@ at the size of your choice, you then resize the SDF image with bilinear
 interpolation, and then simply threshold the image. This works
 surprisingly well (Figure~\ref{fig:sdf}).
 
+\begin{figure}[ht]
+  \includegraphics[width=0.95 \linewidth]{sdf-figure}
+  \caption{
+    The signed distance function representation of a letterform.
+    At the very left, a $36\times 36$ pixel rasterization of
+    the character without anti-aliasing, for comparison. Any
+    scaling of this will have chunky pixel artifacts. Next,
+    a $36\times 36$ pixel SDF of same. Third, simply scaling
+    that $36\times 36$ image to $180 \times 180$ pixels with
+    bilinear sampling. Finally, that image thresholded to
+    produce a $180 \times 180$ pixel rasterization, which is
+    far superior despite being derived from a $36 \times 36$ pixel
+    bitmap. Typically this process is performed at an even higher
+    scale and then downsampled to produce an anti-aliased image.
+    } \label{fig:sdf}
+\end{figure}
+
 SDFs seem well-suited for machine learning. They contain more
 information per pixel than a plain bitmap, so we can use a smaller
-input and output size. On the input
-side, extremal pixels that would almost never be set in a bitmap still
-have significant information (distance to the character). The error
-function is just pixel-by-pixel difference. The rendering of the
-output is inherently tolerant of some noise because of the sampling
-and thresholding. So, this seemed like it might work well! (It doesn't
-work that well.)
+input and output size. On the input side, extremal pixels that would
+almost never be set in a bitmap still have significant information
+(distance to the character). The error function is just pixel-by-pixel
+difference. The rendering of the output is inherently tolerant of some
+noise because of the sampling and thresholding. So, this seemed like
+it might work really well! (It doesn't work that well.)
 
-I got some stats on the font database, and determined the following
-parameters for the SDFs.
- (here, $36\times36$ pixel images)
-% Figure: bitmap vs SDF
+I computed some stats on the font database, and determined the
+following parameters for the fixed-size SDFs we train on. The images
+are $36 \times 36$ pixels. The character box is placed such that there
+are $2$ pixels of top padding, and $9$ pixels of left and bottom
+padding. The character box is only ``nominal'' in the sense that the
+font's contours can exceed its bounds, and this is completely normal
+for a letter like \letterform{j} (which goes below the baseline and
+often hangs to the left of the origin as well). I used an ``on-edge
+value'' of 220 (because much more of the SDF is outside the letter
+than inside) and the distance is scaled as 15 units per pixel (so that
+pixels on the outer edge often have non-zero values). Compared to the
+first version, I was somewhat more permissive in what fonts I trained
+on, since there was no inherent limit to the number of contours their
+complexity. I did exclude fonts whose rasterizations exceeded the
+bounds of the SDF, which is possible (very wide \letterform{W} or
+low-descending \letterform{j} perhaps) but rare.
 
 \section{The care and feeding of sparse matrices} \label{sec:neural}
 
+Having committed to the representation, again it is ``just'' a matter
+of heating up the GPU to apply some linear and non-linear transforms.
+The initial network had an input size of $36 \times 36 = 1296$ for the
+SDF, and the output the same plus $26$ bonus outputs (one for each
+letter, as before). I started with three hidden layers of $1296$, $1296$,
+and $2916$ nodes, each sparse ($80\%$ of the weights are zero). Again,
+don't take notes. This one works a bit better than before, but still
+not impressive. The node references are assigned spatially (something
+like the $20\%$ of the nodes on the previous layer that are closest to
+the next layer's node) but due to a bug the spatial locality is
+actually pretty strange.
+% XXX if I show layer weights, forward-reference them here:
+% It's responsible for the XXX
+Every layer's transfer function is ``leaky relu'' ({\tt x > 0 \? x : 0.1 * x})
+which is fast to compute and better than sigmoids in the output since
+correct values will not just be 0 and 1. It would definitely make sense
+to use convolutional layers for this problem, as features like serifs,
+lines, curves, and so on could appear throughout the input and output.
+I just haven't built support for that in my weird home-grown software,
+yet.
+
+I also adapted my weird home-grown software to train the
+\makeuppercase\ and \makelowercase\ models simultanously. Two models
+fit comfortably in GPU memory, with plenty of space for a stream of
+training data (one training instance is only about 10kb). The only
+challenging thing is arranging for them to feed each other generated
+``inversion'' examples (Figure~\ref{fig:cotraining}), but this is just
+a matter of programming, thank God. I should remember to do projects
+that are mostly a matter of programming. Each round, $25\%$ of the
+batch consists of inverted examples from the symmetric model's output
+from a recent round. I make sure that one model is not allowed to
+get too far ahead (more than 2 rounds) of the other in training,
+because I want this feedback loop to be somewhat tight.
+
+So I did that and let it run for a month. Actually I had to start over
+several times with different parameters and initialization weights
+because it would get stuck 
+
+% you propagate my back, I'll propagate yours
+
+
 \label{sec:fiddly}
+
+% TODO loss over time
+
+% some other things that are worth a mention:
+%   autoparallel
+%   efficiency improvements (restrict, compile-time constants)
 
 % no copyright intended
 
@@ -612,8 +690,30 @@ parameters for the SDFs.
 
 %
 
-\section{Perfect letters, hallucinated}
-\label{sec:hallucination}
+\section{Perfect letters, hallucinated} \label{sec:hallucination}
+
+
+lorem ipsum (Figure~\ref{fig:perfect})
+
+
+\begin{figure*}[tp]
+\begin{centering}
+  \includegraphics[width=0.9 \linewidth]{perfecthallucination}
+\end{centering}
+\caption{
+%  XXX Why doesn't this caption come out the way I'm expecting?
+%  (in amsart style... can't have two figure*s on the same page?)
+   Type specimen for the generated font {\bf Perfect Hallucination}.
+  TODO write a description!
+} \label{fig:perfect}
+\end{figure*}
+
+% LSDF
+
+
+dolor sit amet
+
+\section{Chess-playing}
 
 % autotracing
 
@@ -625,8 +725,22 @@ parameters for the SDFs.
 
 % lowercase uppercase letters etc.
 
+\section{Acknowledgements}
+
+For this project I used \verb+stb_truetype.h+ from the excellent stb
+collection of single-file libraries.~\cite{stb} I did push its limits
+somewhat and ``automatically discovered'' assertion failures and other
+crashes (e.g. during blackbox optimization on all 100k fonts), but it
+saved a lot of time. This library only helps with reading the fonts
+and generating SDFs. To generate TTFs, I had to write my own pipeline,
+which generates FontForge's .SFD (a typo factory right there) files,
+and then did the final export with FontForge~\cite{fontforge}. Thanks
+Jason Reed for this suggestion.
+
+
 \nocite{murphy2019blind}
 \nocite{murphy2019eloworld}
+\nocite{stb}
 
 \bibliography{lowercase}{}
 \bibliographystyle{plain}

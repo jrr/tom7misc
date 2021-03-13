@@ -1121,8 +1121,8 @@ ImageA FontProblem::SDFFromBitmap(const SDFConfig &config,
   return sdf;
 }
 
-
-ImageA FontProblem::SDF36From8x8(Image8x8 img) {
+template<int TOP>
+static ImageA SDF36From8x8(FontProblem::Image8x8 img) {
   constexpr int sdf_size = 36;
   // nominal size of image.
   constexpr int size = 18;
@@ -1132,7 +1132,6 @@ ImageA FontProblem::SDF36From8x8(Image8x8 img) {
   constexpr float scale = size / (float)sdf_size;
 
   constexpr int LEFT = 4;
-  constexpr int TOP = 6;
   constexpr int WIDTH = 8;
   constexpr int HEIGHT = 8;
   if (false)
@@ -1269,7 +1268,13 @@ ImageA FontProblem::SDF36From8x8(Image8x8 img) {
   return sdf;
 }
 
+ImageA FontProblem::SDF36From8x8Uppercase(Image8x8 img) {
+  return SDF36From8x8<6>(img);
+}
 
+ImageA FontProblem::SDF36From8x8Lowercase(Image8x8 img) {
+  return SDF36From8x8<7>(img);
+}
 
 std::pair<ImageA, std::array<float, 26>>
 FontProblem::RunSDFModel(const Network &net,
