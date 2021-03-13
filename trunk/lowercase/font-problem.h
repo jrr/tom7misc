@@ -90,6 +90,13 @@ struct FontProblem {
       const std::vector<int> &row_max_points,
       const std::vector<float> &values);
 
+  // Since the vector network always generates three contours, there
+  // are often degenerate contours (all points near 0,0). Remove any
+  // contour where all of the points are less than (min_box, min_box).
+  // (e.g. for font generation).
+  static void VectorRemoveDegenerateContours(TTF::Char *ch,
+                                             float min_box);
+  
   // Because this generates SDFs and runs two large networks, it's
   // significantly slower than the above.
   static void RenderSDF(const std::string &font_filename,
