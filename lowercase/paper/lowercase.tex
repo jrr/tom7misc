@@ -47,7 +47,7 @@
 
 \begin{document}
 
-\title{Lowestcase and Uppestcase letters: Further adventures in Derp Learning}
+\title{Lowestcase and Uppestcase letters: Advances in Derp Learning}
 \author{Dr.~Tom~Murphy~VII~Ph.D.}\thanks{
 Copyright \copyright\ 2021 the Regents of the Wikiplia Foundation.
 Appears in SIGBOVIK~2021 with the
@@ -65,7 +65,7 @@ press, Verlag-Verlag volume no.~0x40-2A. 1 em}
 \newcommand\nd{\ensuremath{{}^{\textrm{nd}}}}
 \newcommand\at{\ensuremath{\scriptstyle @}}
 
-\renewcommand\paragraph[1]{\smallskip{\bf #1}\enspace}
+\renewcommand\paragraph[1]{\smallskip \noindent{\bf #1}\enspace}
 
 \date{1 April 2021}
 
@@ -595,7 +595,7 @@ in the trash! But I must have confused the Recycle~Bin icon with the
 fairly complicated export-to-TrueType Font process that I built,
 because I ran the model on the venerable Futura~\cite{futura} font and
 generated {\bf Futurda} (Figure~\ref{fig:futurda}).
-% 
+%
 % \begin{figure}[ht]
 % \centering
 %   \includegraphics[width=0.5 \linewidth]{rotatej}
@@ -706,14 +706,14 @@ padding. The character box is only ``nominal'' in the sense that the
 font's contours can exceed its bounds, and this is completely normal
 for a letter like \letterform{j} (which goes below the baseline and
 often hangs to the left of the origin as well). I used an ``on-edge
-value'' of 220 (because much more of the SDF is outside the letter
-than inside) and the distance is scaled as 15 units per pixel (so that
-pixels on the outer edge often have non-zero values). Compared to the
-first version, I was somewhat more permissive in what fonts I trained
-on, since there was no inherent limit to the number of contours or their
-complexity. I did exclude fonts whose rasterizations exceeded the
-bounds of the SDF, which is possible (very wide \letterform{W} or
-low-descending \letterform{j} perhaps) but rare.
+value'' of 0.862 (because much more of the SDF is outside the letter
+than inside) and the distance is scaled as 0.059 units per pixel (so
+that pixels on the outer edge often have non-zero values). Compared to
+the first version, I was somewhat more permissive in what fonts I
+trained on, since there was no inherent limit to the number of
+contours or their complexity. I did exclude fonts whose rasterizations
+exceeded the bounds of the SDF, which is possible (very wide
+\letterform{W} or low-descending \letterform{j} perhaps) but rare.
 
 \section{The care and feeding of sparse matrices} \label{sec:neural}
 
@@ -751,13 +751,13 @@ other, because I want this feedback loop to be somewhat tight.
 
 So I did that and let it run for a month. Actually I had to start over
 several times with different parameters and initialization weights
-because it would get stuck (Figure~\ref{fig:nans}) right away. I
-prayed to the dark wizard of hyperparameter tuning until he smiled
-upon my initial conditions, knowing that somewhere he was adding
-another tick-mark next to my name in a tidy but ultimately scary
-Moleskine notebook that he bought on a whim in the Norman Y.~Mineta
-San Jose International Airport on a business trip, and still feels
-was overpriced for what it is.
+because it would get stuck (Figure~\ref{fig:nans}) right away or as
+soon as I looked away from the computer. I prayed to the dark wizard
+of hyperparameter tuning until he smiled upon my initial conditions,
+knowing that somewhere he was adding another tick-mark next to my name
+in a tidy but ultimately terrifying Moleskine notebook that he bought
+on a whim in the Norman Y.~Mineta San Jose International Airport on a
+business trip, and still feels was overpriced for what it is.
 
 \begin{figure}[ht]
 \centering
@@ -772,10 +772,85 @@ was overpriced for what it is.
 } \label{fig:nans}
 \end{figure}
 
+
+\subsection{Fiddly bits} \label{sec:fiddly}
 The training error over time appears in
 Figure~\ref{fig:sdfmergederror}. It looks like the ones I have seen in
 machine learning papers, although I don't like to read other people's
-papers because it just seems like spoilers.
+papers because it just seems like spoilers. There are several
+noticeable events in the curve, which came from me fiddling with the
+parameters or network as it ran. Here are some of the things I did:
+
+\paragraph{Vacuuming and culling.} Sometimes a node will just be
+dead (basically never activates) or an edge weight will be nearly
+zero. In these cases an equivalent, tidier network can be made by
+dropping the node or edge. Periodically I would perform these
+processes, sometimes feeling particularly choppy and removing like
+10\% of the parameters at a time. If these parameters are truly
+useless with no hope of recovery, we simply get faster training
+because there's less work to do.
+
+\paragraph{Widening.} The opposite thing is to introduce new nodes.
+Adding nodes to hidden layers is pretty easy. The thing that worked
+best for me is to increase the size of the layer by 10--15\%, where
+each new node has random incoming weights and bias 0. Then for each
+node on the next layer, I add edges to some subset of these new nodes
+(again generally 10\% of them) with weight 0. Since this weight is
+zero, the network computes the same function, but has new gradients
+to explore (in practice, it then experiences some shock after a
+few training rounds, but then quickly fine-tunes this away). More
+parameters means slower training, but also more potential to learn
+interesting functions, or overfit!
+
+\paragraph{Deepening.} It's also possible to add layers once the
+network is trained. This can be done anywhere, but I liked doing it on
+the output layer because this gets the most direct feedback from the
+training examples, and so it updates quickly and changes there are
+easy to understand. If you append the identity matrix (new layer is
+the same size as the previous; each node has weight 1.0 to its
+corresponding node and 0.0 elsewhere) then this network computes
+the same function but has new gradients to explore. Adding a layer
+did seem to help unlock a new training regime
+(Figure~\ref{fig:sdfmergederror}); subjectively it also reduced
+some weird artifacts in the SDFs that the model used to predict (makes
+sense; this most natural thing for this layer to do is learn how to
+predict a ``correction'' from the old prediction, for example
+by smoothing/sharpening it). This seems to be borne out by the
+weights, which are also fun to look at (Figure~\ref{fig:lastlayer}).
+
+\paragraph{Generating features.} On the other side, randomly sampling
+pixels from the input SDF does work, but I superstitiously believed
+that it might be better to have more spatially meaningful features. I
+wrote a program to generate a bunch of random simple features (one
+line/blob with positive weights, one line/blob with negative weights).
+It then chooses a set of them that are both {\em good} (maximum
+standard deviation on a sample of training data) and {\em different
+  from one another} (redundant or even partially redundant features
+are less valuable). It was nice to satisfy my supersition, and the
+dark wizard of superstitious fiddling with neural networks in the
+hope that they do the thing was pleased as well. The features are
+at least handsome (Figure~\ref{fig:makefeatures}).
+
+I assume these are all standard things that neural people do, but they
+do better and smarter versions of them because they are willing to
+read other people's papers instead of trying to figure things out from
+scratch all the time. But you gotta occupy yourself somehow while it
+crunches for a month.
+
+
+\begin{figure}[ht]
+\centering
+  \includegraphics[width=0.99 \linewidth]{makefeatures}
+  \caption{ Some randomly-generated features with the selected ones
+    outlined in magenta, mostly shown here for aesthetic reasons.
+    Savvy Twitter user {\tt @iotathisworld} sees this as ``the classic
+    question: machine vision classification or 90s roller rink carpet
+    pattern?'' to which I deflect: ``Sorry, it's actually modern day
+    Port Authority bus upholstery or Gram stain of same!'' (But
+    actually machine vision classification was basically correct.)
+  } \label{fig:makefeatures}
+\end{figure}
+
 
 \begin{figure}[ht]
 \centering
@@ -802,22 +877,104 @@ papers because it just seems like spoilers.
 \end{figure}
 
 
+\begin{figure}[ht]
+\centering
+  \includegraphics[width=0.99 \linewidth]{lastlayer}
+  \caption{ The bottom-right corner of the weight matrix for the final
+    layer of the network. This layer was added to the network after
+    1.36 million rounds, initially as the identity matrix, and so can
+    be thought of partly as a correction of the network's output prior
+    to that round (though that part of the network continues to
+    evolve). The x-axis is the output nodes, and the y-axis is the
+    nodes of the previous layer. Note for example that the last 26
+    columns look pretty different; these are the predictors for the 26
+    letters, which occur in the output after the SDF pixels. Green
+    means positive and red means negative, so if you are looking at
+    this in a black-and-white printout, that may explain your current
+    confusion. The exact diagonal is a strong green, close to 1.0,
+    although over time these weights do diverge from the identity
+    somewhat. In the bottom-right corner of size $26^2$, we are
+    looking at how the 26 letter predictors are derived from the
+    previous layer's predictions. We see that most letters are
+    negatively correlated (makes sense; only one will ever be 1.0)
+    although there are some oddities (probably because it found some
+    other, better correlates). Nodes on this new layer have dense
+    references to these 26 predictions on the previous; this means
+    that the bottom row kind of represents biases for each of the 26
+    letters (what does an average 'e' look like?). I also included a
+    dense region above that, but this appears to have simply evolved
+    the same way as other $36^2$ chunks have (the rest are sparse).
+    These chunks have a large amount of spatial similarity (suggesting
+    that the sparse sampling would be adequate), with a meaning like
+    ``if this area of the image is bright, then this pixel should
+    be less bright.'' It is interesting that the pixels immediately
+    next to the diagonal are almost always strongly negative
+    (sharpening operation). ``Thank you for attending my TED talk.''
+    ---\,Figure~\ref{fig:lastlayer}}
+  \label{fig:lastlayer}
+\end{figure}
+
+For completeness, some other innovations that I feel are worth
+mentioning:
+
+Making the GPU code faster has really high value (could save weeks of
+waiting). Since I am using OpenCL (whoa, yeah, stop me right there, I
+know) I found a good trick was to generate different OpenCL code with
+constants baked for each layer (for example their size and
+\verb+indices_per_node+); this allows some of the inner loops to use
+faster tricks for e.g.~multiplication by a compile-time constant
+instead of depending on an argument or data. I have different routines
+for sparse and dense layers. It might even make sense to recompile the
+kernels for other parameters that change over the lifetime of
+training, like the learning rate. The {\tt fma} instruction (so named
+for the physical law $F=MA$) is a bit faster than
+\verb|potential += w * v|, and I guess the compiler can't do this
+itself because of IEEE horrors. But like, who cares? In my opinion you
+should be able to put it in ``fast machine learning mode'' where it
+readily makes precision errors, with a command-line option like
+\verb+--fml+. With all the tweaking, the easiest win was to use the
+{\tt restrict} keyword on arguments to tell the compiler that the
+input cannot alias the output, for example; this presumably helps
+it schedule instructions better.
+
+Various things in training run in parallel threads (e.g.~processing
+fonts, but also moving data to the GPU, backpropagation for each
+example, etc.). For a long time I had just been explicitly setting
+parallelism using superstitious constants. For this project I finally
+just wrote something that would automatically and empirically
+determine the number of threads that yielded the highest throughput,
+and persisted that information across program starts. This was a
+good idea and enters the permanent rotation.
+
+The actual error on the predicted SDFs is pretty low; for the
+\makelowercase\ model it is around 31.3, which is like if 2.4\% of the
+pixels were (completely) wrong, but the rest is exactly correct. In
+reality, of course, the error is distributed throughout the pixels,
+and some errors are a lot more important than others. Particularly,
+near the threshold value, a pixel goes from from being considered ``in
+the letter'' to ``outside'' with tiny changes in its value. Changes to
+a pixel with a value near 0.0 or 1.0 usually doesn't affect the output
+shape at all, in contrast. So one thing I did was map the loss
+function (comparing expected pixel value to actual) to ``stretch out''
+the region near the threshold, increasing the penalty (basically, the
+derivative) in that region and decreasing it elsewhere. Looking at the
+code again right now, I realize that I only applied this to the first
+row of the SDF (\verb+idx < SDF_SIZE+ instead of
+\verb+SDF_SIZE * SDF_SIZE+), so that was dumb. I will say in my
+defense that at least I felt disappointed that it didn't seem to make
+a difference!
+
+
 % you propagate my back, I'll propagate yours
-
-
-\label{sec:fiddly}
-
-% TODO loss over time
-
-% some other things that are worth a mention:
-%   autoparallel
-%   efficiency improvements (restrict, compile-time constants)
 
 % no copyright intended
 
-% stretch the loss function near the onedge value
+\subsection{Upperercase and Lowerercase fonts} \label{sec:fonts}
 
-%
+Let's make some fonts!
+
+% autotracing in here, I think?
+
 
 \section{Perfect letters, hallucinated} \label{sec:hallucination}
 
@@ -852,6 +1009,14 @@ dolor sit amet
 % cool s
 
 % lowercase uppercase letters etc.
+% iterate this a lot of times?
+
+% run it to infinity to see the uppestcase, etc.
+% if these vanish, then we have a fixed point.
+% if not, or perhaps by doing some auto-gamma, then
+% it's like a fractal zoomer, and we can set the
+% record on the "most uppercase letter" by running
+% a jazillion times.
 
 \section{Acknowledgements}
 

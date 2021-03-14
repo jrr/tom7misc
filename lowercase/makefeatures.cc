@@ -3,8 +3,9 @@
 // (and more principledly) by the training process on random features,
 // but it seems good to start with better quality features?
 
-// This code generates the requested number of features to a file,
-// which can then be added to a model with widen.exe (not yet implemented!)
+// This code generates the requested number of features to a file
+// (a fake single-layer network) which can then be added to a model with
+// widen.exe.
 
 #include <string.h>
 #include <stdio.h>
@@ -151,7 +152,8 @@ struct TrainingExample {
   char letter;
 };
 
-// Generate num_output_features "good" features that are different from one another.
+// Generate num_output_features "good" features that are different
+// from one another.
 static void Generate(const std::string &model_filename,
                      int num_output_features, bool lowercasing) {
   std::unique_ptr<Network> net(Network::ReadNetworkBinary(model_filename));
@@ -571,7 +573,8 @@ static void Generate(const std::string &model_filename,
         // Compute initial distance.
         double dist = GetDist();
 
-        // Save the permutation if it is the global best, using double-checked lock.
+        // Save the permutation if it is the global best, using
+        // double-checked lock.
         auto SaveBest = [&best_m, &best_out, &best_dist, nof, &dist, &perm]() {
             if (dist > ReadWithLock(&best_m, &best_dist)) {
               WriteMutexLock ml(&best_m);
@@ -670,8 +673,9 @@ static void Generate(const std::string &model_filename,
   
   Timer make_timer;
   {
-    // Now save 'em. We make a fake one-layer network since the features
-    // have the same serialization needs as a hidden layer (no coincidence here!)
+    // Now save 'em. We make a fake one-layer network since the
+    // features have the same serialization needs as a hidden layer
+    // (no coincidence here!)
     vector<int> nn = {width * height, num_output_features};
     vector<int> ii = {feature_size};
     vector<TransferFunction> tfs = {LEAKY_RELU};
