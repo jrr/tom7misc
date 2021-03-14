@@ -337,7 +337,7 @@ static string GetRemap() {
 
   [[maybe_unused]]
   auto Remap = [](int i, float x) {
-      if (i < SDF_SIZE) {
+      if (i < SDF_SIZE * SDF_SIZE) {
         // PERF could probably simplify this!
         if (x < ax) return x * s;
         if (x < bx) return ay + (x - ax) * interesting_slope;
@@ -365,7 +365,7 @@ static string GetRemap() {
       "%.9ff + (x - %.9ff) * %.9ff) : "
       // else return x
       "x)",
-      SDF_SIZE,
+      SDF_SIZE * SDF_SIZE,
       ax, s,
       bx, ay, ax, interesting_slope,
       by, bx, s);
@@ -2349,7 +2349,7 @@ struct Training {
     backward_comp = std::make_unique<AutoParallelComp>(
         32, 50, false,
         StringPrintf("autoparallel.%s.bwd.txt", experiment.c_str()));
-    
+
     decay_comp = std::make_unique<AutoParallelComp>(
         8, 50, false,
         StringPrintf("autoparallel.%s.dec.txt", experiment.c_str()));
