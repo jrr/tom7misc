@@ -26,7 +26,7 @@ struct Opt {
            int iters,
            int depth = 1,
            int attempts = 10);
-  
+
   // As above, but with n as a runtime value.
   static std::pair<std::vector<double>, double>
   Minimize(int n,
@@ -36,6 +36,33 @@ struct Opt {
            int iters,
            int depth = 1,
            int attempts = 10);
+
+  // Convenience versions for small N.
+  // Returns {best_arg, f(best_arg)}.
+  inline static std::pair<double, double>
+  Minimize1D(const std::function<double(double)> &f,
+             double lower_bound,
+             double upper_bound,
+             int iters,
+             int depth = 1,
+             int attempts = 10);
+
+  inline static std::pair<std::tuple<double, double>, double>
+  Minimize2D(const std::function<double(double, double)> &f,
+             std::tuple<double, double> lower_bound,
+             std::tuple<double, double> upper_bound,
+             int iters,
+             int depth = 1,
+             int attempts = 10);
+
+  // TODO: 3, etc.
+
+  // TODO: Improve the way we specify tuning parameters (they can
+  // be exposed but it should be easy to ignore them, especially
+  // their interaction with iters) and termination condition. The
+  // total actual calls to the function is a good one, but it's
+  // also common that we want to set a time bound. Requires changes
+  // internally.
 
 private:
   typedef double (*internal_func)(int N, const double* x,
@@ -75,6 +102,42 @@ Opt::Minimize(
   return {out, out_v};
 }
 
+std::pair<double, double>
+Opt::Minimize1D(const std::function<double(double)> &f,
+                double lower_bound,
+                double upper_bound,
+                int iters,
+                int depth,
+                int attempts) {
+  const auto [aarg, best] =
+    Minimize<1>([&f](const std::array<double, 1> &d) -> double {
+        return f(std::get<0>(d));
+      },
+    std::array<double, 1>{lower_bound},
+    std::array<double, 1>{upper_bound},
+    iters, depth, attempts);
+  return std::make_pair(std::get<0>(aarg), best);
+}
+
+std::pair<std::tuple<double, double>, double>
+Opt::Minimize2D(const std::function<double(double, double)> &f,
+                std::tuple<double, double> lower_bound,
+                std::tuple<double, double> upper_bound,
+                int iters,
+                int depth,
+                int attempts) {
+  const auto [aarg, best] =
+    Minimize<2>([&f](const std::array<double, 2> &d) -> double {
+        return f(std::get<0>(d), std::get<1>(d));
+      },
+    std::array<double, 2>{std::get<0>(lower_bound), std::get<1>(lower_bound)},
+    std::array<double, 2>{std::get<0>(upper_bound), std::get<1>(upper_bound)},
+    iters, depth, attempts);
+  return std::make_pair(
+      std::make_tuple(std::get<0>(aarg), std::get<1>(aarg)), best);
+}
+
+
 #if 0
 // TODO: Should be possible to make a templated version that takes
 // f(x, y, z, ...)! I can write down this function signature (see below)
@@ -100,7 +163,7 @@ MinimizeF(const std::function<double(Doubles...)> &f,
           int depth = 1,
           int attempts = 10);
 
-  
+
 template<class ...Doubles>
 // std::pair<std::tuple<Doubles...>, double>
 void
@@ -126,5 +189,5 @@ Opt::MinimizeF(const std::function<double(Doubles...)> &f,
   return {out, out_v};
 }
 #endif
-    
+
 #endif

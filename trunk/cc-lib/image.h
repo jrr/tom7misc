@@ -134,12 +134,19 @@ struct ImageA {
   ImageA &operator =(const ImageA &other) = default;
   ImageA &operator =(ImageA &&other) = default;
 
+  bool operator==(const ImageA &other) const;
+  std::size_t Hash() const;
+  
   int Width() const { return width; }
   int Height() const { return height; }
 
   ImageA *Copy() const;
+  // Scale by a positive integer factor, crisp pixels.
+  ImageA ScaleBy(int scale) const;
   // Generally appropriate for enlarging, not shrinking.
   ImageA ResizeBilinear(int new_width, int new_height) const;
+  // Nearest-neighbor; works "fine" for enlarging and shrinking.
+  ImageA ResizeNearest(int new_width, int new_height) const;
   // Make a four-channel image of the same size, R=v, G=v, B=v, A=0xFF.
   ImageRGBA GreyscaleRGBA() const;
   // Make a four-channel alpha mask of the same size, RGB=rgb, A=v
@@ -149,6 +156,8 @@ struct ImageA {
   void BlendText(int x, int y, uint8 v, const std::string &s);
 
   void Clear(uint8 value);
+
+  void BlendImage(int x, int y, const ImageA &other);
 
   // Clipped.
   inline void SetPixel(int x, int y, uint8 v);
@@ -204,6 +213,9 @@ struct ImageF {
   // corners (not their centers).
   // x/y out of bounds will repeat edge pixels.
   float SampleBilinear(float x, float y) const;
+  // Same but with an implied value (usually 0 or 1) outside the
+  // image.
+  float SampleBilinear(float x, float y, float outside_value) const;
 
 private:
   int width, height;
