@@ -470,8 +470,11 @@ void ImageRGBA::BlendImage(int x, int y, const ImageRGBA &other) {
   // compiler cannot.
   for (int yy = 0; yy < other.height; yy++) {
     int yyy = y + yy;
+    // Exit early if off-screen.
+    if (yyy >= height) break;
     for (int xx = 0; xx < other.width; xx++) {
       int xxx = x + xx;
+      if (xxx >= width) break;
       BlendPixel32(xxx, yyy, other.GetPixel32(xx, yy));
     }
   }
@@ -516,6 +519,42 @@ ImageA::ImageA(int width, int height) : width(width), height(height),
 
 ImageA *ImageA::Copy() const {
   return new ImageA(alpha, width, height);
+}
+
+bool ImageA::operator==(const ImageA &other) const {
+  return other.Width() == Width() &&
+    other.Height() == Height() &&
+    other.alpha == alpha;
+}
+
+std::size_t ImageA::Hash() const {
+  uint64_t h = width * 31337;
+  for (uint8 v : alpha) {
+    // PERF: Work on 64 bits at a time...
+    h = (h << 13) | (h >> (64 - 13));
+    h ^= v;
+    h *= 65537;
+  }
+  return (std::size_t)h;
+}
+
+ImageA ImageA::ScaleBy(int scale) const {
+  // 1 is not useful, but it does work
+  CHECK(scale >= 1);
+  ImageA ret(width * scale, height * scale);
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      const uint8 color = GetPixel(x, y);
+      for (int yy = 0; yy < scale; yy++) {
+        for (int xx = 0; xx < scale; xx++) {
+          ret.SetPixel(x * scale + xx,
+                       y * scale + yy,
+                       color);
+        }
+      }
+    }
+  }
+  return ret;
 }
 
 void ImageA::Clear(uint8 value) {
@@ -578,6 +617,22 @@ ImageA ImageA::ResizeBilinear(int nwidth, int nheight) const {
   return ret;
 }
 
+ImageA ImageA::ResizeNearest(int nwidth, int nheight) const {
+  ImageA ret{nwidth, nheight};
+  // XXX Sampling is probably a little off wrt width-1 stuff?
+  for (int y = 0; y < nheight; y++) {
+    const float fy = y / (float)(nheight - 1);
+    const int sy = std::roundf(fy * (height - 1));
+    for (int x = 0; x < nwidth; x++) {
+      const float fx = x / (float)(nwidth - 1);
+      const int sx = std::roundf(fx * (width - 1));
+
+      ret.SetPixel(x, y, GetPixel(sx, sy));
+    }
+  }
+  return ret;
+}
+
 void ImageA::BlendText(int x, int y, uint8 v, const string &s) {
   auto SetPixel = [this, v](int xx, int yy) {
       this->BlendPixel(xx, yy, v);
@@ -589,6 +644,21 @@ void ImageA::BlendText(int x, int y, uint8 v, const string &s) {
     int xx = x + i * EmbeddedFont::CHAR_WIDTH;
     if (xx >= width) return;
     EmbeddedFont::Blit(c, xx, y, SetPixel, [](int x, int y) {});
+  }
+}
+
+void ImageA::BlendImage(int x, int y, const ImageA &other) {
+  // PERF can factor out the pixel clipping here, supposing the
+  // compiler cannot.
+  for (int yy = 0; yy < other.Height(); yy++) {
+    int yyy = y + yy;
+    // Exit early if we're off-screen.
+    if (yyy >= height) break;
+    for (int xx = 0; xx < other.Width(); xx++) {
+      int xxx = x + xx;
+      if (xxx >= width) break;
+      BlendPixel(xxx, yyy, other.GetPixel(xx, yy));
+    }
   }
 }
 
@@ -646,7 +716,13 @@ void ImageF::Clear(float value) {
   for (int i = 0; i < (int)alpha.size(); i++) alpha[i] = value;
 }
 
-float ImageF::SampleBilinear(float x, float y) const {
+
+// Shared by multiple versions of SampleBilinear. clip_pixel
+// takes integer coordinates and returns the float value
+// at that coordinate, handling clipping.
+template<class ClipPixel>
+static inline float SampleBilinearInternal(const ClipPixel &clip_pixel,
+                                           float x, float y) {
   // Truncate to integer pixels.
   int ix = x;
   int iy = y;
@@ -664,25 +740,38 @@ float ImageF::SampleBilinear(float x, float y) const {
   //  v01 ----- v11
   //       1.0
 
-  auto BClipPixel = [this](int x, int y) -> float {
-      if (x < 0) x = 0;
-      if (y < 0) y = 0;
-      if (x >= width) x = width - 1;
-      if (y >= height) y = height - 1;
-      return GetPixel(x, y);
-    };
-
-  float v00 = BClipPixel(ix, iy);
-  float v10 = BClipPixel(ix + 1, iy);
-  float v01 = BClipPixel(ix, iy + 1);
-  float v11 = BClipPixel(ix + 1, iy + 1);
+  float v00 = clip_pixel(ix, iy);
+  float v10 = clip_pixel(ix + 1, iy);
+  float v01 = clip_pixel(ix, iy + 1);
+  float v11 = clip_pixel(ix + 1, iy + 1);
 
   // v0 interpolates between v00 and v10 at fx.
-  float v0 = (float)v00 + (float)(v10 - v00) * fx;
-  float v1 = (float)v01 + (float)(v11 - v01) * fx;
+  float v0 = v00 + (v10 - v00) * fx;
+  float v1 = v01 + (v11 - v01) * fx;
 
   float v = v0 + (v1 - v0) * fy;
   return v;
+}
+
+float ImageF::SampleBilinear(float x, float y) const {
+  return SampleBilinearInternal(
+      [this](int x, int y) -> float {
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+        if (x >= width) x = width - 1;
+        if (y >= height) y = height - 1;
+        return GetPixel(x, y);
+      }, x, y);
+}
+
+float ImageF::SampleBilinear(float x, float y, float outside_value) const {
+  return SampleBilinearInternal(
+      [this, outside_value](int x, int y) -> float {
+        if (x < 0 || y < 0 ||
+            x >= width || y >= height)
+          return outside_value;
+        return GetPixel(x, y);
+      }, x, y);
 }
 
 ImageF ImageF::ResizeBilinear(int nwidth, int nheight) const {
