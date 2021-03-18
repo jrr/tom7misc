@@ -28,23 +28,26 @@ modified them, like dr_wav.
 
 Some of the numerical routines in randutil are based on Numpy. If you
 believe that this is a "copy" or "substantial portion", then please
-abide by Numpy's permissive license; see NUMPY.LICENSE.
+abide by Numpy's permissive license. See NUMPY.LICENSE.
 
 The base64 code originally came from a public domain utility;
 I've only made light changes there, and let's call that public domain
 as well.
 
-The re2 subdirectory comes from Google and community contributors; see
+The re2 subdirectory comes from Google and community contributors. See
 re2/LICENSE for its permissive license.
 
 The guitar subdirectory is based on some MIT-licensed data so my
-contributions are as well; see guitar/LICENSE.txt.
+contributions are as well. See guitar/LICENSE.txt.
 
 The bignum subdirectory is based on BSD-licensed code; it and my
-C++ wrapper are available under that license; see bignum/LICENSE.
+C++ wrapper are available under that license. See bignum/LICENSE.
 
 The opt subdirectory is based on MIT-licensed code; it and my
-wrapper are available under that license; see opt/LICENSE.
+wrapper are available under that license. See opt/LICENSE.
+
+geom/marching.* is based on public domain rjm_mc; it and my wrapper
+are avaialble under that license. See geom/marching.cc.
 
 My own fresh code is licensed under the GPL, which can be found in
 COPYING.
@@ -106,3 +109,6 @@ bignum/       - Simple arbitrary-precision integers and rationals (BSD-like
                 license). Not as fast as GMP, but easier to compile!
 guitar/       - Guitar chord fingering database.
 opt/          - Black-box function optimization.
+geom/         - Utitlities for geometry and computer graphics. Right now,
+                just a public-domain licensed marching cubes algorithm
+                (C++ wrapper for rjm_mc).

@@ -134,7 +134,7 @@ struct ImageA {
   ImageA &operator =(const ImageA &other) = default;
   ImageA &operator =(ImageA &&other) = default;
 
-  bool operator==(const ImageA &other) const;
+  bool operator ==(const ImageA &other) const;
   std::size_t Hash() const;
   
   int Width() const { return width; }
