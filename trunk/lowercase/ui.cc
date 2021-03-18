@@ -63,6 +63,7 @@ enum class Mode {
   SCALETEST,
   LOOPTEST,
   BEZDIST,
+  ZOOM,
   DRAW,
 };
 
@@ -136,8 +137,14 @@ private:
   float value = 1.0;
 };
 
+struct HashImageA {
+  std::size_t operator()(const ImageA &img) const {
+    return img.Hash();
+  }
+};
+
 struct UI {
-  Mode mode = Mode::BEZDIST;
+  Mode mode = Mode::ZOOM;
   DrawMode draw_mode = DrawMode::DRAWING;
 
   std::shared_mutex dirty_m;
@@ -178,7 +185,8 @@ struct UI {
   void DrawSDF();
   void DrawDrawing();
   void DrawBez();
-
+  void DrawZoom();
+  
   void ClearDrawing();
 
   // Draw line into drawing. Coordinates are relative to drawing, but may
@@ -225,14 +233,22 @@ struct UI {
   float current_xscale = 1.0, current_yscale = 1.0;
   float current_xoff = 0.0, current_yoff = 0.0;
   TTF times{"times.ttf"};
-
+  TTF helvetica{"helvetica.ttf"};
+  
   int bez_startx = 800, bez_starty = 128;
   int bez_cx = SCREENW - 32, bez_cy = SCREENH / 2;
   int bez_endx = 10, bez_endy = 188;
   int bez_px = 100, bez_py = 100;
   // double bez_time = 0.0;
   // int bez_cpx = 0, bez_cpy = 0;
-
+  
+  ImageF zoom_sdf{SDF_CONFIG.sdf_size, SDF_CONFIG.sdf_size};
+  int64 zoom_iters = 0;
+  bool zoom_lower = true;
+  bool zoom_loop = false;
+  float zoom_gamma = 1.0f;
+  std::unordered_map<ImageA, int, HashImageA> zoom_seen;
+  
   vector<FontProblem::Point> looptest_expected;
   vector<FontProblem::Point> looptest_actual;
   std::optional<FontProblem::LoopAssignment> looptest_assignment;
@@ -786,44 +802,6 @@ void UI::FloodFill(int x, int y, Uint32 color) {
   result_cv.notify_all();
 }
 
-// Returns (x, y, dist).
-// PERF! There are definitely analytical solutions to this, and also
-// much faster ways to optimize (root of a third-degree polynomial).
-static std::tuple<float, float, float>
-DistanceFromPointToBezierSearch(
-    // The point to test
-    float px, float py,
-    // Bezier start point
-    float sx, float sy,
-    // Bezier ontrol point
-    float cx, float cy,
-    // Bezier end point
-    float ex, float ey) {
-
-  auto Bezier = [sx, sy, cx, cy, ex, ey](float t) ->
-    std::pair<float, float> {
-    float tt = t * t;
-    // Get point on curve at t:
-    float omt = 1.0 - t;
-    float omtt = omt * omt;
-    float bx = omtt * sx  +  2.0 * omt * t * cx  +  tt * ex;
-    float by = omtt * sy  +  2.0 * omt * t * cy  +  tt * ey;
-    return make_pair(bx, by);
-  };
-
-   auto [t, sqdist] =
-    Opt::Minimize1D([&Bezier, px, py](double t) {
-        const auto [bx, by] = Bezier(t);
-        const float dx = bx - px;
-        const float dy = by - py;
-        return (dx * dx) + (dy * dy);
-    }, 0.0, 1.0, 100);
-
-  const auto [bx, by] = Bezier(t);
-  return make_tuple(bx, by, sqrtf(sqdist));
-}
-
-
 
 void UI::Run() {
   std::thread result_thread([this]() { ResultThread(); });
@@ -1004,6 +982,28 @@ void UI::Loop() {
         if (event.key.keysym.sym != SDLK_ESCAPE)
           confirmations = 0;
 
+        if (mode == Mode::ZOOM) {
+          int sym = event.key.keysym.sym;
+          if (sym >= 'a' && sym <= 'z') {
+            // XXX allow shift for uppercase too
+            std::optional<ImageA> sdfo =
+              helvetica.GetSDF(sym, SDF_CONFIG.sdf_size,
+                               SDF_CONFIG.pad_top, SDF_CONFIG.pad_bot,
+                               SDF_CONFIG.pad_left,
+                               SDF_CONFIG.onedge_value,
+                               SDF_CONFIG.falloff_per_pixel);
+            if (sdfo.has_value()) {
+              zoom_iters = 0;
+              zoom_sdf = ImageF(*sdfo);
+              zoom_loop = false;
+              zoom_seen.clear();
+              zoom_seen[zoom_sdf.Make8Bit()];
+            }
+            break;
+          }
+          // otherwise, use handler below...
+        }
+        
         switch (event.key.keysym.sym) {
         case SDLK_ESCAPE:
           printf("ESCAPE.\n");
@@ -1079,6 +1079,9 @@ void UI::Loop() {
             mode = Mode::BEZDIST;
             break;
           case Mode::BEZDIST:
+            mode = Mode::ZOOM;
+            break;
+          case Mode::ZOOM:
             mode = Mode::DRAW;
             break;
           case Mode::DRAW:
@@ -1111,6 +1114,21 @@ void UI::Loop() {
 
           switch (mode) {
 
+          case Mode::ZOOM:
+            if (dy < 0) zoom_lower = false;
+            if (dy > 0) zoom_lower = true;
+            {
+              float fdx = dx;
+              if (event.key.keysym.mod & KMOD_SHIFT) {
+                fdx *= 10;
+              } else if (event.key.keysym.mod & KMOD_ALT) {
+                fdx *= 0.1f;
+              }
+
+              zoom_gamma += fdx * 0.001;
+            }
+            break;
+            
           case Mode::DRAW:
             // TODO: Shift bitmap around
             break;
@@ -1288,17 +1306,24 @@ void UI::Loop() {
       }
     }
 
-    if (IsDirty()) {
-      if (mode == Mode::DRAW) {
-        sdlutil::clearsurface(screen, 0xFF000033);
-      } else if (mode == Mode::BEZDIST) {
-        sdlutil::clearsurface(screen, 0xFF000000);
-      } else {
-        sdlutil::clearsurface(screen, 0xFFFFFFFF);
-      }
-      Draw();
+    if (mode == Mode::ZOOM) {
+      // zoom is constantly "dirty"
+      // avoid clearing for maximum speed
+      DrawZoom();
       SDL_Flip(screen);
-      SetDirty(false);
+    } else {
+      if (IsDirty()) {
+        if (mode == Mode::DRAW) {
+          sdlutil::clearsurface(screen, 0xFF000033);
+        } else if (mode == Mode::BEZDIST) {
+          sdlutil::clearsurface(screen, 0xFF000000);
+        } else {
+          sdlutil::clearsurface(screen, 0xFFFFFFFF);
+        }
+        Draw();
+        SDL_Flip(screen);
+        SetDirty(false);
+      }
     }
   }
 }
@@ -1704,6 +1729,81 @@ void UI::DrawDrawing() {
                     0xFF, 0x00, 0x00);
 }
 
+void UI::DrawZoom() {
+
+  constexpr int SCALE = 6;
+
+  // XXX keep seen ImageA and detect cycles
+  
+  array<float, 26> pred;
+  const Network *net =
+    zoom_lower ? make_lowercase.get() : make_uppercase.get();
+
+  std::tie(zoom_sdf, pred) =
+    FontProblem::RunSDFModelF(*net, SDF_CONFIG, zoom_sdf);
+
+  if (zoom_gamma != 1.0f) {
+    for (int y = 0; y < zoom_sdf.Height(); y++) {
+      for (int x = 0; x < zoom_sdf.Width(); x++) {
+        zoom_sdf.SetPixel(x, y, powf(zoom_sdf.GetPixel(x, y), zoom_gamma));
+      }
+    }
+  }
+  
+  zoom_iters++;
+
+  ImageA img8 = zoom_sdf.Make8Bit();
+
+  zoom_sdf = ImageF(img8);
+  
+  if (!zoom_loop) {
+    auto it = zoom_seen.find(img8);
+    if (it == zoom_seen.end()) {
+      zoom_seen[img8] = zoom_iters;
+    } else {
+      int prev_iter = it->second;
+      printf("Got loop at %d -> %d\n", zoom_iters, prev_iter);
+      zoom_loop = true;
+    }
+  }
+  
+  ImageRGBA thresh = FontProblem::ThresholdImageMulti(
+      zoom_sdf,
+      {{0.95f * (SDF_CONFIG.onedge_value/255.0f), 0x440000FF},
+       {SDF_CONFIG.onedge_value/255.0f, 0xFFFFFFFF}},
+      SDF_CONFIG.sdf_size * SCALE, SDF_CONFIG.sdf_size * SCALE,
+      2);
+  
+  // Draw to screen...
+  auto DrawPt = [](int xx, int yy, uint8 r, uint8 g, uint8 b) {
+      for (int dy = 0; dy < SCALE; dy++) {
+        for (int dx = 0; dx < SCALE; dx++) {
+          sdlutil::drawclippixel(screen, xx + dx, yy + dy, r, g, b);
+        }
+      }
+    };
+
+  const int SDFX = 600, SDFY = 300;
+  for (int y = 0; y < zoom_sdf.Height(); y++) {
+    for (int x = 0; x < zoom_sdf.Width(); x++) {
+      uint8 v = roundf(zoom_sdf.GetPixel(x, y) * 255);
+      DrawPt(SDFX + y * SCALE, SDFY + x * SCALE, v, v, v);
+    }
+  }
+
+  const int THRESHX = SDFX + SDF_CONFIG.sdf_size * SCALE + 4, THRESHY = 300;
+  BlitImage(thresh, THRESHX, THRESHY);
+  
+  const int CTRX = SDFX, CTRY = SDFY + SDF_CONFIG.sdf_size * SCALE + 4;
+  
+  sdlutil::FillRectRGB(screen, CTRX, CTRY, 140, font->height + 2,
+                       0, 0, 0);
+  font->draw(CTRX, CTRY, StringPrintf("[%.3f] %d %s",
+                                      zoom_gamma,
+                                      zoom_iters,
+                                      (zoom_loop ? "^2loop" : "")));
+}
+
 void UI::DrawBez() {
 
   Timer bez_timer;
@@ -1766,6 +1866,12 @@ void UI::Draw() {
     DrawBez();
     break;
 
+  case Mode::ZOOM:
+    // (actually we just call this directly from the ui loop
+    // to bypass 'dirty' stuff)
+    DrawZoom();
+    break;
+    
   case Mode::LOOPTEST: {
 
     // ^5 = green = expected
