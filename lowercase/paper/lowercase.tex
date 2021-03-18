@@ -261,6 +261,8 @@ the trained models.
 
 \section{1000001 Free Fonts}
 
+% no copyright intended
+
 Sprechen of Fonts, I downloaded every font I could find on the whole
 internet. This was overkill. The resulting directory tree contained
 over 100,000 files, many of which were duplicates. Exact duplicates
@@ -960,24 +962,52 @@ the region near the threshold, increasing the penalty (basically, the
 derivative) in that region and decreasing it elsewhere. Looking at the
 code again right now, I realize that I only applied this to the first
 row of the SDF (\verb+idx < SDF_SIZE+ instead of
-\verb+SDF_SIZE * SDF_SIZE+), so that was dumb. I will say in my
-defense that at least I felt disappointed that it didn't seem to make
-a difference!
-
+\verb+SDF_SIZE * SDF_SIZE+), so that was dumb AND MAKES ME {\bf
+  ANGRY}. I will say in my defense that at least I felt disappointed
+at the time that it didn't seem to make a difference!
 
 % you propagate my back, I'll propagate yours
 
-% no copyright intended
-
 \subsection{Upperercase and Lowerercase fonts} \label{sec:fonts}
 
-Let's make some fonts!
+Now that we have these expensive models, we can use them to make
+arbitrary letterforms uppercase or lowercase. The output is readily
+rasterized (using the standard thresholding approach for SDFs) but
+we'd actually like to have vector representations so that we can
+use them as TrueType fonts for our desktop publishing needs.
+
+\subsection{Tracing}
+Automatically tracing bitmaps into vector form is no doubt a solved
+problem, but I chose not to look at spoilers. Since we actually have a
+signed distance field, we can build a tracing routine directly off of
+that. The approach I took consists of three steps. First, I generate a
+bitmap of the SDF (at its native size) using the threshold. I separate
+the image into a nested tree of connected components in this pixel
+space; each component knows its single parent and whether it is
+``land'' (inside the shape) or ``sea''. Characters like \letterform{e}
+need internal cutouts, which are represented by a different winding
+order (clockwise or counter-clockwise) for the contour. Some of the
+tricky cases in computing this tree structure are given in f
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.9 \linewidth]{connected}
+  \caption{
+
+  } \label{fig:connected}
+  \end{figure}
 
 % autotracing in here, I think?
+
+% screenshot UI where I can draw letters and get live
+% predictions? Just for the video perhaps? I like the "cool s" joke?
+
 
 
 \section{Perfect letters, hallucinated} \label{sec:hallucination}
 
+Wow, this project is pretty involved, huh? Let's just add another
+dimension to it.
 
 lorem ipsum (Figure~\ref{fig:perfect})
 
@@ -1008,8 +1038,11 @@ dolor sit amet
 
 % cool s
 
+\section{To infinity, but let's stop there}
+
 % lowercase uppercase letters etc.
 % iterate this a lot of times?
+% "to infinity, but let's stop there"
 
 % run it to infinity to see the uppestcase, etc.
 % if these vanish, then we have a fixed point.
@@ -1017,6 +1050,11 @@ dolor sit amet
 % it's like a fractal zoomer, and we can set the
 % record on the "most uppercase letter" by running
 % a jazillion times.
+
+% lowestcase is just dust, not surprising
+% uppestcase is actually a fixed point (not FixedSys)
+% ... so it's like a 3D manifold
+
 
 \section{Acknowledgements}
 

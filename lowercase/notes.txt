@@ -556,3 +556,7 @@ when running these operations?)
 
 
 at round 1.927M, widened layer 3 again by 10%
+
+
+probably good way to generate mesh:
+https://github.com/rmitton/rjm/blob/master/rjm_mc.h
