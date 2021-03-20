@@ -217,7 +217,7 @@ int main(int argc, char **argv) {
     }
   }
   Timer sdf_timer;
-  ImageA bitmap_sdf = FontProblem::SDFFromBitmap(SDF_CONFIG, input);
+  ImageF bitmap_sdf(FontProblem::SDFFromBitmap(SDF_CONFIG, input));
 
   FontProblem::Image8x8 pix;
   for (int i = 0; i < 64; i++) {
@@ -238,7 +238,7 @@ int main(int argc, char **argv) {
          "Num edges: %d\n",
          pix.PixelsOn(),
          pix.Edges());
-  ImageA pixel_sdf = FontProblem::SDF36From8x8(pix);
+  ImageF pixel_sdf(FontProblem::SDF36From8x8Uppercase(pix));
 
   printf("Took %.3f sec\n", sdf_timer.MS() / 1000.0);
 
@@ -259,7 +259,7 @@ int main(int argc, char **argv) {
   FontProblem::Gen5Result gen5result =
     FontProblem::Gen5(SDF_CONFIG, *make_lowercase, *make_uppercase, vector_sdf);
 
-  const ImageF &trace_sdf = gen5result.low;
+  const ImageF &trace_sdf = bitmap_sdf; // gen5result.low;
 
   ImageRGBA islands;
   Timer vectorize_timer;
@@ -282,7 +282,7 @@ int main(int argc, char **argv) {
   font.baseline = FontProblem::TTFBaseline(SDF_CONFIG);
   font.chars = {{'e', ttf_char}};
 
-  Util::WriteFile("trace.sfd", font.ToSFD("Traced"));
+  Util::WriteFile("trace.sfd", font.ToSFD("Traced", "Fake"));
 #else
 
   TTF::Char ttf_char;

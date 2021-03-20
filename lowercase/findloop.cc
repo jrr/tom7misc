@@ -41,8 +41,7 @@ vector<bool> Threshold(const ImageF &a) {
   return ret;
 }
 
-  
-int main(int argc, char **argv) {
+static void FindOneLoop(bool lower, char ch) {
   TTF helvetica("helvetica.ttf");
 
   std::unique_ptr<Network> make_lowercase, make_uppercase;
@@ -52,8 +51,6 @@ int main(int argc, char **argv) {
   CHECK(make_lowercase.get() != nullptr);
   CHECK(make_uppercase.get() != nullptr);
 
-  const bool lower = false;
-
   // std::unordered_map<ImageA, int, HashImageA> seen;
   std::unordered_map<vector<bool>, int> seen;  
 
@@ -61,7 +58,7 @@ int main(int argc, char **argv) {
     lower ? make_lowercase.get() : make_uppercase.get();
 
   std::optional<ImageA> sdfo =
-    helvetica.GetSDF('q', SDF_CONFIG.sdf_size,
+    helvetica.GetSDF(ch, SDF_CONFIG.sdf_size,
                      SDF_CONFIG.pad_top, SDF_CONFIG.pad_bot,
                      SDF_CONFIG.pad_left,
                      SDF_CONFIG.onedge_value,
@@ -77,7 +74,7 @@ int main(int argc, char **argv) {
     sdf = FontProblem::RunSDFModelF(*net, SDF_CONFIG, sdf).first;
     iters++;
 
-    constexpr float SCALE = 1.5;
+    constexpr float SCALE = 2;
     vector<bool> bits =
       SCALE == 1 ? Threshold(sdf) :
       Threshold(sdf.ResizeBilinear(SDF_SIZE * SCALE,
@@ -89,7 +86,7 @@ int main(int argc, char **argv) {
     } else {
       printf("Got loop at %d -> %d\n", iters, prev);
       sdf.Make8Bit().GreyscaleRGBA().Save("loop.png");
-      return 0;
+      return;
     }
     if (iters % 10000 == 0) {
       double total_ms = timer.MS();
@@ -99,6 +96,101 @@ int main(int argc, char **argv) {
   }
   printf("Never found a loop!");
   sdf.Make8Bit().GreyscaleRGBA().Save("deeeep.png");
+  return;
+}
+
+static void FindAllLoops(bool lower) {
+  TTF helvetica("helvetica.ttf");
+  constexpr float SCALE = 2.0;
+  
+  std::unique_ptr<Network> make_lowercase, make_uppercase;
+  make_lowercase.reset(Network::ReadNetworkBinary("net0.val"));
+  make_uppercase.reset(Network::ReadNetworkBinary("net1.val"));
+
+  CHECK(make_lowercase.get() != nullptr);
+  CHECK(make_uppercase.get() != nullptr);
+
+  // std::unordered_map<ImageA, int, HashImageA> seen;
+  std::unordered_map<vector<bool>, std::vector<std::pair<int, char>>> seen;  
+
+  const Network *net =
+    lower ? make_lowercase.get() : make_uppercase.get();
+
+  const string src = lower ?
+    "abcdefghijklmnopqrstuvwxyz" :
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  Timer timer;
+  int64 all_iters = 0;
+  int64 max_depth = 0;
+  for (char ch : src) {
+    std::optional<ImageA> sdfo =
+      helvetica.GetSDF(ch, SDF_CONFIG.sdf_size,
+                       SDF_CONFIG.pad_top, SDF_CONFIG.pad_bot,
+                       SDF_CONFIG.pad_left,
+                       SDF_CONFIG.onedge_value,
+                       SDF_CONFIG.falloff_per_pixel);
+    CHECK(sdfo.has_value());
+    ImageF sdf(sdfo.value());
+
+    int64 iters = 0;
+    while (iters < 25000000) {
+      
+      vector<bool> bits =
+        SCALE == 1 ? Threshold(sdf) :
+        Threshold(sdf.ResizeBilinear(SDF_SIZE * SCALE,
+                                     SDF_SIZE * SCALE));
+    
+      std::vector<std::pair<int, char>> &prev = seen[bits];
+      if (prev.empty()) {
+        prev.emplace_back(iters, ch);
+      } else {
+        auto AddSelf = [&prev, iters, ch]() -> bool {
+            for (const auto [previ, prevc] : prev) {
+              if (prevc == ch) {
+                printf("[%c] full loop %d -> %d\n", ch, iters, previ);
+                return true;
+              }
+            }
+            prev.emplace_back(iters, ch);
+            return false;
+          };
+        
+        if (AddSelf()) {
+          max_depth = std::max(iters, max_depth);
+          break;
+        }
+      }
+      if (all_iters % 10000 == 0) {
+        double total_ms = timer.MS();
+        double ips = all_iters / (total_ms / 1000.0);
+        printf("[%c] %d iters %d total, %.2f iters/sec\n",
+               ch,
+               iters, all_iters, ips);
+      }
+
+      CHECK(sdf.Width() == SDF_CONFIG.sdf_size) << sdf.Width();
+      CHECK(sdf.Height() == SDF_CONFIG.sdf_size);      
+      sdf = FontProblem::RunSDFModelF(*net, SDF_CONFIG, sdf).first;
+      iters++;
+      all_iters++;
+    }
+
+    if (iters >= 25000000) {
+      printf("Never found a loop for %c!", ch);
+      sdf.Make8Bit().GreyscaleRGBA().Save("deeeep.png");
+      return;
+    }
+  }
+
+  printf("Found loops for all chars. max_depth: %lld\n",
+         max_depth);
+}
+
+
+int main(int argc, char **argv) {
+  FindOneLoop(true, 'e');
+  // FindAllLoops(false);
   return 0;
 }
 
