@@ -36,23 +36,10 @@ vector<bool> Threshold(const ImageF &a) {
   return ret;
 }
 
-// version in the paper, 3d printed
 constexpr float SCALE = 2.0;
 constexpr int CYCLE_START = 245;
 constexpr int CYCLE_END = 377;
 constexpr bool LOWER = false;
-constexpr char THE_CHAR = 'q';
-
-/*
-// Doesn't even work because the cycle is so short
-// (crashes in fact... XXX check what's up here)
-constexpr float SCALE = 2.0;
-constexpr int CYCLE_START = 5;
-constexpr int CYCLE_END = 6;
-constexpr bool LOWER = true;
-constexpr char THE_CHAR = 'e';
-*/
-
 
 /*
 constexpr float SCALE = 1.5;
@@ -69,53 +56,20 @@ constexpr bool LOWER = false;
 */
 
 int main(int argc, char **argv) {
+  Timer timer;
   TTF helvetica("helvetica.ttf");
 
-  std::unique_ptr<Network> make_lowercase, make_uppercase;
-  make_lowercase.reset(Network::ReadNetworkBinary("net0.val"));
-  make_uppercase.reset(Network::ReadNetworkBinary("net1.val"));
-
-  CHECK(make_lowercase.get() != nullptr);
-  CHECK(make_uppercase.get() != nullptr);
-
   vector<ImageF> cycle;
-
-  const Network *net =
-    LOWER ? make_lowercase.get() : make_uppercase.get();
-
-  Timer timer;  
-  {
+  string phrase = "LMNOP";
+  for (char ch : phrase) {
     std::optional<ImageA> sdfo =
-      helvetica.GetSDF(THE_CHAR, SDF_CONFIG.sdf_size,
+      helvetica.GetSDF(ch, SDF_CONFIG.sdf_size,
                        SDF_CONFIG.pad_top, SDF_CONFIG.pad_bot,
                        SDF_CONFIG.pad_left,
                        SDF_CONFIG.onedge_value,
                        SDF_CONFIG.falloff_per_pixel);
     CHECK(sdfo.has_value());
-    ImageF sdf(sdfo.value());
-
-    int64 iters = 0;
-    for (;;) {
-
-      sdf = FontProblem::RunSDFModelF(*net, SDF_CONFIG, sdf).first;
-      iters++;
-
-      if (iters == CYCLE_END) {
-        // could check that this was indeed a loop...
-        CHECK(!cycle.empty());
-        vector<bool> start =
-          Threshold(cycle[0].ResizeBilinear(SDF_SIZE * SCALE,
-                                            SDF_SIZE * SCALE));
-        vector<bool> loop =
-          Threshold(sdf.ResizeBilinear(SDF_SIZE * SCALE,
-                                       SDF_SIZE * SCALE));
-
-        CHECK(start == loop) << "Wasn't a loop as promised. Use findloop.exe";
-        break;
-      } else if (iters >= CYCLE_START) {
-        cycle.push_back(sdf);
-      }
-    }
+    cycle.emplace_back(sdfo.value());
   }
 
   constexpr int RENDER_SCALE = 2;
@@ -173,8 +127,7 @@ int main(int argc, char **argv) {
     */
   }
 
-  string filename = StringPrintf("cycle-x%.1f-%d-%d.png",
-                                 SCALE, CYCLE_START, CYCLE_END);
+  string filename = "phrase.png";
   out.Save(filename);
   printf("Saved %s\n", filename.c_str());
   
@@ -244,7 +197,7 @@ int main(int argc, char **argv) {
                   a1, a1, b1, b1, c1, c1);
   }
 
-  Util::WriteFile("loop.obj", obj);
+  Util::WriteFile("phrase.obj", obj);
   
   printf("Triangulated in %.2fs\n"
          "Mesh size %d verts, %d tris\n",
