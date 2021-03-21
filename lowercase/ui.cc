@@ -186,6 +186,8 @@ struct UI {
   void DrawDrawing();
   void DrawBez();
   void DrawZoom();
+
+  void ZoomNext();
   
   void ClearDrawing();
 
@@ -247,6 +249,8 @@ struct UI {
   bool zoom_lower = true;
   bool zoom_loop = false;
   float zoom_gamma = 1.0f;
+  int zoom_delay = 0;
+  int zoom_delay_frames = 0;
   std::unordered_map<ImageA, int, HashImageA> zoom_seen;
   
   vector<FontProblem::Point> looptest_expected;
@@ -1193,6 +1197,7 @@ void UI::Loop() {
         case SDLK_PERIOD:
           draw_points = !draw_points;
           SetDirty();
+        
           break;
 
         case SDLK_2:
@@ -1213,14 +1218,25 @@ void UI::Loop() {
 
         case SDLK_PLUS:
         case SDLK_EQUALS:
-          current_scale += 5;
-          SetDirty();
+          if (mode == Mode::ZOOM) {
+            zoom_delay++;
+            zoom_delay_frames = zoom_delay;
+          } else {
+            current_scale += 5;
+            SetDirty();
+          }
           break;
 
         case SDLK_MINUS:
-          if (current_scale > 15)
-            current_scale -= 5;
-          SetDirty();
+          if (mode == Mode::ZOOM) {
+            zoom_delay--;
+            if (zoom_delay < 0) zoom_delay = 0;
+            zoom_delay_frames = zoom_delay;            
+          } else {
+            if (current_scale > 15)
+              current_scale -= 5;
+            SetDirty();
+          }
           break;
 
         case SDLK_c: {
@@ -1729,12 +1745,8 @@ void UI::DrawDrawing() {
                     0xFF, 0x00, 0x00);
 }
 
-void UI::DrawZoom() {
+void UI::ZoomNext() {
 
-  constexpr int SCALE = 6;
-
-  // XXX keep seen ImageA and detect cycles
-  
   array<float, 26> pred;
   const Network *net =
     zoom_lower ? make_lowercase.get() : make_uppercase.get();
@@ -1742,6 +1754,7 @@ void UI::DrawZoom() {
   std::tie(zoom_sdf, pred) =
     FontProblem::RunSDFModelF(*net, SDF_CONFIG, zoom_sdf);
 
+  // Could run gamma outside the loop?
   if (zoom_gamma != 1.0f) {
     for (int y = 0; y < zoom_sdf.Height(); y++) {
       for (int x = 0; x < zoom_sdf.Width(); x++) {
@@ -1749,13 +1762,12 @@ void UI::DrawZoom() {
       }
     }
   }
-  
-  zoom_iters++;
 
-  ImageA img8 = zoom_sdf.Make8Bit();
-
-  zoom_sdf = ImageF(img8);
-  
+  #if 0
+  // ImageA img8 = zoom_sdf.Make8Bit();
+  // zoom_sdf = ImageF(img8);
+  // keep seen ImageA and detect cycles.
+  // but findloop is better for this.
   if (!zoom_loop) {
     auto it = zoom_seen.find(img8);
     if (it == zoom_seen.end()) {
@@ -1766,6 +1778,24 @@ void UI::DrawZoom() {
       zoom_loop = true;
     }
   }
+  #endif
+}
+
+void UI::DrawZoom() {
+
+  constexpr int SCALE = 6;
+  
+  zoom_iters++;
+
+  if (zoom_delay_frames > 0) {
+    zoom_delay_frames--;
+  } else {
+    zoom_delay_frames = zoom_delay;
+    ZoomNext();
+  }
+
+  // We could avoid recomputing some of this stuff if
+  // we didn't make a new SDF...
   
   ImageRGBA thresh = FontProblem::ThresholdImageMulti(
       zoom_sdf,
@@ -1798,10 +1828,11 @@ void UI::DrawZoom() {
   
   sdlutil::FillRectRGB(screen, CTRX, CTRY, 140, font->height + 2,
                        0, 0, 0);
-  font->draw(CTRX, CTRY, StringPrintf("[%.3f] %d %s",
+  font->draw(CTRX, CTRY, StringPrintf("[%.3f] %d %s %d/%d",
                                       zoom_gamma,
                                       zoom_iters,
-                                      (zoom_loop ? "^2loop" : "")));
+                                      (zoom_loop ? "^2loop" : ""),
+                                      zoom_delay_frames, zoom_delay));
 }
 
 void UI::DrawBez() {

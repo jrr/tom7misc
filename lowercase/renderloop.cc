@@ -36,12 +36,23 @@ vector<bool> Threshold(const ImageF &a) {
   return ret;
 }
 
+/*
 // version in the paper, 3d printed
 constexpr float SCALE = 2.0;
 constexpr int CYCLE_START = 245;
 constexpr int CYCLE_END = 377;
 constexpr bool LOWER = false;
+constexpr bool IS_CYCLE = true;
 constexpr char THE_CHAR = 'q';
+*/
+
+constexpr float SCALE = 2.0;
+constexpr int CYCLE_START = 0;
+constexpr int CYCLE_END = 32;
+constexpr bool LOWER = true;
+constexpr bool IS_CYCLE = false;
+constexpr char THE_CHAR = 'o';
+
 
 /*
 // Doesn't even work because the cycle is so short
@@ -97,28 +108,30 @@ int main(int argc, char **argv) {
     int64 iters = 0;
     for (;;) {
 
-      sdf = FontProblem::RunSDFModelF(*net, SDF_CONFIG, sdf).first;
-      iters++;
-
       if (iters == CYCLE_END) {
         // could check that this was indeed a loop...
         CHECK(!cycle.empty());
-        vector<bool> start =
-          Threshold(cycle[0].ResizeBilinear(SDF_SIZE * SCALE,
-                                            SDF_SIZE * SCALE));
-        vector<bool> loop =
-          Threshold(sdf.ResizeBilinear(SDF_SIZE * SCALE,
-                                       SDF_SIZE * SCALE));
-
-        CHECK(start == loop) << "Wasn't a loop as promised. Use findloop.exe";
+        if (IS_CYCLE) {
+          vector<bool> start =
+            Threshold(cycle[0].ResizeBilinear(SDF_SIZE * SCALE,
+                                              SDF_SIZE * SCALE));
+          vector<bool> loop =
+            Threshold(sdf.ResizeBilinear(SDF_SIZE * SCALE,
+                                         SDF_SIZE * SCALE));
+          
+          CHECK(start == loop) << "Wasn't a loop as promised. Use findloop.exe";
+        }
         break;
       } else if (iters >= CYCLE_START) {
         cycle.push_back(sdf);
       }
+
+      sdf = FontProblem::RunSDFModelF(*net, SDF_CONFIG, sdf).first;
+      iters++;
     }
   }
 
-  constexpr int RENDER_SCALE = 2;
+  constexpr int RENDER_SCALE = 4;
   constexpr int TILE = (SDF_SIZE * RENDER_SCALE) + 1;
   constexpr int MAX_WIDTH = 1920 / TILE; // XXX slop
   
@@ -138,12 +151,14 @@ int main(int argc, char **argv) {
   printf("%d width. %d / %d = %d\n", width, num, width, num / width);
   
   constexpr int QUALITY = 6;
-  const int TILESW = width;
+  const int TILESW = 1; // width;
   const int TILESH =
     ((num % TILESW) == 0) ? (num / TILESW) : (num / TILESW) + 1;
   printf("tiles: %d x %d\n", TILESW, TILESH);
-  ImageRGBA out(TILE * TILESW, TILE * TILESH);
-  out.Clear32(0x000033FF);
+  ImageRGBA thresh_out(TILE * TILESW, TILE * TILESH);
+  ImageRGBA sdf_out(TILE * TILESW, TILE * TILESH);  
+  thresh_out.Clear32(0x000055FF);
+  sdf_out.Clear32(0x000000FF);
   for (int i = 0; i < cycle.size(); i++) {
     CHECK(i >= 0 && i < cycle.size());
     const ImageF &sdf = cycle[i];
@@ -166,17 +181,28 @@ int main(int argc, char **argv) {
                     SDF_SIZE * (RENDER_SCALE - 1),
                     0x003300FF);
     */
-    out.BlendImage(x * TILE, y * TILE, tile);
+    thresh_out.BlendImage(x * TILE, y * TILE, tile);
+    sdf_out.BlendImage(x * TILE, y * TILE,
+                       sdf.Make8Bit().
+                       ScaleBy(RENDER_SCALE).
+                       GreyscaleRGBA());
     /*
     out.BlendText32(x * TILE, y * TILE, 0xFF0000FF,
                     StringPrintf("%d,%d=%d", x, y, i));
     */
   }
 
-  string filename = StringPrintf("cycle-x%.1f-%d-%d.png",
-                                 SCALE, CYCLE_START, CYCLE_END);
-  out.Save(filename);
-  printf("Saved %s\n", filename.c_str());
+  string filename_bits = StringPrintf("%c-x%.1f-%d-%d",
+                                      (LOWER ? 'l' : 'u'),
+                                      SCALE, CYCLE_START, CYCLE_END);
+  
+  string thresh_filename = StringPrintf("cycle-%s.png", filename_bits.c_str());
+  string sdf_filename = StringPrintf("cycle-%s-sdf.png",
+                                     filename_bits.c_str());
+  
+  thresh_out.Save(thresh_filename);
+  sdf_out.Save(sdf_filename);
+  printf("Saved %s, %s\n", thresh_filename.c_str(), sdf_filename.c_str());
   
   // Now generate a triangulated mesh.
   // The input to the marching cubes algorithm is a 3D SDF, which we

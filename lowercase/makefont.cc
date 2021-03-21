@@ -256,7 +256,7 @@ static void GenerateOne(const Network &make_lowercase,
               FontProblem::TTFBaseline(SDF_CONFIG);
             return make_pair(op.output_char, blank_char);
           }
-       }, 13);
+       }, 16);
 
   TTF::Font font;
   font.baseline = FontProblem::TTFBaseline(SDF_CONFIG);
