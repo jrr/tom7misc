@@ -20,7 +20,7 @@ using int64 = int64_t;
 static void Gen(const FontProblem::SDFConfig &config,
                 const Network &make_lowercase,
                 const Network &make_uppercase,
-                const ImageA &sdf,
+                const ImageF &sdf,
                 const string &filename) {
   const int SCALE = 5;
   const int QUALITY = 4;
@@ -30,7 +30,7 @@ static void Gen(const FontProblem::SDFConfig &config,
   islands = islands.ScaleBy(4);
 
   FontProblem::Gen5Result gen5result =
-    FontProblem::Gen5(config, make_lowercase, make_uppercase, sdf);
+    FontProblem::Gen5(config, make_lowercase, make_uppercase, sdf.Make8Bit());
 
   FontProblem::Gen5ImagesResult result =
     FontProblem::Gen5Images(gen5result, SCALE, QUALITY);
@@ -156,7 +156,7 @@ int main(int argc, char **argv) {
     }
   }
   Timer sdf_timer;
-  ImageA bitmap_sdf = FontProblem::SDFFromBitmap(config, input);
+  ImageF bitmap_sdf(FontProblem::SDFFromBitmap(config, input));
   printf("Took %.3f sec\n", sdf_timer.MS() / 1000.0);
 
   FontProblem::Image8x8 pix;
@@ -178,12 +178,12 @@ int main(int argc, char **argv) {
          "Num edges: %d\n",
          pix.PixelsOn(),
          pix.Edges());
-  ImageA pixel_sdf = FontProblem::SDF36From8x8(pix);
+  ImageF pixel_sdf(FontProblem::SDF36From8x8Uppercase(pix));
 
-  // XXX put these back
-  // Gen(config, *make_lowercase, *make_uppercase, vector_sdf, "vector-sdf.png");
+  Gen(config, *make_lowercase, *make_uppercase,
+      ImageF(vector_sdf), "vector-sdf.png");
   Gen(config, *make_lowercase, *make_uppercase, bitmap_sdf, "bitmap-sdf.png");
-  // Gen(config, *make_lowercase, *make_uppercase, pixel_sdf, "pixel-sdf.png");
+  Gen(config, *make_lowercase, *make_uppercase, pixel_sdf, "pixel-sdf.png");
 
   return 0;
 }
