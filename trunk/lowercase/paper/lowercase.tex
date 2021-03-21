@@ -20,6 +20,7 @@
 \usepackage{chessboard}
 % \usepackage{chessfs}
 % \usepackage{adjustbox}
+\usepackage{supertabular}
 
 \usepackage[most]{tcolorbox}
 
@@ -100,26 +101,25 @@ over other grammatical Categories like Verbs and Adjectives. Lowercase
 letters can be used to conserve printer ink. Actually, I'm not sure that
 lowercase letters have any other uses, but let's just roll with it.
 
-The thing is: What if I'm even MORE ANGRY THAN I WAS BEFORE? There are
-some standard sorts of typographic emphasis, like I can be {\bf BOLD
-  ANGRY} or \textbf{\textit{\large BIG BOLD ITALIC UNDERLINE ANGRY}}
-or { \Large \textbf{\textit{\uuline{COMBINE A LOT OF THESE ANGERS}}}},
-each with its own nuances, depending on the cascading style sheet or
-LaTeX class file. To be even more casual than lowercase, u can learn 2
-write like this, and {\scriptsize shrink away} and also \sout{cross
-  out ur words in shame in advance of them even being read}, but there
-are few other options for de-emphasis. Plus, when I'm FEELING PRETTY
-ANGRY, TOM, how do I capitalize that already-capitalized T in order to
-show the proper reverence for your humanity?
+There's nothing wrong with this (despite the classical advice to use
+shift to {\em reduce} conflict~\cite{aho1986compilers}). But the thing is:
+What if I'm even MORE ANGRY THAN I WAS BEFORE? There are some standard
+sorts of typographic emphasis, like I can be {\bf BOLD ANGRY} or
+\textbf{\textit{\large BIG BOLD ITALIC UNDERLINE ANGRY}} or { \Large
+  \textbf{\textit{\uuline{COMBINE A LOT OF THESE ANGERS}}}}, each with
+its own nuances, depending on the cascading style sheet or LaTeX class
+file. To be even more casual than lowercase, u can learn 2 write like
+this, and {\scriptsize shrink away} and also \sout{cross out ur words
+  in shame in advance of them even being read}, but there are few
+other options for de-emphasis. Plus, when I'm FEELING PRETTY ANGRY,
+TOM, how do I capitalize that already-capitalized T in order to show
+the proper reverence for your humanity?
 
 This paper is about unshackling this dimension of human expression by
 introducing letterforms further along the uppercase and lowercase
 dimensions. Basically, we want to know what the upper{\it er}case
 version of uppercase T is, and a lower{\it er}case version of
 lowercase t is.
-
-% shift-reduce conflict
-% Shift is often used to increase conflict, not reduce it
 
 \subsection{Induction}
 
@@ -129,9 +129,16 @@ O(52 pick up), which for a guy who likes drawing letters anyway and
 who alphabetized Star~Wars for fun, is not much to ask. In fact I
 drew such alphabets in Figure~\ref{fig:manual} just now.
 
-\begin{figure}[ht]
-% \includegraphics[width=0.9 \linewidth]{manual}
-\caption{TODO} \label{fig:manual}
+\begin{figure}[hb]
+\centering
+\includegraphics[width=0.9 \linewidth]{extracase}
+\caption{%
+  Probably someone already had this idea and did it before I was
+  even born, thus taking the fun out of it for the rest of us, but
+  here's a hand-made alphabet with ``upperercase'' and ``lowerercase''
+  letters. You can download this TrueType font from \url{tom7.org/lowercase}.
+  %
+} \label{fig:manual}
 \end{figure}
 
 But, why do easy fun things by hand when you can build a complicated
@@ -231,6 +238,7 @@ simultaneously do the symmetric thing, using the output of
 
 
 \begin{figure}[ht]
+\centering
 \includegraphics[width=0.9 \linewidth]{training}
 \caption{ Simultaneously training the two models. This example
   illustrates how a pair of letterforms \letterform{A} and
@@ -892,7 +900,7 @@ crunches for a month.
 \end{figure}
 
 
-\begin{figure}[ht]
+\begin{figure}[ht!b]
 \centering
   \includegraphics[width=0.99 \linewidth]{lastlayer}
   \caption{ The bottom-right corner of the weight matrix for the final
@@ -978,7 +986,7 @@ row of the SDF (\verb+idx < SDF_SIZE+ instead of
 \verb+SDF_SIZE * SDF_SIZE+), so that was dumb AND MAKES ME {\bf
   ANGRY}. I will say in my defense that at least I felt disappointed
 at the time that it didn't seem to make a difference! (The dark
-wizard of superstitious fiddling nods sagely.
+wizard of superstitious fiddling nods sagely.)
 
 % you propagate my back, I'll propagate yours
 
@@ -1104,7 +1112,18 @@ font), run the \makeuppercase\ or \makelowercase\ model(s) on it,
 maybe multiple times, and trace the resulting SDF into a vector form
 that can be used in a font. I did this on the canonical sans serif
 font Helvetica~\cite{helvetica} and serif font Times New
-Roman~\cite{timesnewroman}.
+Roman~\cite{timesnewroman}. Each font is produced by a symmetric
+process; for example, to make a font ``more lowercase,'' I take the
+input font's lowercase alphabet and run \makelowercase\ on it (this
+becomes the output font's lowercase letters), and then run
+\makeuppercase\ on {\em those} to produce the output font's uppercase
+letters. These letters are usually recognizable as the ``normal''
+lowercase letters even though they've been through both neural
+networks. Before tracing, I do some automatic gamma adjustment of the
+SDFs (e.g.~at least 5\% of the pixels should be above the threshold),
+as the unadjusted letters seemed a bit too light. These fonts can
+also be downloaded from \url{http://tom7.org/lowercase/} for your
+corporate PowerPoint needs.
 
 Helvetica means ``of Hell'', so making the font more uppercase give us
 {\bf Heavenica} (Figure~\ref{fig:heavenica}), since Heaven is ``up''
@@ -1116,9 +1135,9 @@ from Hell. What's lower than Hell? Spezial Hell,\footnote{
 }
 %
 as in ``There's a Spezial Hell for the scalpers and cryptocurrency
-environmental terrorists stockpiling GeForce 3000 series cards so that
+environmental terrorists stockpiling GeForce 3000 series GPUs so that
 I can {\em not} just get {\em one} darn card at a reasonable price for
-my silly SIGBOVIK experiments.'' So the extra-lowercase version of
+my important SIGBOVIK experiments.'' So the extra-lowercase version of
 Helvetica is {\bf Spezial Hellvetica} (also Figure~\ref{fig:heavenica}).
 
 Times New Roman refers to the multiplication operator in algebra,
@@ -1159,8 +1178,8 @@ It's pretty much what you'd expect.
 The UI also tells you how much your input resembles the various
 existing letters \letterform{A}--\letterform{Z} and
 \letterform{a}--\letterform{z} using the 26 bonus outputs that each
-model predicts. For example, I learned that the ``Cool
-S''~\cite{wikipediacools}:
+model predicts. For example, I learned that the
+``Cool~S''~\cite{wikipediacools}:
 
 \begin{center}
 \includegraphics[width=0.1 \linewidth]{cools}
@@ -1175,7 +1194,7 @@ and ask them. The first thing I tried was to just generate random
 shapes and optimize their parameters to produce the highest possible
 prediction for the target letter, and the lowest possible prediction
 for the rest. This preduced results that are fully bonkers
-(Figure~\ref{fig:bonkersf}). 
+(Figure~\ref{fig:bonkersf}).
 
 We can improve the results by searching for inputs with a ``perfect''
 prediction (1.0) rather than making it as high as possible. These
@@ -1187,19 +1206,18 @@ hallucinated inputs to discourage them from being so barmy. I
 generated $8 \times 8$ bitmaps, plenty of pixels to make readable
 letters on classic computers. Rather than allowing them to be
 arbitrarily noisy, I also weakly optimized for (1) the number of
-pixels set being close to half (2) minimal transitions between
-on and off along each row and column. This produced shapes that
-are basically letter-like, but weird (Figure~\ref{fig:perfect}).
+pixels set being close to half and (2) minimal transitions between on
+and off along each row and column. This produced shapes that are
+basically letter-like, but weird (Figure~\ref{fig:perfect}).
 
 \begin{figure}[tp]
 \centering
   \includegraphics[width=0.9 \linewidth]{bonkersf}
 \caption{ A randomly generated SDF (left) and its rasterization
   (right) which maximized the predicted score for \letterform{F}
-  (1.893 out of a nominal 1.0) while 
-  scoring all other letters low. Parts are recognizable as an
-  \letterform{F}, but other parts are fully bonkers. This is actually
-  one of the least weird ones.
+  (1.893 out of a nominal 1.0) while scoring all other letters low.
+  Parts are recognizable as an \letterform{F}, but other parts are
+  fully bonkers. This is actually one of the least weird ones.
 } \label{fig:bonkersf}
 \end{figure}
 
@@ -1245,18 +1263,18 @@ result from each legal move, and interprets it as an $8 \times 8$
 bitmap. It renders that bitmap as an SDF and then runs the
 \makelowercase\ model on it, and chooses the move that minimizes
 the difference between its letter predictions and the
-$[0, 0, \ldots 1, \ldots 0]$ vector corresponding to the letter
+$[0, 0, \ldots 1, \ldots 0]$ vector selecting the letter
 we are ``playing as.'' \deterministic \asymmetric
 
-After tens of thousands of games each, it is clear that the letter-based
-players are all bad at chess. Letters \letterform{E} and
+After tens of thousands of games each, it is clear that the
+letter-based players are all bad at chess. Letters \letterform{E} and
 \letterform{S} perform the worst (agreed on \letterform{S} being the
 worst, thank you very much!), even worse than the ``No, I insist!''
-strategy that tries to force its opponent to capture its pieces.
-Letters \letterform{K} and \letterform{T} (eponymous! yeah!) perform
-the best, but still worse than random. The numeric players like $\pi$
-and $e$ are categorically better than the alphabetical ones, but this
-is not surprising because chess is more of a mathematical game than a
+strategy that tries to force its opponent to capture its pieces. The
+letter \letterform{T} (eponymous! yeah!) performs best, but still
+worse than random. The numeric players like $\pi$ and $e$ are
+categorically better than the alphabetical ones, but this is not
+surprising because chess is more of a mathematical game than a
 linguistic one (Figure~\ref{fig:chess}).
 
 \begin{figure}[tp]
@@ -1278,12 +1296,35 @@ linguistic one (Figure~\ref{fig:chess}).
 \end{figure}
 
 % figure? drop it?
+
+The abbreviated tournament results:
 {
-  \tiny
-\begin{tabular}{lrrrr}
-name & elo & win & loss & draw \\
-\hline  
+\scriptsize
+\begin{center}
+
+\tablefirsthead{%
+  {\bf name} & {\bf elo} & {\bf wins} & {\bf losses} & {\bf draws}   \\  
+  \hline
+  }
+\tablehead{%
+  \ldots & {\bf elo} & {\bf wins} & {\bf losses} & {\bf draws}   \\    
+  \hline
+}
+\tabletail{%
+  \multicolumn{5}{c}{\ldots} \\
+  % \hline
+}
+\tablelasttail{%
+  % nothing
+}
+% \begin{tabular}{lrrrr}
+\begin{supertabular}{lrrrr}
+% name & elo & wins & losses & draws \\
+% \hline  
 worstfish & 395.95 & 10 & 44406 & 18584 \\
+\ldots \\
+letter e &  602.27 &  1717 & 22566 & 38717 \\
+letter s &  602.92 &  1310 & 22020 & 39670 \\
 no i insist & 605.47 & 0 & 20405 & 42595 \\
 letter f & 605.60 & 1341 & 21653 & 40006 \\
 letter y & 606.00 & 1347 & 21688 & 39965 \\
@@ -1316,7 +1357,9 @@ random move & 655.90 & 7267 & 20983 & 34750 \\
 chessmaster.nes lv1 & 1014.74 & 37302 & 13992 & 11706 \\
 \ldots \\
 stockfish1m & 2831.66 & 60167 & 493 & 2340 \\
-\end{tabular}
+\end{supertabular}
+% \end{tabular}
+\end{center}
 }
 
 % CAPS LOCK, LOCK, CAPTAIN'S LOCK
@@ -1331,20 +1374,22 @@ Ha! At least I am not wasting my time {\it reading} SIGBOVIK papers or
 talking to strangers on the street! and run off. Although the main
 purpose of SIGBOVIK is to confound bibliometrics with ambiguously
 good-faith and high-quality research published in a clearly satirical
-but superfically decorous venue of a traditionally esteemed university,
-it is also possible for such work to have practical applications in
-arts and spycraft. You simply need to give it some thought.
+but superfically decorous venue associated with a traditionally
+esteemed university, it is also possible for such work to have
+practical applications in arts and spycraft. You simply need to give
+it some thought.
 
 For example, it is well known to {\sf internet troIIs} and {\sf DOMAlN
   NAME PHlSHERS} that the uppercase \letterform{i} and loweracse
 \letterform{L} are indistinguishable in many fonts, allowing for
 various Tomfoolery.\footnote{I actually wrote ``troiis'' and ``domaln
   name phlshers'', hehe!} This can also be used for
-steganography---hiding messages inside text---by replacing letters
-with their alternates. Each replacement only encodes one bit of
-information, however. With the generic ability to uppercase and
-lowercase letterforms, we can exploit this ambiguity to generate
-a large variety of letterforms that can be used like this.
+steganography---hiding messages inside text without the use of em
+dashes---by selectively replacing letters with their alternates. Each
+replacement only encodes one bit of information, however. With the
+generic ability to uppercase and lowercase letterforms, we can exploit
+this ambiguity to generate a large variety of letterforms that can be
+used like this.
 
 For example, the following sequence of distinct letters are hard to
 distinguish from one another and could all be used in place of a
@@ -1370,24 +1415,8 @@ $\downarrow\uparrow \uparrow \downarrow\uparrow \downarrow \letterform{l}$,
 $\downarrow\uparrow \uparrow \uparrow \downarrow\downarrow \letterform{l}$,
 $\uparrow \downarrow\downarrow\uparrow \uparrow \downarrow \letterform{l}$.
 
-In this way we can encode much longer bit strings in a single
-character, even thousands of iterations deep if there is a reasonable
-balance of uppercasing and lowercasing operations. (Too many in a row
-will get us stuck; see Section~\ref{sec:lowestcase}.) Not all
-sequences lead to a shape like this (commonly they resemble
-\letterform{i} or \letterform{L} when starting from \letterform{l}),
-but we can easily create a codebook of ones that do. Maybe I have even
-hidden an intricate message in this paper for you to discover? (I
-didn't.)
-
-
-% taller:
+% letters in figure:
 % adlnotwERTUZ
-% 
-% shorter:
-% ceikmqrsyHQSWXY
-% 
-% Other applications: Steganography with llIIllIl
 
 % a:
 % b: l
@@ -1442,6 +1471,16 @@ didn't.)
 % Y: ullull
 % Z: ulluul
 
+In this way we can encode much longer bit strings in a single
+character, even thousands of iterations deep if there is a reasonable
+balance of uppercasing and lowercasing operations. (Too many in a row
+will get us stuck; see Section~\ref{sec:lowestcase}.) Not all
+sequences lead to a shape like this (commonly they resemble
+\letterform{i} or \letterform{L} when starting from \letterform{l}),
+but we can easily create a codebook of ones that do. Maybe I have even
+hidden an intricate message in this paper for you to discover? (I
+didn't.)
+
 \section{To infinity, but let's stop there} \label{sec:lowestcase}
 
 Wow, this project is pretty involved, huh? Let's just add another
@@ -1453,7 +1492,7 @@ model again, and get an even lowererercase letter. The process can be
 repeated indefinitely. As it turns out, lowercasing tends to make
 letters smaller and smaller (makes sense) and they eventually just
 turn to dust (Figure~\ref{fig:lowestcaseo}) and stay that way (makes
-sense; ``dust to dust'').
+sense; ``dust to dust''~\cite{commonprayerburial}). 
 
 It's possible to make the results a bit more interesting by injecting
 additional energy after each iteration, either by adjusting the gamma
@@ -1462,9 +1501,33 @@ though. I think it is right to conclude that the lowestcase versions
 of letters are canonically specks of dust.
 
 On the other hand, repeatedly uppercasing produces more interesting
-results. Uppercasing usually increases the scale of a letter, but
-this effect is limited by the finiteness of the SDF and the fact
-that XXX
+results. Uppercasing usually increases the scale of a letter, but this
+effect is limited by the finiteness of the SDF and the fact that the
+outer edges are very unlikely to have high values. Moreover, although
+uppercase letters are large, they also have a lot of internal space.
+So iterations do not simply grow in size or fill the space, but
+repeatedly grow and deteriorate like an organism in the Game of
+Life~\cite{games1970fantastic}. Animating the SDF under iterations of
+the model is reminiscent of a flickering candle, recalling another
+well-known approach to increasing the emphasis of text,
+\url{flamingtext.com}. Is this eternal flame itself the uppestcase
+letter? Alas, such an effect is not possible in print (paper is too
+flammable).
+
+Iterating the \makeuppercase\ model with 32-bit floats does not form
+any cycles in 25,000,000 iterations, nor does it if the intermediates
+are quantized to 8-bit ints. This is curious because under visual
+observation the sequence does appear periodic, and in fact seems to be
+the same characteristic loop reached by all letters. Presumably there
+are some oscillations with long, relatively prime periods or even some
+pixels that are monotonically growing or shrinking, but very slowly.
+However, if I render the SDF as a 1-bit bitmap at $2\times$ scale, I
+get a perfect cycle of 132 frames, which appears to be two passes
+through the main characteristic loop, but slightly different each
+time. This is not a strange property for a letter to have; for example
+a typical \letterform{B} has two copies of the same basic idea in it.
+
+.... XXX more here ...
 
 \begin{figure}[t]
 \centering
@@ -1513,9 +1576,16 @@ that XXX
 
 % bristol stool chart
 
+\section{Conclusion}
+... XXX ...
+This fixed point
+suggests that the lowestcase letter is already on your keyboard,
+but it is not a point, it is just \letterform{:}.
 
-\section{Acknowledgements}
+\paragraph{Futura Work}
+I think I pretty much beat this one to death, honestly.
 
+\paragraph{Acknowledgements}
 For this project I used \verb+stb_truetype.h+ from the excellent stb
 collection of single-file libraries~\cite{stb}. I did push its limits
 somewhat and ``automatically discovered'' assertion failures and other
