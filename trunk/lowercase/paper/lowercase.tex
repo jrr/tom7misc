@@ -46,12 +46,16 @@
 \usepackage{atbegshi}% http://ctan.org/pkg/atbegshi
 \AtBeginDocument{\AtBeginShipoutNext{\AtBeginShipoutDiscard}}
 
+\newcommand\upsigbovik{
+  \includegraphics[height=1em]{upsigbovik}
+}
+
 \begin{document}
 
 \title{Lowestcase and Uppestcase letters: Advances in Derp Learning}
 \author{Dr.~Tom~Murphy~VII~Ph.D.}\thanks{
 Copyright \copyright\ 2021 the Regents of the Wikiplia Foundation.
-Appears in SIGBOVIK~2021 with the
+Appears in \upsigbovik~2021 with the
 OS2TypoLinegap of the Association for Computational Heresy; {\em IEEEEEE!}
 press, Verlag-Verlag volume no.~0x40-2A. 1 em}
 
@@ -90,7 +94,7 @@ VERSIONS (e.g.~signifying ANGER) and lowercase versions
 for example, it is polite to start a person's name with a capital
 letter to show that you took the time to regard their humanity (as it
 takes extra work to press the caps lock key, press the first letter of
-their name, and then press ther caps lock key again to turn it off).
+their name, and then press the caps lock key again to turn it off).
 In German, Nouns start with uppercase Letters, signifying Superiority
 over other grammatical Categories like Verbs and Adjectives. Lowercase
 letters can be used to conserve printer ink. Actually, I'm not sure that
@@ -115,6 +119,7 @@ version of uppercase T is, and a lower{\it er}case version of
 lowercase t is.
 
 % shift-reduce conflict
+% Shift is often used to increase conflict, not reduce it
 
 \subsection{Induction}
 
@@ -161,7 +166,7 @@ let's just roll with it!
 We want to machine-learn~\cite{neuralnetwork} two functions,
 \makelowercase\ and \makeuppercase. Each takes a letterform and
 returns a letterform (we can choose how these are represented) and
-does the needful, e.g. \makelowercase(\letterform{A}) should return
+does the needful, e.g.~\makelowercase(\letterform{A}) should return
 \letterform{a}. In order to learn this function, we'll at least need a
 lot of examples to use as training data. A training example for
 \makelowercase\ is a letterform and its expected corresponding
@@ -276,7 +281,7 @@ remove files that were essentially duplicates even if they weren't
 exactly the same bytes.
 
 Next, my lord, do people have bad taste! And I say this as someone who
-made dozens of amateurish fonts\cite{dbzfonts} as a high school and
+made dozens of amateurish fonts~\cite{dbzfonts} as a high school and
 college student and who is contributing several new questionable
 fonts\label{sec:newfonts} as a result of this paper. The database is
 just filled with garbage that is unusable for this project: Fonts that
@@ -288,20 +293,20 @@ everything is fine except that just the lowercase r has a width of
 (Figure~\ref{fig:sortition}) for efficiently and mind-numbingly
 cleaning up the database by marking fonts as broken or suitable (and
 also categorizing them as serif, sans-serif, decorative, techno, etc.,
-which I never used). In doing this I noticed another extremely common
-problem, which was that many fonts had the same letter shapes for
-uppercase and lowercase letters. This would not do for the current
-application!
+which classifications I never used). In doing this I noticed another
+extremely common problem, which was that many fonts had the same
+letter shapes for uppercase and lowercase letters. This would not do
+for the current application!
 
-\begin{figure*}[ht]
+\begin{figure}[tp]
 \centering
-  \includegraphics[width=0.9 \linewidth]{sortition}
+  \includegraphics[width=0.98 \linewidth]{sortition}
 \caption{ The interactive font data-cleaning UI. A seemingly endless
   series of fonts presents, with single keypresses putting the fonts
   into common categories such as (b)roken.
   % XXX maybe write more?
 } \label{fig:sortition}
-\end{figure*}
+\end{figure}
 
 But why manually mark fonts with nearly the same upper- and
 lowercase letters, when you could build a complicated automatic
@@ -322,18 +327,19 @@ permanent rotation: Black-box function optimizers.
 \paragraph{Black-box optimization.} If you have a function and want
 to find arguments that minimize its output, the most efficient
 techniques are generally those like gradient descent. (In fact, the
-backpropagation algorithm we use to training the neural network in
+backpropagation algorithm we use to train the neural network in
 Section~\ref{sec:neural} is gradient descent on the function that
 takes the model weights and produces an error value for each output
 node.) The problem with this is that you need to do some math to
-compute the gradient function, and anyway you need to deal with fiddly
-bits (Section~\ref{sec:fiddly}) unless the function is convex and
-smooth, which it will not be. If you don't want to deal with that,
-and have a fast computer (and who doesn't?), black-box optimization
-algorithms are worth considering. Here, the interface\footnote{
-  Here a simplfied wrapper around BiteOpt~\cite{biteopt} in my {\tt cc-lib}
-  library. See \url{https://sourceforge.net/p/tom7misc/svn/HEAD/tree/trunk/cc-lib/opt/}.}
-  is just something like (C++):
+compute the derivative of the function, and anyway you need to deal
+with fiddly bits (Section~\ref{sec:fiddly}) unless the function is
+convex and smooth, which it will not be. If you don't want to deal
+with that, and have a fast computer (and who doesn't?), black-box
+optimization algorithms are worth considering. Here, the
+interface\footnote{ Here a simplfied wrapper around
+  BiteOpt~\cite{biteopt} in my {\tt cc-lib} library. See
+  \url{https://sourceforge.net/p/tom7misc/svn/HEAD/tree/trunk/cc-lib/opt/}.}
+is just something like (C++):
 
 \begin{verbatim}
   double Minimize1D(
@@ -352,7 +358,7 @@ optimizers produce excellent results! The chief selling point for me
 is that I don't need to think about anything except for writing the
 function that I want minimized, which I just express in normal code.
 
-\begin{figure}[ht]
+\begin{figure}[tp]
 \centering
   \includegraphics[width=0.9 \linewidth]{casealignment}
 \caption{ Example alignment to reject the font {\tt
@@ -361,7 +367,7 @@ function that I want minimized, which I just express in normal code.
   their alignment ($35\%$ difference) below. At right, the transform
   found by the black-box optimizer and the resulting alignment with
   $1.7\%$ difference. Note that the shapes are still not an exact
-  match (probably errors introduced in the font export process, which
+  match (probably noise introduced in the font export process, which
   has to round the data to integers and might apply other non-linear
   transformations like curve simplification), but these are clearly
   not a useful pair for the current
@@ -407,7 +413,7 @@ network will take a fixed number of inputs to a fixed number of
 outputs, so a simple approach is to decide on some maximum number
 control points per letter, and only try training on fonts whose
 letterforms fit within that budget. Letterforms can be made of
-multiple contours (e.g. a stacked \letterform{g} typically has two
+multiple contours (e.g.~a stacked \letterform{g} typically has two
 holes in it, and \letterform{j} has two disjoint parts). I found that
 most clean fonts had three or fewer contours, and when sorting them by
 descending length, basically all of them fit within 100, 25, and 16
@@ -451,7 +457,7 @@ and also 26 individual predictors for each of the 26 letters. So a
 training example is actually like \letterform{C} $\rightarrow$
 \letterform{c} $[0, 0, 1, 0, 0, \ldots, 0]$, with the 1 in the third
 place because C is the third letter. We don't need these outputs for
-the problem itself (e.g. to lowercase new letter shapes), but there
+the problem itself (e.g.~to lowercase new letter shapes), but there
 are several ideas behind this. First, the lowercasing function we're
 trying to learn does depend on the letter of the alphabet being
 lowercased (in an extreme case, consider the lowercase-L
@@ -497,7 +503,7 @@ overnight become a sea of \inf{}s and \nan{}s.''
   \letterform{e} also has two pieces as expected but is otherwise
   garbage. The model is unsure whether the second input is an H
   or a K, and has predicted a shape sort of ambiguously between those
-  two. The \lowercase{z} is also an embarrassment.
+  two. The \letterform{z} is also an embarrassment.
 } \label{fig:trainingvector}
 \end{figure}
 
@@ -513,7 +519,7 @@ of the shapes it generates are along the right lines. ({\em Along the
 because I expected it to not really work. Still, it ``has output'' and
 so it can be used to generate a font. I made every glyph in Comic Sans
 MS~\cite{comicsans} lowercase using the model (with the exception of the
-\letterform{\%} character, which has too many contours---{\it five}!).
+\letterform{{\sf \%}} character, which has too many contours---{\it five}!).
 Mostly this model produces small, non-confident scrawls, like little
 grains of sand, so this font is called {\bf Comic Sands}
 (Figure~\ref{fig:comicsands}). The TrueType version can be downloaded
@@ -535,7 +541,7 @@ needs.\footnote{Font downloads are available at
   At the bottom are the illegible pangrams
   ``Dr.~Jock, TV Quiz Ph.D., bags few lynx''
   and ``Sphinx of black quartz, judge my vow!'' Although the output
-  barely resembles letters, it does have a certain dynamic
+  barely resembles letters, it does have a certain wispy
   Rorschach aesthetic, like a collection of delicate moths pinned
   to paperboard, that one could consider framing or publishing in
   the proceedings of SIGBOVIK 2021. It is certainly an improvement on
@@ -566,15 +572,16 @@ simpler shapes. These effects alone could be responsible for the
 improved performance of this second try.
 
 I also output each contour's points in a normalized order, starting
-from the point closest to the origin. This removes one needless
-degree of freedom.\footnote{We can see how this manifests in
-  the biases on the output layer, which are a proxy for the
-  ``average prediction''. In the first model, because of the
-  unstructured order, these are mostly near 0.5 (center of the
-  character) or 0.0 (degenerate, unused contours). In this new model,
-  the distribution of biases is much more flat; it can learn that
-  ``the first point tends to be near 0.25,0.25'' and ``the seventh
-  point tends to be near 0.64,0.3.''}
+from the point closest to the origin. This removes one needless degree
+of freedom.\footnote{We can see (well, it's not pictured since I have
+  far exceeded a reasonable number of figures in this paper, but {\em
+    I} can see) how this manifests in the biases on the output layer,
+  which are a proxy for the ``average prediction''. In the first
+  model, because of the unstructured order, these are mostly near 0.5
+  (center of the character) or 0.0 (degenerate, unused contours). In
+  this new model, the distribution of biases is much more flat; it can
+  learn that ``the first point tends to be near 0.25,0.25'' and ``the
+  seventh point tends to be near 0.64,0.3.''}
 
 Aside from the changes in the input (now 254 nodes) and output (280),
 this second version has three sparse hidden layers of size 508, 508,
@@ -667,7 +674,7 @@ which comes from computer graphics, called Signed Distance Fields
 (SDFs)~\cite{green2007improved}. In a standard rasterization of a
 font, each pixel of a bitmap contains 1 or 0, or perhaps an
 anti-aliased value in-between. In an SDF, the bitmap instead contains
-the distance to the nearest edge, and is signed (e.g. values inside
+the distance to the nearest edge, and is signed (e.g.~values inside
 the shape are $> 0$, value outside are $< 0$). Actually in
 practice we offset and saturate the values so that they are all in
 $[0,1]$ (or bytes in $[0,255]$), with some nonzero ``on-edge value''
@@ -689,7 +696,7 @@ surprisingly well (Figure~\ref{fig:sdf}).
   bilinear sampling. Finally, that image thresholded to
   produce a $180 \times 180$ pixel rasterization, which is
   far superior despite being derived from a $36 \times 36$ pixel
-  bitmap. Typically this process is performed at an even higher
+  image. Typically this process is performed at an even higher
   scale and then downsampled to produce an anti-aliased image.
 } \label{fig:sdf}
 \end{figure}
@@ -712,10 +719,10 @@ font's contours can exceed its bounds, and this is completely normal
 for a letter like \letterform{j} (which goes below the baseline and
 often hangs to the left of the origin as well). I used an ``on-edge
 value'' of 0.862 (because much more of the SDF is outside the letter
-than inside) and the distance is scaled as 0.059 units per pixel (so
-that pixels on the outer edge often have non-zero values). Compared to
-the first version, I was somewhat more permissive in what fonts I
-trained on, since there was no inherent limit to the number of
+than inside) and the distance is scaled as 0.059 units per pixel
+(chosen so that pixels on the outer edge often have non-zero values).
+Compared to the first version, I was somewhat more permissive in what
+fonts I trained on, since there was no inherent limit to the number of
 contours or their complexity. I did exclude fonts whose rasterizations
 exceeded the bounds of the SDF, which is possible (very wide
 \letterform{W} or low-descending \letterform{j} perhaps) but rare.
@@ -747,7 +754,7 @@ fit easily in GPU memory, with plenty of space for a stream of
 training data (one training instance is only about 10kb). The only
 challenging thing is arranging for them to feed each other generated
 ``inversion'' examples (Figure~\ref{fig:cotraining}), but this is just
-a matter of programming, thank God. I should remember to do projects
+a matter of programming, thank god. I should remember to do projects
 that are mostly a matter of programming. Each round, $25\%$ of the
 batch consists of inverted examples from the symmetric model's output
 from a recent round. Training happens asynchronously, but I make sure
@@ -873,7 +880,7 @@ crunches for a month.
   more reliable. There are some other visible peaks, which occur when
   I do things like remove nodes with very low weights or which are
   almost never activated (Section~\ref{sec:fiddly}). These momentarily
-  increase error but it is easily fine-tuned away (e.g. by learning
+  increase error but it is easily fine-tuned away (e.g.~by learning
   new biases). The peak at around 1.4M rounds is when I added a new
   layer to the end of the model, which does seem to create a new
   training regime (clear downward slope now); but this also
@@ -927,9 +934,9 @@ mentioning:
 
 Making the GPU code faster has really high value (could save weeks of
 waiting). Since I am using OpenCL (whoa, yeah, stop me right there, I
-know) I found a good trick was to generate different OpenCL code with
+know) I found a good technique was to generate different OpenCL code with
 constants baked for each layer (for example their size and
-\verb+indices_per_node+); this allows the cmopiler to use faster
+\verb+indices_per_node+); this allows the compiler to use faster
 tricks in inner loops for e.g.~multiplication by a compile-time constant
 instead of depending on an argument or data. I have different routines
 for sparse and dense layers. It might even make sense to recompile the
@@ -970,9 +977,14 @@ code again right now, I realize that I only applied this to the first
 row of the SDF (\verb+idx < SDF_SIZE+ instead of
 \verb+SDF_SIZE * SDF_SIZE+), so that was dumb AND MAKES ME {\bf
   ANGRY}. I will say in my defense that at least I felt disappointed
-at the time that it didn't seem to make a difference!
+at the time that it didn't seem to make a difference! (The dark
+wizard of superstitious fiddling nods sagely.
 
 % you propagate my back, I'll propagate yours
+
+Ultimately, each of the two models was trained for over 2 million
+rounds, which corresponds to 510 million training examples. Each
+model is about 24 megabytes.
 
 \subsection{Upperercase and Lowerercase fonts} \label{sec:fonts}
 
@@ -1000,14 +1012,14 @@ on the edge, and then walk around that edge clockwise (simple case
 analysis on the three pixels ahead of me). As I walk the edge, I look
 at the normal (orthographic as we are doing orthography) of the edge
 and see where it reaches the edge value on the SDF; this point (a
-float) is output into the contour. I'm guaranteed to get back to where
-I started. I recurse by negating the SDF (outside becomes inside) and
-bitmap (land becomes sea), and reverse the winding order of the result
-of recursion.
+float) is output into the contour. The process is guaranteed to return
+to where we started. I recurse by negating the SDF (outside
+becomes inside) and bitmap (land becomes sea), and reverse the winding
+order of the result of recursion.
 
 This gives me a perfectly fine line-based outline of the SDF's shape.
 Since I output points at every pixel, sometimes these points are
-inefficient (i.e. a series of colinear points on a straight line),
+inefficient (e.g.~a series of colinear points on a straight line),
 and sometimes they reflect sharp corners that are not aesthetic. So
 I then take a second pass at each contour, and try fitting B\'ezier
 curves to sequences of points while the error remains low. Again I
@@ -1047,19 +1059,102 @@ child~\cite{glassner1990graphics}.
 \end{figure}
 
 
+\begin{figure*}[tp]
+\centering
+\includegraphics[width=0.9 \linewidth]{heavenica} \\[0.5in]
+\includegraphics[width=0.9 \linewidth]{spezialhellvetica} \\
+\caption{
+  Type specimens for the generated font {\bf Heavenica} (top)
+  and {\bf Spezial Hellvetica} (bottom). The uppercase letters
+  in Heavenica are \makeuppercase\ applied to uppercase letters
+  from Helvetica, and the lowercase are \makelowercase\ applied
+  to those. These lower-upperercase letters resemble regular
+  uppercase letters, as they should; this gives you some idea
+  of the quality of the model. Spezial Hellvetica is the
+  symmetric thing (its lowercase letters are \makelowercase\ 
+  of Helvetica's lowercase). The sample text in this latter
+  case is ``Quartz jock vends BMW glyph fix. Twelve ziggurats
+  quickly jumped a finch box.''
+} \label{fig:heavenica}
+\end{figure*}
 
+\begin{figure*}[tp]
+\centering
+\includegraphics[width=0.9 \linewidth]{expnewroman} \\[0.5in]
+\includegraphics[width=0.9 \linewidth]{plusnewroman} \\
+\caption{
+  Type specimens for the generated font {\bf Exponential New Roman} (top)
+  and {\bf Plus New Roman} (bottom). These were produced with
+  the same procedure as in Figure~\ref{fig:heavenica}, but starting
+  with Times New Roman. The letterforms are clearly different, so
+  it's not as though the models are (just) memorizing a shape for
+  each letter. Notably, smudgy serifs reappear when the upperercase letters
+  are re-lowercased, as desired.
+  Sample text here is ``Amazingly few discotheques provide jukeboxes.
+  Those that don't MAKE ME QUITE ANGRY.'' and 
+  ``By Jove, my quirky study of lexicography won a prize! (the prize
+  was a crappy font)''
+} \label{fig:roman}
+\end{figure*}
+
+
+\medskip
+Now we're all set up to take an input shape (e.g.~from an existing
+font), run the \makeuppercase\ or \makelowercase\ model(s) on it,
+maybe multiple times, and trace the resulting SDF into a vector form
+that can be used in a font. I did this on the canonical sans serif
+font Helvetica~\cite{helvetica} and serif font Times New
+Roman~\cite{timesnewroman}.
+
+Helvetica means ``of Hell'', so making the font more uppercase give us
+{\bf Heavenica} (Figure~\ref{fig:heavenica}), since Heaven is ``up''
+from Hell. What's lower than Hell? Spezial Hell,\footnote{
+  I first learned about Spezial Hell from a Rugen Br\"au beer that I
+  drank in the Alps in Grindelwald, Switzerland ({\it la
+    Conf\'ed\'eration H\'elvetique}).
+  % Conf\oe{}deratio Helvetica
+}
+%
+as in ``There's a Spezial Hell for the scalpers and cryptocurrency
+environmental terrorists stockpiling GeForce 3000 series cards so that
+I can {\em not} just get {\em one} darn card at a reasonable price for
+my silly SIGBOVIK experiments.'' So the extra-lowercase version of
+Helvetica is {\bf Spezial Hellvetica} (also Figure~\ref{fig:heavenica}).
+
+Times New Roman refers to the multiplication operator in algebra,
+which has a natural uppercase in exponentiation. Thus the uppercase
+version of Times New Roman is {\bf Exponential New Roman}. Computing
+Tetration New Roman or $\uparrow\uparrow\uparrow\uparrow$ New
+Roman~\cite{knuth1976coping} is straightforward, but extremely
+punctilious SIGBOVIK page limits preclude showing them here. Of course
+the lowercase version is {\bf Plus New Roman} (and similarly implies
+Successor New Roman). Both fonts are shown in Figure~\ref{fig:roman}.
+
+The vector-based {\bf Futurda} font (Figure~\ref{fig:futurda}) is in
+some ways more readable than these, but for the sake of comparison,
+note that these fonts are actually doing something more interesting,
+as they are built with both the \makeuppercase\ and
+\makelowercase\ models. Futurda's \letterform{A}--\letterform{Z} are
+just the lowercase of existing uppercase letters, which already has a
+correct solution and which a ML model can simply learn through
+memorization. In contrast, none of the letterforms in Heavenica can
+come through memorization of a training example (at worst, memorizing
+an inversion example generated by the other model after {\em it}
+memorized something). Subjectively, the fonts are not very readable
+and only slightly interesting, but the two models did demonstrate a
+reasonable ability to invert one another's behavior.
 
 \section{Perfect letters, hallucinated} \label{sec:hallucination}
 
+Oh, you don't like letters that look {\em bad}? Instead you want
+letters that look {\em good}? How about {\em best}?
 
-All right, but why stop there?? 
-
-... the fonts in the previous section were created by modifying the
-case of existing letterforms, with mixed success. We can also do this
-to any letter-like shape. I built a UI for drawing letters and seeing
+The fonts in the previous section were created by modifying the case
+of existing letterforms, with mixed success. We can also do this to
+any letter-like shape. I built a UI for drawing letters and seeing
 them uppercased and lowercased (and then re-lowercased and
-re-uppercased) live, but it's impossible to demonstrate in paper
-form. It's pretty much what you'd expect. 
+re-uppercased) live, but it's impossible to demonstrate in paper form.
+It's pretty much what you'd expect.
 
 The UI also tells you how much your input resembles the various
 existing letters \letterform{A}--\letterform{Z} and
@@ -1153,14 +1248,15 @@ the difference between its letter predictions and the
 $[0, 0, \ldots 1, \ldots 0]$ vector corresponding to the letter
 we are ``playing as.'' \deterministic \asymmetric
 
-The players all perform fairly badly. Letters \letterform{E} and
-\letterform{S} are the worst (agreed on \letterform{S} being the worst,
-thank you very much!), even worse than the ``No, I insist!'' strategy
-that tries to force its opponent to capture its pieces. Letters
-\letterform{K} and \letterform{T} (eponymous! yeah!) perform the best,
-but still worse than random. The numeric players like $\pi$ and $e$
-are categorically better than the alphabetical ones, but this is not
-surprising because chess is more of a mathematical game than a
+After tens of thousands of games each, it is clear that the letter-based
+players are all bad at chess. Letters \letterform{E} and
+\letterform{S} perform the worst (agreed on \letterform{S} being the
+worst, thank you very much!), even worse than the ``No, I insist!''
+strategy that tries to force its opponent to capture its pieces.
+Letters \letterform{K} and \letterform{T} (eponymous! yeah!) perform
+the best, but still worse than random. The numeric players like $\pi$
+and $e$ are categorically better than the alphabetical ones, but this
+is not surprising because chess is more of a mathematical game than a
 linguistic one (Figure~\ref{fig:chess}).
 
 \begin{figure}[tp]
@@ -1186,6 +1282,8 @@ linguistic one (Figure~\ref{fig:chess}).
   \tiny
 \begin{tabular}{lrrrr}
 name & elo & win & loss & draw \\
+\hline  
+worstfish & 395.95 & 10 & 44406 & 18584 \\
 no i insist & 605.47 & 0 & 20405 & 42595 \\
 letter f & 605.60 & 1341 & 21653 & 40006 \\
 letter y & 606.00 & 1347 & 21688 & 39965 \\
@@ -1216,7 +1314,7 @@ letter t & 623.30 & 2237 & 20271 & 40492 \\
 random move & 655.90 & 7267 & 20983 & 34750 \\
 \ldots \\
 chessmaster.nes lv1 & 1014.74 & 37302 & 13992 & 11706 \\
-\ldots
+\ldots \\
 stockfish1m & 2831.66 & 60167 & 493 & 2340 \\
 \end{tabular}
 }
@@ -1225,10 +1323,165 @@ stockfish1m & 2831.66 & 60167 & 493 & 2340 \\
 
 % when two letters coincide, a shift-reduce conflict
 
-\section{To infinity, but let's stop there}
+\section{Other Applications}
+
+People often stop me on the street to ask, Tom, Why did you spend so
+much time and energy on this useless SIGBOVIK project? To which I say,
+Ha! At least I am not wasting my time {\it reading} SIGBOVIK papers or
+talking to strangers on the street! and run off. Although the main
+purpose of SIGBOVIK is to confound bibliometrics with ambiguously
+good-faith and high-quality research published in a clearly satirical
+but superfically decorous venue of a traditionally esteemed university,
+it is also possible for such work to have practical applications in
+arts and spycraft. You simply need to give it some thought.
+
+For example, it is well known to {\sf internet troIIs} and {\sf DOMAlN
+  NAME PHlSHERS} that the uppercase \letterform{i} and loweracse
+\letterform{L} are indistinguishable in many fonts, allowing for
+various Tomfoolery.\footnote{I actually wrote ``troiis'' and ``domaln
+  name phlshers'', hehe!} This can also be used for
+steganography---hiding messages inside text---by replacing letters
+with their alternates. Each replacement only encodes one bit of
+information, however. With the generic ability to uppercase and
+lowercase letterforms, we can exploit this ambiguity to generate
+a large variety of letterforms that can be used like this.
+
+For example, the following sequence of distinct letters are hard to
+distinguish from one another and could all be used in place of a
+lowercase \letterform{L} or uppercase \letterform{i}:
+
+\begin{center}
+\includegraphics[width=0.25 \textwidth]{stegtaller}
+\end{center}
+
+The letterforms are generated by repeated application of the
+\makeuppercase\ ($\uparrow$) and \makelowercase\ ($\downarrow$)
+networks to the lowercase \letterform{l} from Helvetica. They
+are, from left to right: $\letterform{l}$,
+$\uparrow \downarrow \letterform{l}$,
+$\downarrow\uparrow \uparrow \downarrow \letterform{l}$,
+$\uparrow \downarrow\uparrow \downarrow \letterform{l}$,
+$\uparrow \uparrow \downarrow\downarrow \letterform{l}$,
+$\downarrow\downarrow\uparrow \uparrow \downarrow \letterform{l}$,
+$\downarrow\uparrow \uparrow \downarrow\downarrow \letterform{l}$,
+$\uparrow \uparrow \uparrow \downarrow\downarrow \letterform{l}$,
+$\downarrow\uparrow \downarrow\uparrow \uparrow \downarrow \letterform{l}$,
+$\downarrow\uparrow \uparrow \downarrow\uparrow \downarrow \letterform{l}$,
+$\downarrow\uparrow \uparrow \uparrow \downarrow\downarrow \letterform{l}$,
+$\uparrow \downarrow\downarrow\uparrow \uparrow \downarrow \letterform{l}$.
+
+In this way we can encode much longer bit strings in a single
+character, even thousands of iterations deep if there is a reasonable
+balance of uppercasing and lowercasing operations. (Too many in a row
+will get us stuck; see Section~\ref{sec:lowestcase}.) Not all
+sequences lead to a shape like this (commonly they resemble
+\letterform{i} or \letterform{L} when starting from \letterform{l}),
+but we can easily create a codebook of ones that do. Maybe I have even
+hidden an intricate message in this paper for you to discover? (I
+didn't.)
+
+
+% taller:
+% adlnotwERTUZ
+% 
+% shorter:
+% ceikmqrsyHQSWXY
+% 
+% Other applications: Steganography with llIIllIl
+
+% a:
+% b: l
+% c: ll
+% d: ul
+% e: lll
+% f: lul
+% g: ull
+% h: uul
+% i: llll
+% j: llul
+% k: lull
+% l: luul
+% m: ulll
+% n: ulul
+% o: uull
+% p: uuul
+% q: lllll
+% r: lllul
+% s: llull
+% t: lluul
+% u: lulll
+% v: lulul
+% w: luull
+% x: luuul
+% y: ullll
+% z: ullul
+% A: ulull
+% B: uluul
+% C: uulll
+% D: uulul
+% E: uuull
+% F: uuuul
+% G: llllll
+% H: llllul
+% I: lllull
+% J: llluul
+% K: llulll
+% L: llulul
+% M: lluull
+% N: lluuul
+% O: lullll
+% P: lullul
+% Q: lulull
+% R: luluul
+% S: luulll
+% T: luulul
+% U: luuull
+% V: luuuul
+% W: ulllll
+% X: ulllul
+% Y: ullull
+% Z: ulluul
+
+\section{To infinity, but let's stop there} \label{sec:lowestcase}
 
 Wow, this project is pretty involved, huh? Let's just add another
-dimension to it.
+dimension to it!
+
+We looked at what we get when we run \makelowercase\ on an existing
+lowercase letter, making it lowerercase. Of course, we can run the
+model again, and get an even lowererercase letter. The process can be
+repeated indefinitely. As it turns out, lowercasing tends to make
+letters smaller and smaller (makes sense) and they eventually just
+turn to dust (Figure~\ref{fig:lowestcaseo}) and stay that way (makes
+sense; ``dust to dust'').
+
+It's possible to make the results a bit more interesting by injecting
+additional energy after each iteration, either by adjusting the gamma
+or ``zooming'' into the active area. This seems pretty arbitrary,
+though. I think it is right to conclude that the lowestcase versions
+of letters are canonically specks of dust.
+
+On the other hand, repeatedly uppercasing produces more interesting
+results. Uppercasing usually increases the scale of a letter, but
+this effect is limited by the finiteness of the SDF and the fact
+that XXX
+
+\begin{figure}[t]
+\centering
+  \includegraphics[width=0.80 \linewidth]{lowestcaseo}
+  \caption{ The first 27 iterations of the \makelowercase\ model on
+    the letter \letterform{o}. The lowercase model generally makes
+    letters get smaller and smaller until they disappear. There is
+    still energy in the SDF (left column) but no pixels exceed the
+    threshold so the rasterization is empty (right column) for about
+    16 iterations. Finally it reaches a stable state, a tiny piece of
+    colon-shaped dust, easily mistaken for a printing error. All
+    letters (from the test font Helvetica) converge to this shape,
+    except mysteriously the letter \letterform{v}. Is \letterform{v} a
+    different alien species, masquerading as a normal letter for
+    millions of years? } \label{fig:lowestcaseo}
+\end{figure}
+
 
 % lowercase uppercase letters etc.
 % iterate this a lot of times?
@@ -1250,7 +1503,7 @@ dimension to it.
   \includegraphics[width=0.7 \linewidth]{uppestcase3d}
 \caption{ 3D manifold showing a section of the repeating loop as the
   \makeuppercase\ model iteratively uppercases a letter. (Shown here
-  is the input \lowercase{q} from iteration 245--377, but they all
+  is the input \letterform{q} from iteration 245--377, but they all
   converge to this same periodic shape.) Slices through this shape give a
   letterform's outline (or usually, a linear interpolation between two
   of them). The bottom of the shape is its ``beginning'' but it
@@ -1264,19 +1517,19 @@ dimension to it.
 \section{Acknowledgements}
 
 For this project I used \verb+stb_truetype.h+ from the excellent stb
-collection of single-file libraries.~\cite{stb} I did push its limits
+collection of single-file libraries~\cite{stb}. I did push its limits
 somewhat and ``automatically discovered'' assertion failures and other
-crashes (e.g. during blackbox optimization on all 100k fonts), but it
+crashes (e.g.~during blackbox optimization on all 100k fonts), but it
 saved a lot of time. This library only helps with reading the fonts
 and generating SDFs. To generate TTFs, I had to write my own pipeline,
 which generates FontForge's .SFD (a typo factory right there) files,
 and then did the final export with FontForge~\cite{fontforge}. Thanks
-Jason Reed for this suggestion.
+Jason Reed for this suggestion, without which I would probably still
+be developing my own TTF file writer and custom hinting engine. Finally,
+I would like to thank the pseudonymous SIGBOVIK program committee for
+overseeing the proceedings, and the \upsigbovik\ program committee
+committee for overseeing {\em them}.
 
-
-\nocite{murphy2019blind}
-\nocite{murphy2019eloworld}
-\nocite{stb}
 
 \bibliography{lowercase}{}
 \bibliographystyle{plain}
