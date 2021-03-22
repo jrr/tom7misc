@@ -615,19 +615,6 @@ in the trash! But I must have confused the Recycle~Bin icon with the
 fairly complicated export-to-TrueType Font process that I built,
 because I ran the model on the venerable Futura~\cite{futura} font and
 generated {\bf Futurda} (Figure~\ref{fig:futurda}).
-%
-% \begin{figure}[ht]
-% \centering
-%   \includegraphics[width=0.5 \linewidth]{rotatej}
-% \caption{ Example alignment (from debug UI) of predicted shape (blue)
-%   to expected shape (green). We require each point to be mapped (red)
-%   to a point from the expected contour in a monotonic order (but
-%   several can be mapped to the same one), so that we can attribute
-%   error to each point. I hope it was fun to write this code because
-%   it was too slow to do pretty much anything but generate this figure!
-% } \label{fig:rotatej}
-% \end{figure}
-%
 
 \begin{figure}[ht]
 \centering
@@ -667,8 +654,6 @@ generated {\bf Futurda} (Figure~\ref{fig:futurda}).
 
 % obviously, need to express different cases of anger at various
 % problems or successes?
-
-% the sdf problem
 
 \section{SDFs}
 
@@ -921,9 +906,9 @@ crunches for a month.
     previous layer's predictions. We see that most letters are
     negatively correlated (makes sense; only one will ever be 1.0)
     although there are some oddities (probably because it found some
-    other, better correlates). Nodes on this new layer have dense
+    other, better correlates). All nodes on this new layer have dense
     references to these 26 predictions on the previous; this means
-    that the bottom row kind of represents biases for each of the 26
+    that the bottom 26 rows kind of represent biases for each of the 26
     letters (what does an average 'e' look like?). I also included a
     dense region above that, but this appears to have simply evolved
     the same way as other $36^2$ chunks have (the rest are sparse).
@@ -1000,7 +985,7 @@ Now that we have these expensive models, we can use them to make
 arbitrary letterforms uppercase or lowercase. The output is readily
 rasterized (using the standard thresholding approach for SDFs) but
 we'd actually like to have vector representations so that we can
-use them as TrueType fonts for our desktop publishing needs.
+download the TTF files and clog up our fonts menu forever.
 
 \subsection{Tracing}
 Automatically tracing bitmaps into vector form is no doubt a solved
@@ -1295,8 +1280,6 @@ linguistic one (Figure~\ref{fig:chess}).
     } \label{fig:chess}
 \end{figure}
 
-% figure? drop it?
-
 The abbreviated tournament results:
 {
 \scriptsize
@@ -1374,7 +1357,7 @@ Ha! At least I am not wasting my time {\it reading} SIGBOVIK papers or
 talking to strangers on the street! and run off. Although the main
 purpose of SIGBOVIK is to confound bibliometrics with ambiguously
 good-faith and high-quality research published in a clearly satirical
-but superfically decorous venue associated with a traditionally
+but superficially decorous venue associated with a traditionally
 esteemed university, it is also possible for such work to have
 practical applications in arts and spycraft. You simply need to give
 it some thought.
@@ -1483,6 +1466,35 @@ didn't.)
 
 \section{To infinity, but let's stop there} \label{sec:lowestcase}
 
+\begin{figure}[t]
+\centering
+  \includegraphics[width=0.80 \linewidth]{lowestcaseo}
+  \caption{ The first 27 iterations of the \makelowercase\ model on
+    the letter \letterform{o}. The lowercase model generally makes
+    letters get smaller and smaller until they disappear. There is
+    still energy in the SDF (left column) but no pixels exceed the
+    threshold so the rasterization is empty (right column) for about
+    16 iterations. Finally it reaches a stable state, a tiny piece of
+    colon-shaped dust, easily mistaken for a printing error. All
+    letters (from the test font Helvetica) converge to this shape,
+    except mysteriously the letter \letterform{v}. Is \letterform{v} a
+    different alien species, masquerading as a normal letter for
+    millions of years? } \label{fig:lowestcaseo}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+  \includegraphics[width=0.7 \linewidth]{uppestcase3d}
+\caption{ 3D manifold showing a section of the repeating loop as the
+  \makeuppercase\ model iteratively uppercases a letter. (Shown here
+  is the input \letterform{q} from iteration 245--377, but they all
+  converge to this same periodic shape.) Slices through this shape give a
+  letterform's outline (or usually, a linear interpolation between two
+  of them). The bottom of the shape is its ``beginning'' but it
+  appears to repeat like this forever.
+} \label{fig:uppestcase3d}
+\end{figure}
+
 Wow, this project is pretty involved, huh? Let's just add another
 dimension to it!
 
@@ -1522,70 +1534,50 @@ the same characteristic loop reached by all letters. Presumably there
 are some oscillations with long, relatively prime periods or even some
 pixels that are monotonically growing or shrinking, but very slowly.
 However, if I render the SDF as a 1-bit bitmap at $2\times$ scale, I
-get a perfect cycle of 132 frames, which appears to be two passes
+get a perfect cycle of 132 frames. This appears to be two passes
 through the main characteristic loop, but slightly different each
 time. This is not a strange property for a letter to have; for example
 a typical \letterform{B} has two copies of the same basic idea in it.
 
-.... XXX more here ...
+None of these alone could be considered the uppestcase letter, but
+perhaps together they are? A natural way to include them all in one
+shape is to stack them in 3D, as if each iteration is an MRI slice of
+the brachial plexus.
 
-\begin{figure}[t]
-\centering
-  \includegraphics[width=0.80 \linewidth]{lowestcaseo}
-  \caption{ The first 27 iterations of the \makelowercase\ model on
-    the letter \letterform{o}. The lowercase model generally makes
-    letters get smaller and smaller until they disappear. There is
-    still energy in the SDF (left column) but no pixels exceed the
-    threshold so the rasterization is empty (right column) for about
-    16 iterations. Finally it reaches a stable state, a tiny piece of
-    colon-shaped dust, easily mistaken for a printing error. All
-    letters (from the test font Helvetica) converge to this shape,
-    except mysteriously the letter \letterform{v}. Is \letterform{v} a
-    different alien species, masquerading as a normal letter for
-    millions of years? } \label{fig:lowestcaseo}
-\end{figure}
-
-
-% lowercase uppercase letters etc.
-% iterate this a lot of times?
-% "to infinity, but let's stop there"
-
-% run it to infinity to see the uppestcase, etc.
-% if these vanish, then we have a fixed point.
-% if not, or perhaps by doing some auto-gamma, then
-% it's like a fractal zoomer, and we can set the
-% record on the "most uppercase letter" by running
-% a jazillion times.
-
-% lowestcase is just dust, not surprising
-% uppestcase is actually a fixed point (not FixedSys)
-% ... so it's like a 3D manifold
-
-\begin{figure}[t]
-\centering
-  \includegraphics[width=0.7 \linewidth]{uppestcase3d}
-\caption{ 3D manifold showing a section of the repeating loop as the
-  \makeuppercase\ model iteratively uppercases a letter. (Shown here
-  is the input \letterform{q} from iteration 245--377, but they all
-  converge to this same periodic shape.) Slices through this shape give a
-  letterform's outline (or usually, a linear interpolation between two
-  of them). The bottom of the shape is its ``beginning'' but it
-  appears to repeat like this forever.
-} \label{fig:uppestcase3d}
-\end{figure}
-
-% bristol stool chart
+To generate a 3D mesh, I stack the 132 SDFs in the z direction, and
+this natrually yields a three-dimensional signed distance field
+(trilinear interpolation). The classic ``marching cubes''
+algorithm~\cite{lorensen1987marching} for mesh generation works
+natively on such a field, and come to think of it, I probably could
+have used that in two dimensions to trace the SDFs to vectors. Oh,
+well. Fortunately there is enough spatial similarity between the
+slices that it makes a reasonable 3D shape even without interpolation,
+but sampled at a decent resolution and then cleaned up, it looks quite
+nice; much better than the lowercase colon. Speaking of colons, it
+rates approximately a 2.5 on the Bristol stool
+scale~\cite{lewis1997bristol}. A 2D projection of the manifold is in
+Figure~\ref{fig:uppestcase3d}. I 3D-printed it and am currently
+working on a way of embedding it as an unusually tall key on my
+keyboard that I can press whenever I wanted to express ULTIMATE ANGER.
 
 \section{Conclusion}
-... XXX ...
-This fixed point
-suggests that the lowestcase letter is already on your keyboard,
-but it is not a point, it is just \letterform{:}.
+We performed an exhaustive case analysis, exploring cases both more
+upper- and lower- than ever been seen before. Sideways case was not
+considered, as that is nonsense. We had modest success generating
+upperercase and lowerercase letterforms through two neural network
+models simultaneously trained to be each other's inverse, although
+frankly it was much faster and more aesthetic to just do it by hand.
+After really following through on the downloadables and taking some
+needless excursions for effect, we saw that these models have
+limits (at least informally). The lowestcase letter is already
+on your keyboard; it is the ASCII eyeballs character \letterform{:}.
+The uppestcase letter is not so easily typed, and perhaps that
+is for the best.
 
-\paragraph{Futura Work}
+\paragraph{Futura Work.}
 I think I pretty much beat this one to death, honestly.
 
-\paragraph{Acknowledgements}
+\paragraph{Acknowledgements.}
 For this project I used \verb+stb_truetype.h+ from the excellent stb
 collection of single-file libraries~\cite{stb}. I did push its limits
 somewhat and ``automatically discovered'' assertion failures and other
