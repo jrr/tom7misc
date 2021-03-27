@@ -2,7 +2,7 @@
 //////////////////////////////////////////////////////////////////////
 // I stopped using SDL_Image in favor of stb_image, which doesn't need
 // to link nightmare factories like libpng, zlib, libjpeg, etc. etc.
-// You can still probably use LoadImage to do what you want.
+// You can still probably use LoadImageFile to do what you want.
 //////////////////////////////////////////////////////////////////////
 
 #ifndef _CC_LIB_SDL_SDLUTIL_H
@@ -32,7 +32,7 @@ struct sdlutil {
   inline static void SetPixel32(SDL_Surface *, int x, int y, Uint32 color);
   
   // Load supported files using stb_image.
-  static SDL_Surface *LoadImage(const std::string &filename);
+  static SDL_Surface *LoadImageFile(const std::string &filename);
   // Save using stb_image_write. Might only work for 32-bit RGBA.
   // Note that the output image is only lightly compressed; pngcrush
   // or a similar tool can usually improve it quite a bit.

@@ -225,7 +225,9 @@ static void CopyRGBA(const vector<Uint8> &rgba, SDL_Surface *surface) {
   }
 }
 
-SDL_Surface *sdlutil::LoadImage(const string &filename) {
+// Note: Avoid "LoadImage" since windows.h may #define the
+// symbol to LoadImageA etc. :(
+SDL_Surface *sdlutil::LoadImageFile(const string &filename) {
   int width, height, bpp;
   Uint8 *stb_rgba = stbi_load(filename.c_str(),
                               &width, &height, &bpp, 4);

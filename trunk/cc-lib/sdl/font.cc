@@ -143,7 +143,7 @@ Font *Font::create(SDL_Surface *screen,
                    int styles,
                    int overlap,
                    int ndim) {
-  SDL_Surface *fon = sdlutil::LoadImage(file);
+  SDL_Surface *fon = sdlutil::LoadImageFile(file);
   if (fon == nullptr) return nullptr;
   return Font::create_from_surface(screen, fon, charmap, 
                                    width, height, styles, overlap, ndim);
@@ -158,7 +158,7 @@ Font *Font::CreateX(int px,
                     int styles,
                     int overlap,
                     int ndim) {
-  SDL_Surface *fon_orig = sdlutil::LoadImage(file);
+  SDL_Surface *fon_orig = sdlutil::LoadImageFile(file);
   if (fon_orig == nullptr) return nullptr;
   SDL_Surface *fonx = sdlutil::GrowX(fon_orig, px);
   SDL_FreeSurface(fon_orig);

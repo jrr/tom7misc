@@ -508,6 +508,31 @@ ImageA ImageRGBA::Alpha() const {
   return Extract(*this, [](uint8 r, uint8 g, uint8 b, uint8 a) { return a; });
 }
 
+ImageRGBA ImageRGBA::FromChannels(const ImageA &red,
+                                  const ImageA &green,
+                                  const ImageA &blue,
+                                  const ImageA &alpha) {
+  const int width = red.Width();
+  const int height = red.Height();
+  CHECK(green.Width() == width);
+  CHECK(green.Height() == height);  
+  CHECK(blue.Width() == width);
+  CHECK(blue.Height() == height);  
+  CHECK(alpha.Width() == width);
+  CHECK(alpha.Height() == height);
+  ImageRGBA out(width, height);
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      const uint8 r = red.GetPixel(x, y);
+      const uint8 g = green.GetPixel(x, y);
+      const uint8 b = blue.GetPixel(x, y);
+      const uint8 a = alpha.GetPixel(x, y);
+      out.SetPixel(x, y, r, g, b, a);
+    }
+  }
+  return out;
+}
+
 ImageA::ImageA(const vector<uint8> &alpha, int width, int height)
     : width(width), height(height), alpha(alpha) {
   CHECK((int)alpha.size() == width * height);
