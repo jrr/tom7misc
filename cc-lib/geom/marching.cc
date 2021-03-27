@@ -622,9 +622,10 @@ McMesh mcGenerate(const float *bmin, const float *bmax, float cellsize, McIsoFn 
 
         // Allocate 2D grids.
         int stride = xd+1;
-        printf("grids are %d x %d = %d bytes\n",
-               xd + 1, yd + 1,
-               sizeof(McCorner) * (xd + 1) * (yd + 1));
+        if (VERBOSE)
+          printf("grids are %d x %d = %d bytes\n",
+                 xd + 1, yd + 1,
+                 sizeof(McCorner) * (xd + 1) * (yd + 1));
         McCorner *grid0 = (McCorner *)MC_REALLOC(NULL, sizeof(McCorner) * (xd+1)*(yd+1));
         McCorner *grid1 = (McCorner *)MC_REALLOC(NULL, sizeof(McCorner) * (xd+1)*(yd+1));
         if (!grid0 || !grid1)

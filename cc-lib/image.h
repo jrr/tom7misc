@@ -115,6 +115,12 @@ struct ImageRGBA {
   ImageA Blue() const;
   ImageA Alpha() const;
 
+  // Images must all be the same dimensions.
+  static ImageRGBA FromChannels(const ImageA &red,
+                                const ImageA &green,
+                                const ImageA &blue,
+                                const ImageA &alpha);
+  
 private:
   int width, height;
   // Size width * height * 4.
