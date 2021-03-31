@@ -53,7 +53,7 @@
 
 \begin{document}
 
-\title{Lowestcase and Uppestcase letters: Advances in Derp Learning}
+\title{Lowestcase and uppestcase letters: Advances in derp learning}
 \author{Dr.~Tom~Murphy~VII~Ph.D.}\thanks{
 Copyright \copyright\ 2021 the Regents of the Wikiplia Foundation.
 Appears in \upsigbovik~2021 with the
@@ -344,7 +344,7 @@ with fiddly bits (Section~\ref{sec:fiddly}) unless the function is
 convex and smooth, which it will not be. If you don't want to deal
 with that, and have a fast computer (and who doesn't?), black-box
 optimization algorithms are worth considering. Here, the
-interface\footnote{ Here a simplfied wrapper around
+interface\footnote{ Here a simplified wrapper around
   BiteOpt~\cite{biteopt} in my {\tt cc-lib} library. See
   \url{https://sourceforge.net/p/tom7misc/svn/HEAD/tree/trunk/cc-lib/opt/}.}
 is just something like (C++):
@@ -610,7 +610,7 @@ instead of GPU, which reduced the training speed by $50\%$. I let it
 run for 80,000 rounds, some 331 million training examples, but
 eventually got bored of waiting on this approach that was slow to
 train and seemed like a complicated version of an bad, oversimplified
-approach. So, I control-C'd that thing and threw this whole endeavour
+approach. So, I control-C'd that thing and threw this whole endeavor
 in the trash! But I must have confused the Recycle~Bin icon with the
 fairly complicated export-to-TrueType Font process that I built,
 because I ran the model on the venerable Futura~\cite{futura} font and
@@ -742,7 +742,7 @@ the input and output. I just haven't built support for that in my
 weird home-grown software, yet.
 
 I also adapted my weird home-grown software to train the
-\makeuppercase\ and \makelowercase\ models simultanously. Two models
+\makeuppercase\ and \makelowercase\ models simultaneously. Two models
 fit easily in GPU memory, with plenty of space for a stream of
 training data (one training instance is only about 10kb). The only
 challenging thing is arranging for them to feed each other generated
@@ -833,7 +833,7 @@ line/blob with positive weights, one line/blob with negative weights).
 It then chooses a set of them that are both {\em good} (maximum
 standard deviation on a sample of training data) and {\em different
   from one another} (redundant or even partially redundant features
-are less valuable). It was nice to satisfy my supersition, and the
+are less valuable). It was nice to satisfy my superstition, and the
 dark wizard of superstitious fiddling with neural networks in the
 hope that they do the thing was pleased as well. The features are
 at least handsome (Figure~\ref{fig:makefeatures}). Creativity is
@@ -1178,7 +1178,7 @@ letters? Since the models will tell us, I can just search over shapes
 and ask them. The first thing I tried was to just generate random
 shapes and optimize their parameters to produce the highest possible
 prediction for the target letter, and the lowest possible prediction
-for the rest. This preduced results that are fully bonkers
+for the rest. This produced results that are fully bonkers
 (Figure~\ref{fig:bonkersf}).
 
 We can improve the results by searching for inputs with a ``perfect''
@@ -1363,7 +1363,7 @@ practical applications in arts and spycraft. You simply need to give
 it some thought.
 
 For example, it is well known to {\sf internet troIIs} and {\sf DOMAlN
-  NAME PHlSHERS} that the uppercase \letterform{i} and loweracse
+  NAME PHlSHERS} that the uppercase \letterform{i} and lowercase
 \letterform{L} are indistinguishable in many fonts, allowing for
 various Tomfoolery.\footnote{I actually wrote ``troiis'' and ``domaln
   name phlshers'', hehe!} This can also be used for
@@ -1545,7 +1545,7 @@ shape is to stack them in 3D, as if each iteration is an MRI slice of
 the brachial plexus.
 
 To generate a 3D mesh, I stack the 132 SDFs in the z direction, and
-this natrually yields a three-dimensional signed distance field
+this naturally yields a three-dimensional signed distance field
 (trilinear interpolation). The classic ``marching cubes''
 algorithm~\cite{lorensen1987marching} for mesh generation works
 natively on such a field, and come to think of it, I probably could
