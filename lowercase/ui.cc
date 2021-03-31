@@ -50,7 +50,8 @@ using int64 = int64_t;
 [[maybe_unused]]
 static Font *font = nullptr, *font2x = nullptr;
 #define SCREENW 1920
-#define SCREENH 1280
+// #define SCREENH 1280
+#define SCREENH 1080
 static SDL_Surface *screen = nullptr;
 
 static SDL_Cursor *cursor_arrow = nullptr, *cursor_bucket = nullptr;
@@ -89,6 +90,8 @@ struct GammaSlider {
     x(x), y(y), width(width), height(height) {
   }
 
+  void Reset() { value = 1.0f; }
+  
   // screen coordinates
   // returns true if dirty
   bool MouseDown(int mousex, int mousey) {
@@ -194,7 +197,7 @@ struct UI {
   // Draw line into drawing. Coordinates are relative to drawing, but may
   // be outside it.
   void DrawThick(int x0, int y0, int x1, int y1, Uint32 color);
-  void FloodFill(int x, int y, Uint32 color);
+  void FloodFillToggle(int x, int y);
   void UpdateGamma();
 
   // current index (into cur_filenames, fonts, etc.) that we act
@@ -236,6 +239,8 @@ struct UI {
   float current_xoff = 0.0, current_yoff = 0.0;
   TTF times{"times.ttf"};
   TTF helvetica{"helvetica.ttf"};
+
+  SDL_Surface *drawmode_bg = nullptr;
   
   int bez_startx = 800, bez_starty = 128;
   int bez_cx = SCREENW - 32, bez_cy = SCREENH / 2;
@@ -271,13 +276,16 @@ struct UI {
   static constexpr int SDF_OUT_GAP = 32;
 
   static constexpr int LOW_X = 132;
-  static constexpr int LOW_Y = 302;
+  static constexpr int LOW_Y = 122;
   static constexpr int UP_X = 1478;
   static constexpr int UP_Y = 559;
+  static constexpr int GAMMASLIDER_HEIGHT = 12;
+
   GammaSlider gamma_low{LOW_X,
                         LOW_Y + SDF_OUT_H * 2 + SDF_OUT_GAP + 4,
-                        SDF_OUT_W, 12};
-  GammaSlider gamma_up{UP_X, UP_Y + SDF_OUT_H + 4, SDF_OUT_W, 12};
+                        SDF_OUT_W, GAMMASLIDER_HEIGHT};
+  GammaSlider gamma_up{UP_X, UP_Y + SDF_OUT_H + 4, SDF_OUT_W,
+                       GAMMASLIDER_HEIGHT};
 
   // Protects these.
   std::mutex result_m;
@@ -368,8 +376,10 @@ void UI::ResultThread() {
     // But now the UI is dirty.
     SetDirty();
 
+    #if 0
     printf("Got result in %.4fs copy + %.4fs result + %.4fs image\n",
            copy_ms / 1000.0, result_ms / 1000.0, images_ms / 1000.0);
+    #endif
   }
 }
 
@@ -572,6 +582,9 @@ double BitmapDifference(const TTF &ttf,
 
 
 UI::UI() {
+  drawmode_bg = sdlutil::LoadImageFile("drawmode.png");
+  CHECK(drawmode_bg != nullptr);
+
   int64 sorted = 0, unsorted = 0;
   int64 case_marked = 0, case_unmarked = 0;
   // Done: random, (di)stressed, laser, helvetica, antique
@@ -656,6 +669,8 @@ void UI::ClearDrawing() {
   {
     std::unique_lock<std::mutex> guard(result_m);
     result_sdf_dirty = true;
+    gamma_low.Reset();
+    gamma_up.Reset();
   }
   result_cv.notify_all();
 }
@@ -745,6 +760,37 @@ void UI::DrawThick(int x0, int y0,
   result_cv.notify_all();
 }
 
+static void ScreenThickLine(int x0, int y0,
+                            int x1, int y1,
+                            uint8 r, uint8 g, uint8 b) {
+  static constexpr int THICKNESS = 3;
+  Line<int> l{x0, y0, x1, y1};
+
+  {
+    auto SetPixel = [r, g, b](int x, int y) {
+        sdlutil::drawclippixel(screen, x, y, r, g, b);
+      };
+
+    auto ThickPixel = [&SetPixel](int x, int y) {
+        static constexpr int LO = THICKNESS >> 1;
+        // static constexpr int RO = THICKNESS - LO;
+
+        for (int xx = x - LO; xx < x - LO + THICKNESS; xx++) {
+          for (int yy = y - LO; yy < y - LO + THICKNESS; yy++) {
+            SetPixel(xx, yy);
+          }
+        }
+      };
+
+    ThickPixel(x0, y0);
+
+    for (const auto [x, y] : Line<int>{x0, y0, x1, y1}) {
+      ThickPixel(x, y);
+    }
+  }
+}
+
+
 void UI::UpdateGamma() {
   {
     std::unique_lock<std::mutex> guard(result_m);
@@ -753,8 +799,10 @@ void UI::UpdateGamma() {
   result_cv.notify_all();
 }
 
-void UI::FloodFill(int x, int y, Uint32 color) {
+void UI::FloodFillToggle(int x, int y) {
   {
+    static constexpr Uint32 COLOR = 0xFFFFFFFF;
+    
     std::unique_lock<std::mutex> guard(result_m);
 
     const int w = drawing->w, h = drawing->h;
@@ -765,35 +813,36 @@ void UI::FloodFill(int x, int y, Uint32 color) {
     Uint32 *bufp = (Uint32 *)drawing->pixels;
     int stride = drawing->pitch >> 2;
 
-    const Uint32 replace_color = bufp[y * stride + x];
-
+    const Uint32 source_color = bufp[y * stride + x];
+    const Uint32 replacement_color =
+      source_color == COLOR ? 0xFF000000 : COLOR;
+    
     auto GetPixel =
-      [w, h, bufp, stride, replace_color](int x, int y) -> uint32 {
+      [w, h, bufp, stride, source_color](int x, int y) -> uint32 {
         if (x >= 0 && y >= 0 &&
             x < w && y < h) {
           return bufp[y * stride + x];
         } else {
-          return ~replace_color;
+          return ~source_color;
         }
       };
 
-    auto SetPixel = [color, w, h, bufp, stride](int x, int y) {
+    auto SetPixel = [replacement_color, w, h, bufp, stride](int x, int y) {
         if (x >= 0 && y >= 0 &&
             x < w && y < h) {
-          bufp[y * stride + x] = color;
+          bufp[y * stride + x] = replacement_color;
         }
       };
 
     std::vector<std::pair<int, int>> todo;
-    if (color != replace_color)
-      todo.emplace_back(x, y);
+    todo.emplace_back(x, y);
 
     while (!todo.empty()) {
       const auto [xx, yy] = todo.back();
       todo.pop_back();
 
       Uint32 c = GetPixel(xx, yy);
-      if (c == replace_color) {
+      if (c == source_color) {
         SetPixel(xx, yy);
         todo.emplace_back(xx - 1, yy);
         todo.emplace_back(xx + 1, yy);
@@ -927,8 +976,7 @@ void UI::Loop() {
               break;
             case DrawMode::FILLING:
               // XXX should be able to flood-fill erase too
-              FloodFill(mousex - DRAWING_X, mousey - DRAWING_Y,
-                        0xFFFFFFFF);
+              FloodFillToggle(mousex - DRAWING_X, mousey - DRAWING_Y);
               break;
             }
 
@@ -1330,7 +1378,8 @@ void UI::Loop() {
     } else {
       if (IsDirty()) {
         if (mode == Mode::DRAW) {
-          sdlutil::clearsurface(screen, 0xFF000033);
+          sdlutil::blitall(drawmode_bg, screen, 0, 0);
+          // sdlutil::clearsurface(screen, 0xFF000033);
         } else if (mode == Mode::BEZDIST) {
           sdlutil::clearsurface(screen, 0xFF000000);
         } else {
@@ -1502,11 +1551,15 @@ void UI::DrawSortition() {
         const auto &flags = info.value().flags;
         auto it = flags.find(Flag::SAME_CASE);
         if (it != flags.end()) {
+
+          // XXX FIXME VIDEO
+#if 0
           if (it->second) {
             cstring = "^2[X]^< same case";
           } else {
             cstring = "^5C^<ase ok";
           }
+#endif
         }
       }
 
@@ -1677,47 +1730,64 @@ void UI::DrawDrawing() {
     std::unique_lock<std::mutex> guard(result_m);
     sdlutil::blitall(drawing, screen, DRAWING_X, DRAWING_Y);
     if (network_image_result.has_value()) {
+
       const auto &res = network_image_result.value();
       BlitImage(res.input, 808, 849);
       BlitImage(res.low, LOW_X, LOW_Y + SDF_OUT_H + SDF_OUT_GAP);
       BlitImage(res.low_up, LOW_X, LOW_Y);
-      BlitImage(res.up, UP_X, 559);
-      BlitImage(res.up_low, UP_X, 856);
+      BlitImage(res.up, UP_X, UP_Y);
+      BlitImage(res.up_low, UP_X, UP_Y + SDF_OUT_H + SDF_OUT_GAP +
+                GAMMASLIDER_HEIGHT + SDF_OUT_GAP);
 
       constexpr int TEXTW = 100;
       // nominal
       constexpr int MAX_BAR_WIDTH = 200;
-      constexpr int BAR_CENTER = 100;
-      for (int i = 0; i < 26; i++) {
-        const int lowy = 740 + i * (font->height + 2);
-        const float f = res.low_pred[i];
-        font->draw(LOW_X, lowy,
-                   StringPrintf("%c: %+.8f", 'A' + i, f));
-        if (f < 0.0f) {
-          const int BAR_WIDTH = std::clamp(-f, 0.0f, 2.0f) * MAX_BAR_WIDTH;
-          sdlutil::FillRectRGB(screen,
-                               LOW_X + TEXTW + BAR_CENTER - BAR_WIDTH,
-                               lowy + 2,
-                               BAR_WIDTH,
-                               font->height - 2,
-                               0x88, 0x33, 0x00);
-        } else {
-          const int BAR_WIDTH = std::clamp(f, 0.0f, 2.0f) * MAX_BAR_WIDTH;
-          sdlutil::FillRectRGB(screen,
-                               LOW_X + TEXTW + BAR_CENTER,
-                               lowy + 2,
-                               BAR_WIDTH,
-                               font->height - 2,
-                               0x33, 0x88, 0x33);
-        }
-      }
+      // 100 would be the "center" but it's very hard for values
+      // to be strongly negative
+      constexpr int BAR_CENTER = 20;
 
-      // XXX bars here too
-      for (int i = 0; i < 26; i++) {
-        font->draw(UP_X, 80 + i * (font->height + 2),
-                   StringPrintf("%c: %+.8f", 'a' + i,
-                                res.up_pred[i]));
-      }
+      auto DrawPred = [this](const std::array<float, 26> &pred,
+                             char base_char,
+                             int xpos, int ypos) {
+          for (int i = 0; i < 26; i++) {
+            const int lowy = ypos + i * (font->height + 2);
+            const float f = pred[i];
+            char color = '0';
+            if (f > 0.75f) color = '5';
+            else if (f > 0.1f) color = '0';
+            else if (f > -0.001f) color = '4';
+            else color = '2';
+            
+            font->draw(xpos, lowy,
+                       StringPrintf("%c: ^%c%+.8f", base_char + i, color, f));
+            if (f < 0.0f) {
+              const int BAR_WIDTH = std::clamp(-f, 0.0f, 2.0f) * MAX_BAR_WIDTH;
+              sdlutil::FillRectRGB(screen,
+                                   xpos + TEXTW + BAR_CENTER - BAR_WIDTH,
+                                   lowy + 2,
+                                   BAR_WIDTH,
+                                   font->height - 2,
+                                   0x88, 0x33, 0x00);
+            } else {
+              const int BAR_WIDTH = std::clamp(f, 0.0f, 2.0f) * MAX_BAR_WIDTH;
+              sdlutil::FillRectRGB(screen,
+                                   xpos + TEXTW + BAR_CENTER,
+                                   lowy + 2,
+                                   BAR_WIDTH,
+                                   font->height - 2,
+                                   0x33, 0x88, 0x33);
+            }
+          }
+        };
+
+
+      constexpr int LOWPREDY = LOW_Y + (SDF_OUT_H + SDF_OUT_GAP) * 2 +
+        GAMMASLIDER_HEIGHT + 10;
+
+      constexpr int UPPREDY = 67;
+      
+      DrawPred(res.low_pred, 'A', LOW_X, LOWPREDY);
+      DrawPred(res.up_pred, 'a', UP_X, UPPREDY);      
 
       gamma_low.Draw();
       gamma_up.Draw();
@@ -1783,7 +1853,7 @@ void UI::ZoomNext() {
 
 void UI::DrawZoom() {
 
-  constexpr int SCALE = 6;
+  constexpr int SCALE = 12;
   
   zoom_iters++;
 
@@ -1817,7 +1887,7 @@ void UI::DrawZoom() {
   for (int y = 0; y < zoom_sdf.Height(); y++) {
     for (int x = 0; x < zoom_sdf.Width(); x++) {
       uint8 v = roundf(zoom_sdf.GetPixel(x, y) * 255);
-      DrawPt(SDFX + y * SCALE, SDFY + x * SCALE, v, v, v);
+      DrawPt(SDFX + x * SCALE, SDFY + y * SCALE, v, v, v);
     }
   }
 
@@ -1826,9 +1896,9 @@ void UI::DrawZoom() {
   
   const int CTRX = SDFX, CTRY = SDFY + SDF_CONFIG.sdf_size * SCALE + 4;
   
-  sdlutil::FillRectRGB(screen, CTRX, CTRY, 140, font->height + 2,
+  sdlutil::FillRectRGB(screen, CTRX, CTRY, 200, font->height + 2,
                        0, 0, 0);
-  font->draw(CTRX, CTRY, StringPrintf("[%.3f] %d %s %d/%d",
+  font->draw(CTRX, CTRY, StringPrintf("[%.3f] %d %s ^1%d/%d",
                                       zoom_gamma,
                                       zoom_iters,
                                       (zoom_loop ? "^2loop" : ""),
@@ -1883,7 +1953,10 @@ void UI::DrawBez() {
   DrawPt(bez_endx, bez_endy, 0xFF, 0x33, 0x33);
 }
 
+
 void UI::Draw() {
+  constexpr bool THICK = true;
+
   switch (mode) {
   case Mode::DRAW:
     DrawDrawing();
@@ -1924,10 +1997,17 @@ void UI::Draw() {
             FontProblem::Point apt = looptest_actual[a];
             FontProblem::Point ept = looptest_expected[e];
 
-            sdlutil::drawclipline(screen,
-                                  (int)apt.first, (int)apt.second,
-                                  (int)ept.first, (int)ept.second,
-                                  0xFF, 0x44, 0x44);
+            if (THICK) {
+              ScreenThickLine(
+                  (int)apt.first, (int)apt.second,
+                  (int)ept.first, (int)ept.second,
+                  0xFF, 0x44, 0x44);
+            } else {
+              sdlutil::drawclipline(screen,
+                                    (int)apt.first, (int)apt.second,
+                                    (int)ept.first, (int)ept.second,
+                                    0xFF, 0x44, 0x44);
+            }
 
             a++;
             if (a == looptest_actual.size()) a = 0;
@@ -1938,24 +2018,42 @@ void UI::Draw() {
     if (looptest_assignment.has_value())
       DrawAssignment(looptest_assignment.value());
 
-    auto DrawLoop = [](const vector<FontProblem::Point> &pts,
-                       uint8 r, uint8 g, uint8 b) {
+    auto DrawLoop = [this](const vector<FontProblem::Point> &pts,
+                           uint8 r, uint8 g, uint8 b) {
         for (int i = 0; i < pts.size(); i++) {
           const int next_i = i < pts.size() - 1 ? i + 1 : 0;
           auto [sx, sy] = pts[i];
           auto [dx, dy] = pts[next_i];
-          sdlutil::drawclipline(
-              screen,
-              sx, sy, dx, dy,
-              r, g, b);
 
-          sdlutil::drawbox(screen, sx - 2, sy - 2, 5, 5, r, g, b);
+            if (THICK) {
+              ScreenThickLine(
+                  sx, sy, dx, dy,
+                  // ((uint32)r << 24) | ((uint32)g << 16) | ((uint32)b << 8) |
+                  // 0xFF);
+                  r, g, b);
+            } else {
+              sdlutil::drawclipline(
+                  screen,
+                  sx, sy, dx, dy,
+                  r, g, b);
+            }
+
+          sdlutil::drawbox(screen, sx - 3, sy - 3, 6, 6, r, g, b);
         }
       };
 
-    DrawLoop(looptest_expected, 0x00, 0xAA, 0x00);
+    auto DrawStart = [](const vector<FontProblem::Point> &pts) {
+        if (pts.empty()) return;
+        auto [sx, sy] = pts[0];
+        font->draw(sx + 7, sy - 10, "Start");
+      };
+    
+    DrawLoop(looptest_expected, 0x00, 0x00, 0xAA);
     DrawLoop(looptest_actual,   0x44, 0xFF, 0x44);
 
+    DrawStart(looptest_expected);
+    DrawStart(looptest_actual);    
+    
     const int LINE1 = SCREENH - 30 - font->height * 2;
     const int LINE2 = LINE1 + font->height;
     const int LINE3 = LINE2 + font->height;
