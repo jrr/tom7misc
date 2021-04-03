@@ -107,7 +107,7 @@ Font_ *Font_::Create(string file,
   if (!f->data) return nullptr;
   for (int z = 0; z < ndim; z++) f->data[z] = 0;
 
-  f->data[0] = sdlutil::LoadImage(file.c_str());
+  f->data[0] = sdlutil::LoadImageFile(file.c_str());
   if (!f->data[0]) return nullptr;
 
   int last = 0;

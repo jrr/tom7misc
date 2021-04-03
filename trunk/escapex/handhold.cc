@@ -28,11 +28,10 @@ static int hh_lastupgrade = 0;
 #define UPGRADE_INTERVAL (UPDATE_INTERVAL * 2)
 
 static bool hh_write() {
-
   return writefile(HANDHOLD_FILE,
                    (string)HANDHOLD_MAGIC +
-                   sizes(hh_lastupdate) +
-                   sizes(hh_lastupgrade));
+                   BigEndian32(hh_lastupdate) +
+                   BigEndian32(hh_lastupgrade));
 }
 
 void HandHold::init() {

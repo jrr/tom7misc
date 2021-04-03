@@ -38,10 +38,10 @@ SDL_Surface **Drawing::tileutil = nullptr;
 bool Drawing::LoadImages() {
   /* PERF could be alpha=false. but the alphadim and shrink50
      routines rely on this being a 32 bit graphic. */
-  SDL_Surface *tt = sdlutil::LoadImage(TILES_FILE);
+  SDL_Surface *tt = sdlutil::LoadImageFile(TILES_FILE);
   if (!tt) return 0;
 
-  SDL_Surface *uu = sdlutil::LoadImage(TILEUTIL_FILE);
+  SDL_Surface *uu = sdlutil::LoadImageFile(TILEUTIL_FILE);
   if (!uu) return 0;
 
   /* XXX make dim levels for font too (pass in argument) */
@@ -589,7 +589,7 @@ void Drawing::DrawDests(SDL_Surface *surf, bool shuffle) {
 	      int r = 255 & ((wx * wy) ^ dx);
 	      int g = 255 & ((wx * 13 + dy) ^ ~wy);
 	      int b = 255 & ((dx * 99 + wy) ^ (101 * dy));
-	      
+
 	      sdlutil::drawpixel(surf, xx, yy, r, g, b);
             }
           }

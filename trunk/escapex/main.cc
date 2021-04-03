@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
   {
     printf("Welcome to escape " VERSION ".\n");
     SDL_WM_SetCaption("escape " VERSION, "");
-    SDL_Surface *icon = sdlutil::LoadImage(ICON_FILE);
+    SDL_Surface *icon = sdlutil::LoadImageFile(ICON_FILE);
     if (icon) SDL_WM_SetIcon(icon, 0);
     /* XXX free icon? It's not clear where we
        can safely do this. */
@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
   /* draw splash while loading images. animation init
      takes some time! */
 
-  if (SDL_Surface *splash = sdlutil::LoadImage(SPLASH_FILE)) {
+  if (SDL_Surface *splash = sdlutil::LoadImageFile(SPLASH_FILE)) {
     SDL_Rect dst;
     dst.x = 2;
     dst.y = screen->h - (splash->h + 2);

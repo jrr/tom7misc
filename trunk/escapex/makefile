@@ -30,8 +30,8 @@ LDLIBS = -lSDL_net -lSDL_mixer `sdl-config --libs`
 
 # for multiuser, add -DMULTIUSER -DDATADIR=\"/tmp/escapedata/\" -DSTARTUP_LEVELS=\"/tmp/escapelevels\"
 # with appropriate paths to the static data (trailing slash for data dir; no trailing for startup)
-CPPFLAGS = `sdl-config --cflags` 
-CXXFLAGS = --std=c++14 -g -Wall -O2 -Wno-sign-compare
+CPPFLAGS = `sdl-config --cflags`
+CXXFLAGS = --std=c++17 -g -Wall -O2 -Wno-sign-compare
 
 escape.exe : ${OFILES}
 	g++ -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
@@ -53,7 +53,6 @@ level.o : level.cc move2016.h
 sound_load.h : sound.pack packsound.cc
 	make packsound.exe
 	./packsound.exe sound.pack sound
-
 
 %-console.o : %.cc
 	g++ ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
@@ -168,12 +167,12 @@ RPATH=-rpath @executable_path/../Frameworks
 # sound is disabled, but it's time to make it available on the OS X
 # release. Do this!
 # to add it, remove -DNOSOUND and add
-# 
+#
 # to CPPFLAGS and add
 #  -framework SDL_mixer
 # to the g++ line linking below
 
-CXXFLAGS=-std=c++14
+CXXFLAGS=-std=c++17
 
 # XXX: I added -I. here and made a symlink to the SDL include
 # directory called "SDL", since some frameworks want to include like
@@ -302,42 +301,65 @@ ifdef WIN32
 
 default : escape.exe
 
-%.o : %.cc
-	@${CXX} ${CPPFLAGS} ${CXXFLAGS} -c -o $@ $<
-	@bash -c "echo -n '.'"
-
 # Depending on your installation, this may work better for you...
 # CXX=g++
 # CC=gcc
+# WINDRES=windres
 # But this is how Tom compiles, specifically requesting the 64-bit compiler.
 CXX=x86_64-w64-mingw32-g++
 CC=x86_64-w64-mingw32-g++
+WINDRES=x86_64-w64-mingw32-windres
+
+# point this at the SDL (1.2 series) installation. You need to compile
+# SDL in there too; we just link in the object files.
+SDL=/c/code/SDL
+# Included with escape with some superficial local fixes, but feel
+# free to try a pristine copy instead.
+SDL_NET=SDL_net
+
+
+# assume SDL build for .o files in these directories unless otherwise
+# specified!
+%.o : %.cc
+	@${CXX} ${CPPFLAGS} ${SDL_CXXFLAGS} -c -o $@ $<
+	@bash -c "echo -n '.'"
+
+$(SDL_NET)/%.o : $(SDL_NET)/%.c
+	@${CXX} ${CPPFLAGS} ${SDL_CXXFLAGS} -c -o $@ $<
+	@bash -c "echo -n '.'"
 
 
 SDLARCH=x64
-SDLINCLUDES=-ISDL/include
-SDLOPATH=SDL/build
+SDLINCLUDES=-I$(SDL)/include
+SDLOPATH=${SDL}/build
 SDLOBJECTS=${SDLOPATH}/SDL.o ${SDLOPATH}/SDL_error.o ${SDLOPATH}/SDL_fatal.o ${SDLOPATH}/SDL_audio.o ${SDLOPATH}/SDL_audiocvt.o ${SDLOPATH}/SDL_audiodev.o ${SDLOPATH}/SDL_mixer.o ${SDLOPATH}/SDL_mixer_MMX.o ${SDLOPATH}/SDL_mixer_MMX_VC.o ${SDLOPATH}/SDL_mixer_m68k.o ${SDLOPATH}/SDL_wave.o ${SDLOPATH}/SDL_cdrom.o ${SDLOPATH}/SDL_cpuinfo.o ${SDLOPATH}/SDL_active.o ${SDLOPATH}/SDL_events.o ${SDLOPATH}/SDL_expose.o ${SDLOPATH}/SDL_keyboard.o ${SDLOPATH}/SDL_mouse.o ${SDLOPATH}/SDL_quit.o ${SDLOPATH}/SDL_resize.o ${SDLOPATH}/SDL_rwops.o ${SDLOPATH}/SDL_getenv.o ${SDLOPATH}/SDL_iconv.o ${SDLOPATH}/SDL_malloc.o ${SDLOPATH}/SDL_qsort.o ${SDLOPATH}/SDL_stdlib.o ${SDLOPATH}/SDL_string.o ${SDLOPATH}/SDL_thread.o ${SDLOPATH}/SDL_timer.o ${SDLOPATH}/SDL_RLEaccel.o ${SDLOPATH}/SDL_blit.o ${SDLOPATH}/SDL_blit_0.o ${SDLOPATH}/SDL_blit_1.o ${SDLOPATH}/SDL_blit_A.o ${SDLOPATH}/SDL_blit_N.o ${SDLOPATH}/SDL_bmp.o ${SDLOPATH}/SDL_cursor.o ${SDLOPATH}/SDL_gamma.o ${SDLOPATH}/SDL_pixels.o ${SDLOPATH}/SDL_stretch.o ${SDLOPATH}/SDL_surface.o ${SDLOPATH}/SDL_video.o ${SDLOPATH}/SDL_yuv.o ${SDLOPATH}/SDL_yuv_mmx.o ${SDLOPATH}/SDL_yuv_sw.o ${SDLOPATH}/SDL_joystick.o ${SDLOPATH}/SDL_nullevents.o ${SDLOPATH}/SDL_nullmouse.o ${SDLOPATH}/SDL_nullvideo.o ${SDLOPATH}/SDL_diskaudio.o ${SDLOPATH}/SDL_dummyaudio.o ${SDLOPATH}/SDL_sysevents.o ${SDLOPATH}/SDL_sysmouse.o ${SDLOPATH}/SDL_syswm.o ${SDLOPATH}/SDL_wingl.o ${SDLOPATH}/SDL_dibevents.o ${SDLOPATH}/SDL_dibvideo.o ${SDLOPATH}/SDL_dx5events.o ${SDLOPATH}/SDL_dx5video.o ${SDLOPATH}/SDL_dx5yuv.o ${SDLOPATH}/SDL_dibaudio.o ${SDLOPATH}/SDL_dx5audio.o ${SDLOPATH}/SDL_mmjoystick.o ${SDLOPATH}/SDL_syscdrom.o ${SDLOPATH}/SDL_sysmutex.o ${SDLOPATH}/SDL_syssem.o ${SDLOPATH}/SDL_systhread.o ${SDLOPATH}/SDL_syscond.o ${SDLOPATH}/SDL_systimer.o ${SDLOPATH}/SDL_sysloadso.o sdl-win32-main.o
 
-SDLNETINCLUDES=-ISDL_net
-SDLNETOBJECTS=SDL_net/SDLnet.o SDL_net/SDLnetselect.o SDL_net/SDLnetTCP.o SDL_net/SDLnetUDP.o
+SDLNETINCLUDES=-I$(SDL_NET)
+SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP.o $(SDL_NET)/SDLnetUDP.o
 
 LINKSDL=  -lm -mthreads -luser32 -lgdi32 -lwinmm -ldxguid
 LINKSDLNET= -lws2_32 -liphlpapi
 
 ESCOBJECTS= main.o rle.o level.o solution.o disamb.o loadlevel.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
 
-# XXX
-# ../cc-lib/sdl/font.o
-SDLUTILOBJECTS= ../cc-lib/sdl/sdlutil.o 
-CCLIBOBJECTS= ../cc-lib/crypt/md5.o ../cc-lib/base64.o ../cc-lib/stb_image_write.o ../cc-lib/stb_image.o
+# cc-lib is my personal collection of C++ libraries. It should be in a
+# directory next to "escapex."
+CC_LIB=../cc-lib
+
+# TODO: use font from cc-lib too
+SDLUTILOBJECTS= $(CC_LIB)/sdl/sdlutil.o
+# cc-lib assumes it can include something like "base/macros.h"
+CC_LIBINCLUDES=-I$(CC_LIB)
+CC_LIBOBJECTS= $(CC_LIB)/util.o $(CC_LIB)/crypt/md5.o $(CC_LIB)/base64.o $(CC_LIB)/stb_image_write.o $(CC_LIB)/stb_image.o $(CC_LIB)/image.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o
 
 
 # XXX reenable sound
 DEBUG=-g
 OPT=-O2
-CPPFLAGS=${DEBUG} -DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include  -I. ${SDLINCLUDES} ${SDLNETINCLUDES}
-CXXFLAGS= -std=c++14 ${OPT}
+#
+CXXFLAGS= -std=c++17 ${OPT} $(DEBUG) -DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include $(CC_LIBINCLUDES) -I.
+SDL_CXXFLAGS= ${CXXFLAGS} ${SDLINCLUDES} ${SDLNETINCLUDES}
+
 
 # -Wl,-rpath=.
 
@@ -361,52 +383,58 @@ LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,${SUBSYSTEM} ${OPT}
 #  LDLIBS = -lefence
 
 # XXX need to specify sdl flags presumably
-# CPPFLAGS = -DNOSOUND=1 `sdl-config --cflags` 
+# CPPFLAGS = -DNOSOUND=1 `sdl-config --cflags`
 
-# windres is part of TDM distribution
 icon.o : escape.ico escape.rc
-	windres -i escape.rc -o $@
+	$(WINDRES) -i escape.rc -o $@
 
-escape.exe : ${ESCOBJECTS} ${CCLIBOBJECTS} ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
+escape.exe : ${ESCOBJECTS} ${CC_LIBOBJECTS} ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
 replace.exe : replace.o util.o
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
-packsound.exe : util-console.o packsound-console.o ${SDLOBJECTS}
-	${CXX} -o $@ $^ ${LDFLAGS}
+packsound.o : packsound.cc
+	$(CXX) $(CXXFLAGS) -c -o $@ $^
+
+packsound.exe : packsound.o ${CC_LIBOBJECTS}
+	${CXX} -o $@ $^ ${LDFLAGS} -static
 	strip packsound.exe
 
 rle_test.exe : rle.o rle_test.o
-	${CXX} -o $@ $^
+	${CXX} $(CXXFLAGS) -o $@ $^ -static
 	strip rle_test.exe
 
 sound.o : sound.cc sound_load.h
-	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
+	${CXX} ${SDL_CXXFLAGS} -c -o $@ $<
 
 level.o : level.cc move2016.h
-	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
+	${CXX} ${SDL_CXXFLAGS} -c -o $@ $<
 
 animation.o : animation.cc animation.h animation_load.h
-	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
+	${CXX} ${SDL_CXXFLAGS} -c -o $@ $<
 
 leveldb.o : leveldb.cc leveldb.h leveldb-query.h
-	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
+	${CXX} ${SDL_CXXFLAGS} -c -o $@ $<
 
-sound_load.h : sound.pack packsound.cc
-	make packsound.exe
+sound_load.h : sound.pack packsound.cc packsound.exe
 	./packsound.exe sound.pack sound
 
+# if you don't want to deal with zopflipng to optimize images,
+# you could probably just replace this with like ZOPFLI=cp
 ZOPFLI=./zopflipng.exe --splitting=3 --filters=01234mepb --lossy_8bit --lossy_transparent
 
-animation_load.h animation.png animation_decs.h animation_defs.h : animation.pack
-	rm -f animation_load.h animation.png animation_decs.h animation_defs.h
-	make packpng.exe
-	packpng.exe animation.pack animation
-	rm -f animation-zop.png
-	${ZOPFLI} animation.png animation-zop.png
-	rm -f animation.png
-	mv animation-zop.png animation.png
+# generate animation_load.h, animation.png, etc. % is just used as a
+# trick so that gnu make lets this generate multiple targets (it
+# requires a common substring to match in all positions. here % =
+# animation. $* yields the matched string in the commands.)
+%_load.h %.png %_decs.h %_defs.h : packpng.exe %.pack
+#	rm -f animation_load.h animation.png animation_decs.h animation_defs.h
+	./packpng.exe $*.pack $*
+	rm -f $*-zop.png
+	${ZOPFLI} $*.png $*-zop.png
+	rm -f $*.png
+	mv $*-zop.png $*.png
 
 optimize-png : animation.png .dummy
 	rm -f zop-*.png
@@ -421,14 +449,18 @@ optimize-png : animation.png .dummy
 	cp zop-animation.png animation.png
 	rm -f zop-*.png
 
-# XXX better way to do this? 
+# XXX better way to do this?
 %-console.o : %.cc
-	${CXX} ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
+	${CXX} ${CXXFLAGS} -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
 
-packpng.exe : util-console.o font-console.o level-console.o ../cc-lib/sdl/sdlutil-console.o packpng-console.o winmain-console.o
-	${CXX} -o $@ ${LDFLAGS} $^ ${LDLIBS}
+packpng.o : packpng.cc
+	$(CXX) $(CXXFLAGS) -c -o $@ $^
 
-# but this should be static
+packpng.exe : packpng.o ${CC_LIBOBJECTS}
+	${CXX} -o $@ $^ -static
+
+# TODO: Can we make this headless? It seems we have several uses for "core"
+# escape that works without SDL (e.g. server code).
 # ../cc-lib/sdl/font-console.o
 screenshot.exe : draw-console.o level-console.o util-console.o ../cc-lib/sdl/sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
 	${CXX} -g -o screenshot.exe $^ `sdl-config --static-libs`
@@ -523,7 +555,7 @@ wc :
 	wc -l *.cc *.h
 
 clean :
-	rm -f *.o escape.exe core core.[0-9]* gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.* SDL_net/*.o
+	rm -f *.o escape.exe core core.[0-9]* gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.* $(SDLNETOBJECTS)
 
 # end mingw makefile
 endif

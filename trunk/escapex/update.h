@@ -1,6 +1,6 @@
 
-#ifndef __UPDATE_H
-#define __UPDATE_H
+#ifndef _ESCAPE_UPDATE_H
+#define _ESCAPE_UPDATE_H
 
 #include "escapex.h"
 #include "level.h"

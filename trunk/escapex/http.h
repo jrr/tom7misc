@@ -2,8 +2,8 @@
 /* maximally simple interface to HTTP
    using SDL_net */
 
-#ifndef __HTTP_H
-#define __HTTP_H
+#ifndef _ESCAPE_HTTP_H
+#define _ESCAPE_HTTP_H
 
 #include "SDL.h"
 #include "SDL_net.h"

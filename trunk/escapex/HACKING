@@ -31,7 +31,9 @@ I know this is unusual for these platforms. But think about it.
 Note that not all platforms have makefiles for the "meta" tools that
 generate packed animations, etc. But the generated files are part of
 the source distribution, and it shouldn't be too hard to get these
-tools to build.
+tools to build. I tried to make these headless (not depending on SDL),
+which requires minor hoops because of SDL's #define tricks relating to
+main, WinMain, etc.
 
 If you don't want to install the sound libraries, you can compile with
 -DNOSOUND to disable it. There's no sound yet, so this might be a good
@@ -67,7 +69,7 @@ Otherwise, you may need to install SDL, SDL_net, and SDL_mixer; on Ubuntu:
   - sudo apt-get install libsdl1.2-dev
   - sudo apt-get install libsdl-net1.2-dev
   - sudo apt-get install libsdl-mixer1.2-dev
-  
+
 SDL is working if the command "sdl-config" is in your path.
 
 After this, "export LINUX=true" and "make" should just work.
@@ -104,9 +106,8 @@ many traps.
 
  ** Understanding the code **
 
-There is no design document yet, because there are several things
-that I expect to change. Basically, start in main.cc and follow
-things from there...
+There is no design document, sorry, and the code is not very clean!
+Basically, start in main.cc and follow things from there...
 
 See the document protocol.txt for an explanation of the network
 update features.
@@ -168,6 +169,10 @@ commited to modern C++, 64-bit compiles, and removed external
 dependencies like libpng. If you want to compile some old way, this
 is where to look. But why?
 
+In April 2021 I got this compiling again on my new Windows 10 desktop,
+which required some violence to the makefile and source which may
+have messed up the other builds. I need to get the other platforms
+updated anyway!
 
  ** Things to know **
 

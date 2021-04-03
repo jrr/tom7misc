@@ -1,6 +1,6 @@
 
-#ifndef __ESCAPEX_H
-#define __ESCAPEX_H
+#ifndef _ESCAPE_ESCAPEX_H
+#define _ESCAPE_ESCAPEX_H
 
 #include "SDL.h"
 #include "SDL_net.h"

@@ -434,7 +434,7 @@ MainMenu_ *MainMenu_::Create(Player *plr) {
   mm->titlegraphic = 0;
   mm->background = 0;
 
-  mm->titlegraphic = sdlutil::LoadImage(TITLE_FILE);
+  mm->titlegraphic = sdlutil::LoadImageFile(TITLE_FILE);
 
   if (!mm->titlegraphic) return 0;
 
@@ -444,7 +444,7 @@ MainMenu_ *MainMenu_::Create(Player *plr) {
 
   mm->mshow = MainShow::Create(18, 10, 1);
 
-  
+
   /* set up selector... */
   mm->sel = MSel::Create(NUM_ITEMS);
   mm->sel->below = mm.get();

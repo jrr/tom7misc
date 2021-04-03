@@ -1,6 +1,6 @@
 
-#ifndef __ANIMATION_H
-#define __ANIMATION_H
+#ifndef _ESCAPE_ANIMATION_H
+#define _ESCAPE_ANIMATION_H
 
 #include <SDL.h>
 #include "escapex.h"

@@ -1,12 +1,11 @@
 
 #include "escapex.h"
 
-/* XXX put this stuff in escapex.cc? */
-SDL_Surface *screen;
+SDL_Surface *screen = nullptr;
 
 /* XXX should be bools */
-int network;
-int audio;
+int network = 0;
+int audio = 0;
 
 
 bool HandleVideoEvent(Drawable *parent, const SDL_Event &event) {

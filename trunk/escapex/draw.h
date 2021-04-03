@@ -1,6 +1,6 @@
 
-#ifndef __DRAW_H
-#define __DRAW_H
+#ifndef _ESCAPE_DRAW_H
+#define _ESCAPE_DRAW_H
 
 #include "level.h"
 #include "font.h"
