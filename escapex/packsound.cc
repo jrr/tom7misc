@@ -1,35 +1,21 @@
-#include "escapex.h"
-#include "level.h"
-#include "../cc-lib/sdl/sdlutil.h"
+// TODO: Make headless with e.g. dr_wav.
+// Or give up on sound and retire it...
 
-#include "util.h"
-#include "font.h"
-#include "draw.h"
+#include "../cc-lib/util.h"
 
+#include <cstdio>
 #include <iostream>
 #include <fstream>
+#include <string>
 
-/* XXX necessary? */
-SDL_Surface *screen;
-string self;
+using namespace std;
 
 int main(int argc, char **argv) {
   /* change to location of binary, so that we can find the
      images needed. */
   if (argc > 0) {
-    string wd = util::pathof(argv[0]);
-    util::changedir(wd);
-
-#   if WIN32
-    /* on win32, the ".exe" may or may not
-       be present. Also, the file may have
-       been invoked in any CaSe. */
-    self = util::lcase(util::fileof(argv[0]));
-    self = util::ensureext(self, ".exe");
-#   else
-    self = util::fileof(argv[0]);
-#   endif
-
+    string wd = Util::pathof(argv[0]);
+    Util::changedir(wd);
   }
 
   /* XXX it's not implausible that we could pack the wave files
@@ -37,6 +23,7 @@ int main(int argc, char **argv) {
   if (argc != 3) {
     printf("\n"
            "Usage: packsound description.pack basename\n");
+    // XXX these docs are obviously out of date!
     printf("Creates a packed PNG graphic from each of the files in\n"
            "description.pack. Produces:\n"
            "   basename_enum.h (enum basename_t)\n"
@@ -48,13 +35,6 @@ int main(int argc, char **argv) {
        add them to releasefiles and the installer */
     return 1;
   }
-
-  /* we don't really need any SDL modules */
-  if (SDL_Init (SDL_INIT_NOPARACHUTE) < 0) {
-    printf("Unable to initialize SDL. (%s)\n", SDL_GetError());
-    return 1;
-  }
-
 
   string descname = argv[1];
   string basename = argv[2];
@@ -97,7 +77,7 @@ int main(int argc, char **argv) {
       fprintf(enums, "     %s,\n", name.c_str());
 
       /* use 'DIRSEP' instead of / */
-      string f = util::replace(file, "/", "\" DIRSEP \"");
+      string f = Util::Replace(file, "/", "\" DIRSEP \"");
 
       /* XXX specialize to platform */
       fprintf(load,
@@ -114,7 +94,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  string num_enum = (string)"NUM_" + util::ucase(basename);
+  string num_enum = (string)"NUM_" + Util::ucase(basename);
 
   /* postlude for enums */
   fprintf(enums,

@@ -1,10 +1,10 @@
 
 /* upgrade trampoline for windows only
    does a series of moves (on the command line as
-   execafter.exe    src dst   src dst   src dst)
+   replace.exe    src dst   src dst   src dst)
 
    then execs:
-     execafter.exe -upgraded
+     replace.exe -upgraded
 
 
    Replace waits a few seconds and tries again on

@@ -16,7 +16,12 @@
    /* rename */
 #  include <io.h>
    /* setclipboard */
+
+// Avoid conflicts with c++17's std::byte
+#define byte win_byte_override
 #  include <windows.h>
+#undef byte
+
 #else /* posix */
    /* chdir, unlink */
 #  include <unistd.h>

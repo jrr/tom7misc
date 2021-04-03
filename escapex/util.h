@@ -4,8 +4,8 @@
 // calling the Util methods where possible, until this is
 // only stuff of local interest.
 
-#ifndef __UTIL_H
-#define __UTIL_H
+#ifndef _ESCAPE_UTIL_H
+#define _ESCAPE_UTIL_H
 
 #include <cstdlib>
 #include <map>

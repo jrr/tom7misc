@@ -151,10 +151,10 @@ UDPsocket SDLNet_UDP_Open(Uint16 port)
 	}
 	memset(sock, 0, sizeof(*sock));
 	memset(&sock_addr, 0, sizeof(sock_addr));
-	
+
 	/* Open the socket */
 	sock->channel = socket(AF_INET, SOCK_DGRAM, 0);
-	if ( sock->channel == INVALID_SOCKET ) 
+	if ( sock->channel == INVALID_SOCKET )
 	{
 		SDLNet_SetError("Couldn't create socket");
 		goto error_return;
@@ -210,12 +210,12 @@ perror("getsockname");
 #endif
 
 	/* The socket is ready */
-	
+
 	return(sock);
 
 error_return:
 	SDLNet_UDP_Close(sock);
-	
+
 	return(NULL);
 }
 
@@ -320,7 +320,7 @@ IPaddress *SDLNet_UDP_GetPeerAddress(UDPsocket sock, int channel)
 /* Send a vector of packets to the the channels specified within the packet.
    If the channel specified in the packet is -1, the packet will be sent to
    the address in the 'src' member of the packet.
-   Each packet will be updated with the status of the packet after it has 
+   Each packet will be updated with the status of the packet after it has
    been sent, -1 if the packet send failed.
    This function returns the number of packets sent.
 */
@@ -341,7 +341,7 @@ int SDLNet_UDP_SendV(UDPsocket sock, UDPpacket **packets, int npackets)
 	sock_len = sizeof(sock_addr);
 
 	numsent = 0;
-	for ( i=0; i<npackets; ++i ) 
+	for ( i=0; i<npackets; ++i )
 	{
 		/* Simulate packet loss, if desired */
 		if (sock->packetloss) {
@@ -353,38 +353,38 @@ int SDLNet_UDP_SendV(UDPsocket sock, UDPpacket **packets, int npackets)
 		}
 
 		/* if channel is < 0, then use channel specified in sock */
-		
-		if ( packets[i]->channel < 0 ) 
+
+		if ( packets[i]->channel < 0 )
 		{
 			sock_addr.sin_addr.s_addr = packets[i]->address.host;
 			sock_addr.sin_port = packets[i]->address.port;
 			sock_addr.sin_family = AF_INET;
-			status = sendto(sock->channel, 
-					packets[i]->data, packets[i]->len, 0,
-					(struct sockaddr *)&sock_addr,sock_len);
+			status = sendto(sock->channel,
+                      (const char *)packets[i]->data, packets[i]->len, 0,
+                      (struct sockaddr *)&sock_addr,sock_len);
 			if ( status >= 0 )
 			{
 				packets[i]->status = status;
 				++numsent;
 			}
 		}
-		else 
+		else
 		{
 			/* Send to each of the bound addresses on the channel */
 #ifdef DEBUG_NET
 			printf("SDLNet_UDP_SendV sending packet to channel = %d\n", packets[i]->channel );
 #endif
-			
+
 			binding = &sock->binding[packets[i]->channel];
-			
-			for ( j=binding->numbound-1; j>=0; --j ) 
+
+			for ( j=binding->numbound-1; j>=0; --j )
 			{
 				sock_addr.sin_addr.s_addr = binding->address[j].host;
 				sock_addr.sin_port = binding->address[j].port;
 				sock_addr.sin_family = AF_INET;
-				status = sendto(sock->channel, 
-						packets[i]->data, packets[i]->len, 0,
-						(struct sockaddr *)&sock_addr,sock_len);
+				status = sendto(sock->channel,
+                        (const char *)packets[i]->data, packets[i]->len, 0,
+                        (struct sockaddr *)&sock_addr,sock_len);
 				if ( status >= 0 )
 				{
 					packets[i]->status = status;
@@ -393,7 +393,7 @@ int SDLNet_UDP_SendV(UDPsocket sock, UDPpacket **packets, int npackets)
 			}
 		}
 	}
-	
+
 	return(numsent);
 }
 
@@ -449,31 +449,31 @@ extern int SDLNet_UDP_RecvV(UDPsocket sock, UDPpacket **packets)
 	}
 
 	numrecv = 0;
-	while ( packets[numrecv] && SocketReady(sock->channel) ) 
+	while ( packets[numrecv] && SocketReady(sock->channel) )
 	{
 		UDPpacket *packet;
 
 		packet = packets[numrecv];
-		
+
 		sock_len = sizeof(sock_addr);
 		packet->status = recvfrom(sock->channel,
-				packet->data, packet->maxlen, 0,
-				(struct sockaddr *)&sock_addr,
-						&sock_len);
+                              (char *)packet->data, packet->maxlen, 0,
+                              (struct sockaddr *)&sock_addr,
+                              &sock_len);
 		if ( packet->status >= 0 ) {
 			packet->len = packet->status;
 			packet->address.host = sock_addr.sin_addr.s_addr;
 			packet->address.port = sock_addr.sin_port;
 			packet->channel = -1;
-			
-			for (i=(SDLNET_MAX_UDPCHANNELS-1); i>=0; --i ) 
+
+			for (i=(SDLNET_MAX_UDPCHANNELS-1); i>=0; --i )
 			{
 				binding = &sock->binding[i];
-				
-				for ( j=binding->numbound-1; j>=0; --j ) 
+
+				for ( j=binding->numbound-1; j>=0; --j )
 				{
 					if ( (packet->address.host == binding->address[j].host) &&
-					     (packet->address.port == binding->address[j].port) ) 
+					     (packet->address.port == binding->address[j].port) )
 					{
 						packet->channel = i;
 						goto foundit; /* break twice */
@@ -482,16 +482,16 @@ extern int SDLNet_UDP_RecvV(UDPsocket sock, UDPpacket **packets)
 			}
 foundit:
 			++numrecv;
-		} 
-		
-		else 
+		}
+
+		else
 		{
 			packet->len = 0;
 		}
 	}
-	
+
 	sock->ready = 0;
-	
+
 	return(numrecv);
 }
 
@@ -515,13 +515,13 @@ int SDLNet_UDP_Recv(UDPsocket sock, UDPpacket *packet)
 /* Close a UDP network socket */
 extern void SDLNet_UDP_Close(UDPsocket sock)
 {
-	if ( sock != NULL ) 
+	if ( sock != NULL )
 	{
-		if ( sock->channel != INVALID_SOCKET ) 
+		if ( sock->channel != INVALID_SOCKET )
 		{
 			closesocket(sock->channel);
 		}
-		
+
 		free(sock);
 	}
 }

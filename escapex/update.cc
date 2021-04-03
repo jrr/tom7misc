@@ -412,6 +412,9 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
         /* XXX change to sayover? */
         /* say((string)GREEN + f + (string)" " GREY + md + POP POP); */
 
+        // (XXX do something on success... it can look like the game
+        // crashed when downloading lots of levels!)
+
       } else {
         say((string)RED + f + (string)" " GREY + md +
             (string)POP " (error!)" POP);
