@@ -101,24 +101,24 @@ struct Animation {
 # include "animation_defs.h"
 
   /* there will be DRAW_NSIZES copies of these */
-  static  SDL_Surface **pic_guy_up;
-  static  SDL_Surface **pic_guy_down;
-  static  SDL_Surface **pic_guy_left;
-  static  SDL_Surface **pic_guy_right;
+  static SDL_Surface **pic_guy_up;
+  static SDL_Surface **pic_guy_down;
+  static SDL_Surface **pic_guy_left;
+  static SDL_Surface **pic_guy_right;
 
-  static  SDL_Surface **pic_deadrobot;
-
-  /* XXX these are currently all the same */
-  static  SDL_Surface **pic_dalek_up;
-  static  SDL_Surface **pic_dalek_down;
-  static  SDL_Surface **pic_dalek_left;
-  static  SDL_Surface **pic_dalek_right;
+  static SDL_Surface **pic_deadrobot;
 
   /* XXX these are currently all the same */
-  static  SDL_Surface **pic_hugbot_up;
-  static  SDL_Surface **pic_hugbot_down;
-  static  SDL_Surface **pic_hugbot_left;
-  static  SDL_Surface **pic_hugbot_right;
+  static SDL_Surface **pic_dalek_up;
+  static SDL_Surface **pic_dalek_down;
+  static SDL_Surface **pic_dalek_left;
+  static SDL_Surface **pic_dalek_right;
+
+  /* XXX these are currently all the same */
+  static SDL_Surface **pic_hugbot_up;
+  static SDL_Surface **pic_hugbot_down;
+  static SDL_Surface **pic_hugbot_left;
+  static SDL_Surface **pic_hugbot_right;
 
   static SDL_Surface **pic_dalek_asleep_up;
   static SDL_Surface **pic_dalek_asleep_down;
@@ -189,7 +189,6 @@ struct Animation {
                                    int oversample = FLIPS_OVERSAMPLE);
 
   static bool init_flips();
-
 };
 
 

@@ -3,7 +3,6 @@
 #define _ESCAPE_LOADLEVEL_H
 
 #include "escapex.h"
-#include "font.h"
 #include "selector.h"
 #include "player.h"
 

@@ -2,6 +2,14 @@
 
 * Current Projects
 
+ - Compile for new mac chips. :/
+ - Do a 64-bit windows release on new toolchains.
+
+Code cleanup:
+ - replace vallist with deque or vector; it's not used in that many places
+ - makefile does not have proper dependencies on animation_defs.h, which
+   is needed by any object that includes animation.h.
+
 Make this work again on OSX 10.10+ and windows!
  - Add mixer framework in for next release
  - byte order when manually making graphics, like mainshow?
@@ -9,19 +17,14 @@ Make this work again on OSX 10.10+ and windows!
        differs per platform (RGBA, ARGB, etc.)
      - any more of these?
  - Probably release a source-only tarball for linux?
- - I moved cc-lib md5 to the crypt subdirectory; need to update references.
 
 Merge some changes from Matt McCutchen:
  https://gitlab.com/mattmccutchen/escape
 
 Use specific-width integer types instead of 'unsigned'.
 
-Use font from cc-lib.
 Maybe move HTTP to cc-lib.
 Maybe move primes to cc-lib.
-
-Avoid sdl-image? Server-side code would certainly benefit, at least
-(this caused the screenshot outage late 2019).
 
 Actually try to do some ML-based level generation? There aren't
 that many levels to train on, but it's possible that we could
@@ -46,11 +49,9 @@ code cleanup
  - in places where I switched from hashtable to unordered_map, can
    probably remove the key from the value struct.
  - use enum class for "result" enums
- - move solution out of level
  - capitalize class names
      - grep 'struct [a-z]' *.h | grep -v '_t'
      - Match::stream
- - replace vallist with deque or vector; it's not used in that many places
  - in move2016, actually I mistakenly rewrote some entity indices to
    B_PLAYER, but B_PLAYER is not an index; it's a bot type -- should
    fix, maybe by introducing a new constant like ENTI_PLAYER (also
@@ -58,14 +59,13 @@ code cleanup
 - When using the virtual implementation idiom, the "real" class
   can be defined in an anonymous namespace.
  - pref to not delete incomplete solutions when solving a level?
- - remove space in ' ;'
 
 maybe Drawing should not have a const level* alias?
 
 in play.cc, make a function that replaces the level (And the level in the
 drawing) with something, like the Start lev.
 
-merge util with cc-lib's.
+now there are escape-util and cc-lib's util. remove duplication!
 
 c++11isms
  - nullptr instead of 0
@@ -149,7 +149,7 @@ http://sourceforge.net/project/downloading.php?groupname=optipng&filename=optipn
    then blue down, send red left then up.
 
 ** Upgrade System (BETA3)
-*** important! 
+*** important!
    we can now fetch files that belong in ..
    by putting them in the web dir with @.
    but the build system needs to be updated to
@@ -218,7 +218,7 @@ http://sourceforge.net/project/downloading.php?groupname=optipng&filename=optipn
 *** panel (un)triggered when stepping into a
     teleporter doesn't animate!
 *** jiggle animation can be wrong (see animation.cc)
-*** push a series of steel blocks off the 
+*** push a series of steel blocks off the
     screen; the last one does not move, it
     just gets overwritten by the one before it
 *** stepping onto an exit that is disappearing
@@ -303,18 +303,18 @@ http://sourceforge.net/project/downloading.php?groupname=optipng&filename=optipn
 
 *** When a level can't be downloaded from the server, all updating stops,
     and it reports success (2959 bug)?
-*** Solution management (defaults, automatic saving when beating a level, downloads, 
-    bookmarks vs. solutions, etc.) is pretty messed up. Write a real spec for 
+*** Solution management (defaults, automatic saving when beating a level, downloads,
+    bookmarks vs. solutions, etc.) is pretty messed up. Write a real spec for
     addsolution, implement it, and use it.
 *** Should use unicode symbols for keys always, so that
     people get consistent game/menu behavior (pieguy in dvorak)
 *** when showing botnums, a detonated bomb's number sticks around
 *** Timer prefab: bot at bottom will walk up if player
-    is above him vertically. 
+    is above him vertically.
 *** CRASH: if there are no levels at all, right after saying
     "there are no levels at all!"
-*** CRASH: apparently possible to overflow the event buffer (or something) 
-    while animation is going on; we only interrupt on keypress. 
+*** CRASH: apparently possible to overflow the event buffer (or something)
+    while animation is going on; we only interrupt on keypress.
     This can totally happen when the mouse is moved during a long
     animation. To test: load a level with long animations (in solution
     playback), and then move the mouse quickly while pressing keys
@@ -338,14 +338,14 @@ http://sourceforge.net/project/downloading.php?groupname=optipng&filename=optipn
 *** Load
 **** hit esc from a directory two levels deep. now re-enter load
     screen and go to .. --- it sends you straight to the root.
-*** hit 1 to load. remove one of the directories from the command line. 
+*** hit 1 to load. remove one of the directories from the command line.
     try to change to it. now, you won't be able to change to anything
     because the path will be screwed up.
 
     ie:
     where: './attic-old/attic-old/fixme/fixme/official/triage/triage/attic-old'
 
-*** textbox: extra word wrapping 
+*** textbox: extra word wrapping
     this is a longer line\n
     shorterline
     where line + shorterline is too long to fit
@@ -365,9 +365,9 @@ http://sourceforge.net/project/downloading.php?groupname=optipng&filename=optipn
 *** exploded move (animate with no dab)
 
 ** Hardening
-*** automatically back up player file 
+*** automatically back up player file
 **** recover player should let you pick from a list
-*** make a pass over with 
+*** make a pass over with
 **** deleted/corrupted files
 **** no disk space / read-only drive
   From first start, we can't do anything because
@@ -450,7 +450,7 @@ http://tucows.com/preview/383408
 *** QICON kind of sucks
 *** THINSPACE, NEGSPACE and other 'magic' formatting characters
 *** hand anti-alias the font
-*** implement 'color stack' for fonts 
+*** implement 'color stack' for fonts
 **** font::closestack
   .. adds and removes pops to make parens balanced.
 
@@ -472,14 +472,14 @@ http://tucows.com/preview/383408
 *** improve solution optimization
     (look for shorter paths between level-changing events)
     it seems that some of the reachability stuff should
-    make this pretty easy. 
+    make this pretty easy.
 
     even simpler, just replay the solutions, and if we ever reach
     the same x/y location twice, try deleting the series
     of moves in-between, and re-validating the solution.
 
     multi-solution optimization
-*** prune solutions in player files 
+*** prune solutions in player files
    (ie, restrict to files actually on disk!!)
    ... tom's is growing pretty big now.
 
@@ -490,8 +490,8 @@ http://tucows.com/preview/383408
     in its center!
 *** zooming
     make tileu buttons for it
-*** center the drawing (horizontally, at least) 
-    when I can't fit all tiles. 
+*** center the drawing (horizontally, at least)
+    when I can't fit all tiles.
     (also when I can ?!)
 *** draw alpha-dimmed tiles around border?
      (tilesdim is now there.)
@@ -555,7 +555,7 @@ http://tucows.com/preview/383408
 *** 4x4 rotator. when pressed, it rotates its target
     4x4 squares clockwise.
 *** warp to bizarro world??
-*** tile creator 
+*** tile creator
     (if to its left/right/whatever, there is floor and no
      guy, create a block. maybe this would work better as
      a single tile that creates blocks on itself)
@@ -582,10 +582,10 @@ http://tucows.com/preview/383408
       by bot), but those have unambiguous order and we could either
       do them all or just do the last or first one.
 **** blaster that destroys certain tiles (bombable) horizontally
-     when it receives a pulse.. 
-     - also an ordering problem, but here we could at least just 
+     when it receives a pulse..
+     - also an ordering problem, but here we could at least just
      trigger all blasters simultaneously at the end of the motion.
-**** "floor sensor" or whatever 
+**** "floor sensor" or whatever
 
 ** web browser integration?
 *** can put <img src="http://localhost:34883/blah"> in pages ...

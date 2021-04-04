@@ -2,12 +2,12 @@
 #ifndef _ESCAPE_DRAW_H
 #define _ESCAPE_DRAW_H
 
-#include "level.h"
-#include "font.h"
 #include <math.h>
 #include <string>
+#include <cstdint>
 
-using namespace std;
+#include "level.h"
+#include "../cc-lib/sdl/font.h"
 
 class SDL_Surface;
 class Rating;
@@ -107,7 +107,7 @@ struct Drawing {
   // Not owned!
   const Level *lev = nullptr;
 
-  string message;
+  std::string message;
 
   /* must set at least width, height, lev */
   Drawing() {}
@@ -172,8 +172,9 @@ struct Drawing {
      solvemoves is the number of moves in the player's solution,
      or 0 if unsolved (all valid solutions have at least one move.)
   */
-  static void DrawSmall(int y, int botmargin, Uint32 color,
-                        const Level *l, int solvemoves, const string &fname,
+  static void DrawSmall(int y, int botmargin, uint32_t color,
+                        const Level *l, int solvemoves,
+                        const std::string &fname,
                         RateStatus *votes,
                         Rating *myrating, int date = 0,
                         int speedrecord = 0);

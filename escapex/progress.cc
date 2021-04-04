@@ -1,7 +1,10 @@
-#include "escapex.h"
 #include "progress.h"
+
+#include <string>
+
+#include "escapex.h"
 #include "draw.h"
-#include "font.h"
+#include "../cc-lib/sdl/font.h"
 
 
 void Progress::drawbar(void *vepoch, int n, int tot,

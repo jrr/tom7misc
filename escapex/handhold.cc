@@ -2,10 +2,10 @@
 
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
+#include "../cc-lib/sdl/font.h"
 
 #include "escape-util.h"
 #include "escapex.h"
-#include "font.h"
 
 #include "time.h"
 #include "message.h"

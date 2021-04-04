@@ -849,7 +849,7 @@ void LoadLevel_::DrawSmall() {
   Uint32 color =
     SDL_MapRGBA(screen->format, 0x22, 0x22, 0x44, 0xFF);
 
-  int y = (screen->h - sel->botmargin) + 4 ;
+  int y = (screen->h - sel->botmargin) + 4;
 
   SDL_Rect dst;
 

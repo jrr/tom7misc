@@ -1,7 +1,9 @@
 
-#include "escapex.h"
 #include "dirt.h"
+
+#include "escapex.h"
 #include "ptrlist.h"
+#include "../cc-lib/sdl/sdlutil.h"
 
 using rlist = PtrList<SDL_Rect>;
 

@@ -11,10 +11,7 @@
 #include <memory>
 
 #include "base.h"
-#include "font.h"
 #include "drawable.h"
-
-#include "../cc-lib/sdl/sdlutil.h"
 
 #include "version.h"
 

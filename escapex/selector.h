@@ -8,7 +8,7 @@
 #include "escapex.h"
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
-#include "font.h"
+#include "../cc-lib/sdl/font.h"
 #include "draw.h"
 
 #define SELCOLOR 0x22, 0x44, 0x22, 0xFF

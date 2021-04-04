@@ -11,10 +11,6 @@
  */
 
 #include "escapex.h"
-#include "font.h"
-#include "selector.h"
-#include "player.h"
-#include "escape-util.h"
 
 /* abstract interface */
 struct Browse : public Drawable {

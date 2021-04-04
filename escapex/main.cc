@@ -1,9 +1,12 @@
+
+#include <string>
+
 #include "../cc-lib/sdl/sdlutil.h"
+#include "../cc-lib/sdl/font.h"
 #include "../cc-lib/crypt/md5.h"
 
 #include "level.h"
 #include "escapex.h"
-#include "font.h"
 #include "loadlevel.h"
 #include "player.h"
 #include "prompt.h"
@@ -291,14 +294,14 @@ int main(int argc, char **argv) {
     }
   }
 #ifndef MULTIUSER
- done: ;
+ done:;
 #endif
 
- oops: ;
+ oops:;
   Drawing::DestroyImages();
 
 
- no_drawings: ;
+ no_drawings:;
   Sound::shutdown();
   SDL_Quit();
 

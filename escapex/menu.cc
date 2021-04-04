@@ -1,10 +1,15 @@
 
 #include "menu.h"
+
+#include <string>
+
 #include "draw.h"
 #include "chars.h"
 #include "message.h"
 #include "ptrlist.h"
 #include "escape-util.h"
+#include "../cc-lib/sdl/sdlutil.h"
+#include "../cc-lib/sdl/font.h"
 
 /* PERF: can optimize many of these width calculations.
    PERF: no need to append strings so often */

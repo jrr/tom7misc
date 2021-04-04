@@ -11,9 +11,9 @@
 ifdef LINUX
 # makefile for linux
 
-CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
+CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/sdl/font.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
 
-OFILES = main.o level.o solution.o rle.o disamb.o loadlevel.o font.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o ${CCLIBOBJECTS}
+OFILES = main.o level.o solution.o rle.o disamb.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o ${CCLIBOBJECTS}
 
 default : escape.exe
 
@@ -187,15 +187,15 @@ CFLAGS=-Wno-objc-protocol-method-implementation
 # used to use /usr/local/lib
 LIBS=-L/usr/lib
 
-CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
+CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/sdl/font.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
 
-escape.exe : escapex.o browse.o main.o rle.o level.o solution.o disamb.o loadlevel.o font.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
+escape.exe : escapex.o browse.o main.o rle.o level.o solution.o disamb.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
 	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
 	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
 
 # XXX this would allow us to build "Screenshot.app", but we should
 # figure out some other approach for command-line tools.
-screenshot.exe : sdlmain.o draw.o screenshot.o escapex.o rle.o level.o solution.o disamb.o escape-util.o animation.o message.o progress.o sound.o font.o drawable.o ${CCLIBOBJECTS}
+screenshot.exe : sdlmain.o draw.o screenshot.o escapex.o rle.o level.o solution.o disamb.o escape-util.o animation.o message.o progress.o sound.o drawable.o ${CCLIBOBJECTS}
 	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
 	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o $@
 
@@ -340,14 +340,13 @@ SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP
 LINKSDL=  -lm -mthreads -luser32 -lgdi32 -lwinmm -ldxguid
 LINKSDLNET= -lws2_32 -liphlpapi
 
-ESCOBJECTS= main.o rle.o level.o solution.o disamb.o loadlevel.o font.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
+ESCOBJECTS= main.o rle.o level.o solution.o disamb.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
 
 # cc-lib is my personal collection of C++ libraries. It should be in a
 # directory next to "escapex."
 CC_LIB=../cc-lib
 
-# TODO: use font from cc-lib too
-SDLUTILOBJECTS= $(CC_LIB)/sdl/sdlutil.o
+SDLUTILOBJECTS= $(CC_LIB)/sdl/sdlutil.o $(CC_LIB)/sdl/font.o
 # cc-lib assumes it can include something like "base/macros.h"
 CC_LIBINCLUDES=-I$(CC_LIB)
 CC_LIBOBJECTS= $(CC_LIB)/util.o $(CC_LIB)/crypt/md5.o $(CC_LIB)/base64.o $(CC_LIB)/stb_image_write.o $(CC_LIB)/stb_image.o $(CC_LIB)/image.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o

@@ -3,6 +3,10 @@
 #define _ESCAPE_TEXTSCROLL_H
 
 #include "escapex.h"
+#include "drawable.h"
+
+class Font;
+class SDL_Surface;
 
 struct TextScroll : public Drawable {
   int posx = 0;

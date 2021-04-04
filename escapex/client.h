@@ -11,6 +11,7 @@
 #include "player.h"
 #include "prefs.h"
 #include "draw.h"
+#include "../cc-lib/sdl/sdlutil.h"
 
 #define SUPERUSER (1)
 
@@ -33,7 +34,7 @@ struct Client {
 
     string serveraddress = Prefs::getstring(plr, PREF_SERVER);
     int serverport =
-      (Prefs::getbool(plr, PREF_ALTCONNECT))?8888:80;
+      Prefs::getbool(plr, PREF_ALTCONNECT) ? 8888 : 80;
 
     if (hh.get() == nullptr) {
       if (tx) tx->Say(YELLOW "Couldn't create http object.");

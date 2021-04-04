@@ -1097,8 +1097,8 @@ void Editor::Edit(const Level *origlev) {
               case TU_CLEAR:
                 Clear(T_FLOOR, (Tile)current);
                 break;
-              default: ;
-
+              default:
+                break;
               }
 
             } /* else outside menu */
@@ -1179,7 +1179,9 @@ void Editor::Edit(const Level *origlev) {
           case SDLK_UP: d = DIR_UP; break;
           case SDLK_RIGHT: d = DIR_RIGHT; break;
           case SDLK_LEFT: d = DIR_LEFT; break;
-          default: ; /* impossible - lint */
+          default:
+            /* impossible - lint */
+            break;
           }
 
           if ((event.key.keysym.mod & KMOD_SHIFT) &&
@@ -1373,7 +1375,7 @@ void Editor::Edit(const Level *origlev) {
               }
               /* success! */
               break;
-            next_size: ;
+            next_size:;
             }
             /* printf("OK: plen is: %d\n", plen); */
 
