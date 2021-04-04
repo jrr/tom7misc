@@ -57,7 +57,7 @@ using namespace std;
 // quadratically, it got to the point that running even a single
 // round would take hours. New version picks cells that have
 // the fewest number of games, and runs those in parallel.
-static constexpr int THREADS = 8;
+static constexpr int THREADS = 16;
 static constexpr int RUN_FOR_SECONDS = 60 * 20;
 
 // Fill in the diagonal just a little. After reaching this number of games,

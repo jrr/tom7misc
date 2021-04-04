@@ -12,6 +12,12 @@ sig
 
   type layout
 
+  (* print the object *)
+  val print: layout * (string -> unit) -> unit
+  val tostring: layout -> string
+  (* give maximum width *)
+  val tostringex : int -> layout -> string
+
   (* layout the objects on separate lines*)
   val align: layout list -> layout
   val alignPrefix: layout list * string -> layout
@@ -43,8 +49,6 @@ sig
 *)
 
   val paren: layout -> layout
-  (* print the object *)
-  val print: layout * (string -> unit) -> unit
   val record: (string * layout) list -> layout
   (* give separator, ie "=" or ":" *)
   val recordex : string -> (string * layout) list -> layout
@@ -61,9 +65,6 @@ sig
   (* convert a string to a layout object *)
   val str: string -> layout
   val switch: {detailed: 'a -> layout, normal: 'a -> layout} -> 'a -> layout
-  val tostring: layout -> string
-  (* give maximum width *)
-  val tostringex : int -> layout -> string
   val tuple: layout list -> layout
   val tuple2: ('a -> layout) * ('b -> layout) -> 'a * 'b -> layout
   val tuple3: ('a -> layout) *

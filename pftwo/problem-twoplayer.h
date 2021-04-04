@@ -21,6 +21,8 @@
 
 struct EmulatorPool;
 
+using namespace std;
+
 struct TwoPlayerProblem {
   // Player 1 and Player 2 controllers.
 
@@ -50,7 +52,7 @@ struct TwoPlayerProblem {
     uint8 goalx = 0;
     uint8 goaly = 0;
   };
-  
+
   // Save state for a worker; the worker can save and restore these
   // at will, and they are portable betwen workers.
   struct State {
@@ -71,7 +73,7 @@ struct TwoPlayerProblem {
     // Note that we use the mem for other stuff, like player position
     // and death heuristics.
     vector<uint8> mem;
-    // Number of NES frames 
+    // Number of NES frames
     int depth;
     ControllerHistory prev1, prev2;
   };
@@ -95,7 +97,7 @@ struct TwoPlayerProblem {
     ControllerHistory prev1, prev2;
     Input RandomInput(ArcFour *rc);
   };
-  
+
   string SaveSolution(const string &filename_part,
 		      const vector<Input> &inputs,
 		      const vector<pair<int, string>> &subtitles,
@@ -125,7 +127,7 @@ struct TwoPlayerProblem {
     goal.goaly = y + RandTo(rc, DIVI_Y);
     return goal;
   }
-  
+
   // An individual instance of the emulator that can be used to
   // execute steps. We create one of these per thread.
   struct Worker {
@@ -134,12 +136,12 @@ struct TwoPlayerProblem {
       autolives1(parent->game, *parent->markov1),
       autolives2(parent->game, *parent->markov2) {}
     // Every worker loads the same game.
-    unique_ptr<Emulator> emu;
+    std::unique_ptr<Emulator> emu;
     int depth = 0;
 
     // Previous input for the two players.
     ControllerHistory previous1, previous2;
-    
+
     // Return any input, which is used for hacks where we need
     // to adavnce the state so that we can fetch an image from
     // the emulator :(
@@ -150,7 +152,7 @@ struct TwoPlayerProblem {
     // them. Intended to be efficient to create.
     // Goal may be nullptr if there is no goal.
     InputGenerator Generator(ArcFour *rc, const Goal *goal);
-        
+
     State Save() {
       MutexLock ml(&mutex);
       return State{ emu->SaveUncompressed(), emu->GetMemory(), depth,
@@ -187,19 +189,19 @@ struct TwoPlayerProblem {
 
       const int x1_loc = tpp->x1_loc, y1_loc = tpp->y1_loc;
       const int x2_loc = tpp->x2_loc, y2_loc = tpp->y2_loc;
-      
+
       // XXX, we could at least test if inputs have some effect
       // on memory, etc.
       if (x1_loc < 0 || y1_loc < 0 ||
 	  x2_loc < 0 || y2_loc < 0) return false;
-      
+
       vector<uint8> save = emu->SaveUncompressed();
       // XXX this should count towards IncrementNESFrames
       // XXX how to set this threshold?
       return autolives1.IsInControl(save, x1_loc, y1_loc, false) >= 0.8 &&
 	     autolives2.IsInControl(save, x2_loc, y2_loc, true) >= 0.8;
     }
-    
+
     // After executing some inputs, observe the current state.
     // We use this to keep track of high water marks for the
     // objectives, which are used to place objectives along
@@ -233,7 +235,7 @@ struct TwoPlayerProblem {
     inline void IncrementNESFrames(int d) {
       nes_frames.fetch_add(d, std::memory_order_relaxed);
     }
-    
+
     // Current operation. See pftwo.h.
     std::atomic<WorkerStatus> status{STATUS_UNKNOWN};
     // Fraction complete.
@@ -243,7 +245,7 @@ struct TwoPlayerProblem {
     // all the program does, but it is the main bottleneck,
     // so we want to make sure we aren't stalling them.
     std::atomic<int64> nes_frames{0};
-    
+
     const TwoPlayerProblem *tpp = nullptr;
 
     // Coarse lock for all non-atomic members.
@@ -304,7 +306,7 @@ struct TwoPlayerProblem {
 
     return sqrt(sqdist1) + sqrt(sqdist2);
   }
-  
+
   // State's score in [0, 1]. Must be stable in-between calls to Commit.
   // This should reflect the progress toward "winning the game," independent
   // of any short-term goal.
@@ -329,7 +331,7 @@ struct TwoPlayerProblem {
   static constexpr int GRID_DIVISIONS = 3;
   static_assert(GRID_DIVISIONS > 0 && GRID_DIVISIONS < 8,
 		"valid range");
-  
+
   static constexpr int GRID_CELLS_W = 1 << GRID_DIVISIONS;
   static constexpr int DIVI_X = 256 >> GRID_DIVISIONS;
   static constexpr int DIVI_Y = 256 >> GRID_DIVISIONS;
@@ -341,7 +343,7 @@ struct TwoPlayerProblem {
   static int MemCell(int loc, uint8 val) {
     return num_spatial_cells + loc * 256 + val;
   }
-  
+
   // A state may be in multiple grid cells, or none! This code iterates
   // over all of those.
   template<class F>
@@ -372,16 +374,16 @@ struct TwoPlayerProblem {
     // Require the players to be in the same cell, or else
     // we get another quadratic blowup.
     if (c1x != c2x || c1y != c2y) return false;
-    
+
     *cell = c1y * GRID_CELLS_W + c1x;
     CHECK(*cell < num_grid_cells) << c1x << " " << c1y;
-	
+
     return true;
   }
 
   // Get all of the cells that are "adjacent" to this one.
   static vector<int> AdjacentCells(int cell);
-  
+
   // Must be thread safe and leave Worker in a valid state.
   Worker *CreateWorker();
 
@@ -400,28 +402,28 @@ struct TwoPlayerProblem {
 		 const vector<uint8> &start);
 
   const Options opt;
-  
+
   string game;
   int warmup_frames = -1;
   int fastforward = -1;
   int init_threads = 6;
-  
-  vector<AutoTimer::TimerLoc> timers;
+
+  std::vector<AutoTimer::TimerLoc> timers;
   // (Hypothesized) memory locations corresponding to the two
   // player's screen coordinates. If -1, unknown. These are
   // determined using autocamera2.
   int x1_loc = -1, y1_loc = -1, x2_loc = -1, y2_loc = -1;
   // Locations where we want to protect the value from going
   // down. Determined using autolives.
-  vector<int> protect_loc;
-  
-  vector<pair<uint8, uint8>> original_inputs;
-  unique_ptr<NMarkovController> markov1, markov2;
+  std::vector<int> protect_loc;
+
+  std::vector<std::pair<uint8, uint8>> original_inputs;
+  std::unique_ptr<NMarkovController> markov1, markov2;
   // After warmup inputs.
   State start_state;
   // For play after warmup.
-  unique_ptr<WeightedObjectives> objectives;
-  unique_ptr<Observations> observations;
+  std::unique_ptr<WeightedObjectives> objectives;
+  std::unique_ptr<Observations> observations;
 };
 
 // Input needs a < operator so that pftwo can use vectors of inputs

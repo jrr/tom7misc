@@ -1,4 +1,7 @@
 
+#ifndef _GUITARCHIVE_H
+#define _GUITARCHIVE_H
+
 #include <vector>
 #include <string>
 #include <string_view>
@@ -31,3 +34,5 @@ struct Guitarchive {
   // Load everything, with headers.
   static vector<Entry> Load(int threads = 16);
 };
+
+#endif

@@ -17,7 +17,7 @@ struct AttrList {
 
   AttrList *next;
 
-  AttrList(attr w, int h, AttrList *n) : 
+  AttrList(attr w, int h, AttrList *n) :
     what(w), value(h), next(n) {}
 
   /* PERF: we often have to look at the entire stack. */
@@ -29,15 +29,15 @@ struct AttrList {
 
     while (cs && !(gotc && gota)) {
       switch(cs->what) {
-      case COLOR: 
+      case COLOR:
         if (!gotc) { c = cs->value; gotc = true; }
         break;
-      case ALPHA: 
+      case ALPHA:
         if (!gota) { a = cs->value; gota = true; }
         break;
       }
       cs = cs -> next;
-    }      
+    }
   }
 
   static int pop(AttrList *&il) {
@@ -57,30 +57,29 @@ struct FontReal final : public Font {
      their alpha transparency */
   SDL_Surface **data;
   SDL_Surface *screen;
-  int ndim;
+  const int ndim;
 
   unsigned char chars[256];
 
-  virtual int sizex(const string &);
-  virtual int sizex_plain(const string &);
+  int sizex(const string &) override;
+  int sizex_plain(const string &) override;
 
-  virtual void draw(int x, int y, const string &s);
-  virtual void drawto(SDL_Surface *, int x, int y, const string &s);
+  void draw(int x, int y, const string &s) override;
+  void drawto(SDL_Surface *, int x, int y, const string &s) override;
 
-  virtual void draw_plain(int x, int y, const string &s);
-  virtual void drawto_plain(SDL_Surface *, int x, int y, const string &s);
+  void draw_plain(int x, int y, const string &s) override;
+  void drawto_plain(SDL_Surface *, int x, int y, const string &s) override;
 
-  // XXX get rid of this.
-  virtual void destroy() {
-    delete this;
-  }
+  int drawlinesc(int x, int y, const string &, bool);
+  int drawlines(int x, int y, const string &) override;
+  int drawcenter(int x, int y, const string &) override;
 
-  virtual int drawlinesc(int x, int y, const string &, bool);
-  virtual int drawlines(int x, int y, const string &);
-  virtual int drawcenter(int x, int y, const string &);
+  // Intialize const members
+  FontReal(int width, int height, int styles, int overlap, int ndim) :
+    Font(width, height, styles, overlap), ndim(ndim) {}
 
-  virtual ~FontReal() {
-    if (data) {
+  ~FontReal() override {
+    if (data != nullptr) {
       for (int i = 0; i < ndim; i++) {
         if (data[i]) SDL_FreeSurface(data[i]);
       }
@@ -89,30 +88,28 @@ struct FontReal final : public Font {
   }
 };
 
+Font::Font(int width, int height, int styles, int overlap) :
+  width(width), height(height), styles(styles), overlap(overlap) {}
+
 Font::~Font() {}
 
-Font *Font::create_from_surface(SDL_Surface *screen,
-                                SDL_Surface *font_surface,
-                                const string &charmap,
-                                int width,
-                                int height,
-                                int styles,
-                                int overlap,
-                                int ndim) {
-  std::unique_ptr<FontReal> f{new FontReal};
+Font *Font::CreateFromSurface(SDL_Surface *screen,
+                              SDL_Surface *font_surface,
+                              const string &charmap,
+                              int width,
+                              int height,
+                              int styles,
+                              int overlap,
+                              int ndim) {
+  std::unique_ptr<FontReal> f{new FontReal(width, height, styles, overlap, ndim)};
   f->screen = screen;
-  f->width = width;
-  f->height = height;
-  f->styles = styles;
-  f->overlap = overlap;
-  f->data = 0;
-  f->ndim = ndim;
+  f->data = nullptr;
 
   if (!ndim) return nullptr;
 
   f->data = (SDL_Surface **)malloc(sizeof (SDL_Surface *) * ndim);
   if (!f->data) return nullptr;
-  for (int z = 0; z < ndim; z++) f->data[z] = 0;
+  for (int z = 0; z < ndim; z++) f->data[z] = nullptr;
 
   f->data[0] = font_surface;
 
@@ -135,7 +132,7 @@ Font *Font::create_from_surface(SDL_Surface *screen,
   return f.release();
 }
 
-Font *Font::create(SDL_Surface *screen,
+Font *Font::Create(SDL_Surface *screen,
                    const string &file,
                    const string &charmap,
                    int width,
@@ -145,8 +142,8 @@ Font *Font::create(SDL_Surface *screen,
                    int ndim) {
   SDL_Surface *fon = sdlutil::LoadImageFile(file);
   if (fon == nullptr) return nullptr;
-  return Font::create_from_surface(screen, fon, charmap, 
-                                   width, height, styles, overlap, ndim);
+  return Font::CreateFromSurface(screen, fon, charmap,
+                                 width, height, styles, overlap, ndim);
 }
 
 Font *Font::CreateX(int px,
@@ -163,9 +160,9 @@ Font *Font::CreateX(int px,
   SDL_Surface *fonx = sdlutil::GrowX(fon_orig, px);
   SDL_FreeSurface(fon_orig);
   if (fonx == nullptr) return nullptr;
-  return Font::create_from_surface(screen, fonx, charmap,
-                                   width * px, height * px, styles, overlap * px, ndim);
-}                           
+  return Font::CreateFromSurface(screen, fonx, charmap,
+                                 width * px, height * px, styles, overlap * px, ndim);
+}
 
 void FontReal::draw(int x, int y, const string &s) {
   drawto(screen, x, y, s);
@@ -188,7 +185,7 @@ void FontReal::drawto_plain(SDL_Surface *surf, int x, int y, const string &s) {
     int idx = (unsigned char)s[i];
     src.x = chars[idx] * width;
     src.y = 0;
-  
+
     SDL_BlitSurface(data[0], &src, surf, &dest);
 
     dest.x += (width - overlap);
@@ -206,7 +203,7 @@ void FontReal::drawto(SDL_Surface *surf, int x, int y, const string &s) {
   src.h = height;
 
   /* keep track of our color and alpha settings */
-  AttrList *cstack = 0; 
+  AttrList *cstack = 0;
   int color, alpha;
   AttrList::set(cstack, color, alpha);
 
@@ -230,7 +227,7 @@ void FontReal::drawto(SDL_Surface *surf, int x, int y, const string &s) {
                            cstack);
           } else {
             /* color */
-            cstack = 
+            cstack =
               new AttrList(COLOR,
                            abs(((unsigned char)s[i] - '0')
                                % styles),
@@ -248,7 +245,7 @@ void FontReal::drawto(SDL_Surface *surf, int x, int y, const string &s) {
     int idx = (unsigned char)s[i];
     src.x = chars[idx] * width;
     src.y = color * height;
-  
+
     SDL_BlitSurface(data[alpha], &src, surf, &dest);
 
     dest.x += (width - overlap);
@@ -298,7 +295,7 @@ int FontReal::drawlinesc(int x, int y, const string &s, bool center) {
         return offset + height;
       } else return offset;
     }
-     
+
     if (s[idx] == '\n') {
       int xx;
       string sub = s.substr(start, idx - start);
@@ -416,7 +413,7 @@ unsigned int Font::length(const string &s) {
 #include "chars.h"
 string Font::pad(const string &s, int ns) {
   unsigned int l = Font::length(s);
-    
+
   unsigned int n = abs(ns);
 
   if (l > n) {

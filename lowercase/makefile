@@ -1,7 +1,7 @@
 
 default: train.exe collate-errors.exe vacuum.exe cull.exe widen.exe deepen.exe ui.exe
 
-all: ui.exe cleandb.exe samecase.exe train.exe collate-errors.exe vacuum.exe widen.exe get-modelinfo.exe font-problem_test.exe top_test.exe vector-eval.exe sdf-eval.exe vector-info.exe sdf-info.exe area.exe get-layerweights.exe makefeatures.exe plot.exe bitmap-sdf.exe trace-sdf.exe vector-makefont.exe bitmap-makefont.exe makefont.exe hallucinate.exe sdf-figure.exe findloop.exe renderloop.exe renderstring.exe makestegfont.exe font-template.exe template-makefont.exe resequence.exe recut.exe
+all: ui.exe cleandb.exe samecase.exe train.exe collate-errors.exe vacuum.exe widen.exe get-modelinfo.exe font-problem_test.exe top_test.exe vector-eval.exe sdf-eval.exe vector-info.exe sdf-info.exe area.exe get-layerweights.exe makefeatures.exe plot.exe bitmap-sdf.exe trace-sdf.exe vector-makefont.exe bitmap-makefont.exe makefont.exe hallucinate.exe sdf-figure.exe findloop.exe renderloop.exe renderstring.exe makestegfont.exe font-template.exe template-makefont.exe resequence.exe recut.exe cyberspace.exe middlecase.exe
 
 modelinfos: modelinfo0.png modelinfo1.png
 layerweights: weights0-layer0.png weights1-layer0.png
@@ -173,6 +173,12 @@ resequence.exe : resequence.o $(OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 recut.exe : recut.o $(OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+cyberspace.exe : cyberspace.o $(OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+middlecase.exe : middlecase.o $(OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 clean :

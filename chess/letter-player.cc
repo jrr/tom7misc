@@ -990,8 +990,53 @@ struct LetterPlayer : public StatelessPlayer {
     if (explainer != nullptr) {
       // XXX render move scores too...
       const FontProblem::Image8x8 img8x8 = Get8x8(pos);
+      ImageRGBA explained(300, 400);
+      explained.Clear32(0xFFFFFFFF);
       const ImageA sdf = FontProblem::SDF36From8x8(img8x8);
+      explained.BlendImage(0, 0, sdf.GreyscaleRGBA().ScaleBy(3));
       explainer->SetGraphic(sdf.GreyscaleRGBA().ScaleBy(3));
+
+      std::sort(results.begin(), results.end(),
+                [](const std::pair<Move, float> &a,
+                   const std::pair<Move, float> &b) {
+                  return a.second < b.second;
+                });
+      int ypos = 0;
+      int xpos = 36 * 3 + 4;
+      for (const auto &[move, score] : results) {
+        // Make move again to get position.
+        Position mpos = pos;
+        mpos.ApplyMove(move);
+        FontProblem::Image8x8 mimg8x8 = Get8x8(mpos);
+
+        const string movestring = pos.ShortMoveString(move);
+        constexpr int SCALE = 2;
+
+        for (int y = 0; y < 8; y++) {
+          for (int x = 0; x < 8; x++) {
+            bool b = mimg8x8.GetPixel(x, y);
+            for (int dy = 0; dy < SCALE; dy++) {
+              for (int dx = 0; dx < SCALE; dx++) {
+                explained.SetPixel32(xpos + x * SCALE + dx,
+                                     ypos + y * SCALE + dy,
+                                     b ? 0x000000FF : 0xEEEEEEFF);
+              }
+            }
+          }
+        }
+
+        int YM = (SCALE * 8 - 9) / 2;
+        if (YM < 0) YM = 0;
+        
+        explained.BlendText32(xpos + 8 * SCALE + 2,
+                              ypos + YM, 0x000000FF,
+                              StringPrintf("%s. %.3f",
+                                           movestring.c_str(),
+                                           -score));
+        ypos += 8 * SCALE + 8;
+      }
+      
+      explainer->SetGraphic(explained);
     }
 
 

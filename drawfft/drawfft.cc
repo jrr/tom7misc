@@ -132,7 +132,7 @@ struct FFTBuffer2D {
   // PERF: Use float, not double (fftwf_ prefix... but need to build library
   // for this I guess)
   using element_type = double;
-  
+
   FFTBuffer2D(int size) : size(size) {
     in = (double*) fftw_malloc(sizeof (element_type) * size * size);
     out = (double*) fftw_malloc(sizeof (element_type) * size * size);
@@ -140,7 +140,7 @@ struct FFTBuffer2D {
     auto [fwd, inv] = make_tuple(FFTW_DHT, FFTW_DHT);
     // auto [fwd, inv] = make_tuple(FFTW_REDFT00, FFTW_REDFT00);
     // auto [fwd, inv] = make_tuple(FFTW_REDFT10, FFTW_REDFT01);
-    
+
     plan = fftw_plan_r2r_2d(size, size, in, out,
 			    fwd, fwd,
 			    FFTW_MEASURE);
@@ -150,16 +150,16 @@ struct FFTBuffer2D {
     rplan = fftw_plan_r2r_2d(size, size, out, in,
 			     inv, inv,
 			     FFTW_MEASURE);
-    
+
     printf("Inverse plan:\n");
     fftw_print_plan(rplan);
   }
-  
+
   ~FFTBuffer2D() {
     fftw_free(in);
     fftw_free(out);
     fftw_destroy_plan(plan);
-    fftw_destroy_plan(rplan);    
+    fftw_destroy_plan(rplan);
   }
 
   void Forward() {
@@ -175,13 +175,13 @@ struct FFTBuffer2D {
       in[i] *= (1.0 / size);
     }
   }
-  
+
   const int size;
   // Row-major.
   element_type *in = nullptr, *out = nullptr;
-  
+
 private:
-  
+
   fftw_plan plan, rplan;
 };
 
@@ -205,7 +205,7 @@ struct UI {
 
   ImageA img, fft, gamut;
   FFTBuffer2D fft_buffer;
-  
+
   void DrawThick(int x0, int y0,
 		 int x1, int y1,
 		 uint8 value);
@@ -218,7 +218,7 @@ struct UI {
 
   void DrawImg();
   void DrawFft();
-  
+
   int mousex = 0, mousey = 0;
   bool dragging = false;
 };
@@ -234,7 +234,7 @@ void UI::ImgChanged() {
 
   // XXX do FFT
   Forward();
-  
+
 }
 
 void UI::FftChanged() {
@@ -259,7 +259,7 @@ void UI::Forward () {
   for (int y = 0; y < SQUARE; y++) {
     for (int x = 0; x < SQUARE; x++) {
       FFTBuffer2D::element_type f = fft_buffer.out[y * SQUARE + x];
-      // float rf = 
+      // float rf =
       mx = std::max(f, mx);
       mn = std::min(f, mn);
       uint8 g = 0x77;
@@ -280,7 +280,7 @@ void UI::Forward () {
   }
   printf("Max: %.2f, Min: %.2f   Over: %d, Under: %d\n",
 	 mx, mn, over, under);
-  
+
 }
 
 void UI::DrawImg() {
@@ -330,7 +330,7 @@ ClipLineToRect(std::tuple<int, int, int, int> line,
   // This algorithm wants rectangle bounds to be inclusive...
   rx1++;
   ry1++;
-  
+
   // Cohen-Sutherland
   using OutCode = int;
   constexpr int INSIDE = 0b0000;
@@ -338,7 +338,7 @@ ClipLineToRect(std::tuple<int, int, int, int> line,
   constexpr int RIGHT  = 0b0010;
   constexpr int BOTTOM = 0b0100;
   constexpr int TOP    = 0b1000;
-  
+
   auto ComputeOutCode = [rx0, ry0, rx1, ry1](int xx, int yy) {
       OutCode code = INSIDE;
       if (xx < rx0)
@@ -429,14 +429,14 @@ void UI::DrawThick(int x0, int y0,
 	  }
 	}
       };
-    
+
     const auto [x0, y0, x1, y1] = imgo.value();
     for (const auto [x, y] : Line<int>{x0, y0, x1, y1}) {
       ThickPixel(x, y);
     }
 
     ImgChanged();
-  } 
+  }
 
   auto ffto = ClipLineToRect(line, IMGRECT);
   if (ffto.has_value()) {
@@ -466,12 +466,12 @@ void UI::FloodFill(int x, int y, uint8 value) {
   if (imgo.has_value()) {
     auto [x, y] = imgo.value();
     const uint8 replace_value = img.GetPixel(x, y);
-    
+
     // Treat the border of the image as a color != to the value
     // being replaced.
     auto GetPixel = [this, value, replace_value](int x, int y) -> uint8 {
 	if (x >= 0 && y >= 0 &&
-	    x < img.width && y < img.height) {
+	    x < img.Width() && y < img.Height()) {
 	  return img.GetPixel(x, y);
 	} else {
 	  return ~replace_value;
@@ -500,7 +500,7 @@ void UI::FloodFill(int x, int y, uint8 value) {
   }
 
   // XXX for fft too..
-  
+
 }
 
 void UI::Loop() {
@@ -568,7 +568,7 @@ void UI::Loop() {
           ui_dirty = true;
           break;
         }
-	  
+
         case SDLK_KP_PLUS:
         case SDLK_EQUALS:
         case SDLK_PLUS:
@@ -576,7 +576,7 @@ void UI::Loop() {
 	  else current_value = 0xFF;
 	  ui_dirty = true;
 	  break;
-	  
+
         case SDLK_KP_MINUS:
         case SDLK_MINUS:
 	  if (current_value >= 0x10) current_value -= 0x10;
@@ -593,8 +593,8 @@ void UI::Loop() {
 	    for (int y = 0; y < SQUARE; y++) {
 	      for (int x = 0; x < SQUARE; x++) {
 		uint32 px = 0;
-		if (x < rgba->width && y < rgba->height)
-		  px = rgba->GetPixel(x, y);
+		if (x < rgba->Width() && y < rgba->Height())
+		  px = rgba->GetPixel32(x, y);
 		constexpr float o255 = 1.0f / 255.0f;
 		float r = ((px >> 24) & 0xFF) * o255;
 		float g = ((px >> 16) & 0xFF) * o255;
@@ -607,13 +607,13 @@ void UI::Loop() {
 		img.SetPixel(x, y, (uint8)light);
 	      }
 	    }
-		   
+
 	    ImgChanged();
 	    ui_dirty = true;
 	  }
 	  break;
 	}
-	  
+
         case SDLK_s: {
 	  if (event.key.keysym.mod & KMOD_CTRL) {
 #if 0
@@ -732,13 +732,13 @@ void UI::DrawStatus() {
     for (int i = 0; i < 10; i++) {
       uint8 value = (uint8)((i / 10.0f) * 255.0f);
       const uint32 value32 = SDL_MapRGBA(screen->format,
-					 value, value, value, 0xFF);            
+					 value, value, value, 0xFF);
       sdlutil::fillrect(screen, value32,
                         SWATCHWIDTH * i, yy,
                         SWATCHWIDTH, FONTHEIGHT * 2);
       font2x->draw(SWATCHWIDTH * i + (SWATCHWIDTH >> 1) - FONTWIDTH, yy + 1,
                    StringPrintf("%d", (i + 1) % 10));
-      
+
       if (value == current_value) {
         uint32 outline = current_value > 0x77 ? 0xFF000000 : 0xFFFFFF00;
 
@@ -816,15 +816,15 @@ int main(int argc, char **argv) {
 
   screen = sdlutil::makescreen(SCREENW, SCREENH);
   CHECK(screen);
-  
-  font = Font::create(screen,
+
+  font = Font::Create(screen,
 		      "font.png",
 		      FONTCHARS,
 		      FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font != nullptr) << "Couldn't load font.";
 
 
-  
+
   font2x = Font::CreateX(2,
 			 screen,
 			 "font.png",
@@ -849,7 +849,7 @@ int main(int argc, char **argv) {
   SDL_ShowCursor(SDL_ENABLE);
 
   UI ui;
-  
+
   ui.Loop();
 
   SDL_Quit();
