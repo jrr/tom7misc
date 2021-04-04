@@ -142,7 +142,7 @@ struct Periodically {
   void Force() {
     last_done = 0LL;
   }
-  
+
   bool ShouldDo(int64 now) {
     const int64 elapsed = now - last_done;
     if (elapsed > every_seconds) {
@@ -151,7 +151,7 @@ struct Periodically {
     }
     return false;
   }
-  
+
   const int64 start = 0LL;
   const int every_seconds = 0;
   int64 last_done = 0LL;
@@ -178,18 +178,18 @@ struct UIThread {
     Periodically save_movie(1800);
     Periodically show_perf_counters(10);
     const int64 start = time(nullptr);
-    
+
     for (;;) {
       frame++;
       SDL_Event event;
-      
+
       if (SDL_PollEvent(&event)) {
 	switch (event.type) {
 	case SDL_QUIT:
 	  return;
 	case SDL_KEYDOWN:
 	  switch (event.key.keysym.sym) {
-    
+
 	  case SDLK_ESCAPE:
 	    return;
 
@@ -200,7 +200,7 @@ struct UIThread {
 	  case SDLK_s:
 	    save_movie.Force();
 	    break;
-	    
+
 	  default:
 	    break;
 	  }
@@ -209,14 +209,14 @@ struct UIThread {
 	  break;
 	}
       }
-	
+
       // SDL_Delay(1000.0 / 30.0);
       SDL_Delay(2000);
 
       const int64 now = time(nullptr);
       search->SetApproximateSeconds(now - start);
       int64 total_nes_frames = search->UpdateApproximateNesFrames();
-      
+
       // Every half hour, write the best movie.
       // TODO: Superimpose all of the trees at once.
       if (save_movie.ShouldDo(now)) {
@@ -231,7 +231,7 @@ struct UIThread {
       if (show_perf_counters.ShouldDo(now)) {
 	search->PrintPerfCounters();
       }
-      
+
       sdlutil::clearsurface(screen, 0x11111111);
 
       const int64 tree_size =
@@ -260,7 +260,7 @@ struct UIThread {
 	int xx = 256 * 6 + 10;
 	int yy = 40;
 	smallfont->draw(xx, yy - SMALLFONTHEIGHT, "Worker progress");
-	
+
 	ReadMutexLock ml(&search->tree_m);
 	vector<Worker *> workers = search->WorkersWithLock();
 	// XXX dynamically size bar so the threads fit in the allocated
@@ -297,25 +297,25 @@ struct UIThread {
 	    break;
 	  }
 	  case STATUS_DIE:
-	    sdlutil::drawbox(screen, xx, yy, BAR_WIDTH, BAR_HEIGHT, 
+	    sdlutil::drawbox(screen, xx, yy, BAR_WIDTH, BAR_HEIGHT,
 			     0xA0, 0x00, 0x00);
 	    break;
 	  case STATUS_UNKNOWN:
-	    sdlutil::drawbox(screen, xx, yy, BAR_WIDTH, BAR_HEIGHT, 
+	    sdlutil::drawbox(screen, xx, yy, BAR_WIDTH, BAR_HEIGHT,
 			      0x60, 0x60, 0x00);
 	    break;
 	  case STATUS_TREE:
-	    sdlutil::drawbox(screen, xx, yy, BAR_WIDTH, BAR_HEIGHT, 
+	    sdlutil::drawbox(screen, xx, yy, BAR_WIDTH, BAR_HEIGHT,
 			      0xA0, 0xA0, 0xA0);
 	    break;
 	  }
-	  
+
 	  yy += BAR_HEIGHT;
 	}
 	// XXX include a key for the colors.
       }
-	
-      
+
+
       bool queue_mode = false;
       {
 	WriteMutexLock ml(&search->tree_m);
@@ -358,7 +358,7 @@ struct UIThread {
 	static constexpr int GRIDX = 1740;
 	static constexpr int GRIDY = 40;
 	static constexpr int CELLPX = 13;
-	
+
 	// Get best score in grid so that we can normalize
 	// colors against it.
 	double cutoff_bestscore =
@@ -368,7 +368,7 @@ struct UIThread {
 	  if (gc.score > bestscore) bestscore = gc.score;
 	const double one_over_bestscore =
 	  bestscore > 0.0 ? 1.0 / bestscore : 0.0;
-	
+
 	// Draw grid.
 	// XXX this is specific to the current TwoPlayerProblem
 	// TODO! Save little pictures for each grid cell; it'd
@@ -427,7 +427,7 @@ struct UIThread {
 	  }
 	}
       }
-      
+
       // Draw workers workin'.
       // XXX: This should be better designed for the case that
       // we have 60 threads. Perhaps we start with all the
@@ -439,7 +439,7 @@ struct UIThread {
       {
 	// PERF: As long as we know the worker doesn't get deleted,
 	// we can do this without locking the whole tree. Some evidence
-	// that 
+	// that
 	WriteMutexLock ml(&search->tree_m);
 	vector<Worker *> workers = search->WorkersWithLock();
 	texts.resize(workers.size());
@@ -471,8 +471,8 @@ struct UIThread {
 	  }
 	}
       }
-	
-	
+
+
       // Gather tree statistics.
       struct LevelStats {
 	int count = 0;
@@ -556,7 +556,7 @@ struct UIThread {
 		marathon_score, best_score, marathon_seqlength,
 		search->stats.failed_marathon.Get()));
       }
-      
+
       // Average state size:
       // treestats.statebytes / (1024.0 * treestats.nodes)
       smallfont->draw(256 * 6 + 10, 220,
@@ -589,8 +589,8 @@ struct UIThread {
 	  if (i < prefix || i >= suffix) {
 	    // Would be nice to do a visual bar graph, but it has to
 	    // work when we have like 60 threads!
-	    const string w = 
-	      levels[i].workers ? 
+	    const string w =
+	      levels[i].workers ?
 	      StringPrintf("%d", levels[i].workers) : "";
 
 	    smallfont->draw(256 * 6 + 10, yy,
@@ -609,7 +609,7 @@ struct UIThread {
 	  }
 	}
       }
-      
+
       static constexpr int BOTTOM = HEIGHT - FONTHEIGHT - 3;
 
       {
@@ -629,7 +629,7 @@ struct UIThread {
 		       (total_nes_frames / (double)total_sec) / 1000.0,
 		       frame / (double)total_sec));
       }
-      
+
       // XXX maybe show the grid cells in the histo
       std::sort(all_scores.rbegin(), all_scores.rend());
       static constexpr int HISTO_HEIGHT = 128;
@@ -663,7 +663,7 @@ struct UIThread {
       hugefont->draw(
 	  10, HEIGHT - HISTO_HEIGHT / 2 - HUGEFONTHEIGHT / 2,
 	  StringPrintf("^2%.2f%%", search->tree->stuckness));
-      
+
       SDL_Flip(screen);
     }
 
@@ -673,25 +673,25 @@ struct UIThread {
     screen = sdlutil::makescreen(WIDTH, HEIGHT);
     CHECK(screen);
 
-    font = Font::create(screen,
+    font = Font::Create(screen,
 			"font.png",
 			FONTCHARS,
 			FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
     CHECK(font != nullptr) << "Couldn't load font.";
 
-    smallfont = Font::create(screen,
+    smallfont = Font::Create(screen,
 			     "fontsmall.png",
 			     FONTCHARS,
 			     SMALLFONTWIDTH, SMALLFONTHEIGHT,
 			     FONTSTYLES, 0, 3);
     CHECK(smallfont != nullptr) << "Couldn't load smallfont.";
 
-    hugefont = Font::create(screen,
+    hugefont = Font::Create(screen,
 			    "fonthuge.png",
 			    FONTCHARS,
 			    HUGEFONTWIDTH, HUGEFONTHEIGHT, FONTSTYLES, 4, 3);
     CHECK(hugefont != nullptr) << "Couldn't load hugefont.";
-    
+
     Loop();
     Printf("UI shutdown.\n");
   }
@@ -737,7 +737,7 @@ int main(int argc, char *argv[]) {
   if (icon != nullptr) {
     SDL_WM_SetIcon(icon, nullptr);
   }
-  
+
   {
     Options options;
     TreeSearch search{options};
@@ -749,7 +749,7 @@ int main(int argc, char *argv[]) {
     }
     search.DestroyThreads();
   }
-  
+
   SDL_Quit();
   return 0;
 }

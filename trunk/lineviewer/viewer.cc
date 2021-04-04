@@ -138,14 +138,14 @@ static void InitSeries() {
   edges.name = "edges";
   edges.Extract = ExtractEdges;
   InitBounds(edges, &max_bounds);
-  
+
   serieses = {edges};
 #else
   Series since;
   since.name = "since";
   since.Extract = ExtractSince;
   InitBounds(since, &max_bounds);
-  
+
   serieses = {since};
 #endif
 }
@@ -252,8 +252,8 @@ static void DrawLine(SDL_Surface *surf, int x0, int y0,
       }
     };
 #endif
-  
-  
+
+
   SetPixel(x0, y0);
 
   for (const std::pair<int, int> point : Line<int>{x0, y0, x1, y1}) {
@@ -273,7 +273,7 @@ void UI::Loop() {
 	Bounds::Scaler old_scaler = GetScaler();
 	double amx = old_scaler.UnscaleX(mousex);
 	double amy = old_scaler.UnscaleY(mousey);
-	
+
 	zoom_x += zx;
 	zoom_y += zy;
 
@@ -286,14 +286,14 @@ void UI::Loop() {
 	       mousex, mousey, amx, amy, nsmx, nsmy);
 	fflush(stdout);
 	*/
-	
+
 	// So, the pixel that used to be at mousex,mousey is now
 	// at nsmx,nsmy. Pan to put it at mousex,mousey by subtracting
 	// the "error".
 	pan_x -= (nsmx - mousex);
 	pan_y -= (nsmy - mousey);
       };
-    
+
     SDL_Event event;
     if (SDL_PollEvent(&event)) {
       switch (event.type) {
@@ -333,25 +333,25 @@ void UI::Loop() {
 	  zoom_y = 1.0;
           break;
         }
-          
+
         case SDLK_KP_PLUS:
         case SDLK_EQUALS:
         case SDLK_PLUS:
 	  ZoomBy(ZOOM_FACTOR, ZOOM_FACTOR);
           break;
 
-  
+
         case SDLK_KP_MINUS:
         case SDLK_MINUS:
 	  ZoomBy(-ZOOM_FACTOR, -ZOOM_FACTOR);
           break;
-          
+
         case SDLK_s: {
           if (event.key.keysym.mod & KMOD_CTRL) {
             sdlutil::SavePNG("drawing.png", drawing);
             printf("Wrote drawing.png\n");
             fflush(stdout);
-          } 
+          }
           break;
         }
 
@@ -359,7 +359,7 @@ void UI::Loop() {
         }
         break;
       }
-	
+
       case SDL_MOUSEBUTTONDOWN: {
         // LMB/RMB, drag, etc.
         SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
@@ -382,7 +382,7 @@ void UI::Loop() {
 	  SDL_SetCursor(cursor_hand_closed);
 	  break;
 	}
-        
+
         break;
       }
 
@@ -467,7 +467,7 @@ void UI::Draw() {
 	       StringPrintf("^6%.4f",
 			    scaler.UnscaleX(x)));
   }
-  
+
   // Draw lines.
   for (const Series &series : serieses) {
     for (int i = 0; i < 6; i++) {
@@ -482,13 +482,13 @@ void UI::Draw() {
 	double y = scaler.ScaleY(series.Extract(row, i));
 
 	DrawLine(screen, prev_x, prev_y, x, y, color);
-	
+
 	prev_x = x;
 	prev_y = y;
       }
     }
   }
-  
+
   // On-screen stuff
   // sdlutil::blitall(drawing, screen, 0, 0);
 }
@@ -513,19 +513,19 @@ int main(int argc, char **argv) {
   screen = sdlutil::makescreen(SCREENW, SCREENH);
   CHECK(screen);
 
-  fontsmall = Font::create(screen,
+  fontsmall = Font::Create(screen,
 			   FONTSMALLFILE,
 			   FONTCHARS,
 			   FONTSMALLWIDTH,
 			   FONTSMALLHEIGHT, FONTSTYLES, 0, 3);
   CHECK(fontsmall != nullptr) << "Couldn't load fontsmall.";
-  
-  font = Font::create(screen,
+
+  font = Font::Create(screen,
                       FONTFILE,
                       FONTCHARS,
                       FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font != nullptr) << "Couldn't load font.";
-  
+
   font2x = Font::CreateX(2,
                          screen,
                          FONTFILE,
@@ -557,7 +557,7 @@ int main(int argc, char **argv) {
 	 max_bounds.MinX(), max_bounds.MinY(),
 	 max_bounds.MaxX(), max_bounds.MaxY());
   fflush(stdout);
-  
+
   UI ui;
   ui.Loop();
 

@@ -1,4 +1,7 @@
 
+// Note: Has been through some changes; you might need to
+// capitalize function names.
+
 #ifndef _CC_LIB_SDL_FONT_H
 #define _CC_LIB_SDL_FONT_H
 
@@ -11,10 +14,9 @@ struct SDL_Surface;
 // surface are potentially dangerous.
 // TODO: Label const.
 struct Font {
-  // TODO: make these const.
-  int width, height, styles, overlap;
+  const int width, height, styles, overlap;
 
-  static Font *create(SDL_Surface *screen,
+  static Font *Create(SDL_Surface *screen,
                       const std::string &file,
                       const std::string &charmap,
                       int width,
@@ -35,9 +37,9 @@ struct Font {
                        int styles = 1,
                        int overlap = 0,
                        int dims = 2);
-  
+
   // Takes ownership of the font surface.
-  static Font *create_from_surface(SDL_Surface *screen,
+  static Font *CreateFromSurface(SDL_Surface *screen,
                                    SDL_Surface *font_surface,
                                    const std::string &charmap,
                                    int width,
@@ -54,9 +56,9 @@ struct Font {
                             unsigned int start,
                             unsigned int len);
   /* len must be <= font::length(s) */
-  static std::string prefix(const std::string & s,
+  static std::string prefix(const std::string &s,
                             unsigned int len);
-  static std::string suffix(const std::string & s,
+  static std::string suffix(const std::string &s,
                             unsigned int len);
 
   /* similarly, pad a string out to n displayable
@@ -73,7 +75,7 @@ struct Font {
   static std::string truncate(const std::string &s, int n);
 
 
-  /* return the size in pixels of the string. 
+  /* return the size in pixels of the string.
      formatting characters do not count towards width.
      sizey is always font.height.
   */
@@ -100,10 +102,11 @@ struct Font {
   /* same, but centers each line horizontally about the x position */
   virtual int drawcenter(int x, int y, const std::string &s) = 0;
 
-  // Deprecated. Just call destructor.
-  virtual void destroy() = 0;
-  
   virtual ~Font();
+
+protected:
+  // Use ::Create.
+  Font(int w, int h, int s, int o);
 };
 
 #endif

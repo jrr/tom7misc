@@ -91,7 +91,7 @@ struct GammaSlider {
   }
 
   void Reset() { value = 1.0f; }
-  
+
   // screen coordinates
   // returns true if dirty
   bool MouseDown(int mousex, int mousey) {
@@ -191,7 +191,7 @@ struct UI {
   void DrawZoom();
 
   void ZoomNext();
-  
+
   void ClearDrawing();
 
   // Draw line into drawing. Coordinates are relative to drawing, but may
@@ -241,14 +241,14 @@ struct UI {
   TTF helvetica{"helvetica.ttf"};
 
   SDL_Surface *drawmode_bg = nullptr;
-  
+
   int bez_startx = 800, bez_starty = 128;
   int bez_cx = SCREENW - 32, bez_cy = SCREENH / 2;
   int bez_endx = 10, bez_endy = 188;
   int bez_px = 100, bez_py = 100;
   // double bez_time = 0.0;
   // int bez_cpx = 0, bez_cpy = 0;
-  
+
   ImageF zoom_sdf{SDF_CONFIG.sdf_size, SDF_CONFIG.sdf_size};
   int64 zoom_iters = 0;
   bool zoom_lower = true;
@@ -257,7 +257,7 @@ struct UI {
   int zoom_delay = 0;
   int zoom_delay_frames = 0;
   std::unordered_map<ImageA, int, HashImageA> zoom_seen;
-  
+
   vector<FontProblem::Point> looptest_expected;
   vector<FontProblem::Point> looptest_actual;
   std::optional<FontProblem::LoopAssignment> looptest_assignment;
@@ -802,7 +802,7 @@ void UI::UpdateGamma() {
 void UI::FloodFillToggle(int x, int y) {
   {
     static constexpr Uint32 COLOR = 0xFFFFFFFF;
-    
+
     std::unique_lock<std::mutex> guard(result_m);
 
     const int w = drawing->w, h = drawing->h;
@@ -816,7 +816,7 @@ void UI::FloodFillToggle(int x, int y) {
     const Uint32 source_color = bufp[y * stride + x];
     const Uint32 replacement_color =
       source_color == COLOR ? 0xFF000000 : COLOR;
-    
+
     auto GetPixel =
       [w, h, bufp, stride, source_color](int x, int y) -> uint32 {
         if (x >= 0 && y >= 0 &&
@@ -1055,7 +1055,7 @@ void UI::Loop() {
           }
           // otherwise, use handler below...
         }
-        
+
         switch (event.key.keysym.sym) {
         case SDLK_ESCAPE:
           printf("ESCAPE.\n");
@@ -1180,7 +1180,7 @@ void UI::Loop() {
               zoom_gamma += fdx * 0.001;
             }
             break;
-            
+
           case Mode::DRAW:
             // TODO: Shift bitmap around
             break;
@@ -1245,7 +1245,7 @@ void UI::Loop() {
         case SDLK_PERIOD:
           draw_points = !draw_points;
           SetDirty();
-        
+
           break;
 
         case SDLK_2:
@@ -1279,7 +1279,7 @@ void UI::Loop() {
           if (mode == Mode::ZOOM) {
             zoom_delay--;
             if (zoom_delay < 0) zoom_delay = 0;
-            zoom_delay_frames = zoom_delay;            
+            zoom_delay_frames = zoom_delay;
           } else {
             if (current_scale > 15)
               current_scale -= 5;
@@ -1757,7 +1757,7 @@ void UI::DrawDrawing() {
             else if (f > 0.1f) color = '0';
             else if (f > -0.001f) color = '4';
             else color = '2';
-            
+
             font->draw(xpos, lowy,
                        StringPrintf("%c: ^%c%+.8f", base_char + i, color, f));
             if (f < 0.0f) {
@@ -1785,9 +1785,9 @@ void UI::DrawDrawing() {
         GAMMASLIDER_HEIGHT + 10;
 
       constexpr int UPPREDY = 67;
-      
+
       DrawPred(res.low_pred, 'A', LOW_X, LOWPREDY);
-      DrawPred(res.up_pred, 'a', UP_X, UPPREDY);      
+      DrawPred(res.up_pred, 'a', UP_X, UPPREDY);
 
       gamma_low.Draw();
       gamma_up.Draw();
@@ -1854,7 +1854,7 @@ void UI::ZoomNext() {
 void UI::DrawZoom() {
 
   constexpr int SCALE = 12;
-  
+
   zoom_iters++;
 
   if (zoom_delay_frames > 0) {
@@ -1866,14 +1866,14 @@ void UI::DrawZoom() {
 
   // We could avoid recomputing some of this stuff if
   // we didn't make a new SDF...
-  
+
   ImageRGBA thresh = FontProblem::ThresholdImageMulti(
       zoom_sdf,
       {{0.95f * (SDF_CONFIG.onedge_value/255.0f), 0x440000FF},
        {SDF_CONFIG.onedge_value/255.0f, 0xFFFFFFFF}},
       SDF_CONFIG.sdf_size * SCALE, SDF_CONFIG.sdf_size * SCALE,
       2);
-  
+
   // Draw to screen...
   auto DrawPt = [](int xx, int yy, uint8 r, uint8 g, uint8 b) {
       for (int dy = 0; dy < SCALE; dy++) {
@@ -1893,9 +1893,9 @@ void UI::DrawZoom() {
 
   const int THRESHX = SDFX + SDF_CONFIG.sdf_size * SCALE + 4, THRESHY = 300;
   BlitImage(thresh, THRESHX, THRESHY);
-  
+
   const int CTRX = SDFX, CTRY = SDFY + SDF_CONFIG.sdf_size * SCALE + 4;
-  
+
   sdlutil::FillRectRGB(screen, CTRX, CTRY, 200, font->height + 2,
                        0, 0, 0);
   font->draw(CTRX, CTRY, StringPrintf("[%.3f] %d %s ^1%d/%d",
@@ -1975,7 +1975,7 @@ void UI::Draw() {
     // to bypass 'dirty' stuff)
     DrawZoom();
     break;
-    
+
   case Mode::LOOPTEST: {
 
     // ^5 = green = expected
@@ -2047,13 +2047,13 @@ void UI::Draw() {
         auto [sx, sy] = pts[0];
         font->draw(sx + 7, sy - 10, "Start");
       };
-    
+
     DrawLoop(looptest_expected, 0x00, 0x00, 0xAA);
     DrawLoop(looptest_actual,   0x44, 0xFF, 0x44);
 
     DrawStart(looptest_expected);
-    DrawStart(looptest_actual);    
-    
+    DrawStart(looptest_actual);
+
     const int LINE1 = SCREENH - 30 - font->height * 2;
     const int LINE2 = LINE1 + font->height;
     const int LINE3 = LINE2 + font->height;
@@ -2221,7 +2221,7 @@ int main(int argc, char **argv) {
   screen = sdlutil::makescreen(SCREENW, SCREENH);
   CHECK(screen);
 
-  font = Font::create(screen,
+  font = Font::Create(screen,
                       "font.png",
                       FONTCHARS,
                       FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);

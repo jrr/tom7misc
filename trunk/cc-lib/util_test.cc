@@ -95,7 +95,7 @@ static void TestJoin() {
 static void TestSplit() {
   CHECK_EQ((vector<string>{"hello", "world"}),
            Util::Split("hello world", ' '));
-  CHECK_EQ((vector<string>{"", ""}), Util::Split(" ", ' '));  
+  CHECK_EQ((vector<string>{"", ""}), Util::Split(" ", ' '));
   CHECK_EQ(vector<string>{""}, Util::Split("", 'x'));
 }
 
@@ -187,11 +187,11 @@ static void TestFactorize() {
   CHECK((vector<int>{31337}) == Util::Factorize(31337));
   CHECK((vector<int>{3, 5, 11, 13}) == Util::Factorize(3 * 5 * 11 * 13));
   CHECK((vector<int>{3, 5, 5, 11, 13}) ==
-        Util::Factorize(3 * 5 * 5 * 11 * 13));  
+        Util::Factorize(3 * 5 * 5 * 11 * 13));
   CHECK((vector<int>{3, 5, 5, 11, 11, 11}) ==
-        Util::Factorize(3 * 5 * 5 * 11 * 11 * 11));  
+        Util::Factorize(3 * 5 * 5 * 11 * 11 * 11));
   CHECK((vector<int>{3, 5, 5, 11, 13, 31337}) ==
-        Util::Factorize(3 * 5 * 5 * 11 * 13 * 31337));  
+        Util::Factorize(3 * 5 * 5 * 11 * 13 * 31337));
 }
 
 static void TestItos() {
@@ -219,6 +219,7 @@ int main(int argc, char **argv) {
   TestPrefixSuffix();
   TestParseDouble();
   TestFactorize();
+  printf("OK\n");
   return 0;
 }
 

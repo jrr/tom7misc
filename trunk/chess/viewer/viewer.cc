@@ -1009,7 +1009,7 @@ void UI::Loop() {
             SaveUndo();
             printf("Load drawing.png...\n");
             fflush(stdout);
-            SDL_Surface *s = sdlutil::LoadImage("drawing.png");
+            SDL_Surface *s = sdlutil::LoadImageFile("drawing.png");
             CHECK(s);
             SDL_SetAlpha(s, 0, 0xFF);
             sdlutil::blitall(s, drawing, 0, 0);
@@ -1850,10 +1850,12 @@ void UI::Draw() {
             Uint32 color = SDL_MapRGB(screen->format, r, g, b);
             // printf("Set %d %d = %d %d %d\n", xx, yy, r, g, b);
             // sdlutil::drawclippixel(screen, xx, yy, r, g, b);
-            sdlutil::SetPixel32(screen, xx, yy, color);
-            sdlutil::SetPixel32(screen, xx + 1, yy, color);
-            sdlutil::SetPixel32(screen, xx, yy + 1, color);
-            sdlutil::SetPixel32(screen, xx + 1, yy + 1, color);
+            if (xx + 1 < SCREENW && yy + w < SCREENH) {
+              sdlutil::SetPixel32(screen, xx, yy, color);
+              sdlutil::SetPixel32(screen, xx + 1, yy, color);
+              sdlutil::SetPixel32(screen, xx, yy + 1, color);
+              sdlutil::SetPixel32(screen, xx + 1, yy + 1, color);
+            }
           }
         }
       }
@@ -1937,13 +1939,13 @@ int main(int argc, char **argv) {
   screen = sdlutil::makescreen(SCREENW, SCREENH);
   CHECK(screen);
 
-  fates_font = Font::create(screen,
+  fates_font = Font::Create(screen,
                             "fates-font.png",
                             FONTCHARS,
                             11, FONTHEIGHT + 2, 2, 3, 1);
   CHECK(fates_font != nullptr) << "Couldn't load fates_font.";
 
-  font = Font::create(screen,
+  font = Font::Create(screen,
                       "../blind/font.png",
                       FONTCHARS,
                       FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
@@ -2053,7 +2055,7 @@ int main(int argc, char **argv) {
                         Stockfish1M_64,
   */
 
-  chessfont = Font::create(screen,
+  chessfont = Font::Create(screen,
                            CHESSFONT,
                            " PNBRQKpnbrqk",
                            32, 32, 1, 0, 1);

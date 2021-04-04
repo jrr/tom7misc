@@ -737,20 +737,20 @@ struct UIThread {
     screen = sdlutil::makescreen(WIDTH, HEIGHT);
     CHECK(screen);
 
-    font = Font::create(screen,
+    font = Font::Create(screen,
 			"font.png",
 			FONTCHARS,
 			FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
     CHECK(font != nullptr) << "Couldn't load font.";
 
-    fontsmall = Font::create(screen,
+    fontsmall = Font::Create(screen,
 			     "fontsmall.png",
 			     FONTCHARS,
 			     SMALLFONTWIDTH, SMALLFONTHEIGHT,
 			     FONTSTYLES, 0, 3);
     CHECK(fontsmall != nullptr) << "Couldn't load smallfont.";
 
-    fontmax = Font::create(screen,
+    fontmax = Font::Create(screen,
 			   "fontmax.png",
 			   FONTCHARS,
 			   MAXFONTWIDTH, MAXFONTHEIGHT, FONTSTYLES, 4, 3);

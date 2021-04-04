@@ -15,6 +15,8 @@
 #include "../cc-lib/randutil.h"
 // #include "motifs-style.h"
 
+using namespace std;
+
 Motifs::Motifs() : rc("motifs") {}
 
 static string InputsToString(const vector<uint8> &inputs) {
@@ -41,7 +43,7 @@ void Motifs::Checkpoint(int framenum) {
   // PERF could maybe just remove spans here, which makes
   // printing much simpler and this data structure more
   // compact!
-  for (Weighted::iterator it = motifs.begin(); 
+  for (Weighted::iterator it = motifs.begin();
        it != motifs.end(); ++it) {
     it->second.history.push_back(make_pair(framenum, it->second.weight));
   }
@@ -70,7 +72,7 @@ Motifs *Motifs::LoadFromFile(const string &filename) {
 
 void Motifs::SaveToFile(const string &filename) const {
   string out;
-  for (Weighted::const_iterator it = motifs.begin(); 
+  for (Weighted::const_iterator it = motifs.begin();
        it != motifs.end(); ++it) {
     const vector<uint8> &inputs = it->first;
     string s = StringPrintf("%f ", it->second.weight);
@@ -155,7 +157,7 @@ const vector<uint8> &Motifs::RandomWeightedMotifWith(ArcFour *rrc) {
 
   // "index" into the continuous bins
   double sample = RandDouble(rrc) * totalweight;
-  
+
   for (Weighted::const_iterator it = motifs.begin();
        it != motifs.end(); ++it) {
     if (sample <= it->second.weight) {
@@ -163,7 +165,7 @@ const vector<uint8> &Motifs::RandomWeightedMotifWith(ArcFour *rrc) {
     }
     sample -= it->second.weight;
   }
-  
+
   // Arbitrarily award roundoff errors to the first one.
   printf("roundoff error of %f in RandomWeightedMotif\n", sample);
   CHECK(!motifs.empty());

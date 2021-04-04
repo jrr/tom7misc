@@ -88,9 +88,9 @@
 	    (find-file thefile)
 	    thefile)
 	(switch-by-opening-rec tl)))))
-      
-	      
-    
+
+
+
 (defun switch-files ()
   (interactive)
   (let* ((curbuffer (current-buffer))
@@ -106,12 +106,12 @@
 	    (buffer-substring (match-beginning 1) (match-end 1)))
            ;; are we in a buffer that we know where to go back to already?
 	   ;; XXX if so, just prioritizing it as the first element might make
-	   ;; more sense thatn returning a singleton list...
+	   ;; more sense than returning a singleton list...
 	   switch-file-backto))
 
 	   ;; can we guess at a file name from the current buffer name?
 
-	 
+
 	 ; list of files to try switching to, in priority order
 	 (startfiles
 	  (if already
@@ -124,7 +124,7 @@
 	    ;; transform right after the match (uses regex match state))
 	    (let* ((matches-with-nils
 		    (seq-map
-		     (function (lambda (row) 
+		     (function (lambda (row)
 				 ;; (message "regex %s" (car key))
 				 (if (string-match
 				      (concat "\\(.*\\)" (car row))
@@ -164,7 +164,7 @@
       (message "(From buffer '%s' name '%s', no targets matched: %s"
 	       curbuffer buffername startfiles)))
     ))
-    
+
 (global-set-key "\C-x\M-f" 'switch-files)
 
 ; (switch-files)

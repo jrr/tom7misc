@@ -14,6 +14,8 @@
 #include "../cc-lib/threadutil.h"
 #include "../fceulib/ppu.h"
 
+using namespace std;
+
 // Could also be done with a macro; maybe template parameter packs??
 inline static void StepPlayer(Emulator *emu, bool is_p1, uint8 input) {
   if (is_p1) emu->Step(input, 0);
@@ -42,7 +44,7 @@ static void SaveEmulatorImage(Emulator *emu, const string &filename) {
 // This routine takes two OAMs and guesses the displacement between
 // them (in [0, 63]). It does this by computing the "loss" for each
 // possible displacement and choosing the one with the minimal loss.
-// Loss is computed by looking at the sprite in oam a and the 
+// Loss is computed by looking at the sprite in oam a and the
 // corresponding (i.e., after displacement) in oam b. This pair of
 // sprites has more loss when their positions differ, when their
 // attributes differ, etc.
@@ -57,7 +59,7 @@ static void SaveEmulatorImage(Emulator *emu, const string &filename) {
 // alignments for other parts of the player's sprite constellation?)
 // with just the treatment below. (Indeed, it does seem to work,
 // at least for finding alignments.)
-int AutoCamera::BestDisplacement(const vector<uint8> &oldoam, 
+int AutoCamera::BestDisplacement(const vector<uint8> &oldoam,
 				 const vector<uint8> &newoam) {
   CHECK_EQ(256, oldoam.size());
   CHECK_EQ(256, newoam.size());
@@ -117,7 +119,7 @@ int AutoCamera::BestDisplacement(const vector<uint8> &oldoam,
     static constexpr double TILE_WEIGHT = 2.0;
 
     const double loss =
-        DIST_WEIGHT * dpos + 
+        DIST_WEIGHT * dpos +
         TILE_WEIGHT * dtile +
         HFLIP_WEIGHT * dhflip +
         VFLIP_WEIGHT * dvflip +
@@ -193,7 +195,7 @@ struct InputGenerator {
     }
     }
   }
-  
+
   const int id;
   uint32 i = 0;
 };
@@ -216,7 +218,7 @@ AutoCamera::XSprites AutoCamera::GetXSprites(
     std::function<void(int, int,
 		       Emulator *,
 		       Emulator *,
-		       Emulator *)> DebugCallback) { 
+		       Emulator *)> DebugCallback) {
 
   Emulator *lemu = emus[0], *nemu = emus[1], *remu = emus[2];
 
@@ -225,7 +227,7 @@ AutoCamera::XSprites AutoCamera::GetXSprites(
   lemu->LoadUncompressed(start);
   nemu->LoadUncompressed(start);
   remu->LoadUncompressed(start);
-  
+
   // "Old memory" from the previous frame. We use this because it's
   // common (universal?) for sprite memory to be copied early in the
   // frame and but then updated later, so that the sprite values lag
@@ -252,7 +254,7 @@ AutoCamera::XSprites AutoCamera::GetXSprites(
     StepFullPlayer(lemu, first_player, INPUT_L);
     StepFullPlayer(nemu, first_player, 0);
     StepFullPlayer(remu, first_player, INPUT_R);
-    
+
     vector<uint8> loam = OAM(lemu);
     vector<uint8> noam = OAM(nemu);
     vector<uint8> roam = OAM(remu);
@@ -285,7 +287,7 @@ AutoCamera::XSprites AutoCamera::GetXSprites(
 
     {
       // XXX
-      printf("[%d] p1: %d,%d < %d,%d < %d,%d %s%s%s\n", 
+      printf("[%d] p1: %d,%d < %d,%d < %d,%d %s%s%s\n",
 	     frames,
 	     lmem[0x0334], lmem[0x031a],
 	     nmem[0x0334], nmem[0x031a],
@@ -296,7 +298,7 @@ AutoCamera::XSprites AutoCamera::GetXSprites(
     }
 
     DebugCallback(frames, total_displacement, lemu, nemu, remu);
-    
+
     for (int absolute_s = 0; absolute_s < 64; absolute_s++) {
       // absolute_s is, in effect, the sprite id at the start frame.
       const int s = (absolute_s + total_displacement) % 64;
@@ -322,11 +324,11 @@ AutoCamera::XSprites AutoCamera::GetXSprites(
       // the memory locations that yield screen position, so it doesn't
       // make sense to compensate for scroll. (Except perhaps as a way
       // of rejecting the current scenario for this test. But consider
-      // that some games just scroll all the time!) 
+      // that some games just scroll all the time!)
       const uint8 left_x = loam[s * 4 + 3];
       const uint8 none_x = noam[s * 4 + 3];
       const uint8 right_x = roam[s * 4 + 3];
-	
+
       if (left_x < none_x && none_x < right_x) {
 	printf("[%d] Sprite %d could be player! x vals: %d < %d < %d\n",
 	       frames, s, left_x, none_x, right_x);
@@ -359,7 +361,7 @@ AutoCamera::XSprites AutoCamera::GetXSprites(
 	  printf("\n");
 
 	  ret.sprites.emplace_back(absolute_s, false, mems, vector<pair<uint16, int>>{});
-	  
+
 	} else {
 	  vector<pair<uint16, int>> omems = FindMems(lomem, nomem, romem);
 
@@ -401,7 +403,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
 
   // make parameter, or decide that this can always be assumed.
   const bool lagmem = true;
-  
+
   // We're going to run a bunch of different experiments to get
   // our science data. The goal here is to have a number of memories
   // paired with sprite data, from which we can mine correlations.
@@ -461,9 +463,9 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
 
       vector<uint8> now_oam = OAM(emu);
       science->oam = now_oam;
-      const int disp = BestDisplacement(prev_oam, 
+      const int disp = BestDisplacement(prev_oam,
 					now_oam);
-      science->displacement_string = 
+      science->displacement_string =
 	StringPrintf("%s%d,",
 		     science->displacement_string.c_str(),
 		     disp);
@@ -473,7 +475,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
       // Shift memory to previous.
       prev_mem = std::move(now_mem);
       prev_oam = std::move(now_oam);
-      
+
       offset++;
     }
 
@@ -489,7 +491,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
     vector<uint8> prev_mem;
     vector<uint8> prev_oam;
   };
-  
+
   auto OneSeq = [this, lagmem, &sciences, SEQ_LEN, &uncompressed_state,
 		 x_num_frames](int seq) {
     Emulator *emu = emus[seq];
@@ -535,7 +537,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
 
       // OK, keep it!
       newsprite.xmems.push_back(xaddr);
-     
+
     fail_xaddr:;
     }
 
@@ -560,7 +562,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
 	    have_offset = true;
 	    offset = this_offset;
 	  }
-	  
+
 	  if (this_offset != offset) {
 	    if (true && yaddr == 0x84) { // XXX zelda-specific debug output
 	      printf("Sprite %d ymem %04x (offset %d) eliminated since "
@@ -593,7 +595,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
 	       absolute_s);
       }
     } else {
-      printf("Sprite %d eliminated since there are no xmems left.\n", 
+      printf("Sprite %d eliminated since there are no xmems left.\n",
 	     absolute_s);
     }
   }
@@ -608,7 +610,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
       player_sprites->push_back(sprite.sprite_idx);
     }
   }
-  
+
   vector<XYSprite> ret;
   // Next, filter memory locations that are just source data for
   // the OAMDMA copy. Because the DMA has to be from a source address
@@ -685,7 +687,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
       ret.push_back(newsprite);
     }
   }
-  
+
   return ret;
 }
 
@@ -717,7 +719,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FilterForConsequentiality(
 
   vector<bool> known_consequential(2048, false);
   vector<bool> known_inconsequential(2048, false);
-  
+
   // PERF this could be parallelized. (careful because vector<bool>
   // certainly does not have thread-safe access to nearby bits!)
   //
@@ -737,7 +739,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FilterForConsequentiality(
       for (const vector<uint8> &save : savestates) {
 	Emulator *emu = emus[0];
 	// Perform the experiment.
-	
+
 	// First, the control:
 	emu->LoadUncompressed(save);
 	// Run with no input. The stimulus is the changing of
@@ -749,7 +751,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FilterForConsequentiality(
 	// compute it when computing savestates.
 	vector<uint8> ctrl_oam = OAM(emu);
 	vector<uint8> ctrl_mem = emu->GetMemory();
-	
+
 	// Same, but modifying the memory location:
 	emu->LoadUncompressed(save);
 	// How to pick the value to set? We should avoid
@@ -777,14 +779,14 @@ vector<AutoCamera::XYSprite> AutoCamera::FilterForConsequentiality(
       known_inconsequential[addr.first] = true;
       return false;
     };
-    
+
     for (pair<uint16, int> xaddr : sprite.xmems) {
       if (!Consequential(xaddr)) {
 	printf("sprite %d: x address %s is inconsequential\n",
 	       sprite.sprite_idx, AddrOffset(xaddr).c_str());
       }
     }
-      
+
     for (pair<uint16, int> yaddr : sprite.ymems) {
       if (!Consequential(yaddr)) {
 	printf("sprite %d: y address %s is inconsequential\n",
@@ -792,7 +794,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FilterForConsequentiality(
       }
     }
   }
-  
+
   vector<XYSprite> ret;
   for (const XYSprite &sprite : sprites) {
     XYSprite newsprite;
@@ -819,7 +821,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FilterForConsequentiality(
       for (const auto addr : newsprite.ymems)
 	printf(" %s", AddrOffset(addr).c_str());
       printf("\n");
-      
+
       ret.push_back(newsprite);
     }
   }
@@ -858,7 +860,7 @@ bool AutoCamera::DetectViewType(const vector<uint8> &uncompressed_state,
   // Protects the following two variables.
   std::mutex m;
   int experiments = 0, successes = 0;
-  
+
   auto OneEmu = [this, &sprites, &savestates,
 		 &m, &experiments, &successes](int idx) {
     Emulator *emu = emus[idx];
@@ -894,7 +896,7 @@ bool AutoCamera::DetectViewType(const vector<uint8> &uncompressed_state,
 		   x, y, start_y);
 	    continue;
 	  }
-	  
+
 	  // Now see if the sprite drops.
 	  for (int i = 0; i < DROP_TIME; i++) {
 	    StepPlayer(emu, first_player, 0);
@@ -922,7 +924,7 @@ bool AutoCamera::DetectViewType(const vector<uint8> &uncompressed_state,
   };
 
   ParallelComp(NUM_EXPERIMENTS, OneEmu, 12);
-  
+
   printf("Overall: %d successes of %d experiments = %.3f success rate.\n",
 	 successes, experiments, (double)successes / experiments);
 
@@ -930,7 +932,7 @@ bool AutoCamera::DetectViewType(const vector<uint8> &uncompressed_state,
     *is_top = false;
     return true;
   }
- 
+
   return false;
 }
 
@@ -945,7 +947,7 @@ static bool BrakePlayer(Emulator *emu,
   uint8 lastx = emu->GetFC()->ppu->SPRAM[sprite.sprite_idx * 4 + 3];
   uint8 lasty = emu->GetFC()->ppu->SPRAM[sprite.sprite_idx * 4 + 0];
   uint32 lastscroll = emu->GetXScroll();
-    
+
   uint8 brake_input = 0;
   int current_stop_frames = stop_frames;
   for (int i = 0; i < max_stoptime; i++) {
@@ -996,7 +998,7 @@ AutoCamera::DetectCameraAngle(const vector<uint8> &uncompressed_state,
     return CAMERA_FAILED;
 
   const XYSprite &sprite = sprites[0];
-  
+
   static constexpr int MAX_STOPTIME = 60;
 
   // Right now just doing this for one state (the current one) and
@@ -1017,7 +1019,7 @@ AutoCamera::DetectCameraAngle(const vector<uint8> &uncompressed_state,
   }
 
   SaveEmulatorImage(emu, "brake.png");
-    
+
   const vector<uint8> stopped = emu->SaveUncompressed();
 
   // Test the L/R (X) axis or U/D (Y) axis. This was written with left
@@ -1042,7 +1044,7 @@ AutoCamera::DetectCameraAngle(const vector<uint8> &uncompressed_state,
 
     SaveEmulatorImage(lemu, StringPrintf("%s.png", less));
     SaveEmulatorImage(remu, StringPrintf("%s.png", more));
-    
+
     // Find bytes where they're different.
     const uint8 *lram = lemu->GetFC()->fceu->RAM;
     const uint8 *rram = remu->GetFC()->fceu->RAM;
@@ -1098,10 +1100,10 @@ AutoCamera::DetectCameraAngle(const vector<uint8> &uncompressed_state,
       candl->swap(newl);
       candr->swap(newr);
     };
- 
+
     // Savestate after executing a few steps of nothing.
     vector<uint8> savel, saver;
-    
+
     // Now, don't tap. Assume that we keep the same facing direction,
     // but for example that we stop animating.
     for (int i = 0; i < 12; i++) {
@@ -1221,7 +1223,7 @@ void AutoCamera::GetSavestates(const vector<uint8> &uncompressed_state,
   CHECK(num_experiments <= NUM_EMULATORS);
 
   savestates->resize(num_experiments);
-  
+
   auto OneExperiment =
     [this, &uncompressed_state, x_num_frames, savestates](int id) {
     Emulator *emu = emus[id];

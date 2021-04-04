@@ -201,6 +201,8 @@ static ImageA *FontChar(const string &filename, char c, int size) {
   vector<uint8> ret;
   ret.resize(bytes);
   memcpy(ret.data(), bitmap, bytes);
+  // Probably should call freebitmap here -tom7 in 2020
+  // stbtt_FreeBitmap(bitmap, nullptr);
   free(ttf_buffer);
   return new ImageA(ret, width, height);
 }
