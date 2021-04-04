@@ -480,6 +480,21 @@ void ImageRGBA::BlendImage(int x, int y, const ImageRGBA &other) {
   }
 }
 
+void ImageRGBA::CopyImage(int x, int y, const ImageRGBA &other) {
+  // PERF can factor out the pixel clipping here, supposing the
+  // compiler cannot.
+  for (int yy = 0; yy < other.height; yy++) {
+    int yyy = y + yy;
+    // Exit early if off-screen.
+    if (yyy >= height) break;
+    for (int xx = 0; xx < other.width; xx++) {
+      int xxx = x + xx;
+      if (xxx >= width) break;
+      SetPixel32(xxx, yyy, other.GetPixel32(xx, yy));
+    }
+  }
+}
+
 template<class F>
 inline static ImageA Extract(const ImageRGBA &img, const F &f) {
   ImageA ret(img.Width(), img.Height());
@@ -515,9 +530,9 @@ ImageRGBA ImageRGBA::FromChannels(const ImageA &red,
   const int width = red.Width();
   const int height = red.Height();
   CHECK(green.Width() == width);
-  CHECK(green.Height() == height);  
+  CHECK(green.Height() == height);
   CHECK(blue.Width() == width);
-  CHECK(blue.Height() == height);  
+  CHECK(blue.Height() == height);
   CHECK(alpha.Width() == width);
   CHECK(alpha.Height() == height);
   ImageRGBA out(width, height);
