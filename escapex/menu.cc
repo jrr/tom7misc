@@ -4,6 +4,7 @@
 #include "chars.h"
 #include "message.h"
 #include "ptrlist.h"
+#include "escape-util.h"
 
 /* PERF: can optimize many of these width calculations.
    PERF: no need to append strings so often */
@@ -419,7 +420,7 @@ void Menu::Draw() {
   fixup((h - (stath + fon->height)) - yoff);
 
   if (skip != 0) {
-    fon->draw(x, 2 + posy + (yoff - fon->height), 
+    fon->draw(x, 2 + posy + (yoff - fon->height),
 	      ALPHA50 PICS ARROWU POP YELLOW " More " POP PICS ARROWU POP POP);
   }
 
@@ -480,7 +481,7 @@ void Menu::Draw() {
     } else {
       /* out of space: stop trying to draw controls.
          (but draw a "more" icon) */
-      fon->draw(x, posy + yoff, 
+      fon->draw(x, posy + yoff,
 		ALPHA50 PICS ARROWD POP YELLOW " More " POP PICS ARROWD POP POP);
       break;
     }
@@ -610,7 +611,7 @@ void Menu::ScreenResize() {
 
     int thisl = 0;
     while (ex != "") {
-      string hi = util::chopto('\n', ex);
+      string hi = EscapeUtil::chopto('\n', ex);
       maxw = std::max(maxw, fon->sizex(hi));
       thisl++;
     }

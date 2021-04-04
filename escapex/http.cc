@@ -1,6 +1,6 @@
 
 #include "http.h"
-#include "util.h"
+#include "escape-util.h"
 
 // XXX this can be improved by using vectors..
 #include <vector>
@@ -43,7 +43,7 @@ struct HTTP_ : public HTTP {
       conn = 0;
     }
   }
-  
+
   std::function<void(int, int)> callback = [](int a, int b){};
 
   string ua;
@@ -57,12 +57,12 @@ struct HTTP_ : public HTTP {
 };
 
 HTTPResult HTTP_::get(string path, string &out_) {
-  DMSG(util::ptos(this) + " get(" + path + ")\n");
+  DMSG(EscapeUtil::ptos(this) + " get(" + path + ")\n");
   return get_general(path, out_, false);
 }
 
 HTTPResult HTTP_::gettempfile(string path, string &out_) {
-  DMSG(util::ptos(this) + " gettempfile(" + path + ")\n");
+  DMSG(EscapeUtil::ptos(this) + " gettempfile(" + path + ")\n");
   return get_general(path, out_, true);
 }
 
@@ -75,7 +75,7 @@ HTTP_::HTTP_() {
 HTTP_::~HTTP_() {
   /* ? */
   if (conn) {
-    DMSG(util::ptos(this) + " destroy\n");
+    DMSG(EscapeUtil::ptos(this) + " destroy\n");
     SDLNet_TCP_Close(conn);
   }
 }
@@ -85,18 +85,18 @@ void HTTP_::setua(string s) {
 }
 
 bool HTTP_::connect(string chost, int port) {
-  DMSG(util::ptos(this) + " connect '" + chost + "':" + itos(port) + "\n");
+  DMSG(EscapeUtil::ptos(this) + " connect '" + chost + "':" + itos(port) + "\n");
 
   /* should work for "snoot.org" or "128.2.194.11" */
   if (SDLNet_ResolveHost(&remote, (char *)chost.c_str(), port)) {
-    DMSG(util::ptos(this) + " can't resolve: " +
+    DMSG(EscapeUtil::ptos(this) + " can't resolve: " +
          (string)(SDLNet_GetError()) + "\n");
     return false;
   }
 
   host = chost;
 
-  DMSG(util::ptos(this) + " ok\n");
+  DMSG(EscapeUtil::ptos(this) + " ok\n");
 
   return true;
 }
@@ -127,7 +127,7 @@ HTTPResult HTTP_::put(const string &path,
                       string &out) {
 
   /* large positive randomish number */
-  int bnd = 0x10000000 | (0x7FFFFFFE & (util::random()));
+  int bnd = 0x10000000 | (0x7FFFFFFE & (EscapeUtil::random()));
 
   string boundary = "---------------------------" + itos(bnd);
 
@@ -194,30 +194,30 @@ HTTPResult HTTP_::get_general(string path, string &res, bool tofile) {
 }
 
 HTTPResult HTTP_::req_general(string req, string &res, bool tofile) {
-  DMSG(util::ptos(this) + " conn@" + util::ptos(conn) +
+  DMSG(EscapeUtil::ptos(this) + " conn@" + EscapeUtil::ptos(conn) +
         " req_general: \n[" + req + "]\n");
 
   /* we don't use keep-alive now. each request is a new
      connection. */
   bye();
   if (! (conn = SDLNet_TCP_Open(&remote))) {
-    DMSG(util::ptos(this) + " can't connect: " +
+    DMSG(EscapeUtil::ptos(this) + " can't connect: " +
           (string)(SDLNet_GetError()) + "\n");
     return HTTPResult::ERROR_OTHER;
   }
 
-  DMSG(util::ptos(this) + " connected.\n");
+  DMSG(EscapeUtil::ptos(this) + " connected.\n");
 
   if (!sendall(conn, req)) {
     /* error. try again? */
-    DMSG(util::ptos(this) + " can't send: " +
+    DMSG(EscapeUtil::ptos(this) + " can't send: " +
          (string)(SDLNet_GetError()) + "\n");
     SDLNet_TCP_Close(conn);
     conn = 0;
     return HTTPResult::ERROR_OTHER;
   }
 
-  DMSG(util::ptos(this) + " sent request.\n");
+  DMSG(EscapeUtil::ptos(this) + " sent request.\n");
 
   /* read headers. */
   string cline;
@@ -238,7 +238,7 @@ HTTPResult HTTP_::req_general(string req, string &res, bool tofile) {
   */
   for (;;) {
     if (SDLNet_TCP_Recv(conn, &c, 1) != 1) {
-      DMSG(util::ptos(this) + " can't recv: " +
+      DMSG(EscapeUtil::ptos(this) + " can't recv: " +
            (string)(SDLNet_GetError()) + "\n");
       printf("Error in recv.\n");
       bye();
@@ -260,13 +260,13 @@ HTTPResult HTTP_::req_general(string req, string &res, bool tofile) {
       if (first) {
 
         /* HTTP/1.x */
-        util::chop(line);
+        EscapeUtil::chop(line);
         /* 200 */
-        string status = util::chop(line);
+        string status = EscapeUtil::chop(line);
 
         if (status != "200") {
           /* XXX or whatever ... */
-          DMSG(util::ptos(this) + " got status code " + status + "\n");
+          DMSG(EscapeUtil::ptos(this) + " got status code " + status + "\n");
           /* close connection, since we don't want to read
              anything. */
           bye();
@@ -282,7 +282,7 @@ HTTPResult HTTP_::req_general(string req, string &res, bool tofile) {
 
           DMSG("header line [" + line + "]\n");
 
-          string field = util::chop(line);
+          string field = EscapeUtil::chop(line);
 
           /*
             HTTP/1.1 200 OK
@@ -299,11 +299,11 @@ HTTPResult HTTP_::req_general(string req, string &res, bool tofile) {
           */
 
           if (field == "Content-Length:") {
-            string l = util::chop(line);
+            string l = EscapeUtil::chop(line);
             contentlen = atoi(l.c_str());
             DMSG("content length is " + itos (contentlen) + "\n");
           } else if (field == "Connection:") {
-            string how = util::lcase(util::chop(line));
+            string how = EscapeUtil::lcase(EscapeUtil::chop(line));
             if (how == "close")
               connecttype = CT_CLOSE;
             else if (how == "keepalive")
@@ -371,18 +371,18 @@ HTTPResult HTTP_::req_general(string req, string &res, bool tofile) {
 
 #define BUFLEN 1024
 
-/* XXX use util::tempfile */
+/* XXX use EscapeUtil::tempfile */
 FILE *HTTP_::TempFile(string &f) {
   static int call = 0;
-  int pid = util::getpid();
+  int pid = EscapeUtil::getpid();
   int tries = 256;
   call++;
   while (tries--) {
     char fname[256];
     sprintf(fname, "dl%d%04X%04X.deleteme", call, pid,
-            (int)(0xFFFF & util::random()));
+            (int)(0xFFFF & EscapeUtil::random()));
 
-    FILE *ret = util::open_new(fname);
+    FILE *ret = EscapeUtil::open_new(fname);
     if (ret) {
       f = fname;
       return ret;

@@ -1,12 +1,11 @@
-#ifndef __SOLUTIONUPLOADING_H
-#define __SOLUTIONUPLOADING_H
+#ifndef _ESCAPE_SOLUTIONUPLOADING_H
+#define _ESCAPE_SOLUTIONUPLOADING_H
 
 #include "escapex.h"
 #include "drawable.h"
 #include "selector.h"
 #include "solution.h"
 #include "player.h"
-#include "util.h"
 
 #define ALLSOLS_URL "/f/a/escape/allsols/"
 

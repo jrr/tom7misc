@@ -4,16 +4,19 @@
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/crypt/md5.h"
+#include "../cc-lib/util.h"
 
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <memory>
+#include <vector>
+#include <string>
 
 #include "directories.h"
 
 #include "dircache.h"
-#include "util.h"
+#include "escape-util.h"
 #include "chars.h"
 
 #include "message.h"
@@ -112,17 +115,13 @@ struct LLEntry {
     SWAP(myrating);
     SWAP(votes);
 #   undef SWAP
-    
+
   }
 
-  string actualfile(stringlist *p) {
-    string file = fname;
-    stringlist *pathtmp = stringlist::copy(p);
-    while (pathtmp) {
-      file = stringpop(pathtmp) +
-             string(DIRSEP) + file;
-    }
-    return file;
+  string ActualFile(const std::vector<string> &p) {
+    if (p.empty()) return fname;
+
+    return Util::Join(p, string(DIRSEP)) + string(DIRSEP) + fname;
   }
 
   /* default: directories are first */
@@ -236,7 +235,7 @@ struct LLEntry {
     int order;
     if (default_dirs(order, l, r)) return order;
 
-    int c = util::natural_compare(l.author, r.author);
+    int c = EscapeUtil::natural_compare(l.author, r.author);
 
     if (!c) return cmp_byname(l, r);
     else return c;
@@ -259,13 +258,13 @@ struct LLEntry {
         if (l.fname == r.fname) return 0;
 
         /* we assume filenames are unique */
-        return util::natural_compare(l.fname, r.fname);
+        return EscapeUtil::natural_compare(l.fname, r.fname);
       } else return 0;
     }
 
     /* this also includes the case where one has a
        name and the other doesn't */
-    return util::library_compare(l.name, r.name);
+    return EscapeUtil::library_compare(l.name, r.name);
   }
 
   static int cmp_none(const LLEntry &l,
@@ -284,7 +283,6 @@ struct LoadLevel_ : public LoadLevel {
 
   ~LoadLevel_() override {
     showlev.reset();
-    while (path) stringpop(path);
   }
 
   bool FirstUnsolved(string &file, string &title) override;
@@ -298,11 +296,8 @@ struct LoadLevel_ : public LoadLevel {
 
 
  private:
-  /* rep inv:
-     always of the form (../)*(realdir)* */
-  /* XXX I think I now require/maintain that
-     there be no .. at all in the path */
-  stringlist *path;
+  // path as a series of subdirectories (can't contain . or ..).
+  std::vector<string> path;
 
   int helppos = 0;
   static const int numhelp;
@@ -511,7 +506,7 @@ string LLEntry::display(bool selected) {
 }
 
 bool LLEntry::matches(char k) {
-  if (name.length() > 0) return util::library_matches(k, name);
+  if (name.length() > 0) return EscapeUtil::library_matches(k, name);
   else return (fname.length() > 0 && (fname[0] | 32) == k);
 }
 
@@ -523,7 +518,7 @@ bool LoadLevel_::FirstUnsolved(string &file, string &title) {
   for (int i = 0; i < sel->number; i++) {
     if ((!sel->items[i].isdir) &&
         (!sel->items[i].solved)) {
-      file = sel->items[i].actualfile(path);
+      file = sel->items[i].ActualFile(path);
       title = sel->items[i].name;
       return true;
     }
@@ -542,8 +537,8 @@ bool LoadLevel_::FirstUnsolved(string &file, string &title) {
 #endif
 
 LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
-                                     bool inexact,
-                                     bool allow_corrupted_) {
+                               bool inexact,
+                               bool allow_corrupted_) {
   DBTIME_INIT;
 
   LoadLevel_ *ll = new LoadLevel_();
@@ -564,7 +559,6 @@ LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
   ll->allow_corrupted = allow_corrupted_;
   ll->plr = p;
   ll->sel = 0;
-  ll->path = 0;
 
   ll->showstart = 0;
   ll->solstep = 0;
@@ -582,7 +576,7 @@ LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
     do {
       if (ll->ChangeDir(dir)) goto chdir_ok;
       printf("Dir missing? Up: %s\n", dir.c_str());
-      dir = util::cdup(dir);
+      dir = EscapeUtil::cdup(dir);
     } while (dir != ".");
 
     return 0;
@@ -605,43 +599,30 @@ string LoadLevel_::SelectLevel() {
 }
 
 
-/* prepend current path onto filename */
+/* prepend current path onto filename.
+   filename of "" seems to denote "the directory itself" */
 string LoadLevel_::locate(string filename) {
-
-  stringlist *pp = path;
-
-  string out = filename;
-  while (pp) {
-    if (out == "") out = pp->head;
-    else out = pp->head + string(DIRSEP) + out;
-    pp = pp->next;
+  if (path.empty()) {
+    if (filename.empty()) return ".";
+    return filename;
   }
 
-  if (out == "") return ".";
-  else return out;
+  string joined = Util::Join(path, string(DIRSEP));
+  if (filename.empty()) return joined;
+  return joined + string(DIRSEP) + filename;
 }
 
 int LoadLevel_::ChangeDir(string what, bool remember) {
   DBTIME_INIT;
 
-  // printf("ChangeDir '%s' with path %p\n", what.c_str(), path);
-  {
-    stringlist *pp = path;
-    while (pp) {
-      /* printf("  '%s'\n", pp->head.c_str()); */
-      pp = pp->next;
-    }
-  }
-
   string where;
 
   /* Special case directory traversals. */
   if (what == "..") {
-    if (path) {
-      /* does the wrong thing after descending past cwd. */
-      stringpop(path);
-      where = locate("");
-    } else return 0;
+    if (path.empty()) return 0;
+    /* does the wrong thing after descending past cwd. */
+    path.pop_back();
+    where = locate("");
   } else if (what == ".") {
     /* no change, but do reload */
     // printf("special .\n");
@@ -661,7 +642,7 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
     */
 
     where = locate(what);
-    path = new stringlist(what, path);
+    path.push_back(what);
   }
 
   DBTIME("cd got where");
@@ -709,7 +690,7 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
 
     string ldn = locate(de->d_name);
 
-    if (util::isdir(ldn)) {
+    if (EscapeUtil::isdir(ldn)) {
 
       string dn = de->d_name;
 
@@ -722,7 +703,7 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
                to go above the home directory,
                since we don't handle that
                properly. */
-            (dn == ".." && !path))) {
+            (dn == ".." && path.empty()))) {
 
         if (dn == "..") {
           /* don't report completions for parent */
@@ -761,7 +742,7 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
 
     } else {
 
-      string contents = util::readfilemagic(ldn, LEVELMAGIC);
+      string contents = EscapeUtil::readfilemagic(ldn, LEVELMAGIC);
 
       /* try to read it, passing along corruption flag */
       std::unique_ptr<Level> l = Level::FromString(contents, allow_corrupted);
@@ -964,7 +945,7 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
         Solution out;
         if (Level::VerifyPrefix(solveme, s, &out) && out.Length() > 0) {
           sel->items[i].solved = out.Length();
-          string af = sel->items[i].actualfile(path);
+          string af = sel->items[i].ActualFile(path);
 
           /* XXX PERF md5s are stored */
           FILE *f = fopen(af.c_str(), "rb");
@@ -1047,7 +1028,7 @@ string LoadLevel_::Loop() {
         switch (key) {
         case SDLK_DELETE: {
           string file =
-            sel->items[sel->selected].actualfile(path);
+            sel->items[sel->selected].ActualFile(path);
 
           string md5 =
             sel->items[sel->selected].md5;
@@ -1108,7 +1089,7 @@ string LoadLevel_::Loop() {
 
 
               /* display menu */
-	      std::unique_ptr<Menu> mm = 
+	      std::unique_ptr<Menu> mm =
 		Menu::Create(0, "Really delete?", l, false);
               InputResultKind res = mm->menuize();
               PtrList<MenuItem>::diminish(l);
@@ -1166,7 +1147,7 @@ string LoadLevel_::Loop() {
             }
           }
 
-          if (!util::remove(file)) {
+          if (!EscapeUtil::remove(file)) {
             Message::No(this, "Error deleting file!");
             sel->Redraw();
             continue;
@@ -1262,7 +1243,7 @@ string LoadLevel_::Loop() {
               lastfile = sel->items[sel->selected].fname;
 
               string file =
-                sel->items[sel->selected].actualfile(path);
+                sel->items[sel->selected].ActualFile(path);
 
               FILE *f = fopen(file.c_str(), "rb");
               if (!f) {
@@ -1297,7 +1278,7 @@ string LoadLevel_::Loop() {
               lastfile = sel->items[sel->selected].fname;
 
               string file =
-                sel->items[sel->selected].actualfile(path);
+                sel->items[sel->selected].ActualFile(path);
 
               /* XXX now in LLEntry, also comment */
               FILE *f = fopen(file.c_str(), "rb");
@@ -1506,7 +1487,7 @@ string LoadLevel_::Loop() {
                 lastfile = sel->items[sel->selected].fname;
 
                 string file =
-                  sel->items[sel->selected].actualfile(path);
+                  sel->items[sel->selected].ActualFile(path);
 
                 /* don't bother with message; upload does it */
                 switch (uu->Up(plr, file, desc.get_text())) {
@@ -1551,12 +1532,14 @@ string LoadLevel_::Loop() {
           sel->Redraw();
           break;
         } else {
-          string out = sel->items[pr.u.i].fname;
-          lastfile = out;
-          while (path) {
-            out = stringpop(path) + string(DIRSEP) + out;
+          string fname = sel->items[pr.u.i].fname;
+          if (path.empty()) {
+            return fname;
+          } else {
+            string pp = Util::Join(path, string(DIRSEP));
+            path.clear();
+            return pp + string(DIRSEP) + fname;
           }
-          return out;
         }
       case Selor::PEType::EXIT: /* XXX */
       case Selor::PEType::CANCEL:

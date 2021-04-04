@@ -1,9 +1,8 @@
 
-#ifndef __PLAYERDB_H
-#define __PLAYERDB_H
+#ifndef _ESCAPE_PLAYERDB_H
+#define _ESCAPE_PLAYERDB_H
 
 #include "player.h"
-#include <string>
 #include "selector.h"
 
 /* abstract interface */

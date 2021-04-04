@@ -1,8 +1,10 @@
 
+#include "optimize.h"
+
+#include <vector>
 #include <unordered_map>
 
 #include "escapex.h"
-#include "optimize.h"
 #include "message.h"
 #include "solution.h"
 #include "player.h"

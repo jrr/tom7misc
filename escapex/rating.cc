@@ -7,6 +7,7 @@
 #include "chars.h"
 #include "message.h"
 #include "../cc-lib/crypt/md5.h"
+#include "escape-util.h"
 #include "menu.h"
 
 #include "client.h"
@@ -267,7 +268,7 @@ void RateScreen_::Rate() {
     hh.reset();
 
     if (success) {
-      int record = util::stoi(res);
+      int record = EscapeUtil::stoi(res);
       const Solution *ours = plr->GetSol(levmd5);
       if (plr->webid && (ours != nullptr) && ours->Length() < record) {
         /* beat the record! prompt to upload. */

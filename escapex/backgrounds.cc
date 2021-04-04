@@ -1,7 +1,8 @@
 
 #include "backgrounds.h"
+
 #include "draw.h"
-#include "util.h"
+#include "escape-util.h"
 #include "chars.h"
 #include "../cc-lib/sdl/sdlutil.h"
 
@@ -9,10 +10,10 @@ const float Backgrounds::blueish = 178.0f;
 const float Backgrounds::purpleish = 260.0f; // 247.0f;
 
 static Uint32 hueish(SDL_Surface *surf, float base_hue) {
-  float h = base_hue + (util::randfrac() * (233.0f - 178.0f));
-  float s = .29f + (util::randfrac() * (.84f - .29f));
-  float v = .12f + (util::randfrac() * (.50f - .12f));
-  float a = .50f + (util::randfrac() * (1.0f - .50f));
+  float h = base_hue + (EscapeUtil::randfrac() * (233.0f - 178.0f));
+  float s = .29f + (EscapeUtil::randfrac() * (.84f - .29f));
+  float v = .12f + (EscapeUtil::randfrac() * (.50f - .12f));
+  float a = .50f + (EscapeUtil::randfrac() * (1.0f - .50f));
   return sdlutil::hsv(surf, h / 360.0f, s, v, a);
 }
 
@@ -76,7 +77,7 @@ void Backgrounds::GradientBlocks(SDL_Surface *&surf,
       clr = sdlutil::mixfrac(last, next, 0.5f);
       last = next;
       next = hueish(gradient, gradient_hue);
-      count = 2 + (int)(util::randfrac() * 28.0f);
+      count = 2 + (int)(EscapeUtil::randfrac() * 28.0f);
       num = 0;
     } else {
       num++;

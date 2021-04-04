@@ -1,8 +1,9 @@
+#include "textbox.h"
 
 #include "menu.h"
 #include "draw.h"
 #include "chars.h"
-#include "textbox.h"
+#include "escape-util.h"
 
 /* n.b.: for fixing all these crazy corner cases, it seems that a good
    technique is to simply 'retype' any area that needs to be reflown. */
@@ -140,16 +141,14 @@ void TextBox::draw(int posx, int posy, int f) {
   /* distinguish (a) and (b): can we get
      at least drawlines lines? */
 
-  int count = 0;
   vallist<char> *tmp = before;
-  stringlist *blines = nullptr;
+  vector<string> blines;
 
-  while (tmp) {
-    if (count >= drawlines) break;
-
-    stringlist::push(blines, prevline(tmp));
-    count++;
+  while (tmp != nullptr && blines.size() < drawlines) {
+    blines.push_back(prevline(tmp));
   }
+
+  int count = blines.size();
 
   /* now we are in case (a) if !tmp,
      and case (b) otherwise.
@@ -173,7 +172,8 @@ void TextBox::draw(int posx, int posy, int f) {
   /* invariant: count = length(blines) */
   string lastline;
   for (int i = 0; i < count; i++) {
-    lastline = stringpop(blines);
+    lastline = blines.back();
+    blines.pop_back();
     fon->draw_plain(posx, posy + y * fon->height, lastline);
 
     /* printf("drew [%s] at %d\n", lastline.c_str(), y); */

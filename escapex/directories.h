@@ -14,8 +14,8 @@
 
 */
 
-#ifndef __DIRENT_H
-#define __DIRENT_H
+#ifndef _ESCAPE_DIRENT_H
+#define _ESCAPE_DIRENT_H
 
 #ifndef _MSC_VER
 /* posix */

@@ -1,7 +1,7 @@
 
 #include "base.h"
 #include "chunks.h"
-#include "util.h"
+#include "escape-util.h"
 #include "ptrlist.h"
 
 #include "bytes.h"

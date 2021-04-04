@@ -27,9 +27,11 @@ using namespace std;
 
 #define UTIL_PI 3.141592653589f
 
+// XXX remove; use cc-lib util
 string readfile(string);
 bool writefile(string fn, string s);
 
+// XXX remove; use cc-lib util
 string itos(int i);
 
 template <class T>
@@ -79,12 +81,7 @@ struct vallist {
   }
 };
 
-typedef vallist<string> stringlist;
-inline string stringpop(stringlist *&sl) {
-  return stringlist::pop(sl, "");
-}
-
-struct util {
+struct EscapeUtil {
   /* only read if the file begins with the magic string */
   static bool hasmagic(string, const string &magic);
   static string readfilemagic(string, const string &magic);
@@ -207,17 +204,6 @@ struct util {
 
   /* returns false if failed/unsupported */
   static bool setclipboard(string);
-
-  /* templates follow. */
-
-  /* Return m[key] if it already exists, or allocate a new entry,
-     insert it, and return that. */
-  template <class K, class V>
-  static V *findorinsertnew(map<K, V*> &m, const K &key) {
-    V *&pos = m[key];
-    if (!pos) pos = new V;
-    return pos;
-  }
 };
 
 #endif

@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string.h>
 
-#include "util.h"
+#include "escape-util.h"
 
 #ifdef WIN32
    /* chdir */
@@ -33,23 +33,23 @@
 
 using namespace std;
 
-bool util::isdir(string f) {
+bool EscapeUtil::isdir(string f) {
   struct stat st;
   return !stat(f.c_str(), &st) && (st.st_mode & S_IFDIR);
 }
 
-bool util::existsfile(string s) {
+bool EscapeUtil::existsfile(string s) {
   struct stat st;
 
   return !stat(s.c_str(), &st);
 }
 
-bool util::existsdir(string d) {
+bool EscapeUtil::existsdir(string d) {
   return isdir(d); /* (existsfile(d) && isdir(d.c_str())); */
 }
 
 /* XXX what mode? */
-bool util::makedir(string d) {
+bool EscapeUtil::makedir(string d) {
 # ifdef WIN32
   return !mkdir(d.c_str());
 # else /* posix */
@@ -58,7 +58,7 @@ bool util::makedir(string d) {
 }
 
 string readfile(string s) {
-  if (util::isdir(s)) return "";
+  if (EscapeUtil::isdir(s)) return "";
   if (s == "") return "";
 
   FILE *f = fopen(s.c_str(), "rb");
@@ -100,7 +100,7 @@ static bool hasmagicf(FILE *f, const string &mag) {
   return true;
 }
 
-bool util::hasmagic(string s, const string &mag) {
+bool EscapeUtil::hasmagic(string s, const string &mag) {
   FILE *f = fopen(s.c_str(), "rb");
   if (!f) return false;
 
@@ -110,7 +110,7 @@ bool util::hasmagic(string s, const string &mag) {
   return hm;
 }
 
-string util::readfilemagic(string s, const string &mag) {
+string EscapeUtil::readfilemagic(string s, const string &mag) {
   if (isdir(s)) return "";
   if (s == "") return "";
 
@@ -166,13 +166,13 @@ string itos(int i) {
   return (string)s;
 }
 
-string util::ptos(void *p) {
+string EscapeUtil::ptos(void *p) {
   char s[64];
   sprintf(s, "%p", p);
   return (string)s;
 }
 
-unsigned int util::hash(string s) {
+unsigned int EscapeUtil::hash(string s) {
   unsigned int h = 0x714FA5DD;
   for (unsigned int i = 0; i < s.length(); i++) {
     h = (h << 11) | (h >> (32 - 11));
@@ -182,7 +182,7 @@ unsigned int util::hash(string s) {
   return h;
 }
 
-string util::lcase(string in) {
+string EscapeUtil::lcase(string in) {
   string out;
   for (unsigned int i = 0; i < in.length(); i++) {
     if (in[i] >= 'A' &&
@@ -193,7 +193,7 @@ string util::lcase(string in) {
   return out;
 }
 
-string util::ucase(string in) {
+string EscapeUtil::ucase(string in) {
   string out;
   for (unsigned int i = 0; i < in.length(); i++) {
     if (in[i] >= 'a' &&
@@ -204,7 +204,7 @@ string util::ucase(string in) {
   return out;
 }
 
-string util::fileof(string s) {
+string EscapeUtil::fileof(string s) {
   for (int i = s.length() - 1; i >= 0; i--) {
     if (s[i] == DIRSEPC) {
       return s.substr(i + 1, s.length() - (i + 1));
@@ -213,7 +213,7 @@ string util::fileof(string s) {
   return s;
 }
 
-string util::pathof(string s) {
+string EscapeUtil::pathof(string s) {
   if (s == "") return ".";
   for (int i = s.length() - 1; i >= 0; i--) {
     if (s[i] == DIRSEPC) {
@@ -224,7 +224,7 @@ string util::pathof(string s) {
 }
 
 /* XX can use endswith below */
-string util::ensureext(string f, string ext) {
+string EscapeUtil::ensureext(string f, string ext) {
   if (f.length() < ext.length())
     return f + ext;
   else {
@@ -235,38 +235,38 @@ string util::ensureext(string f, string ext) {
   }
 }
 
-bool util::endswith(string big, string small_) {
+bool EscapeUtil::endswith(string big, string small_) {
   if (small_.length() > big.length()) return false;
   return big.substr(big.length() - small_.length(),
                     small_.length()) == small_;
 }
 
-bool util::startswith(string big, string small_) {
+bool EscapeUtil::startswith(string big, string small_) {
   if (small_.length() > big.length()) return false;
   return big.substr(0, small_.length()) == small_;
 }
 
-int util::changedir(string s) {
+int EscapeUtil::changedir(string s) {
   return !chdir(s.c_str());
 }
 
-int util::getpid() {
+int EscapeUtil::getpid() {
   return ::getpid();
 }
 
-int util::stoi(string s) {
+int EscapeUtil::stoi(string s) {
   return atoi(s.c_str());
 }
 
 /* XXX race. should use creat
    with O_EXCL on unix, at least. */
-FILE *util::open_new(string fname) {
+FILE *EscapeUtil::open_new(string fname) {
   if (!existsfile(fname))
     return fopen(fname.c_str(), "wb+");
   else return 0;
 }
 
-string util::getline(string &chunk) {
+string EscapeUtil::getline(string &chunk) {
   string ret;
   for (unsigned int i = 0; i < chunk.length(); i++) {
     if (chunk[i] == '\r') continue;
@@ -281,7 +281,7 @@ string util::getline(string &chunk) {
 }
 
 /* PERF */
-string util::fgetline(FILE *f) {
+string EscapeUtil::fgetline(FILE *f) {
   string out;
   int c;
   while ( (c = fgetc(f)), ((c != EOF) && (c != '\n')) ) {
@@ -296,7 +296,7 @@ string util::fgetline(FILE *f) {
 /* PERF use substr instead of accumulating: this is used
    frequently in the net stuff */
 /* return first token in line, removing it from 'line' */
-string util::chop(string &line) {
+string EscapeUtil::chop(string &line) {
   for (unsigned int i = 0; i < line.length(); i++) {
     if (line[i] != ' ') {
       string acc;
@@ -316,7 +316,7 @@ string util::chop(string &line) {
 }
 
 /* PERF same */
-string util::chopto(char c, string &line) {
+string EscapeUtil::chopto(char c, string &line) {
   string acc;
   for (unsigned int i = 0; i < line.length(); i++) {
     if (line[i] != c) {
@@ -337,7 +337,7 @@ string util::chopto(char c, string &line) {
   return acc;
 }
 
-string util::losewhitel(const string &s) {
+string EscapeUtil::losewhitel(const string &s) {
   for (unsigned int i = 0; i < s.length(); i++) {
     switch (s[i]) {
     case ' ':
@@ -354,7 +354,7 @@ string util::losewhitel(const string &s) {
   return "";
 }
 
-string util::tempfile(string suffix) {
+string EscapeUtil::tempfile(string suffix) {
   static int tries = 0;
 
   string fname;
@@ -391,7 +391,7 @@ string util::tempfile(string suffix) {
    n.b. it is easy to overflow here, so perhaps comparing
    as we go is better
 */
-int util::natural_compare(const string &l, const string &r) {
+int EscapeUtil::natural_compare(const string &l, const string &r) {
   for (int caseless = 0; caseless < 2; caseless++) {
     unsigned int il = 0;
     unsigned int ir = 0;
@@ -469,7 +469,7 @@ int util::natural_compare(const string &l, const string &r) {
 
 /* same as above, but ignore "the" at beginning */
 /* XXX also ignore symbols ie ... at the beginning */
-int util::library_compare(const string &l, const string &r) {
+int EscapeUtil::library_compare(const string &l, const string &r) {
 
   /* XXX currently IGNOREs symbols, which could give incorrect
      results for strings that are equal other than their
@@ -503,7 +503,7 @@ int util::library_compare(const string &l, const string &r) {
 }
 
 /* XXX impossible to specify a spec for just ^ */
-bool util::matchspec(string spec, char c) {
+bool EscapeUtil::matchspec(string spec, char c) {
   if (!spec.length()) return false;
   else if (spec[0] == '^')
   return !matchspec(spec.substr(1, spec.length() - 1), c);
@@ -528,7 +528,7 @@ bool util::matchspec(string spec, char c) {
 }
 
 
-bool util::library_matches(char k, const string &s) {
+bool EscapeUtil::library_matches(char k, const string &s) {
   /* skip symbolic */
   unsigned int idx = 0;
   while (idx < s.length() && (!isalnum(s[idx]))) idx++;
@@ -546,7 +546,7 @@ bool util::library_matches(char k, const string &s) {
    An executable can't remove itself in
    Windows 98, though.
 */
-bool util::remove(string f) {
+bool EscapeUtil::remove(string f) {
   if (!existsfile(f.c_str())) return true;
   else {
 # ifdef WIN32
@@ -574,7 +574,7 @@ bool util::remove(string f) {
 
 }
 
-bool util::move(string src, string dst) {
+bool EscapeUtil::move(string src, string dst) {
 # ifdef WIN32
   if (0 == rename(src.c_str(), dst.c_str()))
     return true;
@@ -598,7 +598,7 @@ bool util::move(string src, string dst) {
 }
 
 
-bool util::copy(string src, string dst) {
+bool EscapeUtil::copy(string src, string dst) {
   FILE *s = fopen(src.c_str(), "rb");
   if (!s) return false;
   FILE *d = fopen(dst.c_str(), "wb+");
@@ -623,7 +623,7 @@ bool util::copy(string src, string dst) {
   return true;
 }
 
-string util::dirplus(const string &dir_, const string &file) {
+string EscapeUtil::dirplus(const string &dir_, const string &file) {
   if (dir_.empty()) return file;
   if (!file.empty() && file[0] == DIRSEPC) return file;
   string dir = dir_;
@@ -632,7 +632,7 @@ string util::dirplus(const string &dir_, const string &file) {
   return dir + file;
 }
 
-void util::toattic(string f) {
+void EscapeUtil::toattic(string f) {
   string nf = f;
   // printf("TOATTIC %s...\n", f.c_str());
   /* in case it doesn't exist... */
@@ -653,7 +653,7 @@ void util::toattic(string f) {
   }
 }
 
-string util::cdup(const string &dir) {
+string EscapeUtil::cdup(const string &dir) {
   /* XXX right second argument to rfind? I want to find the last / */
   int idx = dir.rfind(DIRSEP, dir.length() - 1);
   if (idx != (signed)string::npos) {
@@ -662,7 +662,7 @@ string util::cdup(const string &dir) {
   } else return ".";
 }
 
-void util::createpathfor(string f) {
+void EscapeUtil::createpathfor(string f) {
   string s;
   for (unsigned int i = 0; i < f.length();  i++) {
     if (f[i] == DIRSEPC) {
@@ -674,12 +674,12 @@ void util::createpathfor(string f) {
   }
 }
 
-FILE *util::fopenp(string f, string m) {
+FILE *EscapeUtil::fopenp(string f, string m) {
   createpathfor(f);
   return fopen(f.c_str(), m.c_str());
 }
 
-string util::replace(string src, string findme, string rep) {
+string EscapeUtil::replace(string src, string findme, string rep) {
   int idx = src.length() - 1;
 
   if (findme.length() < 1) return src;
@@ -705,7 +705,7 @@ string util::replace(string src, string findme, string rep) {
 #endif
 
 /* return true on success */
-bool util::launchurl(const string &url) {
+bool EscapeUtil::launchurl(const string &url) {
   /* XXX ??? */
 #if 0
 #ifdef OSX
@@ -737,7 +737,7 @@ bool util::launchurl(const string &url) {
 }
 
 
-float util::randfrac() {
+float EscapeUtil::randfrac() {
   return random() / (float)RAND_MAX;
 }
 
@@ -746,7 +746,7 @@ float util::randfrac() {
 
    better: http://www.libsdl.org/projects/scrap/
 */
-bool util::setclipboard(string as) {
+bool EscapeUtil::setclipboard(string as) {
 # ifdef WIN32
   /* handle = hdwp. but how to get one of those? */
   // SetClipboardData(CF_TEXT, as.c_str());
@@ -766,7 +766,7 @@ bool util::setclipboard(string as) {
    web sequence numbers are chosen randomly, now, so we
    actually do.
 */
-int util::random() {
+int EscapeUtil::random() {
 # ifdef WIN32
   return ::rand();
 # else
@@ -784,7 +784,7 @@ struct randomseed {
 # endif
     /* run it a bit */
     for (int i = 0; i < 256; i++)
-      (void)util::random();
+      (void)EscapeUtil::random();
   }
 };
 

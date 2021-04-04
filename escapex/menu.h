@@ -1,10 +1,11 @@
 
-#ifndef __MENU_H
-#define __MENU_H
+#ifndef _ESCAPE_MENU_H
+#define _ESCAPE_MENU_H
 
 #include "escapex.h"
+
 #include <SDL.h>
-#include "util.h"
+
 #include "chars.h"
 #include "ptrlist.h"
 

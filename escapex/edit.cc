@@ -12,7 +12,7 @@
 #include "escapex.h"
 #include "play.h"
 #include "prompt.h"
-#include "util.h"
+#include "escape-util.h"
 #include "loadlevel.h"
 #include "message.h"
 #include "menu.h"
@@ -384,9 +384,9 @@ void Editor::saveas() {
 
   /* if level is untitled, get the title from this */
   if (level->title == "Untitled")
-    level->title = util::fileof(nfn);
+    level->title = EscapeUtil::fileof(nfn);
 
-  filename = util::ensureext(nfn, ".esx");
+  filename = EscapeUtil::ensureext(nfn, ".esx");
 
   save();
 }
@@ -877,7 +877,7 @@ void Editor::Edit(const Level *origlev) {
 	      int cx = point.first, cy = point.second;
 	      setlayer(cx, cy, current);
 	    }
-	    
+
             changed = 1;
             /* always draw */
             yesdraw = 1;
@@ -1516,7 +1516,7 @@ void Editor::Edit(const Level *origlev) {
 				 cl->flagat(x, y));
                 }
 	      }
-		
+
               /* move player, bots */
               if (level->guyx >= selection.x &&
                   level->guyy >= selection.y &&

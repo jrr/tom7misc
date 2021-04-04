@@ -10,7 +10,7 @@
 #include "draw.h"
 #include "escapex.h"
 #include "play.h"
-#include "util.h"
+#include "escape-util.h"
 #include "message.h"
 #include "analysis.h"
 #include "generator.h"
@@ -66,8 +66,8 @@ void Editor::DoRandom() {
     FullClear(T_BLUE);
 
     /* start with seed */
-    level->settile(1 + util::random() % (level->w - 2),
-                    1 + util::random() % (level->h - 2),
+    level->settile(1 + EscapeUtil::random() % (level->w - 2),
+                    1 + EscapeUtil::random() % (level->h - 2),
                     T_EXIT);
 
     /* look for this
@@ -91,8 +91,8 @@ void Editor::DoRandom() {
 
       /* try to remove bias towards top left
          by starting in a random spot. */
-      int randx = abs(util::random());
-      int randy = abs(util::random());
+      int randx = abs(EscapeUtil::random());
+      int randy = abs(EscapeUtil::random());
 
       for (int iy = 0; iy < innerh; iy++) {
         for (int ix = 0; ix < innerw; ix++) {
@@ -105,7 +105,7 @@ void Editor::DoRandom() {
                random one. */
 
             int tries = 4;
-            int sd = 1 + (util::random() & 3);
+            int sd = 1 + (EscapeUtil::random() & 3);
 
             while (tries--) {
               int tx, ty; /* targets */
@@ -174,7 +174,7 @@ void Editor::DoRandom() {
         for (int x = 0; x < level->w - 1; x++) {
 
           /* pick a number 0..3 */
-          int which = util::random() & 3;
+          int which = EscapeUtil::random() & 3;
 
           /* try each corner, selecting the
              'which'th one that succeeds */
@@ -262,7 +262,7 @@ void Editor::DoRandom() {
             /* found 2x2 blue square. */
 
             /* pick a number 0..3 */
-            int which = util::random() & 3;
+            int which = EscapeUtil::random() & 3;
 
             /* try each corner, selecting the
                'which'th one that succeeds */
@@ -348,7 +348,7 @@ void Editor::DoRandom() {
             /* found 2x2 blue square. */
 
             /* pick a number 0..3 */
-            int which = util::random() & 3;
+            int which = EscapeUtil::random() & 3;
 
             /* try each corner, selecting the
                'which'th one that succeeds */
@@ -410,11 +410,11 @@ void Editor::DoRandom() {
 
     while (nl--) {
       /* pick random x, y, */
-      int x = util::random() % level->w;
-      int y = util::random() % level->h;
+      int x = EscapeUtil::random() % level->w;
+      int y = EscapeUtil::random() % level->h;
 
       /* XXX depends on order of dir enum */
-      int d = 1 + (util::random() & 3);
+      int d = 1 + (EscapeUtil::random() & 3);
 
       /* draw until we hit something. */
       level->settile(x, y, current);
@@ -640,7 +640,7 @@ bool Editor::retract_gold() {
             besty = targy;
 
             /* small chance of exiting now */
-            if (! (util::random() & 7)) goto no_more_motion;
+            if (! (EscapeUtil::random() & 7)) goto no_more_motion;
 
           } else {
             /* only beats previous non-ricochet */
@@ -650,7 +650,7 @@ bool Editor::retract_gold() {
               bestx = targx;
               besty = targy;
               /* small chance of exiting now */
-              if (! (util::random() & 7)) goto no_more_motion;
+              if (! (EscapeUtil::random() & 7)) goto no_more_motion;
             }
           }
         }

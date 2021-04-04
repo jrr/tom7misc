@@ -3,7 +3,7 @@
 #include "font.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "draw.h"
-#include "util.h"
+#include "escape-util.h"
 #include "chars.h"
 
 namespace {
@@ -13,7 +13,7 @@ struct Message_ : public Message {
   ~Message_() override {
     if (alpharect) SDL_FreeSurface(alpharect);
   }
-  
+
   /*  enter: true
      escape: false */
   bool Ask(char *actualchar = 0, string charspec = "") override;
@@ -182,7 +182,7 @@ bool Message_::loop(char *actualchar, string charspec) {
 
       default:;
         /* is this a key in our range? */
-        if (actualchar && util::matchspec(charspec, *actualchar)) {
+        if (actualchar && EscapeUtil::matchspec(charspec, *actualchar)) {
           return false; /* wasn't 'enter' */
         }
         /* XXX else might flash screen or something */

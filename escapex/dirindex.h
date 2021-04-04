@@ -1,5 +1,5 @@
-#ifndef __DIRINDEX_H
-#define __DIRINDEX_H
+#ifndef _ESCAPE_DIRINDEX_H
+#define _ESCAPE_DIRINDEX_H
 
 /* a directory index provides meta-information about a directory in a
    managed collection (ie, triage). it includes:
@@ -14,7 +14,7 @@
    Note: This is being replaced by leveldb for the 4.0 series.
 */
 
-#include "util.h"
+#include "escape-util.h"
 
 #define DIRINDEXNAME "index.esi"
 #define WEBINDEXNAME "webindex.esi"

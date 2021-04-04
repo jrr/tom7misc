@@ -1,6 +1,6 @@
 
-#ifndef __UPLOAD_H
-#define __UPLOAD_H
+#ifndef _ESCAPE_UPLOAD_H
+#define _ESCAPE_UPLOAD_H
 
 #include "escapex.h"
 #include "player.h"

@@ -9,7 +9,7 @@
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/lines.h"
 #include "chars.h"
-#include "util.h"
+#include "escape-util.h"
 #include "animation.h"
 #include "message.h"
 #include "rating.h"
@@ -562,10 +562,10 @@ void Drawing::DrawDests(SDL_Surface *surf, bool shuffle) {
               int maxw = TILEW >> (2 + zoomfactor);
               int maxh = TILEH >> (2 + zoomfactor);
 
-              px += (util::random() % maxw - (maxw >> 1));
-              py += (util::random() % maxh - (maxh >> 1));
-              sx += (util::random() % maxw - (maxw >> 1));
-              sy += (util::random() % maxh - (maxh >> 1));
+              px += (EscapeUtil::random() % maxw - (maxw >> 1));
+              py += (EscapeUtil::random() % maxh - (maxh >> 1));
+              sx += (EscapeUtil::random() % maxw - (maxw >> 1));
+              sy += (EscapeUtil::random() % maxh - (maxh >> 1));
             }
 
             /* draw line: dark bg first */

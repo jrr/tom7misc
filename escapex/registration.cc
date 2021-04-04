@@ -2,6 +2,8 @@
 #include "client.h"
 #include "http.h"
 #include "draw.h"
+#include "escape-util.h"
+#include "../cc-lib/util.h"
 
 namespace {
 struct Registration_ : public Registration {
@@ -30,7 +32,7 @@ struct Registration_ : public Registration {
   }
 
   std::unique_ptr<TextScroll> tx;
-  Player *plr;
+  Player *plr = nullptr;
 };
 
 void Registration_::Registrate() {
@@ -54,22 +56,23 @@ void Registration_::Registrate() {
 
   string res;
   while (tries--) {
-    int seql = util::random();
-    int seqh = util::random() ^ (((int)SDL_GetTicks() << 16) |
-                                 ((int)SDL_GetTicks() >> 16));
+    int seql = EscapeUtil::random();
+    int seqh = EscapeUtil::random() ^
+      (((int)SDL_GetTicks() << 16) |
+       ((int)SDL_GetTicks() >> 16));
 
     seql = abs(seql);
     seqh = abs(seqh);
 
-    say("try " + itos(seql) + " " + itos(seqh) + (string)"...");
+    say("try " + Util::itos(seql) + " " + Util::itos(seqh) + (string)"...");
 
     if (Client::RPC(hh.get(), REGISTER_RPC,
-                    (string) "seql=" + itos(seql) +
-                    (string)"&seqh=" + itos(seqh) +
+                    (string) "seql=" + Util::itos(seql) +
+                    (string)"&seqh=" + Util::itos(seqh) +
                     (string)"&name=" + HTTPUtil::URLEncode(plr->name),
                     res)) {
 
-      int id = util::stoi(res);
+      int id = EscapeUtil::stoi(res);
       if (id) {
         plr->webid = id;
         plr->webseql = seql;
@@ -79,7 +82,7 @@ void Registration_::Registrate() {
           say((string)"success! " GREEN + res);
           Message::Quick(this,
                          (string)"You are registered as player "
-                         YELLOW "#" + itos(id),
+                         YELLOW "#" + Util::itos(id),
                          "OK!", "", PICS THUMBICON POP);
           return;
         } else {

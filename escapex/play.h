@@ -1,6 +1,6 @@
 
-#ifndef __PLAY_H
-#define __PLAY_H
+#ifndef _ESCAPE_PLAY_H
+#define _ESCAPE_PLAY_H
 
 #include "level.h"
 #include "player.h"
@@ -43,10 +43,10 @@ struct Play : public Drawable {
   static Play *Create(const Level *l);
 
   virtual PlayResult DoPlaySave(Player *p, Solution *saved,
-				const string &md5) = 0;
-  virtual PlayResult DoPlay(Player *plr, const string &md5) = 0;
+				const std::string &md5) = 0;
+  virtual PlayResult DoPlay(Player *plr, const std::string &md5) = 0;
   /* play, recording the game in the player's solution file */
-  static void PlayRecord(const string &file, Player *plr,
+  static void PlayRecord(const std::string &file, Player *plr,
 			 bool allowrate = true);
   void Draw() override = 0;
   void ScreenResize() override = 0;

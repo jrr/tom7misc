@@ -1,6 +1,6 @@
 
-#ifndef __HTTPUTIL_H
-#define __HTTPUTIL_H
+#ifndef _ESCAPE_HTTPUTIL_H
+#define _ESCAPE_HTTPUTIL_H
 
 #include <string>
 

@@ -1,6 +1,6 @@
 
-#ifndef __UPPER_H
-#define __UPPER_H
+#ifndef _ESCAPE_UPPER_H
+#define _ESCAPE_UPPER_H
 
 #include "escapex.h"
 #include "level.h"
@@ -76,8 +76,8 @@ struct Upper {
    Finally, when the client calls commit(), we:
 
     - look up the md5 for each item in the newlist, and write it
-      over the file f. (the md5 is guaranteed to appear in our
-      content hashtable) This may require creating subdirectories
+      over the file f. (The md5 is now guaranteed to appear in our
+      content hashtable.) This may require creating subdirectories
       that lead up to that file.
 
     - delete all oldentries that have delme = 1

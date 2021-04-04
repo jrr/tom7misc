@@ -2,7 +2,7 @@
 #include "escapex.h"
 #include "startup.h"
 #include "directories.h"
-#include "util.h"
+#include "escape-util.h"
 
 #ifndef WIN32
 /* for symlink */
@@ -41,24 +41,24 @@ int StartUp::install_levels(string path) {
 
     if (dn == "." || dn == "..") {
       /* skip */
-    } else if (util::isdir(full)) {
+    } else if (EscapeUtil::isdir(full)) {
       /* in current directory... */
       // printf("makedir %s\n", dn.c_str());
-      if (!util::makedir(dn)) return 0;
+      if (!EscapeUtil::makedir(dn)) return 0;
       /* and go there... */
       // printf("chdir %s\n", dn.c_str());
-      if (!util::changedir(dn)) return 0;
+      if (!EscapeUtil::changedir(dn)) return 0;
 
       /* copy all the files recursively */
       if (!install_levels(full)) return 0;
 
       // printf("chdir ..\n");
-      if (!util::changedir("..")) return 0;
+      if (!EscapeUtil::changedir("..")) return 0;
     } else {
       /* regular file; copy or symlink as appropriate */
       // printf("copy %s -> %s\n", full.c_str(), dn.c_str());
 #     if WIN32
-      if (!util::copy(full, dn)) return 0;
+      if (!EscapeUtil::copy(full, dn)) return 0;
 #     else
       if (symlink(full.c_str(), dn.c_str())) return 0;
 #     endif
@@ -71,16 +71,16 @@ int StartUp::setdir(int argc, char **argv) {
 # ifdef MULTIUSER
 #  ifdef LINUX
 
-  if (!util::changedir(getenv("HOME"))) {
+  if (!EscapeUtil::changedir(getenv("HOME"))) {
     printf("Can't change to home directory!\n");
     return 0;
   }
 
-  if (!util::existsdir(DOTESCAPE)) {
+  if (!EscapeUtil::existsdir(DOTESCAPE)) {
     /* first startup. */
-    if (util::makedir(DOTESCAPE)) {
+    if (EscapeUtil::makedir(DOTESCAPE)) {
       printf("Created " DOTESCAPE " ...\n");
-      if (util::changedir(DOTESCAPE) && install_levels(STARTUP_LEVELS)) {
+      if (EscapeUtil::changedir(DOTESCAPE) && install_levels(STARTUP_LEVELS)) {
         printf("Installed levels...\n");
       } else {
         printf("Warning: wasn't able to create local cache of levels\n");
@@ -93,8 +93,8 @@ int StartUp::setdir(int argc, char **argv) {
   }
 
   /* now change into the directory we created */
-  if (!(util::changedir(getenv("HOME")) &&
-        util::changedir(DOTESCAPE))) {
+  if (!(EscapeUtil::changedir(getenv("HOME")) &&
+        EscapeUtil::changedir(DOTESCAPE))) {
     printf("Can't change into " DOTESCAPE " directory!\n");
     return 0;
   }
@@ -107,20 +107,20 @@ int StartUp::setdir(int argc, char **argv) {
 # else /* single-user */
 
   if (argc > 0) {
-    string wd = util::pathof(argv[0]);
-    util::changedir(wd);
+    string wd = EscapeUtil::pathof(argv[0]);
+    EscapeUtil::changedir(wd);
 
 #   if WIN32
     /* on win32, the ".exe" may or may not
        be present. Also, the file may have
        been invoked in any CaSe. */
 
-    self = util::lcase(util::fileof(argv[0]));
+    self = EscapeUtil::lcase(EscapeUtil::fileof(argv[0]));
 
-    self = util::ensureext(self, ".exe");
+    self = EscapeUtil::ensureext(self, ".exe");
 
 #   else
-    self = util::fileof(argv[0]);
+    self = EscapeUtil::fileof(argv[0]);
 #   endif
 
   }

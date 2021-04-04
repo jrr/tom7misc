@@ -1,12 +1,12 @@
 
-#ifndef __TEXTSCROLL_H
-#define __TEXTSCROLL_H
+#ifndef _ESCAPE_TEXTSCROLL_H
+#define _ESCAPE_TEXTSCROLL_H
 
 #include "escapex.h"
 
 struct TextScroll : public Drawable {
-  int posx;
-  int posy;
+  int posx = 0;
+  int posy = 0;
 
   int height = 0;
   int width = 0;

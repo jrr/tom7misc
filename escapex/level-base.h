@@ -4,8 +4,8 @@
 // Might make sense to move more stuff in here? Level is pretty
 // monstrous.
 
-#ifndef __LEVEL_BASE_H
-#define __LEVEL_BASE_H
+#ifndef _ESCAPE_LEVEL_BASE_H
+#define _ESCAPE_LEVEL_BASE_H
 
 #include <cstdint>
 

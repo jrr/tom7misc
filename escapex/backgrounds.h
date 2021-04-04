@@ -1,5 +1,5 @@
-#ifndef __BACKGROUNDS_H
-#define __BACKGROUNDS_H
+#ifndef _ESCAPE_BACKGROUNDS_H
+#define _ESCAPE_BACKGROUNDS_H
 
 #include "escapex.h"
 #include "draw.h"

@@ -9,16 +9,17 @@
 // formats, instead working only with byte vectors (usually stored in
 // strings).
 //
-// These functions used to be part of escape's util.h and also made
-// their way into cc-lib and elsewhere. They had really confusing
-// names like "sizes", "shint", and "shout", which were based on
-// weird puns.
+// These functions used to be part of escape's escape-util.h and also
+// made their way into cc-lib and elsewhere. They had really confusing
+// names like "sizes", "shint", and "shout", which were based on weird
+// puns.
 //
 // This is a header-only replacement so that the level and solution
 // code (which includes reading/writing the serialized format) can be
-// independent from ./util.cc, which causes some problems for
+// independent from ./escape-util.cc, which causes some problems for
 // embedding these in the server module (some symbols clash with
-// cc-lib's utils).
+// cc-lib's utils). (This might be avoidable now since I've been
+// trying to make cc-lib util and escape-util coexist.)
 
 // Convert i into a four-byte string (big-endian).
 inline std::string BigEndian32(int i) {

@@ -1,5 +1,5 @@
-#ifndef __PTRLIST_H
-#define __PTRLIST_H
+#ifndef _ESCAPE_PTRLIST_H
+#define _ESCAPE_PTRLIST_H
 
 #include <cstdlib>
 

@@ -1,5 +1,5 @@
-#ifndef __RATING_H
-#define __RATING_H
+#ifndef _ESCAPE_RATING_H
+#define _ESCAPE_RATING_H
 
 #include <string>
 #include "drawable.h"

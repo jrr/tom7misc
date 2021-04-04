@@ -9,7 +9,7 @@
 #include "play.h"
 #include "prompt.h"
 
-#include "util.h"
+#include "escape-util.h"
 #include "edit.h"
 
 #include "loadlevel.h"
@@ -177,8 +177,8 @@ void Editor::pffile() {
   mm.reset();
 
   if (res == InputResultKind::OK) {
-    int xo = util::stoi(xoff.input);
-    int yo = util::stoi(yoff.input);
+    int xo = EscapeUtil::stoi(xoff.input);
+    int yo = EscapeUtil::stoi(yoff.input);
     if (xo < 0 || yo < 0) {
       Message::No(this, "bad offsets");
       return;
@@ -320,7 +320,7 @@ void Editor::pftimer() {
   mm.reset();
 
   if (res == InputResultKind::OK) {
-    int n = util::stoi(nmoves.input);
+    int n = EscapeUtil::stoi(nmoves.input);
     if (n <= 0) {
       Message::No(this, "bad number of moves");
       return;

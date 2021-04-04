@@ -1,23 +1,26 @@
-#ifndef __PROMPT_H
-#define __PROMPT_H
+#ifndef _PROMPT_H
+#define _PROMPT_H
+
+#include <string>
 
 #include "escapex.h"
 #include "drawable.h"
 
 struct Prompt {
-  string title;
-  string input;
-  string explanation;
+  std::string title;
+  std::string input;
+  std::string explanation;
 
   Drawable *below;
 
   /* XXX should probably be just this static method,
      and perhaps in util */
-  static string ask(Drawable *b, string title, string def = "");
+  static std::string ask(Drawable *b,
+                         std::string title, std::string def = "");
 
   static Prompt *Create();
 
-  string select();
+  std::string select();
 
   virtual ~Prompt();
 };

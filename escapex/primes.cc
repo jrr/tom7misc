@@ -1,6 +1,6 @@
 
 #include "primes.h"
-#include "util.h"
+#include "escape-util.h"
 
 const int Primes::primetable[] = {
     2,      3,      5,      7,
@@ -179,7 +179,7 @@ int Primes::relativeto(int x) {
      if they divide x */
 
   int tries = nprimes;
-  int idx = util::random() % nprimes;
+  int idx = EscapeUtil::random() % nprimes;
 
   while (tries--) {
     int p = primetable[idx];

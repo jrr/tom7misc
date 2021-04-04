@@ -1,13 +1,14 @@
 #include "upper.h"
 
 #include <unordered_map>
+#include <vector>
+#include <string>
 
-#include "util.h"
+#include "escape-util.h"
 #include "directories.h"
 #include "../cc-lib/crypt/md5.h"
 #include "chars.h"
 #include "dirindex.h"
-#include "ptrlist.h"
 
 namespace {
 
@@ -17,21 +18,12 @@ struct OldEntry {
 
   bool deleteme = false;
 
-  // XXX delete
-  string key() {
-    return fname;
-  }
-
   OldEntry(string f) : fname(f), deleteme(true) {}
 };
 
 struct ContentEntry {
   string md5;
   string content;
-
-  string key() {
-    return md5;
-  }
 
   explicit ContentEntry(string con) : content(std::move(con)) {
     md5 = MD5::Ascii(MD5::Hash(content));
@@ -84,13 +76,10 @@ struct Upper_ : public Upper {
   string dirname;
 
   /* list of new files: filename, md5 */
-  stringlist *newlistf;
-  stringlist *newlistm;
+  std::vector<pair<string, string>> newlist;
 
-  /* list of saved dirs: dir, index.
-     rep invt: these are the same length */
-  stringlist *dirlistd;
-  PtrList<DirIndex> *dirlisti;
+  /* list of saved dirs: dir, index. */
+  std::vector<pair<string, std::unique_ptr<DirIndex>>> dirlist;
 
   void init();
   void insertdir(string d);
@@ -112,12 +101,6 @@ Upper_ *Upper_::Create(HTTP *h, TextScroll *t,
 void Upper_::init() {
   /* initialize 'olds' and 'contents' */
 
-  newlistf = 0;
-  newlistm = 0;
-
-  dirlistd = 0;
-  dirlisti = 0;
-
   /* PERF: could download less if we
      included more directories in this
      search. But we don't want to delete
@@ -132,13 +115,11 @@ void Upper_::SaveDir(const string &d, const string &i) {
      case we're sort of in trouble, since we
      can't move d without invalidating our own
      contable. */
-  if (d != "") util::makedir(dirname + (string)DIRSEP + d);
-  stringlist::push(dirlistd, d);
-
+  if (d != "") EscapeUtil::makedir(dirname + (string)DIRSEP + d);
   /* XXX error checking? */
   DirIndex *di = DirIndex::Create();
   di->title = i;
-  PtrList<DirIndex>::push(dirlisti, di);
+  dirlist.emplace_back(d, di);
 }
 
 void Upper_::insertdir(string src) {
@@ -161,7 +142,7 @@ void Upper_::insertdir(string src) {
         basef == ".svn" ||
         basef == "CVS") continue;
 
-    if (util::isdir(f)) {
+    if (EscapeUtil::isdir(f)) {
       insertdir(f);
     } else {
       olds.insert({f, OldEntry(f)});
@@ -181,8 +162,6 @@ void Upper_::insertdir(string src) {
 }
 
 Upper_::~Upper_() {
-  stringlist::diminish(newlistf);
-  stringlist::diminish(newlistm);
 }
 
 bool Upper_::SetFile(const string &ff, const string &md, RateStatus votes,
@@ -251,31 +230,22 @@ bool Upper_::SetFile(const string &ff, const string &md, RateStatus votes,
   }
 
   /* put it in newlist */
-
-  stringlist::push(newlistf, f);
-  stringlist::push(newlistm, md);
+  newlist.emplace_back(f, md);
 
   /* add its rating to the index.
      first, figure out what directory it lives in. */
   {
-    string dd = util::pathof(f);
-    string ff = util::fileof(f);
+    string dd = EscapeUtil::pathof(f);
+    string ff = EscapeUtil::fileof(f);
     /* we designate the current dir with the empty string, instead */
     if (dd == ".") dd = "";
 
-    stringlist *dt = dirlistd;
-    PtrList<DirIndex> *it = dirlisti;
-
-    while (dt && it) {
-
+    for (const auto &[ddir, dindex] : dirlist) {
       // printf("compare [%s] [%s]\n", dt->head.c_str(), dd.c_str());
-      if (dt->head == dd) {
-        it->head->AddEntry(ff, votes, date, speedrecord, owner);
+      if (ddir == dd) {
+        dindex->AddEntry(ff, votes, date, speedrecord, owner);
         return true;
       }
-
-      dt = dt->next;
-      it = it->next;
     }
     /* XXX should fail if directory not found? */
   }
@@ -289,10 +259,10 @@ static void DeleteIf(const OldEntry &oe) {
        always overwritten with every update */
     if (DirIndex::IsIndex(oe.fname)) {
       /* but if deletion fails (in use?), try moving */
-      if (!util::remove(oe.fname))
-        util::toattic(oe.fname);
+      if (!EscapeUtil::remove(oe.fname))
+        EscapeUtil::toattic(oe.fname);
     } else {
-      util::toattic(oe.fname);
+      EscapeUtil::toattic(oe.fname);
     }
   }
 }
@@ -308,26 +278,14 @@ bool Upper_::Commit() {
      should be the common case... (to do this,
      store md5 in olds) */
 
-  string nlf;
-  string nlm;
-
-  for (;;) {
-    nlf = stringpop(newlistf);
-    nlm = stringpop(newlistm);
-
-    if (nlf == "") {
-      if (nlm == "") break; /* done */
-      say(RED "inconsistent lengths of nlf/nlm??" POP);
-      return false;
-    }
-
+  for (const auto &[newlist_file, newlist_md5] : newlist) {
     /* everything is rooted within dirname */
-    nlf = dirname + DIRSEP + nlf;
+    const string nlf = dirname + DIRSEP + newlist_file;
 
     /* Try removing before opening; Adam seems to think this
        improves our chances of success. */
-    util::remove(nlf);
-    FILE *a = util::fopenp(nlf, "wb");
+    EscapeUtil::remove(nlf);
+    FILE *a = EscapeUtil::fopenp(nlf, "wb");
     if (!a) {
       say((string)RED "couldn't write " + nlf + POP);
       /* XXX should continue writing, just not delete? */
@@ -335,9 +293,9 @@ bool Upper_::Commit() {
     }
 
     {
-      auto it = contents.find(nlm);
+      auto it = contents.find(newlist_md5);
       if (it == contents.end()) {
-	say((string)RED "bug: md5 " BLUE "[" + nlm +
+	say((string)RED "bug: md5 " BLUE "[" + newlist_md5 +
 	    (string)"]" POP " isn't in table now??");
 
 	fclose(a);
@@ -353,13 +311,12 @@ bool Upper_::Commit() {
 	} else {
 	  /*
 	    say((string)GREEN "wrote " BLUE + nlf +
-	    (string)POP " <- " GREY + nlm + (string)POP" ok"); */
+	    (string)POP " <- " GREY + newlist_md5 + (string)POP" ok"); */
 	}
       }
     }
 
     fclose(a);
-
   }
 
   /* delete anything with delme=true in olds */
@@ -367,20 +324,17 @@ bool Upper_::Commit() {
     DeleteIf(p.second);
 
   /* create indices */
-  /* We have the invt that length(dirlistd) =
-     length(dirlisti) */
-  while (dirlistd) {
-    string d = stringpop(dirlistd);
-    std::unique_ptr<DirIndex> i{PtrList<DirIndex>::pop(dirlisti)};
-
-    string f =
-      (d == "") ?
+  for (const auto &[dir, index] : dirlist) {
+    const string f =
+      (dir == "") ?
       (dirname + (string)DIRSEP WEBINDEXNAME) :
-      dirname + (string)DIRSEP + d + (string)DIRSEP WEBINDEXNAME;
+      dirname + (string)DIRSEP + dir + (string)DIRSEP WEBINDEXNAME;
 
     /* XXX check failure? */
-    i->WriteFile(f);
+    index->WriteFile(f);
   }
+
+  dirlist.clear();
 
   /* FIXME prune empty dirs */
 

@@ -1,4 +1,8 @@
 
+#include "commenting.h"
+
+#include <string>
+
 #include "escapex.h"
 #include "rating.h"
 
@@ -11,7 +15,6 @@
 #include "textbox.h"
 
 #include "client.h"
-#include "commenting.h"
 #include "httputil.h"
 
 namespace {
@@ -158,8 +161,8 @@ void CommentScreen::Comment(Player *p, const Level *lev, const string &md5,
   PtrList<MenuItem>::push(l, &spoiler);
   PtrList<MenuItem>::push(l, &body);
 
-  std::unique_ptr<Menu> mm = 
-    Menu::Create(&cs, cookmode ? "Explain your cook" : "Leave a comment", 
+  std::unique_ptr<Menu> mm =
+    Menu::Create(&cs, cookmode ? "Explain your cook" : "Leave a comment",
 		 l, false);
   PtrList<MenuItem>::diminish(l);
 

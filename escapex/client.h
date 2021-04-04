@@ -1,13 +1,13 @@
 
-#ifndef __CLIENT_H
-#define __CLIENT_H
+#ifndef _ESCAPE_CLIENT_H
+#define _ESCAPE_CLIENT_H
 
 #include "drawable.h"
 #include "textscroll.h"
 #include "http.h"
 #include "chars.h"
 #include "message.h"
-#include "util.h"
+#include "escape-util.h"
 #include "player.h"
 #include "prefs.h"
 #include "draw.h"
@@ -66,7 +66,7 @@ struct Client {
   }
 
   /* XX add bool quiet=true; when false show progress */
-  static bool QuickRPC(Player *, const string &path, 
+  static bool QuickRPC(Player *, const string &path,
 		       const string &query, string &ret);
 
   /* true on success */
@@ -81,8 +81,8 @@ struct Client {
           m[1] == 'k') {
 
         /* drop first token */
-        (void) util::chop(m);
-        ret = util::losewhitel(m);
+        (void) EscapeUtil::chop(m);
+        ret = EscapeUtil::losewhitel(m);
         return true;
       } else {
         ret = m;
@@ -105,8 +105,8 @@ struct Client {
           m[1] == 'k') {
 
         /* drop first token */
-        (void) util::chop(m);
-        ret = util::losewhitel(m);
+        (void) EscapeUtil::chop(m);
+        ret = EscapeUtil::losewhitel(m);
         return true;
       } else {
         ret = m;

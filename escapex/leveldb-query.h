@@ -1,5 +1,5 @@
-#ifndef __LEVELDB_QUERY_H
-#define __LEVELDB_QUERY_H
+#ifndef _ESCAPE_LEVELDB_QUERY_H
+#define _ESCAPE_LEVELDB_QUERY_H
 
 #include <string>
 #include <vector>
@@ -114,7 +114,7 @@ struct lval {
 /* An expression, like (LF_SOLVED > 0) AND (NOT (HASTAG "*tutorial")) */
 struct lexp {
   lexptag tag;
-  vector<lexp> args;
+  std::vector<lexp> args;
 
   lfield f;
   lval v;
@@ -145,7 +145,7 @@ struct lquery {
 
   /* Lexicographic. When we get to the tail, use an arbitrary but
      deterministic order. */
-  vector<lsort> sortby;
+  std::vector<lsort> sortby;
 };
 
 #endif

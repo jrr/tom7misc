@@ -1,12 +1,11 @@
 
-#ifndef __LOADLEVEL_H
-#define __LOADLEVEL_H
+#ifndef _ESCAPE_LOADLEVEL_H
+#define _ESCAPE_LOADLEVEL_H
 
 #include "escapex.h"
 #include "font.h"
 #include "selector.h"
 #include "player.h"
-#include "util.h"
 
 /* abstract interface */
 struct LoadLevel : public Drawable {

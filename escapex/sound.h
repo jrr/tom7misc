@@ -1,6 +1,6 @@
 
-#ifndef __SOUND_H
-#define __SOUND_H
+#ifndef _ESCAPE_SOUND_H
+#define _ESCAPE_SOUND_H
 
 #include "level.h"
 

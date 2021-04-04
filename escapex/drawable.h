@@ -1,6 +1,6 @@
 
-#ifndef __DRAWABLE_H
-#define __DRAWABLE_H
+#ifndef _ESCAPE_DRAWABLE_H
+#define _ESCAPE_DRAWABLE_H
 
 /* abstract interface to drawable things.
    think of these like GUI windows. */

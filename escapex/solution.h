@@ -1,5 +1,5 @@
-#ifndef __SOLUTION_H
-#define __SOLUTION_H
+#ifndef _ESCAPE_SOLUTION_H
+#define _ESCAPE_SOLUTION_H
 
 #include <string>
 #include "level-base.h"

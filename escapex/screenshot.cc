@@ -2,7 +2,7 @@
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
 
-#include "util.h"
+#include "escape-util.h"
 #include "font.h"
 #include "draw.h"
 #include "animation.h"
@@ -14,20 +14,20 @@ int main(int argc, char **argv) {
   /* change to location of binary, so that we can find the
      images needed. */
   if (argc > 0) {
-    string wd = util::pathof(argv[0]);
-    util::changedir(wd);
+    string wd = EscapeUtil::pathof(argv[0]);
+    EscapeUtil::changedir(wd);
 
 #   if WIN32
     /* on win32, the ".exe" may or may not
        be present. Also, the file may have
        been invoked in any CaSe. */
 
-    self = util::lcase(util::fileof(argv[0]));
-    self = util::ensureext(self, ".exe");
+    self = EscapeUtil::lcase(EscapeUtil::fileof(argv[0]));
+    self = EscapeUtil::ensureext(self, ".exe");
 
 #   else
 
-    self = util::fileof(argv[0]);
+    self = EscapeUtil::fileof(argv[0]);
 
 #   endif
 

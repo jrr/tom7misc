@@ -1,6 +1,8 @@
 
-#ifndef __SELECTOR_H
-#define __SELECTOR_H
+#ifndef _ESCAPE_SELECTOR_H
+#define _ESCAPE_SELECTOR_H
+
+#include <string>
 
 #include <SDL.h>
 #include "escapex.h"
@@ -71,7 +73,7 @@ struct Selector : public Drawable {
   */
   int deadtime = 0;
 
-  string title;
+  std::string title;
 
   Item *items = nullptr;
 

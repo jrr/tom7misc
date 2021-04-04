@@ -1,5 +1,7 @@
-#ifndef __MESSAGE_H
-#define __MESSAGE_H
+#ifndef _ESCAPE_MESSAGE_H
+#define _ESCAPE_MESSAGE_H
+
+#include <string>
 
 #include "escapex.h"
 #include "drawable.h"

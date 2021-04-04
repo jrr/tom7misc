@@ -41,8 +41,8 @@
       continually different.
 */
 
-#ifndef __ESCAPE_RLE_H
-#define __ESCAPE_RLE_H
+#ifndef _ESCAPE_RLE_H
+#define _ESCAPE_RLE_H
 
 #include <string>
 

@@ -1,5 +1,5 @@
-#ifndef __HANDHOLD_H
-#define __HANDHOLD_H
+#ifndef _ESCAPE_HANDHOLD_H
+#define _ESCAPE_HANDHOLD_H
 
 struct HandHold {
   /* do something the first time the game is launched */

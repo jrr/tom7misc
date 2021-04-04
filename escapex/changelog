@@ -1,3 +1,13 @@
+2021-04-03  Tom 7  <Tom@STARTROPICS>
+
+        * Fix bug on the server where solutions were lost.
+
+        * Fixed some more minor memory leaks while porting to
+          more standard C++ data structures. Some things (like
+          updating collections) happen in the reverse order
+          that they used to happen in, but this should not
+          matter.
+
 2016-09-25  Tom 7  <Tom@RIVERCITY>
 
         * Fixed several minor memory leaks.

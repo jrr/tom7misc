@@ -3,6 +3,15 @@
 
 #include <memory>
 
+#include "draw.h"
+#include "version.h"
+#include "escape-util.h"
+#include "loadlevel.h"
+#include "message.h"
+#include "play.h"
+#include "generator.h"
+#include "textscroll.h"
+
 #define EXIT_FREQ 10
 #define GUY_FREQ 40
 #define LEVEL_FREQ 300
@@ -44,7 +53,7 @@ struct MainShow_ : public MainShow {
   // Representation invariant: dr.lev aliases level
   Drawing dr;
   std::unique_ptr<Level> level;
-  
+
   void newlevel();
   void newexit();
   void newguy();
@@ -105,7 +114,7 @@ void MainShow_::trymove() {
   if (level->guyy < exity) dy = 1;
   else if (level->guyy > exity) dy = -1;
 
-  if (util::random() & 1) {
+  if (EscapeUtil::random() & 1) {
     /* prefer x */
     if (dx > 0 && level->Move(DIR_RIGHT)) return;
     if (dx < 0 && level->Move(DIR_LEFT)) return;
@@ -128,7 +137,7 @@ void MainShow_::trymove() {
 }
 
 void MainShow_::randomspot(int &x, int &y) {
-  int idx = util::random() % ((level->w - 2) * (level->h - 2));
+  int idx = EscapeUtil::random() % ((level->w - 2) * (level->h - 2));
   x = 1 + idx % (level->w - 2);
   y = 1 + idx / (level->w - 2);
 }
@@ -140,13 +149,13 @@ void MainShow_::newexit() {
 
   level->settile(exitx, exity, T_EXIT);
 
-  exittime = 5 + (util::random() % EXIT_FREQ);
+  exittime = 5 + (EscapeUtil::random() % EXIT_FREQ);
 }
 
 void MainShow_::newguy() {
   randomspot(level->guyx, level->guyy);
 
-  guytime = 8 + (util::random() % GUY_FREQ);
+  guytime = 8 + (EscapeUtil::random() % GUY_FREQ);
 }
 
 void MainShow_::newlevel() {
@@ -163,19 +172,19 @@ void MainShow_::newlevel() {
       level->settile(x, y, T_FLOOR);
 
       /* sometimes put something other than floor */
-      if (!(util::random() & 127))
+      if (!(EscapeUtil::random() & 127))
         level->settile(x, y, T_LASER);
 
-      if (!(util::random() & 63))
+      if (!(EscapeUtil::random() & 63))
         level->settile(x, y, T_BLUE);
 
-      if (!(util::random() & 63))
+      if (!(EscapeUtil::random() & 63))
         level->settile(x, y, T_GREY);
 
-      if (!(util::random() & 63))
+      if (!(EscapeUtil::random() & 63))
         level->settile(x, y, T_HOLE);
 
-      if (!(util::random() & 63)) {
+      if (!(EscapeUtil::random() & 63)) {
         level->settile(x, y, T_TRANSPORT);
         int dx = 1, dy = 1;
         randomspot(dx, dy);
@@ -196,7 +205,7 @@ void MainShow_::newlevel() {
   exity = level->guyy;
   newexit();
 
-  leveltime = 30 + (util::random() % LEVEL_FREQ);
+  leveltime = 30 + (EscapeUtil::random() % LEVEL_FREQ);
 }
 
 }  // namespace

@@ -1,8 +1,8 @@
-#ifndef __CHECKFILE_H
-#define __CHECKFILE_H
+#ifndef _ESCAPE_CHECKFILE_H
+#define _ESCAPE_CHECKFILE_H
 
 #include "escapex.h"
-#include "util.h"
+#include "escape-util.h"
 
 /* nicer interface to files. automatically closes
    on destroy, automatically checks eof. */
@@ -50,7 +50,7 @@ struct CheckFile {
 
   bool GetLine(string &s) {
     if (feof(ff)) return false;
-    s = util::fgetline(ff);
+    s = EscapeUtil::fgetline(ff);
     return true;
   }
 
