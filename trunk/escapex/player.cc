@@ -318,7 +318,7 @@ void Player_::deleteoldbackups() {
 
   dirent *de;
   int n = 0;
-  int oldest = (time(0) / BACKUP_FREQ) + 1 ;
+  int oldest = (time(0) / BACKUP_FREQ) + 1;
   while ((de = readdir(dir))) {
     string f =
 #     ifdef WIN32
@@ -386,7 +386,7 @@ bool Player_::writef_text(const string &file) {
           "%d\n", webid, webseqh, webseql);
 
   /* write ignored fields; for later expansion... */
-  for (int u = 0 ; u < IGNORED_FIELDS; u++) fprintf(f, "0\n");
+  for (int u = 0; u < IGNORED_FIELDS; u++) fprintf(f, "0\n");
 
   fprintf(f, "%s\n", name.c_str());
 

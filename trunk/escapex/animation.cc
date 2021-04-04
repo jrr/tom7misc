@@ -1,6 +1,7 @@
 #include "animation.h"
 #include "chars.h"
-#include "font.h"
+#include "../cc-lib/sdl/sdlutil.h"
+#include "../cc-lib/sdl/font.h"
 #include "dirt.h"
 #include "ptrlist.h"
 

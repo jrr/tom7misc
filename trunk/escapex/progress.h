@@ -23,6 +23,6 @@ struct Progress {
      be drawn next. (It is automatically updated by calling,
      but should be initialized to an appropriate future tick.)
    */
-  static void drawbar(void *, int n, int tot, const string &,
+  static void drawbar(void *, int n, int tot, const std::string &,
                       const int ticks = PROGRESS_TICKS);
 };

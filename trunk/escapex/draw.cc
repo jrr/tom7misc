@@ -45,11 +45,13 @@ bool Drawing::LoadImages() {
   if (!uu) return 0;
 
   /* XXX make dim levels for font too (pass in argument) */
-  fon = Font::Create(FONT_FILE,
+  fon = Font::Create(screen,
+                     FONT_FILE,
                      FONTCHARS,
-                      9, 16, FONTSTYLES, 1, 3);
+                     9, 16, FONTSTYLES, 1, 3);
 
-  fonsmall = Font::Create(FONTSMALL_FILE,
+  fonsmall = Font::Create(screen,
+                          FONTSMALL_FILE,
                           FONTCHARS,
                           6, 6, FONTSTYLES, 0, 3);
 
@@ -647,7 +649,7 @@ bool Drawing::OnScreen(int x, int y,
 }
 
 void Drawing::DrawSmall(int y,
-                        int botmargin, Uint32 color,
+                        int botmargin, uint32_t color,
                         const Level *l, int solvemoves, const string &fname,
                         RateStatus *votes,
                         Rating *myrating,

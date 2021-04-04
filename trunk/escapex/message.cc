@@ -1,6 +1,9 @@
 
 #include "message.h"
-#include "font.h"
+
+#include <string>
+
+#include "../cc-lib/sdl/font.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "draw.h"
 #include "escape-util.h"

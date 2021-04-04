@@ -1,6 +1,9 @@
 
 #include "escapex.h"
 
+#include "../cc-lib/sdl/sdlutil.h"
+#include "drawable.h"
+
 SDL_Surface *screen = nullptr;
 
 /* XXX should be bools */

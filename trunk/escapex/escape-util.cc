@@ -637,7 +637,7 @@ void EscapeUtil::toattic(string f) {
   // printf("TOATTIC %s...\n", f.c_str());
   /* in case it doesn't exist... */
   makedir(ATTIC_DIR);
-  for (unsigned int i = 0; i < nf.length() ; i++) {
+  for (unsigned int i = 0; i < nf.length(); i++) {
     if (nf[i] == DIRSEPC) nf[i] = '_';
   }
   /* XXX race */

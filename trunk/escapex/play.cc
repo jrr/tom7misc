@@ -1264,7 +1264,9 @@ PlayResult Play_::DoPlaySave(Player *plr,
             case SDLK_UP: dr.scrolly--; break;
             case SDLK_RIGHT: dr.scrollx++; break;
             case SDLK_LEFT: dr.scrollx--; break;
-            default: ; /* impossible */
+            default:
+              /* impossible */
+              break;
             }
 
             Redraw();
@@ -1284,7 +1286,9 @@ PlayResult Play_::DoPlaySave(Player *plr,
           case SDLK_UP: d = DIR_UP; break;
           case SDLK_RIGHT: d = DIR_RIGHT; break;
           case SDLK_LEFT: d = DIR_LEFT; break;
-          default: ; /* impossible - lint */
+          default:
+            /* impossible - lint */
+            break;
           }
 
           bool moved;
@@ -1475,7 +1479,7 @@ bool Play_::AnimateMove(Disamb *ctx, Dirt *dirty, dir d) {
 
         SDL_Flip(screen);
 
-        POSTDRAW ;
+        POSTDRAW;
         /* if (pref_debuganim) SDL_Delay(80); */
       }
 

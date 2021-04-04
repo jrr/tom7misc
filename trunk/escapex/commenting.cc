@@ -30,7 +30,7 @@ struct CScreen : public Drawable {
     Uint32 color =
       SDL_MapRGBA(screen->format, 0x22, 0x22, 0x44, 0xFF);
     int margin = Drawing::SmallHeight() + 16;
-    int y = (screen->h - margin) + 4 ;
+    int y = (screen->h - margin) + 4;
     Drawing::DrawSmall(y,
                        margin,
                        color,

@@ -1,13 +1,14 @@
+
+#include <string>
+
 #include "escapex.h"
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
-
 #include "escape-util.h"
-#include "font.h"
 #include "draw.h"
 #include "animation.h"
 
-string self;
+static string self;
 
 int main(int argc, char **argv) {
 

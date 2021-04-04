@@ -22,7 +22,7 @@ void Prefs::show(Player *plr) {
   Label game;
   game.text = PICS BARLEFT BAR BAR BARRIGHT POP
                GREEN " Game Settings " POP
-              PICS BARLEFT BAR BAR BARRIGHT POP ;
+              PICS BARLEFT BAR BAR BARRIGHT POP;
 
   Toggle askrate;
   askrate.indent = IND;
