@@ -1,6 +1,6 @@
 
-#ifndef __GENERATOR_H
-#define __GENERATOR_H
+#ifndef _ESCAPE_GENERATOR_H
+#define _ESCAPE_GENERATOR_H
 
 /* uses a mixed linear congruential generator
    to generate random-like permutations of 0...size-1 */

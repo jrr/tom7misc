@@ -1,6 +1,6 @@
 
 #include "playerdb.h"
-#include "util.h"
+#include "escape-util.h"
 #include "prompt.h"
 #include "chars.h"
 #include "message.h"
@@ -185,13 +185,13 @@ PlayerDB_ *PlayerDB_::create() {
     string f = de->d_name;
 
 #   ifdef WIN32
-    f = util::lcase(f);
+    f = EscapeUtil::lcase(f);
 #   endif
 
     /* only bother with .esp files, particularly
        to avoid importing backups */
     /* printf("%s...\n", f.c_str()); */
-    if (util::endswith(f, ".esp")) {
+    if (EscapeUtil::endswith(f, ".esp")) {
       pdb->sel->Resize(MENUITEMS + n + 1);
       pdb->sel->items[n].kind = K_PLAYER;
       pdb->sel->items[n].fname = f;
@@ -280,7 +280,7 @@ string PlayerDB_::MakeFilename(string name) {
      and if it does, change the
      player filename. */
 
-  if (util::existsfile(ou)) return "";
+  if (EscapeUtil::existsfile(ou)) return "";
 
   return ou;
 }
@@ -321,7 +321,7 @@ void PlayerDB_::DeletePlayer(int i) {
   /* XXX delete player file from disk? */
   if (sel->items[i].kind == K_PLAYER) {
 
-    util::toattic(sel->items[i].fname);
+    EscapeUtil::toattic(sel->items[i].fname);
 
     int n = 0;
     for (int m = 0; m < sel->number; m++) {

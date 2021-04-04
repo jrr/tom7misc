@@ -1,6 +1,6 @@
 
-#ifndef __STARTUP_H
-#define __STARTUP_H
+#ifndef _ESCAPE_STARTUP_H
+#define _ESCAPE_STARTUP_H
 
 struct StartUp {
   /* the name of the executable. used only for upgrade,

@@ -1,5 +1,5 @@
-#ifndef __LEVEL_H
-#define __LEVEL_H
+#ifndef _ESCAPE_LEVEL_H
+#define _ESCAPE_LEVEL_H
 
 #include <string>
 #include <cstring>
@@ -12,7 +12,6 @@
 #include "aevent.h"
 #include "level-base.h"
 #include "disamb.h"
-#include "util.h"
 #include "aevent.h"
 #include "solution.h"
 

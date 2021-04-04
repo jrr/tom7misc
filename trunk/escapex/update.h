@@ -11,14 +11,14 @@
 /* should be in a config somewhere */
 #define COLLECTIONSURL "/COLLECTIONS"
 
-enum UpdateResult {
-  UD_SUCCESS, UD_FAIL,
+enum class UpdateResult {
+  SUCCESS, FAIL,
 };
 
 /* update */
 struct Updater : public Drawable {
   static Updater *Create(Player *p);
-  virtual UpdateResult update(string &msg) = 0;
+  virtual UpdateResult Update(string &msg) = 0;
   virtual ~Updater();
 
   void Draw() override = 0;

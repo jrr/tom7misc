@@ -1,14 +1,16 @@
-#include "escapex.h"
+#include "dircache.h"
 
 #include <memory>
 #include <unordered_map>
 #include <sys/stat.h>
+#include <string>
 
+#include "escapex.h"
 #include "level.h"
 #include "loadlevel.h"
 #include "../cc-lib/crypt/md5.h"
 #include "directories.h"
-#include "util.h"
+#include "escape-util.h"
 #include "dircache.h"
 #include "progress.h"
 
@@ -80,12 +82,12 @@ DirIndex *DirCache_::Get(const string &dir_in,
 
   const string dir = normalize(dir_in);
   // printf("normalized: %s\n", dir.c_str());
-  
+
   auto it = table.find(dir);
   if (it == table.end()) {
     /* no entry. put it in the cache. */
 
-    if (util::existsfile(dir + DIRSEP + IGNOREFILE)) {
+    if (EscapeUtil::existsfile(dir + DIRSEP + IGNOREFILE)) {
       /* ignored dir */
       table[dir] = make_unique<DirEntry>(dir, nullptr, 0, 0);
       tot = 0;
@@ -122,7 +124,7 @@ DirIndex *DirCache_::Get(const string &dir_in,
       string dn = dire->d_name;
       string ldn = dir + (string)DIRSEP + dn;
 
-      if (util::isdir(ldn)) {
+      if (EscapeUtil::isdir(ldn)) {
 
         /* can't include . or .., dumb to
            include CVS and .svn */
@@ -139,7 +141,7 @@ DirIndex *DirCache_::Get(const string &dir_in,
         }
 
       } else {
-        string contents = util::readfilemagic(ldn, LEVELMAGIC);
+        string contents = EscapeUtil::readfilemagic(ldn, LEVELMAGIC);
 
         std::unique_ptr<Level> l = Level::FromString(contents);
 

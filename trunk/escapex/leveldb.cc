@@ -2,19 +2,20 @@
 /* n.b.: This code is not hooked up yet. You probably want to look at
    dircache.cc if you want to see what's actually going on in 3.0 series.
 */
-
-#include "escapex.h"
 #include "leveldb.h"
-#include "directories.h"
-#include "../cc-lib/crypt/md5.h"
-#include "SDL.h"
-#include "player.h"
-#include "message.h"
-#include "progress.h" // XXX
 
 #include <vector>
 #include <map>
 #include <string>
+
+#include "escapex.h"
+#include "directories.h"
+#include "../cc-lib/crypt/md5.h"
+#include "SDL.h"
+#include "player.h"
+#include "escape-util.h"
+#include "message.h"
+#include "progress.h" // XXX
 
 /* levels loaded from disk and waiting to be added to the database */
 struct LevelWait {
@@ -33,8 +34,7 @@ static Player *theplayer = nullptr;
 /* these are actually treated as stacks, but there's
    nothing wrong with that... */
 /* files waiting to be added into the level database */
-static stringlist *filequeue = nullptr;
-static int filequeue_size = 0;
+static std::vector<string> filequeue;
 
 /* loaded levels waiting to be added into the database
    (need to verify solutions), etc. */
@@ -45,6 +45,16 @@ static int levelqueue_size = 0;
    database entry. Each one is allocated once and can be referred to
    efficiently in that canonical location. */
 static map<string, res_level*> all_levels;
+
+/* Return m[key] if it already exists, or allocate a new entry,
+   insert it, and return that. */
+template <class K, class V>
+static V *FindOrInsertNew(map<K, V*> &m, const K &key) {
+  V *&pos = m[key];
+  if (!pos) pos = new V;
+  return pos;
+}
+
 
 void LevelDB::setplayer(Player *p) {
   theplayer = p;
@@ -64,7 +74,7 @@ void LevelDB::addsourcedir(string s) {
     if (strcmp(".", de->d_name) &&
         strcmp("..", de->d_name)) {
       count++;
-      addsourcefile(util::dirplus(s, de->d_name));
+      addsourcefile(EscapeUtil::dirplus(s, de->d_name));
     }
   }
 
@@ -73,32 +83,31 @@ void LevelDB::addsourcedir(string s) {
 
 void LevelDB::addsourcefile(string s) {
   if (!theplayer) abort();
-  filequeue = new stringlist(s, filequeue);
-  filequeue_size++;
+  filequeue.push_back(std::move(s));
 }
 
 bool LevelDB::uptodate(float *pct_disk, float *pct_verify) {
   // PERF: is map<>.size constant-time?
-  int total = levelqueue_size + filequeue_size + all_levels.size();
+  int total = levelqueue_size + filequeue.size() + all_levels.size();
 
   if (pct_disk) {
     if (total) {
-      *pct_disk = 1.0 - float(filequeue_size) / total;
-        } else {
+      *pct_disk = 1.0 - float(filequeue.size()) / total;
+    } else {
       *pct_disk = 1.0;
     }
   }
 
   if (pct_verify) {
     if (total) {
-      *pct_verify = 1.0 - float(levelqueue_size + filequeue_size) / total;
+      *pct_verify = 1.0 - float(levelqueue_size + filequeue.size()) / total;
     } else {
       *pct_verify = 1.0;
     }
   }
 
-  fprintf(stderr, "lq %d fq %d\n", levelqueue_size, filequeue_size);
-  return levelqueue_size == 0 && filequeue_size == 0;
+  fprintf(stderr, "lq %d fq %d\n", levelqueue_size, filequeue.size());
+  return levelqueue_size == 0 && filequeue.empty();
 }
 
 void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
@@ -121,7 +130,7 @@ void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
 
       if (lw.get() == nullptr) abort();
 
-      res_level *entry = util::findorinsertnew(all_levels, lw->md5);
+      res_level *entry = FindOrInsertNew(all_levels, lw->md5);
 
       if (!entry || lw->md5.empty()) abort();
 
@@ -154,19 +163,19 @@ void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
         }
       }
 
-    } else if (filequeue &&
+    } else if (!filequeue.empty() &&
                (!max_files ||
                 files_left > 0)) {
 
       fprintf(stderr, "Do file.\n");
 
       files_left--;
-      string s = stringpop(filequeue);
-      filequeue_size--;
+      string s = filequeue.back();
+      filequeue.pop_back();
 
       /* XXX else could be a multilevel file, once we
          support those. */
-      if (util::hasmagic(s, LEVELMAGIC)) {
+      if (EscapeUtil::hasmagic(s, LEVELMAGIC)) {
         string c = readfile(s);
 	std::unique_ptr<Level> l = Level::FromString(c, true);
         if (l.get() != nullptr) {

@@ -10,6 +10,7 @@
 #include "checkfile.h"
 #include "prefs.h"
 #include "directories.h"
+#include "escape-util.h"
 
 #include "../cc-lib/base64.h"
 #include "../cc-lib/crypt/md5.h"
@@ -309,7 +310,7 @@ void Player_::deleteoldbackups() {
   /* XX must agree with backupfile */
   string basename =
 #   ifdef WIN32
-        util::lcase(
+        EscapeUtil::lcase(
 #   else
         (
 #   endif
@@ -321,7 +322,7 @@ void Player_::deleteoldbackups() {
   while ((de = readdir(dir))) {
     string f =
 #     ifdef WIN32
-        util::lcase(
+        EscapeUtil::lcase(
 #     else
         (
 #     endif
@@ -347,7 +348,7 @@ void Player_::deleteoldbackups() {
   if (n > N_BACKUPS) {
 
     string delme = basename + itos(oldest);
-    if (util::existsfile(delme) && util::remove(delme)) {
+    if (EscapeUtil::existsfile(delme) && EscapeUtil::remove(delme)) {
       /* try deleting again */
       /* printf("deleted backup #%d\n", oldest); */
       deleteoldbackups();
@@ -362,7 +363,7 @@ bool Player_::WriteFile() {
 
     /* did we already back up in this epoch? */
     string tf = backupfile(fname, epoch);
-    if (!util::existsfile(tf)) {
+    if (!EscapeUtil::existsfile(tf)) {
       writef_text(tf);
     }
     deleteoldbackups();
@@ -457,9 +458,9 @@ Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
   /* strip newline after magic */
   if (!(cf->GetLine(s) && s == "")) FF_FAIL("newline after magic");
 
-  if (!cf->GetLine(s)) FF_FAIL("no webid"); p->webid = util::stoi(s);
-  if (!cf->GetLine(s)) FF_FAIL("no seqh");  p->webseqh = util::stoi(s);
-  if (!cf->GetLine(s)) FF_FAIL("no seql");  p->webseql = util::stoi(s);
+  if (!cf->GetLine(s)) FF_FAIL("no webid"); p->webid = EscapeUtil::stoi(s);
+  if (!cf->GetLine(s)) FF_FAIL("no seqh");  p->webseqh = EscapeUtil::stoi(s);
+  if (!cf->GetLine(s)) FF_FAIL("no seql");  p->webseql = EscapeUtil::stoi(s);
 
   /* ignored fields for now */
   for (int z = 0; z < IGNORED_FIELDS; z++) {
@@ -480,15 +481,15 @@ Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
     /* maybe this is the end? */
     if (l == RATMARKER) break;
 
-    string mda = util::chop(l);
+    string mda = EscapeUtil::chop(l);
     string md;
     if (!MD5::UnAscii(mda, md)) FF_FAIL(((string)"bad md5 " + mda).c_str());
 
-    string next = util::chop(l);
+    string next = EscapeUtil::chop(l);
 
     if (next == "*") {
       /* default first */
-      string nsolstring = Base64::Decode(util::chop(l));
+      string nsolstring = Base64::Decode(EscapeUtil::chop(l));
       NamedSolution ns;
       if (!NamedSolution::FromString(nsolstring, &ns)) {
         FF_FAIL("bad namedsolution");
@@ -499,7 +500,7 @@ Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
       /* now, any number of other solutions */
       for (;;) {
         if (!cf->GetLine(l)) FF_FAIL("expected more solutions");
-        string tok = util::chop(l);
+        string tok = EscapeUtil::chop(l);
         if (tok == "!") break;
         else {
           NamedSolution ns;
@@ -534,10 +535,10 @@ Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
 
     if (l == PREFMARKER) break;
 
-    string md = util::chop(l);
+    string md = EscapeUtil::chop(l);
     if (!MD5::UnAscii(md, md)) FF_FAIL("bad rating md5");
 
-    string ratstring = Base64::Decode(util::chop(l));
+    string ratstring = Base64::Decode(EscapeUtil::chop(l));
     Rating *rat = Rating::FromString(ratstring);
 
     if (!rat) FF_FAIL("bad rating");

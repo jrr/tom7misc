@@ -1,6 +1,6 @@
 
-#ifndef __CHUNKS_H
-#define __CHUNKS_H
+#ifndef _ESCAPE_CHUNKS_H
+#define _ESCAPE_CHUNKS_H
 
 #include "base.h"
 #include "ptrlist.h"

@@ -8,6 +8,7 @@
 #include "message.h"
 #include "draw.h"
 #include "optimize.h"
+#include "escape-util.h"
 
 namespace {
 
@@ -57,7 +58,7 @@ Upload_ *Upload_::Create() {
 UploadResult Upload_::Up(Player *p, const string &f, const string &text) {
   Redraw();
 
-  const string levcont = util::readfilemagic(f, LEVELMAGIC);
+  const string levcont = EscapeUtil::readfilemagic(f, LEVELMAGIC);
 
   plr = p;
 

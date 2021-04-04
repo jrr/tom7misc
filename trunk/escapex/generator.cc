@@ -1,6 +1,6 @@
 
 #include "generator.h"
-#include "util.h"
+#include "escape-util.h"
 #include "primes.h"
 
 Generator::Generator(unsigned int s) : size(s) {
@@ -9,7 +9,7 @@ Generator::Generator(unsigned int s) : size(s) {
   c = Primes::relativeto(s);
 
   /* pick any random starting point */
-  x = ((unsigned)util::random()) % size;
+  x = ((unsigned)EscapeUtil::random()) % size;
 
   /* period is equal to size */
   left = (int)size;

@@ -1,10 +1,13 @@
 
 #include "upgrade.h"
 
+#include <vector>
+#include <string>
+#include <utility>
 #include <time.h>
 #include "../cc-lib/crypt/md5.h"
 
-#include "util.h"
+#include "escape-util.h"
 #include "textscroll.h"
 #include "prompt.h"
 #include "message.h"
@@ -35,6 +38,8 @@
 #endif
 
 namespace {
+
+using stringlist = vallist<string>;
 
 enum class CUResult {
   /* can't upgrade */
@@ -145,10 +150,10 @@ UpResult Upgrader_::doupgrade(HTTP *hh, string &msg,
     switch (hd->head.t) {
     case UT_FILE: {
 
-      string fnodotdot = util::replace(hd->head.filename, "..", "@");
+      string fnodotdot = EscapeUtil::replace(hd->head.filename, "..", "@");
 
       string dl = (string)"/" + (string)PLATFORM +
-        (string)"/" + util::replace(fnodotdot,
+        (string)"/" + EscapeUtil::replace(fnodotdot,
                                     "/", "_");
 
       say((string)"Downloading " GREEN + dl + (string) POP " ...");
@@ -194,11 +199,11 @@ UpResult Upgrader_::doupgrade(HTTP *hh, string &msg,
      deleting, and symlinking each upitem here, then the installation
      is possibly corrupt. */
 
-  /* these hold srcs and dests of any files that
+  /* this holds srcs and dests of any files that
      couldn't be replaced while the program is
      running. */
-  stringlist *failsrc = nullptr;
-  stringlist *faildst = nullptr;
+  std::vector<std::pair<string, string>> failed;
+
   bool incomplete = false;
 
   for (ulist *h = upthese; h; h = h->next) {
@@ -206,14 +211,14 @@ UpResult Upgrader_::doupgrade(HTTP *hh, string &msg,
     string tf = h->head.tempfile;
 
     /* the local destination */
-    string local = util::replace(h->head.filename, "/", DIRSEP);
+    string local = EscapeUtil::replace(h->head.filename, "/", DIRSEP);
 
     if (h->head.t == UT_FILE) {
 
-      if (util::remove(local)) {
+      if (EscapeUtil::remove(local)) {
         /* make sure directories exist */
-        util::createpathfor(local);
-        if (util::move(tf, local)) {
+        EscapeUtil::createpathfor(local);
+        if (EscapeUtil::move(tf, local)) {
           /* ok */
           say((string)"Replaced " YELLOW  + local + POP);
 
@@ -230,15 +235,11 @@ UpResult Upgrader_::doupgrade(HTTP *hh, string &msg,
 #       endif
         } else {
           say((string) RED "Can't replace " YELLOW + local + POP POP);
-
-          stringlist::push(faildst, local);
-          stringlist::push(failsrc, tf);
+          failed.emplace_back(tf, local);
         }
       } else {
         say((string) RED "Can't unlink " YELLOW + local + POP POP);
-
-        stringlist::push(faildst, local);
-        stringlist::push(failsrc, tf);
+        failed.emplace_back(tf, local);
       }
     }
   }
@@ -260,9 +261,9 @@ UpResult Upgrader_::doupgrade(HTTP *hh, string &msg,
          since we're in posix, we don't need
          to be sneaky about this. */
 
-      util::createpathfor(src);
+      EscapeUtil::createpathfor(src);
       /* XXX should also remove dirs? */
-      if (!util::remove(src)) {
+      if (!EscapeUtil::remove(src)) {
         say((string) RED "Can't unlink " YELLOW + src +
             POP " for symlink." POP);
         /* XXX ought try several prefixes in case this has happened before */
@@ -287,10 +288,10 @@ UpResult Upgrader_::doupgrade(HTTP *hh, string &msg,
        hr = hr->next) {
 
     string todel =
-      util::replace(hr->head.filename, "/", DIRSEP);
+      EscapeUtil::replace(hr->head.filename, "/", DIRSEP);
 
     if (hr->head.t == UT_DELETE) {
-      if (util::remove(todel)) {
+      if (EscapeUtil::remove(todel)) {
         say((string)PICS TRASHCAN POP " " GREEN + todel + POP);
       } else {
         say((string) RED "Can't unlink " YELLOW + todel + POP POP);
@@ -300,8 +301,7 @@ UpResult Upgrader_::doupgrade(HTTP *hh, string &msg,
   }
 
 
-  /* invt: failsrc, faildst are same length */
-  if (failsrc) {
+  if (!failed.empty()) {
 
 #   ifdef WIN32
 
@@ -326,7 +326,7 @@ UpResult Upgrader_::doupgrade(HTTP *hh, string &msg,
 
     */
 
-    int nmoves = failsrc->length();
+    int nmoves = failed.size();
 
     // XXX: This leaks the malloc and the two strdups. Something
     // is pretty messed up here; spawnv() wants a char *const *,
@@ -345,9 +345,7 @@ UpResult Upgrader_::doupgrade(HTTP *hh, string &msg,
     spawnargs[1] = strdup(StartUp::self.c_str());
 
     int ii = 2;
-    while (failsrc) {
-      string ss = stringpop(failsrc);
-      string dd = stringpop(faildst);
+    for (const auto &[ss, dd] : failed) {
       spawnargs[ii++] = strdup(ss.c_str());
       spawnargs[ii++] = strdup(dd.c_str());
 
@@ -404,11 +402,11 @@ CUResult Upgrader_::checkupgrade(HTTP *hh,
   HTTPResult hr = hh->get(UPGRADEURL, s);
   if (hr == HTTPResult::OK) {
     /* parse result. see protocol.txt */
-    int nfiles  = util::stoi(util::getline(s));
-    int oldest  = util::stoi(util::getline(s));
-    int recom   = util::stoi(util::getline(s));
-    int current = util::stoi(util::getline(s));
-    string name = util::getline(s);
+    int nfiles  = EscapeUtil::stoi(EscapeUtil::getline(s));
+    int oldest  = EscapeUtil::stoi(EscapeUtil::getline(s));
+    int recom   = EscapeUtil::stoi(EscapeUtil::getline(s));
+    int current = EscapeUtil::stoi(EscapeUtil::getline(s));
+    string name = EscapeUtil::getline(s);
     /* then, nfiles files */
 
     say("Got upgrade information:");
@@ -422,15 +420,15 @@ CUResult Upgrader_::checkupgrade(HTTP *hh,
 
     /* XXX distinguish different types of upgrade lines */
     for (int j = 0; j < nfiles; j++) {
-      string fl = util::getline(s);
+      string fl = EscapeUtil::getline(s);
       /* filename */
-      string fi = util::chop(fl);
-      string lfi = util::replace(fi, "/", DIRSEP);
+      string fi = EscapeUtil::chop(fl);
+      string lfi = EscapeUtil::replace(fi, "/", DIRSEP);
 
       /* encodings (ignored) */
-      util::chop(fl);
+      EscapeUtil::chop(fl);
       /* md5 */
-      string md = util::chop(fl);
+      string md = EscapeUtil::chop(fl);
       /* ignore remainder of fl for now ... */
 
       if (fi == "" || md == "") {
@@ -476,7 +474,7 @@ CUResult Upgrader_::checkupgrade(HTTP *hh,
 #       endif
       } else if (md[0] == '*') {
         /* delete */
-        if (util::existsfile(lfi)) {
+        if (EscapeUtil::existsfile(lfi)) {
           say(Font::pad(fi, 16) +
               (string)RED " (" PICS TRASHCAN POP ")" POP);
           upitem uu;

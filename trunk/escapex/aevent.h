@@ -1,5 +1,5 @@
-#ifndef __AEVENT_H
-#define __AEVENT_H
+#ifndef _ESCAPE_AEVENT_H
+#define _ESCAPE_AEVENT_H
 
 #include "level-base.h"
 

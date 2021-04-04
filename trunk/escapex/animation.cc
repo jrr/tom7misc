@@ -1,5 +1,4 @@
 #include "animation.h"
-#include "util.h"
 #include "chars.h"
 #include "font.h"
 #include "dirt.h"

@@ -7,8 +7,8 @@
    shan't be mixed up!
 */
 
-#ifndef __DISAMB_H
-#define __DISAMB_H
+#ifndef _ESCAPE_DISAMB_H
+#define _ESCAPE_DISAMB_H
 
 #include "ptrlist.h"
 #include "aevent.h"

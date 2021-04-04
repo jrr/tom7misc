@@ -3,7 +3,7 @@
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
 
-#include "util.h"
+#include "escape-util.h"
 #include "escapex.h"
 #include "font.h"
 
@@ -35,7 +35,7 @@ static bool hh_write() {
 }
 
 void HandHold::init() {
-  string hh = util::readfilemagic(HANDHOLD_FILE, HANDHOLD_MAGIC);
+  string hh = EscapeUtil::readfilemagic(HANDHOLD_FILE, HANDHOLD_MAGIC);
 
   unsigned int idx = strlen(HANDHOLD_MAGIC);
   if (hh.length() == (idx + (2 * 4))) {

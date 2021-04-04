@@ -1,8 +1,8 @@
 
 // XXX I think can be merged with cc-lib's
 
-#ifndef __FONT_H
-#define __FONT_H
+#ifndef _ESCAPE_FONT_H
+#define _ESCAPE_FONT_H
 
 #include "escapex.h"
 #include <string>

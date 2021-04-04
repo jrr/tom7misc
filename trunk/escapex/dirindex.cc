@@ -2,7 +2,7 @@
 
 #include <unordered_map>
 
-#include "util.h"
+#include "escape-util.h"
 #include "checkfile.h"
 
 #define INDEX_IGNORED_FIELDS 6
@@ -35,7 +35,7 @@ struct DirIndex_ : public DirIndex {
   void AddEntry(const string &filename, RateStatus v,
 		int date, int speedrecord, int owner) override;
 
-  bool GetEntry(const string &filename, 
+  bool GetEntry(const string &filename,
 		RateStatus &v, int &date, int &speed, int &o) override;
 
   bool WebCollection() const override { return isweb; }
@@ -116,11 +116,11 @@ DirIndex *DirIndex::FromFile(const string &f) {
   if (dr.get() == nullptr) return nullptr;
 
   /* read old index files */
-  string iii = util::readfilemagic(f, INDEXMAGIC);
+  string iii = EscapeUtil::readfilemagic(f, INDEXMAGIC);
 
   /* chop off magic, then erase leading whitespace */
   if (iii != "") {
-    dr->title = util::losewhitel(iii.substr
+    dr->title = EscapeUtil::losewhitel(iii.substr
                                  (strlen(INDEXMAGIC),
                                   iii.length() -
                                   strlen(INDEXMAGIC)));
@@ -148,16 +148,16 @@ DirIndex *DirIndex::FromFile(const string &f) {
     while (cf->GetLine(s)) {
       RAEntry rr;
 
-      rr.filename = util::chop(s);
-      rr.v.nvotes = util::stoi(util::chop(s));
-      rr.v.difficulty = util::stoi(util::chop(s));
-      rr.v.style = util::stoi(util::chop(s));
-      rr.v.rigidity = util::stoi(util::chop(s));
-      rr.v.cooked = util::stoi(util::chop(s));
-      rr.v.solved = util::stoi(util::chop(s));
-      rr.date = util::stoi(util::chop(s));
-      rr.speedrecord = util::stoi(util::chop(s));
-      rr.owner = util::stoi(util::chop(s));
+      rr.filename = EscapeUtil::chop(s);
+      rr.v.nvotes = EscapeUtil::stoi(EscapeUtil::chop(s));
+      rr.v.difficulty = EscapeUtil::stoi(EscapeUtil::chop(s));
+      rr.v.style = EscapeUtil::stoi(EscapeUtil::chop(s));
+      rr.v.rigidity = EscapeUtil::stoi(EscapeUtil::chop(s));
+      rr.v.cooked = EscapeUtil::stoi(EscapeUtil::chop(s));
+      rr.v.solved = EscapeUtil::stoi(EscapeUtil::chop(s));
+      rr.date = EscapeUtil::stoi(EscapeUtil::chop(s));
+      rr.speedrecord = EscapeUtil::stoi(EscapeUtil::chop(s));
+      rr.owner = EscapeUtil::stoi(EscapeUtil::chop(s));
 
       dr->tab.insert({rr.filename, rr});
     }
@@ -168,8 +168,8 @@ DirIndex *DirIndex::FromFile(const string &f) {
 }
 
 bool DirIndex::IsIndex(const string &f) {
-  return util::hasmagic(f, INDEXMAGIC) ||
-         util::hasmagic(f, INDEX3MAGIC);
+  return EscapeUtil::hasmagic(f, INDEXMAGIC) ||
+         EscapeUtil::hasmagic(f, INDEX3MAGIC);
 }
 
 DirIndex *DirIndex::Create() {

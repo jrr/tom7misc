@@ -1,15 +1,15 @@
 
-#ifndef __MAINMENU_H
-#define __MAINMENU_H
+#ifndef _ESCAPE_MAINMENU_H
+#define _ESCAPE_MAINMENU_H
 
 #include "escapex.h"
 #include "player.h"
 #include "mainshow.h"
 
 struct MainMenu {
-  enum result { LOAD, QUIT, EDIT, REGISTER, UPDATE, UPGRADE, LOAD_NEW, };
+  enum Result { LOAD, QUIT, EDIT, REGISTER, UPDATE, UPGRADE, LOAD_NEW, };
 
-  virtual result Show() = 0;
+  virtual Result Show() = 0;
 
   static MainMenu *Create(Player *plr);
 

@@ -1,6 +1,6 @@
 
-#ifndef __EDIT_H
-#define __EDIT_H
+#ifndef _ESCAPE_EDIT_H
+#define _ESCAPE_EDIT_H
 
 #include "escapex.h"
 #include "play.h"
@@ -119,7 +119,7 @@ struct Editor : public Drawable {
   // level.get().
   Drawing dr;
   std::unique_ptr<Level> level;
-  
+
   int randtype = 0;
   /* if this is set, then dragging should
      not drop tiles */

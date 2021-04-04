@@ -1,6 +1,8 @@
 
-#ifndef __OPTIMIZE_H
-#define __OPTIMIZE_H
+#ifndef _ESCAPE_OPTIMIZE_H
+#define _ESCAPE_OPTIMIZE_H
+
+#include <vector>
 
 #include "level.h"
 #include "player.h"
@@ -19,7 +21,7 @@ struct Optimize {
      that solves l. If successful, return true and set sol to
      a complete solution. */
   static bool TryComplete(Level *l, const Solution &prefix,
-                          const vector<NamedSolution> &sources,
+                          const std::vector<NamedSolution> &sources,
                           Solution *sol);
 };
 

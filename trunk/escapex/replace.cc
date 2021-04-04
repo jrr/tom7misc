@@ -22,7 +22,7 @@
 
 #include <unistd.h>
 
-#include "util.h"
+#include "escape-util.h"
 
 #ifndef WIN32
 # error "replace.cc is only for win32 builds!"
@@ -49,8 +49,8 @@ int main(int argc, char **argv) {
       int tries = 3;
 
       while (tries--) {
-        if ((util::remove(argv[i + 1]) &&
-             util::move(argv[i], argv[i+1]))) goto success;
+        if ((EscapeUtil::remove(argv[i + 1]) &&
+             EscapeUtil::move(argv[i], argv[i+1]))) goto success;
 
         sleep(1);
       }

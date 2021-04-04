@@ -1,6 +1,6 @@
 
-#ifndef __REGISTRATION_H
-#define __REGISTRATION_H
+#ifndef _ESCAPE_REGISTRATION_H
+#define _ESCAPE_REGISTRATION_H
 /* n.b., register is a keyword */
 
 #include "escapex.h"

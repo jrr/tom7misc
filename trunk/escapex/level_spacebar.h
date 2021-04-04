@@ -2,8 +2,8 @@
 // XXX is this still needed? -tom7  20 Aug 2016
 // Better to make Level a library that does not depend on SDL.
 
-#ifndef __LEVEL_H
-#define __LEVEL_H
+#ifndef _ESCAPE_LEVEL_H
+#define _ESCAPE_LEVEL_H
 
 #include <string>
 

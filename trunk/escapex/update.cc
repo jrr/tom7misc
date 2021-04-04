@@ -1,6 +1,6 @@
 
 #include "update.h"
-#include "util.h"
+#include "escape-util.h"
 #include "textscroll.h"
 #include "prompt.h"
 #include "message.h"
@@ -32,7 +32,7 @@ enum class SelResult {
 struct Updater_ : public Updater {
   static Updater_ *Create(Player *p);
 
-  UpdateResult update(string &msg) override;
+  UpdateResult Update(string &msg) override;
 
   void Draw() override {
     sdlutil::clearsurface(screen, BGCOLOR);
@@ -61,20 +61,21 @@ struct Updater_ : public Updater {
     }
   }
 
-  Player *plr;
+  Player *plr = nullptr;
 
   std::unique_ptr<TextScroll> tx;
 
-  CCResult checkcolls(HTTP *hh,
-                      stringlist *&fnames,
-                      stringlist *&shownames);
+  CCResult CheckCollections(
+      HTTP *hh,
+      std::vector<std::pair<string, string>> *collections);
 
-  SelResult selectcolls(stringlist *fnames,
-                        stringlist *shownames,
-                        stringlist *&, stringlist *&);
+  SelResult SelectCollections(
+      const std::vector<std::pair<string, string>> &collections,
+      std::vector<std::pair<string, string>> *subs);
 
-  void updatecoll(HTTP *hh, string fname, string showname);
-
+  void UpdateCollection(HTTP *hh,
+                        const string &fname,
+                        const string &showname);
 };
 
 /* version of toggle where toggling causes the
@@ -93,9 +94,9 @@ void subtoggle::docheck() {
     if (!checked) {
 
       /* try to subscribe */
-      if (util::existsdir(fname)) {
+      if (EscapeUtil::existsdir(fname)) {
         /* delete unsub file from dir */
-        if (util::remove(fname + (string)DIRSEP + UNSUBMARKER)) {
+        if (EscapeUtil::remove(fname + (string)DIRSEP + UNSUBMARKER)) {
 
           checked = true;
 
@@ -108,7 +109,7 @@ void subtoggle::docheck() {
         }
       } else {
         /* create subscription (directory) */
-        if (util::makedir(fname)) {
+        if (EscapeUtil::makedir(fname)) {
           checked = true;
 
         } else {
@@ -168,9 +169,9 @@ Updater_ *Updater_::Create(Player *p) {
 /* return the available collections.
    (by adding items to fnames, shownames)
 */
-CCResult Updater_::checkcolls(HTTP *hh,
-                              stringlist *&fnames,
-                              stringlist *&shownames) {
+CCResult Updater_::CheckCollections(
+    HTTP *hh,
+    std::vector<std::pair<string, string>> *collections) {
   /* first, grab COLLECTIONS. */
 
   string s;
@@ -178,20 +179,20 @@ CCResult Updater_::checkcolls(HTTP *hh,
 
   if (hr == HTTPResult::OK) {
     /* parse result. see protocol.txt */
-    int ncolls = util::stoi(util::getline(s));
+    int ncolls = EscapeUtil::stoi(EscapeUtil::getline(s));
 
     say((string)BLUE + itos(ncolls) + (string)" collection" +
         (string)((ncolls==1)?"":"s") + (string)":" POP);
 
     /* then, ncolls collections */
     while (ncolls--) {
-      string line = util::getline(s);
+      string line = EscapeUtil::getline(s);
 
-      string fname = util::chop(line);
-      int minv  = util::stoi(util::chop(line));
+      string fname = EscapeUtil::chop(line);
+      int minv  = EscapeUtil::stoi(EscapeUtil::chop(line));
       string showname = line;
 
-      int usable = util::stoi(VERSION) >= minv;
+      int usable = EscapeUtil::stoi(VERSION) >= minv;
 
       if (fname == "") {
         say(RED "  collections file corrupt!!" POP);
@@ -203,8 +204,7 @@ CCResult Updater_::checkcolls(HTTP *hh,
           itos(minv) + (string)POP " " BLUE + showname + POP);
 
       if (usable) {
-        stringlist::push(fnames, fname);
-        stringlist::push(shownames, showname);
+        collections->emplace_back(fname, showname);
       }
     }
 
@@ -215,17 +215,14 @@ CCResult Updater_::checkcolls(HTTP *hh,
     say(RED "Unable to fetch collection list." POP);
     return CCResult::FAIL;
   }
-
 }
 
 
 /* invt: length(fnames) > 0 */
 
-SelResult Updater_::selectcolls(stringlist *fnames,
-                                stringlist *shownames,
-                                stringlist *&subsf,
-                                stringlist *&subss) {
-
+SelResult Updater_::SelectCollections(
+    const std::vector<std::pair<string, string>> &collections,
+    std::vector<std::pair<string, string>> *subs) {
   PtrList<MenuItem> *boxes = nullptr;
 
   Okay ok;
@@ -235,22 +232,19 @@ SelResult Updater_::selectcolls(stringlist *fnames,
 
   VSpace v(16);
 
-  stringlist *fnt = fnames;
-  stringlist *snt = shownames;
+  const int n_entries = (int)collections.size();
 
-  int n_entries = 0;
-
-  while (fnt && snt) {
+  for (const auto &[filename, showname] : collections) {
     subtoggle *b = new subtoggle();
-    b->fname = fnt->head;
-    b->question = snt->head;
+    b->fname = filename;
+    b->question = showname;
 
     /* check subscribed:
        for collection 'triage' we are
        subscribed if 'triage' subdir exists
        AND 'triage/unsubscribed' does not exist */
-    if (util::existsdir(fnt->head)) {
-      if (util::existsfile(fnt->head + (string)DIRSEP + UNSUBMARKER)) {
+    if (EscapeUtil::existsdir(filename)) {
+      if (EscapeUtil::existsfile(filename + (string)DIRSEP + UNSUBMARKER)) {
         b->checked = false;
       } else {
         b->checked = true;
@@ -260,10 +254,6 @@ SelResult Updater_::selectcolls(stringlist *fnames,
     }
 
     PtrList<MenuItem>::push(boxes, b);
-    n_entries++;
-
-    fnt = fnt->next;
-    snt = snt->next;
   }
 
   PtrList<MenuItem>::push(boxes, &v);
@@ -281,9 +271,6 @@ SelResult Updater_::selectcolls(stringlist *fnames,
   if (res == InputResultKind::OK) {
     /* process selections from 'boxes' list */
 
-    subsf = 0;
-    subss = 0;
-
     /* skip first three, the buttons */
     for (int z = 0; z < 3; z++) {
       PtrList<MenuItem>::pop(boxes);
@@ -292,8 +279,7 @@ SelResult Updater_::selectcolls(stringlist *fnames,
     for (int i = 0; i < n_entries; i++) {
       subtoggle *st = (subtoggle*)PtrList<MenuItem>::pop(boxes);
       if (st->checked) {
-        stringlist::push(subsf, st->fname);
-        stringlist::push(subss, st->question);
+        subs->emplace_back(st->fname, st->question);
       }
 
       delete st;
@@ -307,7 +293,8 @@ SelResult Updater_::selectcolls(stringlist *fnames,
 }
 
 /* update a single collection "fname" using http connection hh. */
-void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
+void Updater_::UpdateCollection(
+    HTTP *hh, const string &fname, const string &showname) {
 
   say("");
   say((string)"Updating " BLUE + showname + (string)POP " (" YELLOW +
@@ -320,13 +307,13 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
   if (hr == HTTPResult::OK) {
     /* parse result. see protocol.txt */
 
-    string showname = util::getline(s);
-    int minv = util::stoi(util::getline(s));
-    int ndirs = util::stoi(util::getline(s));
-    int nfiles = util::stoi(util::getline(s));
-    string version = util::getline(s);
+    string showname = EscapeUtil::getline(s);
+    int minv = EscapeUtil::stoi(EscapeUtil::getline(s));
+    int ndirs = EscapeUtil::stoi(EscapeUtil::getline(s));
+    int nfiles = EscapeUtil::stoi(EscapeUtil::getline(s));
+    string version = EscapeUtil::getline(s);
 
-    if (util::stoi(VERSION) < minv) {
+    if (EscapeUtil::stoi(VERSION) < minv) {
       say(RED "?? Server inconsistent: This escape version is too old!" POP);
       /* fail */
       return;
@@ -346,10 +333,10 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
     say("ndirs: " + itos(ndirs));
 
     while (ndirs--) {
-      string line = util::getline(s);
+      string line = EscapeUtil::getline(s);
 
-      string d = util::chop(line);
-      string name = util::losewhitel(line);
+      string d = EscapeUtil::chop(line);
+      string name = EscapeUtil::losewhitel(line);
 
       /* sanity check d. */
       if (d.length() < 1 || d[0] == '/' ||
@@ -362,7 +349,7 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
       }
 
       /* on win32, rewrite / to \ */
-      util::replace(d, "/", DIRSEP);
+      EscapeUtil::replace(d, "/", DIRSEP);
 
       up->SaveDir(d, name);
     }
@@ -373,12 +360,12 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
 
     /* then, ncolls collections */
     while (nfiles--) {
-      string line = util::getline(s);
+      string line = EscapeUtil::getline(s);
 
       /* printf("line: '%s'\n", line.c_str()); */
 
-      string f = util::chop(line);
-      string md = util::chop(line);
+      string f = EscapeUtil::chop(line);
+      string md = EscapeUtil::chop(line);
 
       /* sanity check f. This may be relative
          to the current directory, so it is the
@@ -394,16 +381,16 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
 
       RateStatus votes;
 
-      votes.nvotes = util::stoi(util::chop(line));
-      votes.difficulty = util::stoi(util::chop(line));
-      votes.style = util::stoi(util::chop(line));
-      votes.rigidity = util::stoi(util::chop(line));
-      votes.cooked = util::stoi(util::chop(line));
-      votes.solved = util::stoi(util::chop(line));
+      votes.nvotes = EscapeUtil::stoi(EscapeUtil::chop(line));
+      votes.difficulty = EscapeUtil::stoi(EscapeUtil::chop(line));
+      votes.style = EscapeUtil::stoi(EscapeUtil::chop(line));
+      votes.rigidity = EscapeUtil::stoi(EscapeUtil::chop(line));
+      votes.cooked = EscapeUtil::stoi(EscapeUtil::chop(line));
+      votes.solved = EscapeUtil::stoi(EscapeUtil::chop(line));
 
-      int date = util::stoi(util::chop(line));
-      int speedrecord = util::stoi(util::chop(line));
-      int owner = util::stoi(util::chop(line));
+      int date = EscapeUtil::stoi(EscapeUtil::chop(line));
+      int speedrecord = EscapeUtil::stoi(EscapeUtil::chop(line));
+      int owner = EscapeUtil::stoi(EscapeUtil::chop(line));
 
       /* require file and md5, but not any of the voting stuff
          (they will default to 0) */
@@ -452,7 +439,7 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
 }
 
 /* very similar to upgrade... maybe abstract it? */
-UpdateResult Updater_::update(string &msg) {
+UpdateResult Updater_::Update(string &msg) {
   /* always cancel the hint */
   HandHold::did_update();
 
@@ -460,13 +447,13 @@ UpdateResult Updater_::update(string &msg) {
 
   if (hh.get() == nullptr) {
     msg = YELLOW "Couldn't connect." POP;
-    return UD_FAIL;
+    return UpdateResult::FAIL;
   }
 
-  stringlist *fnames = nullptr;
-  stringlist *shownames = nullptr;
+  // filename, showname
+  std::vector<std::pair<string, string>> collections;
 
-  switch (checkcolls(hh.get(), fnames, shownames)) {
+  switch (CheckCollections(hh.get(), &collections)) {
   case CCResult::OK:
     say("Got collections list.");
     break;
@@ -475,39 +462,31 @@ UpdateResult Updater_::update(string &msg) {
     /* parse error? */
     Message::Quick(this, "Failed to get collections list.",
                    "Cancel", "", PICS XICON POP);
-    stringlist::diminish(fnames);
-    stringlist::diminish(shownames);
-    return UD_FAIL;
+    return UpdateResult::FAIL;
   }
 
-  if (fnames == 0) {
+  if (collections.empty()) {
     Message::Quick(this,
                    "This version cannot accept any collections.\n"
                    "   You should try upgrading, though a new version\n"
                    "   might not be available yet for your platform.",
                    "Cancel", "", PICS XICON POP);
-    /* fnames, shownames already empty */
-    return UD_FAIL;
+    return UpdateResult::FAIL;
   }
 
-  stringlist *subss = nullptr, *subsf = nullptr;
+  std::vector<std::pair<string, string>> subs;
 
-  SelResult sr = selectcolls(fnames, shownames, subsf, subss);
-  stringlist::diminish(fnames);
-  stringlist::diminish(shownames);
+  SelResult sr = SelectCollections(collections, &subs);
 
-  if (sr != SelResult::OK) return UD_FAIL;
+  if (sr != SelResult::OK) return UpdateResult::FAIL;
 
   say(GREEN "Selected subscriptions.");
 
   /* now, for each subscribed collection, update it... */
 
   /* invt: subss and subsf are the same length */
-  while (subss && subsf) {
-    string ff = stringpop(subsf);
-    string ss = stringpop(subss);
-
-    updatecoll(hh.get(), ff, ss);
+  for (const auto &[ff, ss] : subs) {
+    UpdateCollection(hh.get(), ff, ss);
   }
 
   /* XXX might want to give a fail message if any failed. */
@@ -516,7 +495,7 @@ UpdateResult Updater_::update(string &msg) {
   Message::Quick(this, "Level update complete.", "OK", "",
                  PICS THUMBICON POP);
 
-  return UD_SUCCESS;
+  return UpdateResult::SUCCESS;
 }
 
 }  // namespace

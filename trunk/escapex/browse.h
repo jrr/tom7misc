@@ -1,6 +1,6 @@
 
-#ifndef __BROWSE_H
-#define __BROWSE_H
+#ifndef _ESCAPE_BROWSE_H
+#define _ESCAPE_BROWSE_H
 
 /* New (4.0) version of level browser. Implements the UI on top of
    leveldb.
@@ -14,7 +14,7 @@
 #include "font.h"
 #include "selector.h"
 #include "player.h"
-#include "util.h"
+#include "escape-util.h"
 
 /* abstract interface */
 struct Browse : public Drawable {

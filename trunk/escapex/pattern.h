@@ -1,5 +1,5 @@
-#ifndef __PATTERN_H
-#define __PATTERN_H
+#ifndef _ESCAPE_PATTERN_H
+#define _ESCAPE_PATTERN_H
 
 #include "level.h"
 
@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "escape-util.h"
 
 /* The pattern matcher is to escape levels what
    emacs's regular expression matcher is to text.
@@ -76,7 +77,7 @@ struct Pattern {
       p->tab[i].t = HType::ERROR;
 
     /* ignore whitespace */
-    string s = util::replace(s_in, " ", "");
+    string s = EscapeUtil::replace(s_in, " ", "");
 
     p->nregs = 0;
     p->w = -1;
@@ -176,7 +177,7 @@ struct Pattern {
       : lev(l), inf(i), pat(p), g(lev->w * lev->h) {
 
       dirsleft = 4;
-      this_dir = 1 + (util::random() & 3);
+      this_dir = 1 + (EscapeUtil::random() & 3);
     }
 
     /* PERF: this should detect symmetric patterns and only look
@@ -315,7 +316,7 @@ struct Pattern {
           if (g.anyleft()) {
             g.next();
             dirsleft = 4;
-            this_dir = 1 + (3 & (unsigned)util::random());
+            this_dir = 1 + (3 & (unsigned)EscapeUtil::random());
             /* go again */
           } else return 0;
 

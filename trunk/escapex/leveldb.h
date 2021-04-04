@@ -1,6 +1,6 @@
 
-#ifndef __LEVELDB_H
-#define __LEVELDB_H
+#ifndef _ESCAPE_LEVELDB_H
+#define _ESCAPE_LEVELDB_H
 
 #include "level.h"
 #include "rating.h"
@@ -12,6 +12,7 @@
 
 /*
    New (4.0) level database. (Not yet finished or being used.)
+   (XXX 2021: Start over again? use this?)
 
    The level database keeps track of all of the levels and
    collections that the game knows about.

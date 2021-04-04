@@ -1,8 +1,9 @@
-#ifndef __TEXTBOX_H
-#define __TEXTBOX_H
+#ifndef _ESCAPE_TEXTBOX_H
+#define _ESCAPE_TEXTBOX_H
 
 #include <string>
 #include "menu.h"
+#include "escape-util.h"
 
 struct TextBox : public MenuItem {
   string helptext() override {

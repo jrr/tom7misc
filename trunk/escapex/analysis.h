@@ -1,5 +1,7 @@
-#ifndef __ANALYSIS_H
-#define __ANALYSIS_H
+#ifndef _ESCAPE_ANALYSIS_H
+#define _ESCAPE_ANALYSIS_H
+
+#include <memory.h>
 
 #include "base.h"
 #include "../cc-lib/union-find.h"

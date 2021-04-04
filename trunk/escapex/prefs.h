@@ -1,6 +1,8 @@
 
-#ifndef __PREFS_H
-#define __PREFS_H
+#ifndef _ESCAPE_PREFS_H
+#define _ESCAPE_PREFS_H
+
+#include <string>
 
 #include "escapex.h"
 #include "player.h"

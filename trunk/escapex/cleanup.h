@@ -1,6 +1,6 @@
 
-#ifndef __CLEANUP_H
-#define __CLEANUP_H
+#ifndef _ESCAPE_CLEANUP_H
+#define _ESCAPE_CLEANUP_H
 
 /* looks through the current directory
    for any files named *.deleteme,

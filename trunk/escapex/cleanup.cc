@@ -1,6 +1,6 @@
 
 #include "escapex.h"
-#include "util.h"
+#include "escape-util.h"
 #include "cleanup.h"
 
 #include <sys/stat.h>
@@ -18,24 +18,24 @@ void Cleanup::Clean() {
     string dn = dire->d_name;
     string ldn = "." + (string)DIRSEP + dn;
 
-    if (util::isdir(ldn)) {
+    if (EscapeUtil::isdir(ldn)) {
       /* XXX could be recursive?? */
 
     } else {
 
-      if (util::endswith(dn, ".deleteme")) {
+      if (EscapeUtil::endswith(dn, ".deleteme")) {
         /* printf(" remove '%s'\n", ldn.c_str()); */
-        util::remove(ldn);
+        EscapeUtil::remove(ldn);
       }
     }
   }
 
   /* harmless if it fails, unless there is a *file*
      called mylevels, in which case we are screwed... */
-  util::makedir(EDIT_DIR);
+  EscapeUtil::makedir(EDIT_DIR);
 
   /* make attic dir. Make sure it is ignored. */
-  util::makedir(ATTIC_DIR);
+  EscapeUtil::makedir(ATTIC_DIR);
   writefile((string)ATTIC_DIR + DIRSEP + IGNOREFILE, "");
 
   closedir(d);

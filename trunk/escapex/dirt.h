@@ -1,5 +1,5 @@
-#ifndef __DIRT_H
-#define __DIRT_H
+#ifndef _ESCAPE_DIRT_H
+#define _ESCAPE_DIRT_H
 
 struct Dirt {
   /* bring up-to-date with the screen.

@@ -2,7 +2,6 @@
 #include "../cc-lib/crypt/md5.h"
 
 #include "level.h"
-#include "util.h"
 #include "escapex.h"
 #include "font.h"
 #include "loadlevel.h"
@@ -187,7 +186,7 @@ int main(int argc, char **argv) {
     LevelDB::addsourcedir("official");
 
     for (;;) {
-      MainMenu::result r = mm->Show();
+      MainMenu::Result r = mm->Show();
 
       if (r == MainMenu::LOAD) {
         /* load and play levels */
@@ -272,7 +271,7 @@ int main(int argc, char **argv) {
 
         string msg;
 
-        uu->update(msg);
+        uu->Update(msg);
 
       } else if (r == MainMenu::REGISTER) {
         /* register player online */

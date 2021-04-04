@@ -1,6 +1,6 @@
 
-#ifndef __PRIMES_H
-#define __PRIMES_H
+#ifndef _ESCAPE_PRIMES_H
+#define _ESCAPE_PRIMES_H
 
 struct Primes {
   /* return a random integer relatively prime to x (> 0) */

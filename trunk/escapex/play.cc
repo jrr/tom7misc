@@ -12,7 +12,7 @@
 
 #include "message.h"
 #include "chars.h"
-#include "util.h"
+#include "escape-util.h"
 #include "dirindex.h"
 #include "../cc-lib/crypt/md5.h"
 #include "prefs.h"
@@ -63,7 +63,7 @@ struct Play_ : public Play {
   Play_(const Level *l) : lev{l->Clone()} {
     dr.lev = lev.get();
   }
-  
+
   /* debugging */
   int layer;
   bool showdests;
@@ -73,7 +73,7 @@ struct Play_ : public Play {
   // Representation invariant: dr.lev == lev.get()
   Drawing dr;
   std::unique_ptr<Level> lev;
-  
+
   /* current solution.
      Its lifetime is within a call to DoPlaySave.
      Don't call Redraw when not inside a call to DoPlaySave! */
@@ -829,20 +829,20 @@ void Play_::BookmarkDownload(Player *plr, const string &lmd5) {
 
   if (hr == HTTPResult::OK) {
     /* parse result. see protocol.txt */
-    int nsols = util::stoi(util::getline(s));
+    int nsols = EscapeUtil::stoi(EscapeUtil::getline(s));
 
     td.say("OK. Solutions on server: " GREEN + itos(nsols) + POP);
 
     /* get them! */
     for (int i = 0; i < nsols; i++) {
-      string line1 = util::getline(s);
-      string author = util::getline(s);
-      string moves = Base64::Decode(util::getline(s));
+      string line1 = EscapeUtil::getline(s);
+      string author = EscapeUtil::getline(s);
+      string moves = Base64::Decode(EscapeUtil::getline(s));
 
       /* this is the solution id, which we don't need */
-      (void) util::stoi(util::chop(line1));
-      int date = util::stoi(util::chop(line1));
-      string name = util::losewhitel(line1);
+      (void) EscapeUtil::stoi(EscapeUtil::chop(line1));
+      int date = EscapeUtil::stoi(EscapeUtil::chop(line1));
+      string name = EscapeUtil::losewhitel(line1);
 
       Solution s;
       if (!Solution::FromString(moves, &s)) {
@@ -1513,7 +1513,7 @@ void Play::PlayRecord(const string &filename, Player *plr, bool allowrate) {
   /* only prompt to rate if this is in a
      web collection */
   const bool iscollection = [&]{
-    string idx = util::pathof(filename) + (string)DIRSEP WEBINDEXNAME;
+    string idx = EscapeUtil::pathof(filename) + (string)DIRSEP WEBINDEXNAME;
     std::unique_ptr<DirIndex> di{DirIndex::FromFile(idx)};
     return di.get() != nullptr && di->WebCollection();
   }();
@@ -1521,7 +1521,7 @@ void Play::PlayRecord(const string &filename, Player *plr, bool allowrate) {
   const string ss = readfile(filename);
   /* load canceled */
   if (ss.empty()) return;
-  
+
   const string md5 = MD5::Hash(ss);
 
   std::unique_ptr<Level> level = Level::FromString(ss);

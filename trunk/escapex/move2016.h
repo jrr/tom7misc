@@ -1,6 +1,6 @@
 // New move header. Include just once!
-#ifndef __MOVE2016_H
-#define __MOVE2016_H
+#ifndef _ESCAPE_MOVE2016_H
+#define _ESCAPE_MOVE2016_H
 
 #include "level-base.h"
 #include "aevent.h"

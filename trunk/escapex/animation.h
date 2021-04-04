@@ -7,7 +7,7 @@
 #include "level.h"
 #include "draw.h"
 #include "aevent.h"
-#include "util.h"
+#include "escape-util.h"
 #include "dirt.h"
 #include "sound.h"
 

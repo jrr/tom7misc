@@ -1,6 +1,6 @@
 
-#ifndef __UPGRADE_H
-#define __UPGRADE_H
+#ifndef _ESCAPE_UPGRADE_H
+#define _ESCAPE_UPGRADE_H
 
 #include "escapex.h"
 #include "player.h"

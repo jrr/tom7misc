@@ -13,7 +13,7 @@ ifdef LINUX
 
 CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
 
-OFILES = main.o level.o solution.o rle.o disamb.o loadlevel.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o ${CCLIBOBJECTS}
+OFILES = main.o level.o solution.o rle.o disamb.o loadlevel.o font.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o ${CCLIBOBJECTS}
 
 default : escape.exe
 
@@ -40,7 +40,7 @@ escape.exe : ${OFILES}
 default : escape.exe
 
 #  -lvorbisfile -lvorbis -logg
-packsound.exe : util-console.o packsound-console.o
+packsound.exe : escape-util-console.o packsound-console.o
 	g++ -o $@ $^ `sdl-config --static-libs`
 	strip packsound.exe
 
@@ -59,7 +59,7 @@ sound_load.h : sound.pack packsound.cc
 
 # but this should be static
 # XXX how to get sdlutil-console from cc-lib?
-screenshot.exe : draw-console.o level-console.o font-console.o util-console.o sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
+screenshot.exe : draw-console.o level-console.o font-console.o escape-util-console.o sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
 	g++ -g -o screenshot.exe $^ `sdl-config --static-libs`
 
 .dummy :
@@ -189,13 +189,13 @@ LIBS=-L/usr/lib
 
 CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
 
-escape.exe : escapex.o browse.o main.o rle.o level.o solution.o disamb.o loadlevel.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
+escape.exe : escapex.o browse.o main.o rle.o level.o solution.o disamb.o loadlevel.o font.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
 	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
 	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
 
 # XXX this would allow us to build "Screenshot.app", but we should
 # figure out some other approach for command-line tools.
-screenshot.exe : sdlmain.o draw.o screenshot.o escapex.o rle.o level.o solution.o disamb.o util.o animation.o message.o progress.o sound.o font.o drawable.o ${CCLIBOBJECTS}
+screenshot.exe : sdlmain.o draw.o screenshot.o escapex.o rle.o level.o solution.o disamb.o escape-util.o animation.o message.o progress.o sound.o font.o drawable.o ${CCLIBOBJECTS}
 	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
 	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o $@
 
@@ -340,7 +340,7 @@ SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP
 LINKSDL=  -lm -mthreads -luser32 -lgdi32 -lwinmm -ldxguid
 LINKSDLNET= -lws2_32 -liphlpapi
 
-ESCOBJECTS= main.o rle.o level.o solution.o disamb.o loadlevel.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
+ESCOBJECTS= main.o rle.o level.o solution.o disamb.o loadlevel.o font.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
 
 # cc-lib is my personal collection of C++ libraries. It should be in a
 # directory next to "escapex."
@@ -391,7 +391,7 @@ icon.o : escape.ico escape.rc
 escape.exe : ${ESCOBJECTS} ${CC_LIBOBJECTS} ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
-replace.exe : replace.o util.o
+replace.exe : replace.o escape-util.o
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
 packsound.o : packsound.cc
@@ -462,7 +462,7 @@ packpng.exe : packpng.o ${CC_LIBOBJECTS}
 # TODO: Can we make this headless? It seems we have several uses for "core"
 # escape that works without SDL (e.g. server code).
 # ../cc-lib/sdl/font-console.o
-screenshot.exe : draw-console.o level-console.o util-console.o ../cc-lib/sdl/sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
+screenshot.exe : draw-console.o level-console.o escape-util-console.o ../cc-lib/sdl/sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
 	${CXX} -g -o screenshot.exe $^ `sdl-config --static-libs`
 
 .dummy :

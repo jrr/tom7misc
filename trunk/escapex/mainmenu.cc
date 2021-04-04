@@ -2,7 +2,6 @@
 #include "mainmenu.h"
 #include "draw.h"
 #include "version.h"
-#include "util.h"
 #include "prefs.h"
 #include "chars.h"
 #include "client.h"
@@ -59,7 +58,7 @@ struct MMEntry {
 using MSel = Selector<MMEntry, MMEType>;
 
 struct MainMenu_ : public MainMenu, public Drawable {
-  MainMenu::result Show() override;
+  MainMenu::Result Show() override;
 
   static MainMenu_ *Create(Player *plr);
 
@@ -237,7 +236,7 @@ void MainMenu_::Draw() {
 
 
 #define FRAME_TICKS 500
-MainMenu::result MainMenu_::Show() {
+MainMenu::Result MainMenu_::Show() {
   ComputeTutorial();
 
   MakeBackground();
