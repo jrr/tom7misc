@@ -108,6 +108,8 @@ struct ImageRGBA {
 
   // Clipped, alpha blending.
   void BlendImage(int x, int y, const ImageRGBA &other);
+  // Clipped, but copy source alpha and ignore current image contents.
+  void CopyImage(int x, int y, const ImageRGBA &other);
 
   // Extract single channel.
   ImageA Red() const;
@@ -120,7 +122,7 @@ struct ImageRGBA {
                                 const ImageA &green,
                                 const ImageA &blue,
                                 const ImageA &alpha);
-  
+
 private:
   int width, height;
   // Size width * height * 4.
@@ -142,7 +144,7 @@ struct ImageA {
 
   bool operator ==(const ImageA &other) const;
   std::size_t Hash() const;
-  
+
   int Width() const { return width; }
   int Height() const { return height; }
 
