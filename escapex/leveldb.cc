@@ -106,7 +106,8 @@ bool LevelDB::uptodate(float *pct_disk, float *pct_verify) {
     }
   }
 
-  fprintf(stderr, "lq %d fq %d\n", levelqueue_size, filequeue.size());
+  fprintf(stderr, "lq %d fq %d\n", levelqueue_size,
+	  (int)filequeue.size());
   return levelqueue_size == 0 && filequeue.empty();
 }
 

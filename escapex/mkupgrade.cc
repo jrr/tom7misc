@@ -8,7 +8,7 @@
 #include "version.h"
 #include "oldest.h"
 #include "recommend.h"
-#include "../cc-lib/md5.h"
+#include "../cc-lib/crypt/md5.h"
 
 using namespace std;
 
@@ -37,10 +37,22 @@ struct fentry {
   string dest; /* for symlinks */
 };
 
-int main(int argc, char **argv) {
-  MD5::Init();
+static void Usage() {
+  fprintf(stderr,
+	  "usage:\n"
+	  "mkupgrade.exe releasefiles.platform "
+	  "symlinks.platform deletefiles.platform\n"
+	  "(must supply a file for each, even if it's blank.)\n"
+	  "writes to stdout.\n");
+}
 
-  if (!strcmp(argv[1], "-mkbat")) {
+int main(int argc, char **argv) {
+  if (argc < 2) {
+    Usage();
+    return -1;
+  }
+
+  if (0 == strcmp(argv[1], "-mkbat")) {
 
     /* XXX unused now */
     for (int i = 3; i < argc; i++) {
@@ -66,13 +78,8 @@ int main(int argc, char **argv) {
     */
 
     if (argc != 4) {
-      fprintf(stderr,
-              "usage:\n"
-              "mkupgrade.exe releasefiles.platform "
-              "symlinks.platform deletefiles.platform\n"
-              "(must supply a file for each, even if it's blank.)\n"
-              "writes to stdout.\n");
-      exit(-1);
+      Usage();
+      return -1;
 
     } else {
 

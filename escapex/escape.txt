@@ -1,6 +1,6 @@
 
-           Escape               Tom 7        26 Nov 2010
-           Beta Version 3
+           Escape               Tom 7        4 Apr 2021
+           Beta Version 5
 
 
 Here's what Escape is:
@@ -444,7 +444,7 @@ Here's some more boring stuff. Go play instead of reading this:
 License:
 
    The Escape program, graphics, and documentation are Copyright
-   1996-2010 Tom Murphy VII, except where noted at the top of a source
+   1996-2021 Tom Murphy VII, except where noted at the top of a source
    file. They are distributed under the terms of the GNU Public
    License, which you can read in the file COPYING that is included
    with the distribution.
@@ -468,6 +468,8 @@ Thanks:
    Michael Donohue - Ran Coverity to find at least one bug worth fixing
    Cortney Higgins - Mac laptop for testing, provider of support
    Martina Marugg - Help and patience debugging the OSX version
+   noname - Bug reports and many impressive levels and speedruns
+   Matt McCutchen - Bug reports, fixes and Escape meta-science
 
    And of course all of the other authors of levels included in the
    game, and players that leave constructive comments and ratings.
