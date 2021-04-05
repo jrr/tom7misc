@@ -64,10 +64,12 @@ this is how I usually develop there.
 
  ** Linux **
 
-Linux is very easy. If you don't have 'make' and GCC already, god help you.
-Otherwise, you may need to install SDL, SDL_net, and SDL_mixer; on Ubuntu:
+Linux should be easy. If you don't have 'make' and GCC already, god help you.
+Otherwise, you may need to install SDL; on Ubuntu:
   - sudo apt-get install libsdl1.2-dev
-  - sudo apt-get install libsdl-net1.2-dev
+
+SDL_mixer is required if you want to try to enable sound (it's disabled
+by default because I only made one sound effect ever):
   - sudo apt-get install libsdl-mixer1.2-dev
 
 SDL is working if the command "sdl-config" is in your path.
@@ -76,9 +78,12 @@ After this, "export LINUX=true" and "make" should just work.
 
  ** Windows **
 
-Visual Studio is no longer supported. You can try at revision 2869, but
-why? I use mingw, and specifically the TDM-GCC compiler, producing
-native 64-bit with free tools.
+Visual Studio is no longer supported. You can try at revision 2869,
+but why? I use the x86_64 mingw, installed through cygwin, and invoke
+it using its full names like x86_64-w64-mingw32-g++ to avoid confusion
+(cygwin also provides its own g++ etc. Be very cautious about buying
+into anything you see on the net; there are so many traps!) This
+approach builds 64-bit native windows executables with free tools.
 
 Managing libraries like SDL on win32 is a nightmare because there are
 multiple different standards for where they should go, what object file
@@ -88,21 +93,18 @@ just linking against .o files that I compile from source. You don't even
 need to deal with nor distribute dlls this way, saving your users some
 pain, too.
 
-Get SDL, SDL_net, and SDL_mixer from libsdl.org. You want the 1.2 versions,
-and the source code (NOT "runtime libraries" nor "development libraries";
-there will be no libraries because the source code just gets compiled into
-Escape). These contain directories like "SDL-1.2.15". Put these in the
-escape source directory but rename them to SDL, SDL_net, and SDL_mixer (no
-version numbers).
+Get SDL and SDL_mixer (if you want to try enabling sound) from
+libsdl.org. You want the 1.2 versions, and the source code (NOT
+"runtime libraries" nor "development libraries"; there will be no
+libraries because the source code just gets compiled into Escape).
+These contain directories like "SDL-1.2.15". Put these next to
+the escape source directory but rename them to SDL and SDL_mixer
+(no version number). SDL_net is so small that now I'm just including
+in a subdirectory in the escape source, saving some trouble.
 
 If all is well, you should be able to just "export WIN32=true" and
-"make". It's possible that I'm skipping an important step about how to
-install mingw itself, but I don't remember how to do this. I think I
-am using one of (?!) the 64-bit versions offered within 64-bit cygwin,
-and then running a 64-bit cygwin bash shell, but I'm not sure. Be very
-cautious about buying into anything you see on the net; there are so
-many traps.
-
+"make". I do this from cygwin's bash, but it should work from other
+shells too, I think.
 
  ** Understanding the code **
 
@@ -169,10 +171,10 @@ commited to modern C++, 64-bit compiles, and removed external
 dependencies like libpng. If you want to compile some old way, this
 is where to look. But why?
 
-In April 2021 I got this compiling again on my new Windows 10 desktop,
-which required some violence to the makefile and source which may
-have messed up the other builds. I need to get the other platforms
-updated anyway!
+In April 2021 I got this compiling again on my new Windows 10 desktop
+and Ubuntu 20.04.2. This required some violence to the makefile and
+source which probably messed up the OSX build. This needs to be updated
+anyway for the new Apple chips. Why they always gotta change it?
 
  ** Things to know **
 

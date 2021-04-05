@@ -11,9 +11,17 @@
 ifdef LINUX
 # makefile for linux
 
-CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/sdl/font.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
+# SDL_net is just compiled from the small number of sources now,
+# included in this subdirectory
+SDL_NET=SDL_net
+CC_LIB=../cc-lib
 
-OFILES = main.o level.o solution.o rle.o disamb.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o ${CCLIBOBJECTS}
+CCLIBOBJECTS=$(CC_LIB)/util.o $(CC_LIB)/stb_image.o $(CC_LIB)/stb_image_write.o $(CC_LIB)/sdl/sdlutil.o $(CC_LIB)/sdl/font.o $(CC_LIB)/crypt/md5.o $(CC_LIB)/base64.o
+
+SDLNETINCLUDES=-I$(SDL_NET)
+SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP.o $(SDL_NET)/SDLnetUDP.o
+
+OFILES = main.o level.o solution.o rle.o disamb.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o $(CCLIBOBJECTS) $(SDLNETOBJECTS)
 
 default : escape.exe
 
@@ -24,13 +32,14 @@ default : escape.exe
 LDFLAGS = -Wl,-rpath=.
 
 # -lvorbisfile -lvorbis -logg
-LDLIBS = -lSDL_net -lSDL_mixer `sdl-config --libs`
+# -lSDL_net -lSDL_mixer
+LDLIBS = `sdl-config --libs`
 
 #  LDLIBS = -lefence
 
 # for multiuser, add -DMULTIUSER -DDATADIR=\"/tmp/escapedata/\" -DSTARTUP_LEVELS=\"/tmp/escapelevels\"
 # with appropriate paths to the static data (trailing slash for data dir; no trailing for startup)
-CPPFLAGS = `sdl-config --cflags`
+CPPFLAGS = `sdl-config --cflags` $(SDLNETINCLUDES) -DNOSOUND=1 -DLINUX=1
 CXXFLAGS = --std=c++17 -g -Wall -O2 -Wno-sign-compare
 
 escape.exe : ${OFILES}
@@ -70,6 +79,7 @@ version : .dummy
 	make clean
 	make escape.exe
 
+# we should just distribute a statically linked binary?
 LIBFILES=libogg.so.0 libSDL-1.2.so.0 libSDL_net-1.2.so.0 libvorbisfile.so.3 libvorbis.so.0 libartsc.so.0 libesd.so.0
 
 # XXX Unfortunately, no machine on which to build linux binaries in 2010. (VMware?)
@@ -81,8 +91,8 @@ releasefiles.linux : ${RELEASEFILES}
 	echo ${RELEASEFILES} > releasefiles.linux
 
 # XXX should be cc-lib/crypt/md5.cc?
-mkupgrade.exe : mkupgrade.cc md5.cc
-	g++ -DLINUX mkupgrade.cc md5.cc -o mkupgrade.exe
+mkupgrade.exe : mkupgrade.o ../cc-lib/crypt/md5.o
+	g++ $^ -o mkupgrade.exe
 
 CURRENT : .dummy escape.exe releasefiles.linux symlinks.linux deletefiles.linux mkupgrade.exe
 	strip escape.exe

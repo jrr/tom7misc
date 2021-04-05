@@ -60,9 +60,14 @@ extern SDL_Surface *screen;
 #  else
 #    ifdef OSX
 #      define PLATFORM "osx"
-#    else /* assume linux */
-#      define PLATFORM "linux"
-#      define LINUX
+#    else
+       /* assume linux */
+#      ifndef LINUX
+#        define LINUX
+#      endif
+#      ifdef LINUX
+#        define PLATFORM "linux"
+#      endif
 #    endif
 #  endif
 #endif
