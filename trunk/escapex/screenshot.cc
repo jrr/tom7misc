@@ -1,12 +1,14 @@
 
 #include <string>
 
-#include "escapex.h"
 #include "level.h"
-#include "../cc-lib/sdl/sdlutil.h"
 #include "escape-util.h"
-#include "draw.h"
-#include "animation.h"
+// #include "draw.h"
+// #include "animation.h"
+#include "graphics.h"
+
+#include "../cc-lib/base/stringprintf.h"
+#include "../cc-lib/base/logging.h"
 
 static string self;
 
@@ -43,6 +45,16 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  std::unique_ptr<Graphics> graphics(Graphics::Create("."));
+  CHECK(graphics.get() != nullptr) << "Failed to load graphics from .";
+  fprintf(stderr, "Graphics loaded ok.\n");
+
+  ImageRGBA out(50, 50);
+  out.Clear32(0x772222FF);
+  out.BlendImage(5, 5, graphics->hugbot_asleep);
+  out.Save(argv[2]);
+  
+#if 0
   /* we don't really need any SDL modules */
   if (SDL_Init(SDL_INIT_NOPARACHUTE) < 0) {
     fprintf(stderr, "Unable to initialize SDL. (%s)\n", SDL_GetError());
@@ -109,6 +121,8 @@ int main(int argc, char **argv) {
   SDL_FreeSurface(shot);
 
   Drawing::destroyimages();
+#endif
 
+  CHECK(false) << "unimplemented";
   return 0;
 }

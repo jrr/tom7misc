@@ -21,7 +21,7 @@ CCLIBOBJECTS=$(CC_LIB)/util.o $(CC_LIB)/stb_image.o $(CC_LIB)/stb_image_write.o 
 SDLNETINCLUDES=-I$(SDL_NET)
 SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP.o $(SDL_NET)/SDLnetUDP.o
 
-OFILES = main.o level.o solution.o rle.o disamb.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o $(CCLIBOBJECTS) $(SDLNETOBJECTS)
+OFILES=level.o solution.o rle.o disamb.o main.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o $(CCLIBOBJECTS) $(SDLNETOBJECTS)
 
 default : escape.exe
 
@@ -66,10 +66,11 @@ sound_load.h : sound.pack packsound.cc
 %-console.o : %.cc
 	g++ ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
 
-# but this should be static
-# XXX how to get sdlutil-console from cc-lib?
-screenshot.exe : draw-console.o level-console.o font-console.o escape-util-console.o sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
-	g++ -g -o screenshot.exe $^ `sdl-config --static-libs`
+# XXX old delete
+# sdlmain.o draw.o screenshot.o escapex.o rle.o level.o solution.o disamb.o escape-util.o animation.o message.o progress.o sound.o drawable.o ${CCLIBOBJECTS}
+screenshot.exe : ${ESCLIBOBJECTS} ${CCLIBOBJECTS} screenshot.o 
+	g++ ${CXXFLAGS} -o $@ $^ -static
+
 
 .dummy :
 
@@ -203,12 +204,6 @@ escape.exe : escapex.o browse.o main.o rle.o level.o solution.o disamb.o loadlev
 	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
 	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
 
-# XXX this would allow us to build "Screenshot.app", but we should
-# figure out some other approach for command-line tools.
-screenshot.exe : sdlmain.o draw.o screenshot.o escapex.o rle.o level.o solution.o disamb.o escape-util.o animation.o message.o progress.o sound.o drawable.o ${CCLIBOBJECTS}
-	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
-	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o $@
-
 .dummy :
 
 version : .dummy
@@ -320,6 +315,8 @@ CXX=x86_64-w64-mingw32-g++
 CC=x86_64-w64-mingw32-g++
 WINDRES=x86_64-w64-mingw32-windres
 
+CPPFLAGS=-O2 -I .
+
 # point this at the SDL (1.2 series) installation. You need to compile
 # SDL in there too; we just link in the object files.
 SDL=/c/code/SDL
@@ -328,16 +325,15 @@ SDL=/c/code/SDL
 SDL_NET=SDL_net
 
 
-# assume SDL build for .o files in these directories unless otherwise
-# specified!
+# assume SDL build for .o files in the current directory
 %.o : %.cc
 	@${CXX} ${CPPFLAGS} ${SDL_CXXFLAGS} -c -o $@ $<
 	@bash -c "echo -n '.'"
 
+# .. and sdl_net
 $(SDL_NET)/%.o : $(SDL_NET)/%.c
 	@${CXX} ${CPPFLAGS} ${SDL_CXXFLAGS} -c -o $@ $<
 	@bash -c "echo -n '.'"
-
 
 SDLARCH=x64
 SDLINCLUDES=-I$(SDL)/include
@@ -350,7 +346,10 @@ SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP
 LINKSDL=  -lm -mthreads -luser32 -lgdi32 -lwinmm -ldxguid
 LINKSDLNET= -lws2_32 -liphlpapi
 
-ESCOBJECTS= main.o rle.o level.o solution.o disamb.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
+# objects that do not need SDL; can be linked into tools like screenshot.exe; server
+ESCLIBOBJECTS=level.o solution.o rle.o disamb.o escape-util.o graphics.o
+
+ESCOBJECTS= main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
 
 # cc-lib is my personal collection of C++ libraries. It should be in a
 # directory next to "escapex."
@@ -358,15 +357,15 @@ CC_LIB=../cc-lib
 
 SDLUTILOBJECTS= $(CC_LIB)/sdl/sdlutil.o $(CC_LIB)/sdl/font.o
 # cc-lib assumes it can include something like "base/macros.h"
-CC_LIBINCLUDES=-I$(CC_LIB)
-CC_LIBOBJECTS= $(CC_LIB)/util.o $(CC_LIB)/crypt/md5.o $(CC_LIB)/base64.o $(CC_LIB)/stb_image_write.o $(CC_LIB)/stb_image.o $(CC_LIB)/image.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o
+CCLIBINCLUDES=-I$(CC_LIB)
+CCLIBOBJECTS= $(CC_LIB)/util.o $(CC_LIB)/crypt/md5.o $(CC_LIB)/base64.o $(CC_LIB)/stb_image_write.o $(CC_LIB)/stb_image.o $(CC_LIB)/image.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o
 
 
 # XXX reenable sound
 DEBUG=-g
 OPT=-O2
 #
-CXXFLAGS= -std=c++17 ${OPT} $(DEBUG) -DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include $(CC_LIBINCLUDES) -I.
+CXXFLAGS= -std=c++17 ${OPT} $(DEBUG) -DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include $(CCLIBINCLUDES) -I.
 SDL_CXXFLAGS= ${CXXFLAGS} ${SDLINCLUDES} ${SDLNETINCLUDES}
 
 
@@ -397,7 +396,7 @@ LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,${SUBSYSTEM} ${OPT}
 icon.o : escape.ico escape.rc
 	$(WINDRES) -i escape.rc -o $@
 
-escape.exe : ${ESCOBJECTS} ${CC_LIBOBJECTS} ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
+escape.exe : ${ESCLIBOBJECTS} ${ESCOBJECTS} ${CCLIBOBJECTS} ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
 replace.exe : replace.o escape-util.o
@@ -406,21 +405,21 @@ replace.exe : replace.o escape-util.o
 packsound.o : packsound.cc
 	$(CXX) $(CXXFLAGS) -c -o $@ $^
 
-packsound.exe : packsound.o ${CC_LIBOBJECTS}
+packsound.exe : packsound.o ${CCLIBOBJECTS}
 	${CXX} -o $@ $^ ${LDFLAGS} -static
 	strip packsound.exe
 
-rle_test.exe : rle.o rle_test.o
+rle_test.exe : lib/rle.o lib/rle_test.o
 	${CXX} $(CXXFLAGS) -o $@ $^ -static
 	strip rle_test.exe
 
 sound.o : sound.cc sound_load.h
 	${CXX} ${SDL_CXXFLAGS} -c -o $@ $<
 
-level.o : level.cc move2016.h
-	${CXX} ${SDL_CXXFLAGS} -c -o $@ $<
+graphics.o : graphics.cc graphics.h animation_syms.h
+	${CXX} ${CXXFLAGS} -c -o $@ $<
 
-animation.o : animation.cc animation.h animation_load.h
+animation.o : animation.cc animation.h animation_copy.h
 	${CXX} ${SDL_CXXFLAGS} -c -o $@ $<
 
 leveldb.o : leveldb.cc leveldb.h leveldb-query.h
@@ -433,12 +432,11 @@ sound_load.h : sound.pack packsound.cc packsound.exe
 # you could probably just replace this with like ZOPFLI=cp
 ZOPFLI=./zopflipng.exe --splitting=3 --filters=01234mepb --lossy_8bit --lossy_transparent
 
-# generate animation_load.h, animation.png, etc. % is just used as a
+# generate animation_syms.h, animation.png, etc. % is just used as a
 # trick so that gnu make lets this generate multiple targets (it
 # requires a common substring to match in all positions. here % =
 # animation. $* yields the matched string in the commands.)
-%_load.h %.png %_decs.h %_defs.h : packpng.exe %.pack
-#	rm -f animation_load.h animation.png animation_decs.h animation_defs.h
+%_copy.h %.png %_defs.h %_syms.h : packpng.exe %.pack
 	./packpng.exe $*.pack $*
 	rm -f $*-zop.png
 	${ZOPFLI} $*.png $*-zop.png
@@ -465,14 +463,11 @@ optimize-png : animation.png .dummy
 packpng.o : packpng.cc
 	$(CXX) $(CXXFLAGS) -c -o $@ $^
 
-packpng.exe : packpng.o ${CC_LIBOBJECTS}
+packpng.exe : packpng.o ${CCLIBOBJECTS}
 	${CXX} -o $@ $^ -static
 
-# TODO: Can we make this headless? It seems we have several uses for "core"
-# escape that works without SDL (e.g. server code).
-# ../cc-lib/sdl/font-console.o
-screenshot.exe : draw-console.o level-console.o escape-util-console.o ../cc-lib/sdl/sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
-	${CXX} -g -o screenshot.exe $^ `sdl-config --static-libs`
+screenshot.exe : ${ESCLIBOBJECTS} ${CCLIBOBJECTS} screenshot.o 
+	$(CXX) $(CXXFLAGS) -o $@ $^ -static
 
 .dummy :
 

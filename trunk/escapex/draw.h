@@ -9,6 +9,7 @@
 #include "level.h"
 #include "../cc-lib/sdl/font.h"
 
+class Graphics;
 class SDL_Surface;
 class Rating;
 class RateStatus;
@@ -82,7 +83,7 @@ struct Drawing {
   static SDL_Surface **tileutil;
 
   /* call this once in the program. true on success */
-  static bool LoadImages();
+  static bool LoadImages(const Graphics &graphics);
 
   static void DestroyImages();
 
