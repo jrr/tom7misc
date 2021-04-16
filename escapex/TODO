@@ -5,6 +5,12 @@
  - Compile for new mac chips. :/
  - Do a 64-bit windows release on new toolchains.
 
+ - Separate into escape-lib (pure C++) and escape frontend.
+   screenshot.exe should be buildable from just the lib.
+   Probably can just keep two copies of the graphics in memory;
+   one in ImageRGBA format (for lib) and one as SDL_Surface (for frontend).
+   
+
 Code cleanup:
  - replace vallist with deque or vector; it's not used in that many places
  - makefile does not have proper dependencies on animation_defs.h, which

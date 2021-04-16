@@ -14,9 +14,9 @@
 #include "message.h"
 #include "rating.h"
 #include "dirindex.h"
+#include "graphics.h"
 
-#define TILEUTIL_FILE DATADIR "tileutil.png"
-#define TILES_FILE DATADIR "tiles.png"
+// TODO: Get these from graphics too?
 #define FONT_FILE DATADIR "font.png"
 #define FONTSMALL_FILE DATADIR "fontsmall.png"
 
@@ -35,15 +35,13 @@ SDL_Surface **Drawing::tileutil = nullptr;
 
 #define SHOWDESTCOLOR 0xAA, 0xAA, 0x33
 
-bool Drawing::LoadImages() {
-  /* PERF could be alpha=false. but the alphadim and shrink50
-     routines rely on this being a 32 bit graphic. */
-  SDL_Surface *tt = sdlutil::LoadImageFile(TILES_FILE);
-  if (!tt) return 0;
+bool Drawing::LoadImages(const Graphics &graphics) {
+  SDL_Surface *tt = sdlutil::FromRGBA(graphics.tiles);
+  if (!tt) return false;
 
-  SDL_Surface *uu = sdlutil::LoadImageFile(TILEUTIL_FILE);
-  if (!uu) return 0;
-
+  SDL_Surface *uu = sdlutil::FromRGBA(graphics.tileutil);
+  if (!uu) return false;
+  
   /* XXX make dim levels for font too (pass in argument) */
   fon = Font::Create(screen,
                      FONT_FILE,

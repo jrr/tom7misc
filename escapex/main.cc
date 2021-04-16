@@ -101,8 +101,15 @@ int main(int argc, char **argv) {
        can safely do this. */
   }
 
+  std::unique_ptr<Graphics> graphics(Graphics::Create("."));
+  if (graphics.get() == nullptr) {
+    if (fon) Message::Bug(0, "Error loading graphics!");
+    printf("Failed to load graphics.\n");
+    goto no_drawings;
+  }
+  
   screen = sdlutil::makescreen(STARTW, STARTH);
-
+  
   if (!screen) {
     printf("Failed to create screen.\n");
     goto no_drawings;
@@ -120,9 +127,9 @@ int main(int argc, char **argv) {
 
     SDL_FreeSurface(splash);
   }
-
+  
   /* XXX callback progress for ainit */
-  if (!Drawing::LoadImages() || !Animation::ainit()) {
+  if (!Drawing::LoadImages(*graphics) || !Animation::ainit(*graphics)) {
     if (fon) Message::Bug(0, "Error loading graphics!");
     printf("Failed to load graphics.\n");
     goto no_drawings;
