@@ -7,6 +7,7 @@
 #include "escape-util.h"
 #include "directories.h"
 #include "../cc-lib/crypt/md5.h"
+#include "../cc-lib/util.h"
 #include "chars.h"
 #include "dirindex.h"
 
@@ -153,7 +154,7 @@ void Upper_::insertdir(string src) {
          might stick big files in
          managed dirs...)
       */
-      ContentEntry entry{readfile(f)};
+      ContentEntry entry{Util::ReadFile(f)};
       contents.insert({entry.md5, std::move(entry)});
     }
   }
@@ -205,7 +206,7 @@ bool Upper_::SetFile(const string &ff, const string &md, RateStatus votes,
         say(RED "what I got differs from expected");
         say("written to last_got for debug");
         /* debug */
-        writefile("last_got", mm);
+        Util::WriteFile("last_got", mm);
         return false;
       }
       contents.insert({nce.md5, std::move(nce)});

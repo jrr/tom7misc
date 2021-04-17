@@ -28,10 +28,6 @@ using namespace std;
 #define UTIL_PI 3.141592653589f
 
 // XXX remove; use cc-lib util
-string readfile(string);
-bool writefile(string fn, string s);
-
-// XXX remove; use cc-lib util
 string itos(int i);
 
 template <class T>

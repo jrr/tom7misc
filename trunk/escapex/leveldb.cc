@@ -8,14 +8,15 @@
 #include <map>
 #include <string>
 
+#include "SDL.h"
+#include "../cc-lib/crypt/md5.h"
+#include "../cc-lib/util.h"
+
 #include "escapex.h"
 #include "directories.h"
-#include "../cc-lib/crypt/md5.h"
-#include "SDL.h"
 #include "player.h"
 #include "escape-util.h"
 #include "message.h"
-#include "progress.h" // XXX
 
 /* levels loaded from disk and waiting to be added to the database */
 struct LevelWait {
@@ -177,7 +178,7 @@ void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
       /* XXX else could be a multilevel file, once we
          support those. */
       if (EscapeUtil::hasmagic(s, LEVELMAGIC)) {
-        string c = readfile(s);
+        string c = Util::ReadFile(s);
 	std::unique_ptr<Level> l = Level::FromString(c, true);
         if (l.get() != nullptr) {
           const string m = MD5::Hash(c);

@@ -1,8 +1,11 @@
 #include "handhold.h"
 
+#include <string>
+
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/sdl/font.h"
+#include "../cc-lib/util.h"
 
 #include "escape-util.h"
 #include "escapex.h"
@@ -28,10 +31,10 @@ static int hh_lastupgrade = 0;
 #define UPGRADE_INTERVAL (UPDATE_INTERVAL * 2)
 
 static bool hh_write() {
-  return writefile(HANDHOLD_FILE,
-                   (string)HANDHOLD_MAGIC +
-                   BigEndian32(hh_lastupdate) +
-                   BigEndian32(hh_lastupgrade));
+  return Util::WriteFile(HANDHOLD_FILE,
+                         (string)HANDHOLD_MAGIC +
+                         BigEndian32(hh_lastupdate) +
+                         BigEndian32(hh_lastupgrade));
 }
 
 void HandHold::init() {

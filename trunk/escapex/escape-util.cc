@@ -57,28 +57,6 @@ bool EscapeUtil::makedir(string d) {
 # endif
 }
 
-string readfile(string s) {
-  if (EscapeUtil::isdir(s)) return "";
-  if (s == "") return "";
-
-  FILE *f = fopen(s.c_str(), "rb");
-
-  if (!f) return "";
-  fseek(f, 0, SEEK_END);
-  int size = ftell(f);
-  fseek(f, 0, SEEK_SET);
-
-  char *ss = (char*)malloc(size);
-  fread(ss, 1, size, f);
-
-  fclose(f);
-
-  string ret = string(ss, size);
-  free(ss);
-
-  return ret;
-}
-
 static bool hasmagicf(FILE *f, const string &mag) {
   char *hdr = (char*)malloc(mag.length());
   if (!hdr) return false;
@@ -144,20 +122,6 @@ string EscapeUtil::readfilemagic(string s, const string &mag) {
   free(ss);
 
   return ret;
-}
-
-bool writefile(string fn, string s) {
-
-  FILE *f = fopen(fn.c_str(), "wb");
-  if (!f) return false;
-
-  /* XXX check failure */
-  fwrite(s.c_str(), 1, s.length(), f);
-
-  fclose(f);
-
-  return true;
-
 }
 
 string itos(int i) {

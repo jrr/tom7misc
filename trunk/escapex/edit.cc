@@ -6,6 +6,7 @@
 #include "SDL.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/lines.h"
+#include "../cc-lib/util.h"
 #include "../cc-lib/crypt/md5.h"
 
 #include "draw.h"
@@ -591,11 +592,11 @@ void Editor::save() {
   FixUp();
 
   if (!filename.empty()) {
-    string old = readfile(filename);
+    string old = Util::ReadFile(filename);
 
     string nstr = level->tostring();
 
-    if (writefile(filename, nstr)) {
+    if (Util::WriteFile(filename, nstr)) {
       dr.message = "Wrote " GREEN + filename + POP;
     } else {
       dr.message = RED "error writing to " + filename + POP;
@@ -679,7 +680,7 @@ void Editor::load() {
     return;
   }
   string res = ll->SelectLevel();
-  string ss = readfile(res);
+  string ss = Util::ReadFile(res);
 
   /* allow corrupted files */
   std::unique_ptr<Level> l = Level::FromString(ss, true);

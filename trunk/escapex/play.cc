@@ -1,6 +1,10 @@
 
-#include "SDL.h"
+#include "play.h"
+
 #include <math.h>
+
+#include "SDL.h"
+
 #include "time.h"
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
@@ -8,13 +12,11 @@
 #include "ptrlist.h"
 
 #include "escapex.h"
-#include "play.h"
 
 #include "message.h"
 #include "chars.h"
 #include "escape-util.h"
 #include "dirindex.h"
-#include "../cc-lib/crypt/md5.h"
 #include "prefs.h"
 #include "prompt.h"
 
@@ -26,7 +28,10 @@
 #include "menu.h"
 #include "solutionuploading.h"
 #include "client.h"
+
 #include "../cc-lib/base64.h"
+#include "../cc-lib/crypt/md5.h"
+#include "../cc-lib/util.h"
 
 #define POSTDRAW ;
 
@@ -1522,7 +1527,7 @@ void Play::PlayRecord(const string &filename, Player *plr, bool allowrate) {
     return di.get() != nullptr && di->WebCollection();
   }();
 
-  const string ss = readfile(filename);
+  const string ss = Util::ReadFile(filename);
   /* load canceled */
   if (ss.empty()) return;
 
