@@ -1,5 +1,10 @@
 
 #include "update.h"
+
+#include <memory>
+#include <string>
+
+#include "../cc-lib/util.h"
 #include "escape-util.h"
 #include "textscroll.h"
 #include "prompt.h"
@@ -9,9 +14,6 @@
 #include "handhold.h"
 #include "menu.h"
 #include "ptrlist.h"
-
-#include <memory>
-#include <string>
 
 #include "client.h"
 
@@ -121,9 +123,10 @@ void subtoggle::docheck() {
     } else {
       /* try to unsubscribe */
 
-      if (writefile(fname + (string)DIRSEP + UNSUBMARKER,
-                    (string)"delete this file to resubscribe to " + fname +
-                    (string)"\n")) {
+      if (Util::WriteFile(
+              fname + (string)DIRSEP + UNSUBMARKER,
+              (string)"delete this file to resubscribe to " + fname +
+              (string)"\n")) {
 
         checked = false;
 

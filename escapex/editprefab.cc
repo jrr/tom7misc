@@ -1,8 +1,11 @@
+#include "edit.h"
 
 #include "SDL.h"
 #include <math.h>
+
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
+#include "../cc-lib/util.h"
 #include "draw.h"
 
 #include "escapex.h"
@@ -10,7 +13,6 @@
 #include "prompt.h"
 
 #include "escape-util.h"
-#include "edit.h"
 
 #include "loadlevel.h"
 
@@ -119,7 +121,7 @@ void Editor::pffile() {
       return nullptr;
     }
     string res = ll->SelectLevel();
-    string ss = readfile(res);
+    string ss = Util::ReadFile(res);
 
     /* allow corrupted files */
     return Level::FromString(ss, true);

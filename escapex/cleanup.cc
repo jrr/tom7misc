@@ -1,12 +1,15 @@
 
-#include "escapex.h"
-#include "escape-util.h"
 #include "cleanup.h"
 
 #include <sys/stat.h>
+
+#include "escapex.h"
+#include "escape-util.h"
 #include "directories.h"
 #include "edit.h"
 #include "dircache.h"
+
+#include "../cc-lib/util.h"
 
 void Cleanup::Clean() {
   DIR *d = opendir(".");
@@ -36,7 +39,7 @@ void Cleanup::Clean() {
 
   /* make attic dir. Make sure it is ignored. */
   EscapeUtil::makedir(ATTIC_DIR);
-  writefile((string)ATTIC_DIR + DIRSEP + IGNOREFILE, "");
+  Util::WriteFile((string)ATTIC_DIR + DIRSEP + IGNOREFILE, "");
 
   closedir(d);
 }
