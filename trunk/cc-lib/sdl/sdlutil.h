@@ -11,6 +11,8 @@
 #include "SDL.h"
 #include <string>
 
+struct ImageRGBA;
+
 struct sdlutil {
   static SDL_Surface *makescreen(int w, int h);
   static void slock(SDL_Surface *surf);
@@ -30,7 +32,7 @@ struct sdlutil {
 
   // Assumes 32-bit surface, no bounds checking, inlined.
   inline static void SetPixel32(SDL_Surface *, int x, int y, Uint32 color);
-  
+
   // Load supported files using stb_image.
   static SDL_Surface *LoadImageFile(const std::string &filename);
   // Save using stb_image_write. Might only work for 32-bit RGBA.
@@ -38,6 +40,9 @@ struct sdlutil {
   // or a similar tool can usually improve it quite a bit.
   static bool SavePNG(const std::string &filename, SDL_Surface *surf);
 
+  // Convert ImageRGBA into a new SDL surface.
+  static SDL_Surface *FromRGBA(const ImageRGBA &rgba);
+  
   // Clone the surface. The copy will need to be freed with SDL_FreeSurface.
   static SDL_Surface *duplicate(SDL_Surface *surf);
 
