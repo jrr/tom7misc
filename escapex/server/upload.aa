@@ -105,7 +105,10 @@ in
          end;
 
          let
-             (* insert level *)
+             (* insert level
+                Hint to self: If you're trying to debug why they
+                aren't showing up despite "succeeding", check that
+                e.g. triage is a *symlink* to md5root, not a copy! *)
              do debug-system [/bin/mv [levloc] [pre]/[pos]]
 
              (* this appears to be irrelevant now,

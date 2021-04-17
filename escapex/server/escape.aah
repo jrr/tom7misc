@@ -36,7 +36,7 @@ val SOLROOT = "/var/www/escape-sols/"
 val PNGROOT = ROOT ^ "png/"
 val PNGWEB = "/png/"
 
-val SCREENSHOT-EXE = [/usr/src/escapex/screenshot.exe]
+val SCREENSHOT-EXE = [/usr/src/tom7misc/escapex/screenshot.exe]
 
 val LASTMCOOKIE = [esc.lastm]
 val LASTDCOOKIE = [esc.lastd]

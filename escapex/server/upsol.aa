@@ -74,7 +74,7 @@ in
                                  moves, len, md5, date)
    in
 
-     (* delete speed-only levels that are worse than the best
+     (* delete speed-only solutions that are worse than the best
         (might even include this one, in race conditions)
         if someone re-uploads a non-speedrun at the same length
         as an existing speed record, then that won't get rid
