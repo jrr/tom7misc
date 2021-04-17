@@ -252,6 +252,42 @@ ImageRGBA ImageRGBA::ScaleBy(int scale) const {
   return ret;
 }
 
+ImageRGBA ImageRGBA::ScaleDownBy(int scale) const {
+  // 1 is not useful, but it does work
+  CHECK(scale >= 1);
+  const int ww = width / scale;
+  const int hh = height / scale;
+  ImageRGBA ret(ww, hh);
+  for (int y = 0; y < hh; y++) {
+    for (int x = 0; x < ww; x++) {
+      uint32 rr = 0, gg = 0, bb = 0, aa = 0;
+      for (int yy = 0; yy < scale; yy++) {
+        for (int xx = 0; xx < scale; xx++) {
+          const auto [r, g, b, a] = GetPixel(x * scale + xx,
+                                             y * scale + yy);
+
+          // color contributions are alpha-weighted
+          rr += r * a;
+          gg += g * a;
+          bb += b * a;
+          aa += a;
+        }
+      }
+
+      // Otherwise, the color can be anything, but output black.
+      if (aa > 0) {
+        rr /= aa; 
+        gg /= aa;
+        bb /= aa;
+        aa /= scale * scale;
+      }
+      ret.SetPixel(x, y, (uint8)rr, (uint8)gg, (uint8)bb, (uint8)aa);
+    }
+  }
+  return ret;
+}
+
+
 void ImageRGBA::Clear32(uint32 color) {
   // PERF: This can be optimized by writing 32 bits at a time,
   // but beware endianness, etc.
@@ -480,6 +516,31 @@ void ImageRGBA::BlendImage(int x, int y, const ImageRGBA &other) {
   }
 }
 
+void ImageRGBA::BlendImageRect(int dstx, int dsty, const ImageRGBA &other,
+                               int srcx, int srcy, int srcw, int srch) {
+  for (int yy = 0; yy < srch; yy++) {
+    const int syy = srcy + yy;
+    const int dyy = dsty + yy;
+    // Exit early if outside dstination.
+    if (dyy >= height) break;
+    // Exit early if outside source.
+    if (syy >= other.height) break;
+
+    if (syy >= 0 && dyy >= 0) {
+      for (int xx = 0; xx < srcw; xx++) {
+        const int sxx = srcx + xx;
+        const int dxx = dstx + xx;      
+        if (dxx >= width) break;
+        if (sxx >= other.width) break;
+
+        if (sxx >= 0 && dxx >= 0) {
+          BlendPixel32(dxx, dyy, other.GetPixel32(sxx, syy));
+        }
+      }
+    }
+  }
+}
+
 void ImageRGBA::CopyImage(int x, int y, const ImageRGBA &other) {
   // PERF can factor out the pixel clipping here, supposing the
   // compiler cannot.
@@ -494,6 +555,32 @@ void ImageRGBA::CopyImage(int x, int y, const ImageRGBA &other) {
     }
   }
 }
+
+void ImageRGBA::CopyImageRect(int dstx, int dsty, const ImageRGBA &other,
+                              int srcx, int srcy, int srcw, int srch) {
+  for (int yy = 0; yy < srch; yy++) {
+    const int syy = srcy + yy;
+    const int dyy = dsty + yy;
+    // Exit early if outside dstination.
+    if (dyy >= height) break;
+    // Exit early if outside source.
+    if (syy >= other.height) break;
+
+    if (syy >= 0 && dyy >= 0) {
+      for (int xx = 0; xx < srcw; xx++) {
+        const int sxx = srcx + xx;
+        const int dxx = dstx + xx;      
+        if (dxx >= width) break;
+        if (sxx >= other.width) break;
+
+        if (sxx >= 0 && dxx >= 0) {
+          SetPixel32(dxx, dyy, other.GetPixel32(sxx, syy));
+        }
+      }
+    }
+  }
+}
+
 
 template<class F>
 inline static ImageA Extract(const ImageRGBA &img, const F &f) {
