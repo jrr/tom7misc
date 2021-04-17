@@ -42,10 +42,44 @@ static void TestEq() {
   CHECK(!(two == one));
 }
 
+static void TestScaleDown() {
+  ImageRGBA img(10, 10);
+  img.Clear32(0x00FF000);
+  img.SetPixel32(0, 0, 0xFF000001);
+  img.SetPixel32(1, 0, 0x0000FF0F);
+  img.SetPixel32(0, 1, 0x00FF00AA);
+  // max value pixel
+  img.SetPixel32(2, 0, 0xFFFFFFFF);
+  img.SetPixel32(3, 0, 0xFFFFFFFF);
+  img.SetPixel32(2, 1, 0xFFFFFFFF);
+  img.SetPixel32(3, 1, 0xFFFFFFFF);    
+
+  img.BlendText32(2, 2, 0xFFFFFFFF, ":)");
+  img.BlendLine32(9, 0, 0, 9, 0x00FFFFCC);
+  img.BlendLine32(0, 4, 9, 9, 0xFFFF00EE);
+  img.Save("test-scaledown-in.png");
+  ImageRGBA out = img.ScaleDownBy(2);
+  out.Save("test-scaledown-out.png");
+  
+  CHECK(out.Width() == img.Width() / 2);
+  CHECK(out.Height() == img.Height() / 2);  
+  {
+    auto [r, g, b, a] = out.GetPixel(0, 0);
+    CHECK(a == (0xAA + 0x0F + 0x01 + 0x00) / 4);
+    CHECK(r < 0x04);
+    CHECK(g > 0x7F);
+    CHECK(b < 0x20);
+  }
+
+  uint32 white = out.GetPixel32(1, 0);
+  CHECK(white == 0xFFFFFFFF) << white;
+}
+
 int main(int argc, char **argv) {
   TestBilinearResize();
   TestSampleBilinear();
   TestEq();
+  TestScaleDown();
   
   // XXX make tests for images!
 

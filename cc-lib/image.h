@@ -53,7 +53,11 @@ struct ImageRGBA {
 
   // Scale by a positive integer factor, crisp pixels.
   ImageRGBA ScaleBy(int scale) const;
-
+  // Scale down by averaging boxes of size scale x scale to produce
+  // a pixel value. If the width and height are not divisible by
+  // the scale, pixels are dropped.
+  ImageRGBA ScaleDownBy(int scale) const;
+  
   // In RGBA order, where R value is MSB. x/y must be in bounds.
   inline uint32 GetPixel32(int x, int y) const;
   inline std::tuple<uint8, uint8, uint8, uint8> GetPixel(int x, int y) const;
@@ -108,9 +112,13 @@ struct ImageRGBA {
 
   // Clipped, alpha blending.
   void BlendImage(int x, int y, const ImageRGBA &other);
+  void BlendImageRect(int destx, int desty, const ImageRGBA &other,
+                      int srcx, int srcy, int srcw, int srch);
   // Clipped, but copy source alpha and ignore current image contents.
   void CopyImage(int x, int y, const ImageRGBA &other);
-
+  void CopyImageRect(int destx, int desty, const ImageRGBA &other,
+                     int srcx, int srcy, int srcw, int srch);
+  
   // Extract single channel.
   ImageA Red() const;
   ImageA Green() const;
