@@ -16,12 +16,16 @@ ifdef LINUX
 SDL_NET=SDL_net
 CC_LIB=../cc-lib
 
-CCLIBOBJECTS=$(CC_LIB)/util.o $(CC_LIB)/stb_image.o $(CC_LIB)/stb_image_write.o $(CC_LIB)/sdl/sdlutil.o $(CC_LIB)/sdl/font.o $(CC_LIB)/crypt/md5.o $(CC_LIB)/base64.o
+SDLUTILOBJECTS=$(CC_LIB)/sdl/sdlutil.o $(CC_LIB)/sdl/font.o
+CCLIBINCLUDES= -I ../cc-lib
+CCLIBOBJECTS=$(CC_LIB)/image.o $(CC_LIB)/util.o $(CC_LIB)/stb_image.o $(CC_LIB)/stb_image_write.o $(CC_LIB)/crypt/md5.o $(CC_LIB)/base64.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o
 
 SDLNETINCLUDES=-I$(SDL_NET)
 SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP.o $(SDL_NET)/SDLnetUDP.o
 
-OFILES=level.o solution.o rle.o disamb.o main.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o $(CCLIBOBJECTS) $(SDLNETOBJECTS)
+ESCLIBOBJECTS=level.o solution.o rle.o disamb.o escape-util.o graphics.o
+
+ESCOBJECTS=level.o solution.o rle.o disamb.o main.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o $(CCLIBOBJECTS) $(SDLNETOBJECTS) $(ESCLIBOBJECTS) $(SDLUTILOBJECTS)
 
 default : escape.exe
 
@@ -40,9 +44,9 @@ LDLIBS = `sdl-config --libs`
 # for multiuser, add -DMULTIUSER -DDATADIR=\"/tmp/escapedata/\" -DSTARTUP_LEVELS=\"/tmp/escapelevels\"
 # with appropriate paths to the static data (trailing slash for data dir; no trailing for startup)
 CPPFLAGS = `sdl-config --cflags` $(SDLNETINCLUDES) -DNOSOUND=1 -DLINUX=1
-CXXFLAGS = --std=c++17 -g -Wall -O2 -Wno-sign-compare
+CXXFLAGS = --std=c++17 -g -Wall -O2 -Wno-sign-compare $(CCLIBINCLUDES)
 
-escape.exe : ${OFILES}
+escape.exe : ${ESCOBJECTS}
 	g++ -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
 
 
@@ -66,8 +70,6 @@ sound_load.h : sound.pack packsound.cc
 %-console.o : %.cc
 	g++ ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
 
-# XXX old delete
-# sdlmain.o draw.o screenshot.o escapex.o rle.o level.o solution.o disamb.o escape-util.o animation.o message.o progress.o sound.o drawable.o ${CCLIBOBJECTS}
 screenshot.exe : ${ESCLIBOBJECTS} ${CCLIBOBJECTS} screenshot.o 
 	g++ ${CXXFLAGS} -o $@ $^ -static
 
@@ -91,7 +93,6 @@ RELEASEFILES=
 releasefiles.linux : ${RELEASEFILES}
 	echo ${RELEASEFILES} > releasefiles.linux
 
-# XXX should be cc-lib/crypt/md5.cc?
 mkupgrade.exe : mkupgrade.o ../cc-lib/crypt/md5.o
 	g++ $^ -o mkupgrade.exe
 
