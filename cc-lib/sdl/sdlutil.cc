@@ -7,6 +7,7 @@
 
 #include "../stb_image.h"
 #include "../stb_image_write.h"
+#include "../image.h"
 
 using namespace std;
 
@@ -223,6 +224,57 @@ static void CopyRGBA(const vector<Uint8> &rgba, SDL_Surface *surface) {
     }
     break;
   }
+}
+
+SDL_Surface *sdlutil::FromRGBA(const ImageRGBA &rgba) {
+  SDL_Surface *surf = makesurface(rgba.Width(), rgba.Height(), true);
+  if (!surf) {
+    return nullptr;
+  }
+  using ByteOrder = sdlutil::ByteOrder;
+  // Uint8 *p = (Uint8 *)surface->pixels;
+  Uint32 *p = (Uint32 *)surf->pixels;
+  int width = surf->w;
+  int height = surf->h;
+  switch (sdlutil::GetByteOrder(surf)) {
+  case ByteOrder::ARGB:
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        const int pidx = (y * width + x);
+        const auto [r, g, b, a] = rgba.GetPixel(x, y);
+        p[pidx] = (a << 24) | (r << 16) | (g << 8) | b;
+      }
+    }
+    break;
+  case ByteOrder::RGBA:
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        const int pidx = (y * width + x);
+        const auto [r, g, b, a] = rgba.GetPixel(x, y);        
+        p[pidx] = (r << 24) | (g << 16) | (b << 8) | a;
+      }
+    }
+    break;
+  case ByteOrder::ABGR:
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        const int pidx = (y * width + x);
+        const auto [r, g, b, a] = rgba.GetPixel(x, y);        
+        p[pidx] = (a << 24) | (b << 16) | (g << 8) | r;
+      }
+    }
+    break;
+  case ByteOrder::BGRA:
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        const int pidx = (y * width + x);
+        const auto [r, g, b, a] = rgba.GetPixel(x, y);
+        p[pidx] = (b << 24) | (g << 16) | (r << 8) | a;
+      }
+    }
+    break;
+  }
+  return surf;
 }
 
 // Note: Avoid "LoadImage" since windows.h may #define the
