@@ -147,7 +147,7 @@ Player *PDBEntry::convert() {
   if (Player *ret = Player::FromFile(fname)) {
     /* ensure that this player (which may be from an older version)
        has at least defaults for any new prefs */
-    Prefs::defaults(ret);
+    Prefs::Defaults(ret);
     return ret;
   } else {
     Message::No(0, "Couldn't read player " + fname);

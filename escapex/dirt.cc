@@ -1,11 +1,11 @@
 
 #include "dirt.h"
 
-#include "escapex.h"
-#include "ptrlist.h"
-#include "../cc-lib/sdl/sdlutil.h"
+#include <vector>
+#include <tuple>
 
-using rlist = PtrList<SDL_Rect>;
+#include "escapex.h"
+#include "../cc-lib/sdl/sdlutil.h"
 
 namespace {
 struct Dirt_ : public Dirt {
@@ -26,8 +26,6 @@ struct Dirt_ : public Dirt {
 
   ~Dirt_() override {
     if (surf) SDL_FreeSurface(surf);
-    SDL_Rect *tmp;
-    while (( tmp = rlist::pop(dirts) )) delete tmp;
   }
 
   Dirt_() {
@@ -43,8 +41,9 @@ struct Dirt_ : public Dirt {
 
 private:
   SDL_Surface *surf = nullptr;
-  rlist *dirts = nullptr;
+  vector<tuple<int, int, int, int>> dirts;
 };
+}  // namespace
 
 /* assumes surf is the correct size by invariant */
 void Dirt_::mirror() {
@@ -57,23 +56,20 @@ void Dirt_::mirror() {
    there is more dirty area than the screen, we can just
    redraw the whole screen. */
 void Dirt_::setdirty(int x, int y, int w, int h) {
-  SDL_Rect *r = (SDL_Rect*)malloc(sizeof (SDL_Rect));
-  r->x = x;
-  r->y = y;
-  r->w = w;
-  r->h = h;
-  rlist::push(dirts, r);
+  dirts.emplace_back(x, y, w, h);
 }
 
 void Dirt_::clean() {
-  SDL_Rect *r;
-  while ( (r = rlist::pop(dirts)) ) {
-    SDL_BlitSurface(surf, r, screen, r);
+  for (auto [x, y, w, h] : dirts) {
+    SDL_Rect r;
+    r.x = x;
+    r.y = y;
+    r.w = w;
+    r.h = h;
+    SDL_BlitSurface(surf, &r, screen, &r);
     /* debug version */
     //    SDL_FillRect(screen, r, 0x99AA9999);
-    free(r);
   }
-}
 }
 
 Dirt *Dirt::create() {

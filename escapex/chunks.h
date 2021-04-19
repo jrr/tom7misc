@@ -2,27 +2,35 @@
 #ifndef _ESCAPE_CHUNKS_H
 #define _ESCAPE_CHUNKS_H
 
+#include <cstdint>
+#include <string>
+#include <optional>
+#include <memory>
+#include <vector>
+#include <map>
+
 #include "base.h"
-#include "ptrlist.h"
 
 /* associative chunk database. */
 
 /* contents of database */
-enum ChunkType : uint32 { CT_INT32, CT_BOOL, CT_STRING, };
+enum ChunkType : uint32 { CT_INVALID = 0xFFFFFFFF,
+                          CT_INT32 = 0, CT_BOOL = 1, CT_STRING = 2, };
 struct Chunk {
-  ChunkType type;
-  uint32 key;
+  ChunkType type = CT_INVALID;
+  uint32_t key = 0;
 
-  string ToString();
-  static Chunk *FromString(const string &s);
-  Chunk(uint32, int32);
-  Chunk(uint32, bool);
-  Chunk(uint32, string);
+  std::string ToString() const;
+  static std::optional<Chunk> FromString(const std::string &s);
+  Chunk() {}
+  Chunk(uint32_t, int32_t);
+  Chunk(uint32_t, bool);
+  Chunk(uint32_t, std::string);
   virtual ~Chunk() {}
 
   /* only one will make sense, depending on type */
-  int i;
-  string s;
+  int32_t i = 0;
+  std::string s;
 };
 
 /* database itself */
@@ -31,23 +39,27 @@ struct Chunks {
   static std::unique_ptr<Chunks> Create();
 
   /* revive marshalled chunks */
-  static std::unique_ptr<Chunks> FromString(const string &s);
+  static std::unique_ptr<Chunks> FromString(const std::string &s);
 
   /* marshall to string */
-  virtual string ToString();
+  virtual std::string ToString() const;
 
-  /* returns 0 if not present */
-  virtual Chunk *Get(uint32 key);
+  /* returns nullptr if not present.
+     Pointer is owned by Chunks and is invalidated by Insert,
+     destructor, etc. */
+  virtual const Chunk *Get(uint32_t key) const;
 
-  /* replace existing chunk, if present.
-     takes ownership of chunk in any case */
-  virtual void Insert(Chunk *data);
+  /* replace existing chunk, if present. */
+  virtual void Insert(const Chunk &data);
 
   virtual ~Chunks();
 
  private:
-  PtrList<Chunk> *data = nullptr;
-  static int Compare(Chunk *l, Chunk *r);
+  Chunks() {}
+  Chunks(const std::vector<Chunk> &data);
+
+  // Map key is chunk's key.
+  std::map<uint32_t, Chunk> data;
 };
 
 

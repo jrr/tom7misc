@@ -1,7 +1,7 @@
+#include "prefs.h"
 
 #include "escapex.h"
 #include "player.h"
-#include "prefs.h"
 #include "menu.h"
 #include "draw.h"
 #include "message.h"
@@ -10,7 +10,7 @@
 
 #define IND (fon->width)
 
-void Prefs::show(Player *plr) {
+void Prefs::Show(Player *plr) {
 
   /* ------- user info -------- */
   /* XXX allow changing of name,
@@ -28,7 +28,7 @@ void Prefs::show(Player *plr) {
   askrate.indent = IND;
   askrate.disabled = !plr->webid;
   askrate.question = "Prompt to Rate";
-  askrate.checked = getbool(plr, PREF_ASKRATE);
+  askrate.checked = GetBool(plr, PREF_ASKRATE);
   askrate.explanation =
     "If checked, then the game will prompt you to rate\n"
     "a level after solving it for the first time.\n"
@@ -38,7 +38,7 @@ void Prefs::show(Player *plr) {
   showtut.indent = IND;
   showtut.disabled = false;
   showtut.question = "Show Tutorial";
-  showtut.checked = getbool(plr, PREF_SHOWTUT);
+  showtut.checked = GetBool(plr, PREF_SHOWTUT);
   showtut.explanation =
     "Show the tutorial on the main menu.\n"
     GREY "(Default: Checked)";
@@ -47,7 +47,7 @@ void Prefs::show(Player *plr) {
   backup.indent = IND;
   backup.disabled = false;
   backup.question = "Backup Player";
-  backup.checked = getbool(plr, PREF_BACKUP_PLAYER);
+  backup.checked = GetBool(plr, PREF_BACKUP_PLAYER);
   backup.explanation =
     "Back up player files every few days. They can be\n"
     "recovered from the player selection screen.\n"
@@ -56,7 +56,7 @@ void Prefs::show(Player *plr) {
 #if 0
   Slider animspeed(0, ANIMATION_MAX_SPEED, 22);
   animspeed.indent = IND;
-  animspeed.pos = getint(plr, PREF_ANIMATION_SPEED);
+  animspeed.pos = GetInt(plr, PREF_ANIMATION_SPEED);
   animspeed.question = "Animation Speed";
   animspeed.low = "slower";
   animspeed.high = "faster    off ^^";
@@ -67,7 +67,7 @@ void Prefs::show(Player *plr) {
 
   Toggle animon;
   animon.indent = IND;
-  animon.checked = getbool(plr, PREF_ANIMATION_ENABLED);
+  animon.checked = GetBool(plr, PREF_ANIMATION_ENABLED);
   animon.question = "Enable Animation";
   animon.explanation =
     "Draw animations when playing. Recommended unless you are\n"
@@ -76,7 +76,7 @@ void Prefs::show(Player *plr) {
 
   Toggle optsol;
   optsol.indent = IND;
-  optsol.checked = getbool(plr, PREF_OPTIMIZE_SOLUTIONS);
+  optsol.checked = GetBool(plr, PREF_OPTIMIZE_SOLUTIONS);
   optsol.question = "Optimize Solutions";
   optsol.explanation =
     "After you solve a level, the game will automatically try\n"
@@ -93,7 +93,7 @@ void Prefs::show(Player *plr) {
   TextInput servername;
   servername.indent = IND;
   servername.question = "Server:";
-  servername.input = getstring(plr, PREF_SERVER);
+  servername.input = GetString(plr, PREF_SERVER);
   servername.explanation =
     "This is the internet name of the server that Escape connects\n"
     "to in order to upgrade, register, and get new levels.\n"
@@ -101,7 +101,7 @@ void Prefs::show(Player *plr) {
 
   Toggle altconnect;
   altconnect.indent = IND;
-  altconnect.checked = getbool(plr, PREF_ALTCONNECT);
+  altconnect.checked = GetBool(plr, PREF_ALTCONNECT);
   altconnect.question = "Alternate Connect";
   altconnect.explanation =
     "If this option is selected, then Escape will connect on an\n"
@@ -110,7 +110,7 @@ void Prefs::show(Player *plr) {
 
   Toggle debugnet;
   debugnet.indent = IND;
-  debugnet.checked = getbool(plr, PREF_DEBUG_NET);
+  debugnet.checked = GetBool(plr, PREF_DEBUG_NET);
   debugnet.question = "Debug Network";
   debugnet.explanation =
     "Records debugging information about the networking process\n"
@@ -151,64 +151,64 @@ void Prefs::show(Player *plr) {
 
   /* XXX check InputResultKind::QUIT */
   if (res == InputResultKind::OK) {
-    putstring(plr, PREF_SERVER, servername.input);
-    putbool(plr, PREF_ALTCONNECT, altconnect.checked);
-    putbool(plr, PREF_ASKRATE, askrate.checked);
-    putbool(plr, PREF_SHOWTUT, showtut.checked);
-    putbool(plr, PREF_BACKUP_PLAYER, backup.checked);
-    putbool(plr, PREF_DEBUG_NET, debugnet.checked);
-    putbool(plr, PREF_ANIMATION_ENABLED, animon.checked);
-    putbool(plr, PREF_OPTIMIZE_SOLUTIONS, optsol.checked);
+    PutString(plr, PREF_SERVER, servername.input);
+    PutBool(plr, PREF_ALTCONNECT, altconnect.checked);
+    PutBool(plr, PREF_ASKRATE, askrate.checked);
+    PutBool(plr, PREF_SHOWTUT, showtut.checked);
+    PutBool(plr, PREF_BACKUP_PLAYER, backup.checked);
+    PutBool(plr, PREF_DEBUG_NET, debugnet.checked);
+    PutBool(plr, PREF_ANIMATION_ENABLED, animon.checked);
+    PutBool(plr, PREF_OPTIMIZE_SOLUTIONS, optsol.checked);
 
     /* prefs may have changed, so write */
     plr->WriteFile();
   }
 }
 
-void Prefs::defaults(Player *plr) {
+void Prefs::Defaults(Player *plr) {
 
   Chunks *ch = plr->GetChunks();
 
   if (!ch->Get(PREF_SERVER))
-    putstring(plr, PREF_SERVER, DEFAULT_SERVER);
+    PutString(plr, PREF_SERVER, DEFAULT_SERVER);
 
   if (!ch->Get(PREF_ALTCONNECT))
-    putbool(plr, PREF_ALTCONNECT, false);
+    PutBool(plr, PREF_ALTCONNECT, false);
 
   if (!ch->Get(PREF_ASKRATE))
-    putbool(plr, PREF_ASKRATE, true);
+    PutBool(plr, PREF_ASKRATE, true);
 
   if (!ch->Get(PREF_SHOWTUT))
-    putbool(plr, PREF_SHOWTUT, true);
+    PutBool(plr, PREF_SHOWTUT, true);
 
   if (!ch->Get(PREF_BACKUP_PLAYER))
-    putbool(plr, PREF_BACKUP_PLAYER, true);
+    PutBool(plr, PREF_BACKUP_PLAYER, true);
 
   if (!ch->Get(PREF_DEBUG_NET))
-    putbool(plr, PREF_DEBUG_NET, false);
+    PutBool(plr, PREF_DEBUG_NET, false);
 
   if (!ch->Get(PREF_ANIMATION_ENABLED))
-    putbool(plr, PREF_ANIMATION_ENABLED, true);
+    PutBool(plr, PREF_ANIMATION_ENABLED, true);
 
   if (!ch->Get(PREF_OPTIMIZE_SOLUTIONS))
-    putbool(plr, PREF_OPTIMIZE_SOLUTIONS, true);
+    PutBool(plr, PREF_OPTIMIZE_SOLUTIONS, true);
 
 }
 
-void Prefs::putstring(Player *plr, uint32 key, string s) {
-  plr->GetChunks()->Insert(new Chunk(key, s));
+void Prefs::PutString(Player *plr, uint32 key, string s) {
+  plr->GetChunks()->Insert(Chunk(key, s));
 }
 
-void Prefs::putbool(Player *plr, uint32 key, bool b) {
-  plr->GetChunks()->Insert(new Chunk(key, b));
+void Prefs::PutBool(Player *plr, uint32 key, bool b) {
+  plr->GetChunks()->Insert(Chunk(key, b));
 }
 
-void Prefs::putint(Player *plr, uint32 key, int32 i) {
-  plr->GetChunks()->Insert(new Chunk(key, i));
+void Prefs::PutInt(Player *plr, uint32 key, int32 i) {
+  plr->GetChunks()->Insert(Chunk(key, i));
 }
 
-int32 Prefs::getint(Player *plr, uint32 k) {
-  Chunk *c = plr->GetChunks()->Get(k);
+int32 Prefs::GetInt(Player *plr, uint32 k) {
+  const Chunk *c = plr->GetChunks()->Get(k);
 
   if (c && c->type == CT_INT32) {
     return c->i;
@@ -220,8 +220,8 @@ int32 Prefs::getint(Player *plr, uint32 k) {
   }
 }
 
-bool Prefs::getbool(Player *plr, uint32 k) {
-  Chunk *c = plr->GetChunks()->Get(k);
+bool Prefs::GetBool(Player *plr, uint32 k) {
+  const Chunk *c = plr->GetChunks()->Get(k);
 
   if (c && c->type == CT_BOOL) {
     return (bool)c->i;
@@ -231,8 +231,8 @@ bool Prefs::getbool(Player *plr, uint32 k) {
   }
 }
 
-string Prefs::getstring(Player *plr, uint32 k) {
-  Chunk *c = plr->GetChunks()->Get(k);
+string Prefs::GetString(Player *plr, uint32 k) {
+  const Chunk *c = plr->GetChunks()->Get(k);
 
   if (c && c->type == CT_STRING) {
     return c->s;

@@ -1,16 +1,25 @@
 
-#include "base.h"
 #include "chunks.h"
-#include "escape-util.h"
-#include "ptrlist.h"
 
+#include <cstdint>
+#include <string>
+#include <optional>
+#include <memory>
+#include <vector>
+#include <map>
+
+#include "base.h"
+#include "escape-util.h"
 #include "bytes.h"
+
+using int32 = int32_t;
+using uint32 = uint32_t;
 
 Chunk::Chunk(uint32 k, int32 ii) : type(CT_INT32), key(k), i(ii) {}
 Chunk::Chunk(uint32 k, bool bb) : type(CT_BOOL), key(k), i(bb) {}
 Chunk::Chunk(uint32 k, string ss) : type(CT_STRING), key(k), i(0), s(ss) {}
 
-string Chunk::ToString() {
+string Chunk::ToString() const {
   /* key and type first, then data.
      the size of string data must be deduced from some other
      source. */
@@ -26,73 +35,49 @@ string Chunk::ToString() {
   abort();
 }
 
-Chunk *Chunk::FromString(const string &s) {
+std::optional<Chunk> Chunk::FromString(const string &s) {
   /* no type field */
-  if (s.length() < 8) return nullptr;
+  if (s.length() < 8) return {};
   uint32 idx = 0;
   uint32 key = (unsigned int)ReadBigEndian32(s, idx);
   ChunkType ty = (ChunkType)ReadBigEndian32(s, idx);
 
   switch (ty) {
+  case CT_INVALID:
+    return {};
   case CT_BOOL:
-    if (s.length() < 12) return nullptr;
-    else return new Chunk(key, (bool)ReadBigEndian32(s, idx));
+    if (s.length() < 12) return {};
+    else return {Chunk(key, (bool)ReadBigEndian32(s, idx))};
   case CT_INT32:
-    if (s.length() < 12) return nullptr;
-    else return new Chunk(key, (int)ReadBigEndian32(s, idx));
+    if (s.length() < 12) return {};
+    else return {Chunk(key, (int)ReadBigEndian32(s, idx))};
   case CT_STRING:
-    return new Chunk(key, (string)s.substr(8, s.length() - 8));
+    return {Chunk(key, (string)s.substr(8, s.length() - 8))};
   default:
-    return nullptr;
+    return {};
   }
 }
 
 std::unique_ptr<Chunks> Chunks::Create() {
-  return std::make_unique<Chunks>();
+  return std::unique_ptr<Chunks>(new Chunks);
 }
 
-Chunks::~Chunks() {
-  while (data)
-    delete PtrList<Chunk>::pop(data);
+Chunks::~Chunks() {}
+
+const Chunk *Chunks::Get(uint32 k) const {
+  auto it = data.find(k);
+  if (it == data.end())
+    return nullptr;
+
+  return &it->second;
 }
 
-Chunk *Chunks::Get(uint32 k) {
-  for (PtrList<Chunk> *tmp = data; tmp; tmp = tmp->next) {
-    if (tmp->head->key == k) return tmp->head;
-  }
-  return nullptr;
-}
-
-int Chunks::Compare(Chunk *l, Chunk *r) {
-  return l->key - r->key;
-}
-
-string Chunks::ToString() {
-  string op; /*  = BigEndian32(data->length()); */
-
-  /* sort so that we change the player file less often */
-  PtrList<Chunk>::sort(Chunks::Compare, data);
-
-  /*
-  {
-  printf("prepass\n");
-  for (PtrList<Chunk> *tmp = data; tmp; tmp = tmp->next) {
-    printf("    tmp is %p next is %p key: ", tmp, tmp->next);
-    printf("    .. %d\n", tmp->head->key);
-  }
-  }
-  */
-
-  /*
-  printf("Chunk tostring:\n");
-  printf("data: %p\n", data); */
-  for (PtrList<Chunk> *tmp = data; tmp; tmp = tmp->next) {
-    /*
-      printf("    tmp is %p next is %p key: ", tmp, tmp->next);
-      printf("    .. %d\n", tmp->head->key);
-    */
-    const string it = tmp->head->ToString();
-    op = op + BigEndian32(it.length()) + it;
+string Chunks::ToString() const {
+  string op;
+  for (const auto &[key_, chunk] : data) {
+    const string c = chunk.ToString();
+    op += BigEndian32(c.length());
+    op += c;
   }
 
   return op;
@@ -101,41 +86,33 @@ string Chunks::ToString() {
 /* exhausts the input string */
 std::unique_ptr<Chunks> Chunks::FromString(const string &s) {
   uint32 idx = 0;
-  PtrList<Chunk> *dat = nullptr;
+  vector<Chunk> dat;
 
   while (idx < s.length()) {
     int len = ReadBigEndian32(s, idx);
-    /* XXX cleanup */
+
     if (idx + len > s.length()) {
       printf("bad length\n");
       return nullptr;
     }
     string ch = s.substr(idx, len); idx += len;
-    Chunk *c = Chunk::FromString(ch);
-    /* XXX cleanup */
-    if (!c) {
-      printf("bad c\n");
+
+    if (const std::optional<Chunk> c = Chunk::FromString(ch)) {
+      dat.push_back(c.value());
+    } else {
       return nullptr;
     }
-    PtrList<Chunk>::push(dat, c);
   }
 
-  std::unique_ptr<Chunks> ck{new Chunks};
-  ck->data = dat;
-  return ck;
+  return std::unique_ptr<Chunks>(new Chunks(dat));
 }
 
-void Chunks::Insert(Chunk *insme) {
-  for (PtrList<Chunk> *tmp = data;
-       tmp; tmp = tmp->next) {
-
-    if (insme->key == tmp->head->key) {
-      delete tmp->head;
-      tmp->head = insme;
-      return;
-    }
+Chunks::Chunks(const std::vector<Chunk> &data_vec) {
+  for (const Chunk &chunk : data_vec) {
+    data[chunk.key] = chunk;
   }
+}
 
-  /* not found */
-  PtrList<Chunk>::push(data, insme);
+void Chunks::Insert(const Chunk &chunk) {
+  data[chunk.key] = chunk;
 }

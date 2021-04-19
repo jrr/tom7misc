@@ -16,12 +16,12 @@
 HTTP *Client::Connect(Player *plr, TextScroll *tx, Drawable *that) {
   std::unique_ptr<HTTP> hh{HTTP::Create()};
 
-  if (Prefs::getbool(plr, PREF_DEBUG_NET))
+  if (Prefs::GetBool(plr, PREF_DEBUG_NET))
     hh->log_message = DebugLogMessage;
 
-  string serveraddress = Prefs::getstring(plr, PREF_SERVER);
+  string serveraddress = Prefs::GetString(plr, PREF_SERVER);
   int serverport =
-    Prefs::getbool(plr, PREF_ALTCONNECT) ? 8888 : 80;
+    Prefs::GetBool(plr, PREF_ALTCONNECT) ? 8888 : 80;
 
   if (hh.get() == nullptr) {
     if (tx) tx->Say(YELLOW "Couldn't create http object.");

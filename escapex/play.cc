@@ -987,7 +987,7 @@ PlayResult Play_::DoPlaySave(Player *plr,
   std::unique_ptr<Dirt> dirty{Dirt::create()};
 
   bool do_animate =
-    Prefs::getbool(plr, PREF_ANIMATION_ENABLED);
+    Prefs::GetBool(plr, PREF_ANIMATION_ENABLED);
 
   for (;;) {
     //  while ( SDL_WaitEvent(&event) >= 0 ) {
@@ -1099,7 +1099,7 @@ PlayResult Play_::DoPlaySave(Player *plr,
              animation temporarily */
           if (dr.zoomfactor == 0)
             do_animate =
-              Prefs::getbool(plr, PREF_ANIMATION_ENABLED);
+              Prefs::GetBool(plr, PREF_ANIMATION_ENABLED);
 
           /* fix scrolls */
           dr.MakeScrollReasonable();
@@ -1595,7 +1595,7 @@ void Play::PlayRecord(const string &filename, Player *plr, bool allowrate) {
 
       // Initialize opt, the solution we'll actually store.
       Solution opt;
-      if (Prefs::getbool(plr, PREF_OPTIMIZE_SOLUTIONS)) {
+      if (Prefs::GetBool(plr, PREF_OPTIMIZE_SOLUTIONS)) {
 	std::unique_ptr<Level> check = Level::FromString(ss);
         if (check.get() != nullptr) {
           opt = Optimize::Opt(check.get(), sol);
@@ -1618,7 +1618,7 @@ void Play::PlayRecord(const string &filename, Player *plr, bool allowrate) {
           firstsol &&
           iscollection &&
           !plr->getrating(md5) &&
-          Prefs::getbool(plr, PREF_ASKRATE)) {
+          Prefs::GetBool(plr, PREF_ASKRATE)) {
 
         std::unique_ptr<RateScreen> rs{
 	  RateScreen::Create(plr, level.get(), md5)};
