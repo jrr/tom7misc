@@ -310,7 +310,7 @@ MainMenu::Result MainMenu_::Show() {
         }
 
         case SDLK_p: {
-          Prefs::show(pp);
+          Prefs::Show(pp);
           Redraw();
           continue;
         }
@@ -347,7 +347,7 @@ MainMenu::Result MainMenu_::Show() {
 	  if (network) return UPDATE;
 	  else continue;
         case MMEType::PREFS:
-	  Prefs::show(pp);
+	  Prefs::Show(pp);
 	  Redraw();
 	  continue;
         default: break;
@@ -462,7 +462,7 @@ MainMenu_ *MainMenu_::Create(Player *plr) {
   int i = 0;
 
   mm->sel->selected = 1;
-  if (Prefs::getbool(plr, PREF_SHOWTUT)) {
+  if (Prefs::GetBool(plr, PREF_SHOWTUT)) {
     mm->sel->items[i++].t = MMEType::TUTORIAL;
 
     /* select tutorial if there's something left. */
