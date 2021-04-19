@@ -172,9 +172,11 @@ dependencies like libpng. If you want to compile some old way, this
 is where to look. But why?
 
 In April 2021 I got this compiling again on my new Windows 10 desktop
-and Ubuntu 20.04.2. This required some violence to the makefile and
-source which probably messed up the OSX build. This needs to be updated
-anyway for the new Apple chips. Why they always gotta change it?
+and Ubuntu 20.04.2. I also removed dependencies on SDL for the
+standalone tools like screenshot.exe. This required some violence to
+the makefile and source which probably messed up the OSX build. This
+needs to be updated anyway for the new Apple chips. Why they always
+gotta change it?
 
  ** Things to know **
 

@@ -8,6 +8,7 @@
 #include "../cc-lib/lines.h"
 #include "../cc-lib/util.h"
 #include "../cc-lib/crypt/md5.h"
+#include "../cc-lib/base/stringprintf.h"
 
 #include "draw.h"
 #include "escapex.h"
@@ -194,10 +195,10 @@ void Editor::Draw() {
 
     /* draw extra info */
     if (j == POS_RANDTYPE) {
-      fon->draw(j * TILEW + 14, 12, GREY + itos(randtype) + POP);
+      fon->draw(j * TILEW + 14, 12, GREY + Util::itos(randtype) + POP);
     } else if (j == POS_BOMBTIMER) {
       fon->draw(j * TILEW + 14, 12,
-                GREY + itos((int)currentbomb - (int)B_BOMB_0) + POP);
+                GREY + Util::itos((int)currentbomb - (int)B_BOMB_0) + POP);
     }
   }
 
@@ -243,7 +244,7 @@ void Editor::Draw() {
         level->where(level->boti[b], bx, by);
         int bsx, bsy;
         if (dr.OnScreen(bx, by, bsx, bsy)) {
-          string ss = RED + itos(Level::bombmaxfuse(level->bott[b]));
+          string ss = RED + Util::itos(Level::bombmaxfuse(level->bott[b]));
           fon->draw(bsx + ((TILEW - fon->sizex(ss))>>1),
                     bsy + ((TILEH - fon->height)>>1),
                     ss);
@@ -318,8 +319,7 @@ void Editor::Draw() {
 
     fonsmall->draw(dr.posx + dr.margin + 1,
                    dr.posy + dr.margin - fonsmall->height,
-                   itos(dr.scrollx) + ", " +
-                   itos(dr.scrolly));
+                   StringPrintf("%d, %d", dr.scrollx, dr.scrolly));
   }
 
 }
@@ -520,7 +520,7 @@ void Editor::placebot(bot b) {
 
   string msg =
     (level->nbots < LEVEL_MAX_ROBOTS) ?
-    ("Click to place bot of type " + itos((int)b)) :
+    ("Click to place bot of type " + Util::itos((int)b)) :
     (RED "Out of bots!" POP " -- click existing bot to change type.");
 
   if (getdest(x, y, msg)) {
@@ -539,7 +539,7 @@ void Editor::placebot(bot b) {
         addbot(x, y, b);
       } else {
         Message::No(this,
-                    "Maximum robots (" + itos(LEVEL_MAX_ROBOTS) +
+                    "Maximum robots (" + Util::itos(LEVEL_MAX_ROBOTS) +
                     ") reached!");
         Redraw();
       }
@@ -637,11 +637,11 @@ void Editor::save() {
         }
 
         if (rs + rb > 0) {
-          string s = rs?((string)YELLOW + itos(rs) + POP " solution"
+          string s = rs?((string)YELLOW + Util::itos(rs) + POP " solution"
                          + ((rs == 1) ? (string)"" : (string)"s")
                          + (rb ? (string)", " : (string)"")
                          ) : "";
-          string b = rb?((string)YELLOW + itos(rb) + POP " bookmark"
+          string b = rb?((string)YELLOW + Util::itos(rb) + POP " bookmark"
                          + ((rb == 1) ? (string)"" : (string)"s")
                          ) : "";
           dr.message += (string)ALPHA50 " (" BLUE "recovered " + s + b +
@@ -721,8 +721,8 @@ void Editor::playlev() {
 void Editor::Resize() {
   ClearSelection();
 
-  string nw = itos(level->w);
-  string nh = itos(level->h);
+  string nw = Util::itos(level->w);
+  string nh = Util::itos(level->h);
 
   TextInput twidth;
   twidth.question = "Width";
@@ -997,7 +997,7 @@ void Editor::Edit(const Level *origlev) {
 
             int n = e->x / TILEW;
 
-            dr.message = itos(n);
+            dr.message = Util::itos(n);
 
             Redraw();
 
@@ -1787,7 +1787,7 @@ bool Editor::getdest(int &x, int &y, string msg) {
             x = tx;
             y = ty;
 
-            dr.message = itos(tx) + (string)", " + itos(ty);
+            dr.message = StringPrintf("%d, %d", tx, ty);
             return 1;
           }
           /* other clicks cancel */

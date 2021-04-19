@@ -5,6 +5,7 @@
 #include <string>
 
 #include "../cc-lib/util.h"
+
 #include "escape-util.h"
 #include "textscroll.h"
 #include "prompt.h"
@@ -14,7 +15,6 @@
 #include "handhold.h"
 #include "menu.h"
 #include "ptrlist.h"
-
 #include "client.h"
 
 #define UNSUBMARKER "unsubscribed"
@@ -184,7 +184,7 @@ CCResult Updater_::CheckCollections(
     /* parse result. see protocol.txt */
     int ncolls = EscapeUtil::stoi(EscapeUtil::getline(s));
 
-    say((string)BLUE + itos(ncolls) + (string)" collection" +
+    say((string)BLUE + Util::itos(ncolls) + (string)" collection" +
         (string)((ncolls==1)?"":"s") + (string)":" POP);
 
     /* then, ncolls collections */
@@ -204,7 +204,7 @@ CCResult Updater_::CheckCollections(
 
       say((string)"  " YELLOW + fname + POP +
           (string)(usable? " " GREEN : " " RED) +
-          itos(minv) + (string)POP " " BLUE + showname + POP);
+          Util::itos(minv) + (string)POP " " BLUE + showname + POP);
 
       if (usable) {
         collections->emplace_back(fname, showname);
@@ -333,7 +333,7 @@ void Updater_::UpdateCollection(
     /* always save the root dir */
     up->SaveDir("", showname);
 
-    say("ndirs: " + itos(ndirs));
+    say("ndirs: " + Util::itos(ndirs));
 
     while (ndirs--) {
       string line = EscapeUtil::getline(s);
@@ -357,7 +357,7 @@ void Updater_::UpdateCollection(
       up->SaveDir(d, name);
     }
 
-    say("nfiles: " + itos(nfiles));
+    say("nfiles: " + Util::itos(nfiles));
 
     int epoch = SDL_GetTicks();
 

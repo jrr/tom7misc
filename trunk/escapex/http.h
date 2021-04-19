@@ -10,6 +10,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 #include "httputil.h"
 
@@ -41,8 +42,8 @@ struct HTTP {
   virtual HTTPResult gettempfile(std::string path, std::string &file) = 0;
 
   /* use post, allowing to upload files */
-  virtual HTTPResult put(const std::string &path,
-                         formalist *items,
+  virtual HTTPResult Put(const std::string &path,
+                         const std::vector<FormEntry> &items,
                          std::string &out) = 0;
 
   /* set callback object. This object is never freed. */

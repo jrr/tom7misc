@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <memory>
 #include <assert.h>
 
 #include "chunks.h"
@@ -13,6 +14,8 @@
 #include "escape-util.h"
 
 #include "../cc-lib/base64.h"
+#include "../cc-lib/base/stringprintf.h"
+#include "../cc-lib/util.h"
 #include "../cc-lib/crypt/md5.h"
 
 #include "bytes.h"
@@ -179,7 +182,7 @@ struct Player_ : public Player {
 
  private:
 
-  void deleteoldbackups();
+  void DeleteOldBackups();
   static string backupfile(string fname, int epoch);
   bool writef_text(const string &f);
 
@@ -299,11 +302,11 @@ void Player_::PutRating(const string &md5, Rating *rat) {
 #define N_BACKUPS 4
 
 string Player_::backupfile(string fname, int epoch) {
-  return fname + ".~" + itos(epoch);
+  return StringPrintf("%s.~%d", fname.c_str(), epoch);
 }
 
 /* get rid of old backups, if any */
-void Player_::deleteoldbackups() {
+void Player_::DeleteOldBackups() {
   DIR *dir = opendir(".");
   if (!dir) return;
 
@@ -335,7 +338,7 @@ void Player_::deleteoldbackups() {
           int age = atoi(sage.c_str());
 
           /* check that it's a valid number ... */
-          if (age && sage == itos(age)) {
+          if (age && sage == Util::itos(age)) {
             /* printf("saw '%s' with age %d\n", f.c_str(), age); */
             n++;
             if (age < oldest) oldest = age;
@@ -347,11 +350,11 @@ void Player_::deleteoldbackups() {
 
   if (n > N_BACKUPS) {
 
-    string delme = basename + itos(oldest);
+    string delme = StringPrintf("%s.%d", basename.c_str(), oldest);
     if (EscapeUtil::existsfile(delme) && EscapeUtil::remove(delme)) {
       /* try deleting again */
       /* printf("deleted backup #%d\n", oldest); */
-      deleteoldbackups();
+      DeleteOldBackups();
     }
   }
 }
@@ -366,7 +369,7 @@ bool Player_::WriteFile() {
     if (!EscapeUtil::existsfile(tf)) {
       writef_text(tf);
     }
-    deleteoldbackups();
+    DeleteOldBackups();
   }
 
   /* anyway, always write the real file */

@@ -3,11 +3,15 @@
 
 #include "draw.h"
 
+#include <algorithm>
+#include <vector>
 #include <time.h>
 
 #include "SDL.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/lines.h"
+#include "../cc-lib/util.h"
+#include "../cc-lib/base/stringprintf.h"
 #include "chars.h"
 #include "escape-util.h"
 #include "animation.h"
@@ -309,23 +313,6 @@ void Drawing::SetScroll() {
   MakeScrollReasonable();
 }
 
-namespace {
-/* we sort the bots (and player) by 'depth'
-   in order to draw them in a consistent order. */
-struct BB {
-  int i; /* index */
-  bot e; /* ent type */
-  int d; /* direction */
-  int a; /* extended data */
-};
-}
-
-static int ydepth_compare(const void *l, const void *r) {
-  BB *ll = (BB*) l;
-  BB *rr = (BB*) r;
-  return ll->i - rr->i;
-}
-
 void Drawing::DrawLev(int layer, /* dir facing, */
                       SDL_Surface *surf, bool dim) {
 
@@ -462,40 +449,54 @@ void Drawing::DrawLev(int layer, /* dir facing, */
   /* XXX this is not really accurate. We should sort these by z(y)-order
      wrt to the guy as well */
   {
-    BB *bots = (BB*) malloc((lev->nbots + 1) * sizeof (BB));
+    /* we sort the bots (and player) by 'depth'
+       in order to draw them in a consistent order. */
+    struct BB {
+      int i; /* index */
+      bot e; /* ent type */
+      int d; /* direction */
+      int a; /* extended data */
+      BB(int i, bot e, int d, int a) :
+        i(i), e(e), d(d), a(a) {}
+    };
+    
+    vector<BB> bots;
+    bots.reserve(lev->nbots + 1);
+    // BB *bots = (BB*) malloc((lev->nbots + 1) * sizeof (BB));
 
     for (int i = 0; i < lev->nbots; i++) {
-      bots[i].i = lev->boti[i];
-      bots[i].e = lev->bott[i];
-      bots[i].d = lev->botd[i];
-      bots[i].a = lev->bota[i];
+      bots.emplace_back(lev->boti[i],
+                        lev->bott[i],
+                        lev->botd[i],
+                        lev->bota[i]);
     }
     /* and player */
-    bots[lev->nbots].i = lev->index(lev->guyx, lev->guyy);
-    bots[lev->nbots].e = B_PLAYER;
-    bots[lev->nbots].d = lev->guyd;
-    bots[lev->nbots].a = 0;
+    bots.emplace_back(lev->index(lev->guyx, lev->guyy),
+                      B_PLAYER,
+                      lev->guyd,
+                      0);
 
-    /* sort */
-    qsort(bots, lev->nbots, sizeof (BB), ydepth_compare);
+    std::sort(bots.begin(), bots.end(),
+              [](const BB &a, const BB &b) {
+                return a.i < b.i;
+              });
 
     /* now draw from bots array (guy is included) */
-    for (int i = 0; i <= lev->nbots; i++) {
+    for (const BB &bot : bots) {
       int bsx, bsy;
       int bx, by;
-      lev->where(bots[i].i, bx, by);
+      lev->where(bot.i, bx, by);
 
       if (OnScreen(bx, by, bsx, bsy)) {
-        if (bots[i].e == B_PLAYER)
-          DrawGuy(bots[i].d, bsx, bsy,
+        if (bot.e == B_PLAYER) {
+          DrawGuy(bot.d, bsx, bsy,
                   zoomfactor, surf, isdead);
-        else
-          DrawBot(bots[i].e, bots[i].d, bsx, bsy,
-                  zoomfactor, surf, bots[i].a);
+        } else {
+          DrawBot(bot.e, bot.d, bsx, bsy,
+                  zoomfactor, surf, bot.a);
+        }
       }
     }
-
-    free(bots);
   }
 
 }
@@ -523,7 +524,7 @@ void Drawing::DrawBotNums(SDL_Surface *surf) {
       lev->where(lev->boti[b], bx, by);
       int bsx, bsy;
       if (OnScreen(bx, by, bsx, bsy)) {
-        string ss = YELLOW + itos(b + 1);
+        string ss = YELLOW + Util::itos(b + 1);
         fon->drawto(surf,
                     bsx + TILEW - fon->sizex(ss),
                     bsy + TILEH - fon->height,
@@ -717,8 +718,8 @@ void Drawing::DrawSmall(int y,
 
   fon->draw(textx, texty += fon->height,
             (string)YELLOW "Size:   " + (l->iscorrupted() ? RED : GREEN) +
-            itos(l->w) + (string)GREY "x" POP +
-            itos(l->h) + POP POP +
+            Util::itos(l->w) + (string)GREY "x" POP +
+            Util::itos(l->h) + POP POP +
             (string)((l->iscorrupted()) ? RED " corrupted!" POP : ""));
 
   texty += fon->height + 2;
@@ -745,13 +746,13 @@ void Drawing::DrawSmall(int y,
 
     fon->draw(textx, texty += fon->height,
               (string)GREEN "Solved! " POP WHITE "(" GREY +
-              movecolor + itos(solvemoves) +
+              movecolor + Util::itos(solvemoves) +
               (string) POP " move" +
               (string)((solvemoves != 1) ? "s" : "") + POP ")" POP);
     if (speedrecord) {
       string rstring;
-      if (speedrecord > 20000) rstring = RED + itos(speedrecord);
-      else rstring = itos(speedrecord);
+      if (speedrecord > 20000) rstring = RED + Util::itos(speedrecord);
+      else rstring = Util::itos(speedrecord);
 
       fonsmall->draw(textx + fon->sizex("Solved! ("),
                      texty + fon->height,
@@ -766,11 +767,14 @@ void Drawing::DrawSmall(int y,
 
   if (myrating) {
     fonsmall->draw(ratex, ratey += fonsmall->height,
-              ((string)" Rated " +
-               RED   "difficulty " + itos(myrating->difficulty) + POP "  "
-               GREEN "style " + itos(myrating->style) + POP "  "
-               BLUE  "rigidity " + itos(myrating->rigidity) + POP));
-              /* XX show cooked */
+                   StringPrintf(" Rated "
+                                RED   "difficulty %d" POP "  "
+                                GREEN "style %d" POP "  "
+                                BLUE  "rigidity %d" POP,
+                                myrating->difficulty,
+                                myrating->style,
+                                myrating->rigidity));
+    /* XX show cooked */
   } else {
     fonsmall->draw(ratex, ratey += fonsmall->height, GREY "Not rated.");
   }
@@ -788,20 +792,21 @@ void Drawing::DrawSmall(int y,
     int gcook = (int)((float)(100 * votes->cooked) / (float)votes->nvotes);
 
     fonsmall->draw(ratex, ratey += fonsmall->height,
-              ((string) "Global " +
-               RED   "difficulty " + itos(gd) + POP "  "
-               GREEN "style " + itos(gs) + POP "  "
-               BLUE  "rigidity " + itos(gr) + POP));
+                   StringPrintf(" Rated "
+                                RED   "difficulty %d" POP "  "
+                                GREEN "style %d" POP "  "
+                                BLUE  "rigidity %d" POP,
+                                gd, gs, gr));
 
     ratey += 2;
 
     fonsmall->draw(ratex, ratey += fonsmall->height,
-                   ((string)
-                    "       "
-                    YELLOW + itos(gsol)  + "% " POP GREY "solved  " POP
-                    YELLOW + itos(gcook) + "% " POP GREY "cooked  " POP
-                    GREY "of " POP YELLOW + itos(votes->nvotes) + POP));
-
+                   StringPrintf("       "
+                                YELLOW "%d%% " POP GREY "solved  " POP
+                                YELLOW "%d%% " POP GREY "cooked  " POP
+                                GREY "of " POP YELLOW "%d" POP,
+                                gsol, gcook, votes->nvotes));
+    
   } else {
     /* nothing */
   }

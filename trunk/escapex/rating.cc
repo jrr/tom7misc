@@ -7,6 +7,8 @@
 #include "chars.h"
 #include "message.h"
 #include "../cc-lib/crypt/md5.h"
+#include "../cc-lib/util.h"
+#include "../cc-lib/base/stringprintf.h"
 #include "escape-util.h"
 #include "menu.h"
 
@@ -249,20 +251,25 @@ void RateScreen_::Rate() {
     bool success =
       (hh.get() != nullptr) &&
       Client::RPC(hh.get(), RATE_RPC,
-                  /* credentials */
-                  (string)"id=" +
-                  itos(plr->webid) +
-                  (string)"&seql=" +
-                  itos(plr->webseql) +
-                  (string)"&seqh=" +
-                  itos(plr->webseqh) +
-                  /* rating */
-                  (string)"&md=" + MD5::Ascii(levmd5) +
-                  (string)"&diff=" + itos(nr->difficulty) +
-                  (string)"&style=" + itos(nr->style) +
-                  (string)"&rigid=" + itos(nr->rigidity) +
-                  (string)"&cooked=" + itos((int)nr->cooked) +
-                  (string)"&solved=" + itos((int)!!nsolved),
+                  StringPrintf(
+                      "id=%d"
+                      "&seql=%d"
+                      "&seqh=%d"
+                      "&md=%s"
+                      "&diff=%d"
+                      "&style=%d"
+                      "&rigid=%d"
+                      "&cooked=%d"
+                      "&solved=%d",
+                      plr->webid,
+                      plr->webseql,
+                      plr->webseqh,
+                      MD5::Ascii(levmd5).c_str(),
+                      nr->difficulty,
+                      nr->style,
+                      nr->rigidity,
+                      (int)nr->cooked,
+                      (int)!!nsolved),
                   res);
 
     hh.reset();
@@ -276,8 +283,8 @@ void RateScreen_::Rate() {
         SolutionUploading::PromptUpload(
             nullptr, plr, levmd5, *ours,
             "You made a new speed record! " RED +
-            itos(record) + POP " " LRARROW " " GREEN +
-            itos(ours->Length()),
+            Util::itos(record) + POP " " LRARROW " " GREEN +
+            Util::itos(ours->Length()),
             "Speed Record",
             true);
 

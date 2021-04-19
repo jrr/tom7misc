@@ -1,10 +1,14 @@
 
 #include "http.h"
-#include "escape-util.h"
+#include "httputil.h"
 
-// XXX this can be improved by using vectors..
 #include <vector>
 #include <string>
+
+#include "../cc-lib/base/stringprintf.h"
+#include "../cc-lib/util.h"
+
+#include "escape-util.h"
 
 using namespace std;
 
@@ -18,8 +22,8 @@ struct HTTP_ : public HTTP {
   bool connect(string host, int port = 80) override;
   HTTPResult get(string path, string &out) override;
   HTTPResult gettempfile(string path, string &file) override;
-  HTTPResult put(const string &path,
-                 formalist *items,
+  HTTPResult Put(const string &path,
+                 const vector<FormEntry> &items,
                  string &out) override;
 
   void SetCallback(std::function<void(int, int)> cb) override {
@@ -85,7 +89,7 @@ void HTTP_::setua(string s) {
 }
 
 bool HTTP_::connect(string chost, int port) {
-  DMSG(EscapeUtil::ptos(this) + " connect '" + chost + "':" + itos(port) + "\n");
+  DMSG(StringPrintf("%p connect '%s':%d\n", this, chost.c_str(), port));
 
   /* should work for "snoot.org" or "128.2.194.11" */
   if (SDLNet_ResolveHost(&remote, (char *)chost.c_str(), port)) {
@@ -122,37 +126,36 @@ bool sendall(TCPsocket socket, string d) {
   else return true;
 }
 
-HTTPResult HTTP_::put(const string &path,
-                      formalist *items,
+HTTPResult HTTP_::Put(const string &path,
+                      const vector<FormEntry> &items,
                       string &out) {
 
   /* large positive randomish number */
   int bnd = 0x10000000 | (0x7FFFFFFE & (EscapeUtil::random()));
 
-  string boundary = "---------------------------" + itos(bnd);
+  string boundary = "---------------------------" + Util::itos(bnd);
 
   /* precompute body because we needs its length */
   string body = "--" + boundary;
 
   /* in loop, body ends with boundary ( no \r\n ) */
-  while (items) {
-    switch (items->ty) {
-    case FT_ARG:
+  for (const FormEntry &entry : items) {
+    switch (entry.ty) {
+    case EntryType::ARG:
       body += "\r\nContent-Disposition: form-data; name=\"" +
-        items->name + "\"\r\n\r\n" +
-        items->content;
+        entry.name + "\"\r\n\r\n" +
+        entry.content;
       break;
     default:
-    case FT_FILE:
+    case EntryType::FILE:
       body += "\r\nContent-Disposition: form-data; name=\"" +
-        items->name + "\"; filename=\"" +
-        items->filename + "\"\r\n"
+        entry.name + "\"; filename=\"" +
+        entry.filename + "\"\r\n"
         "Content-Type: application/octet-stream\r\n\r\n" +
-        items->content;
+        entry.content;
       break;
     }
     body += "\r\n--" + boundary;
-    items = items->next;
   }
 
   body += "--\r\n";
@@ -168,7 +171,7 @@ HTTPResult HTTP_::put(const string &path,
     "Accept: */*\r\n"
     //    "Connection: close\r\n"
     "Content-Type: multipart/form-data; boundary=" + boundary + "\r\n"
-    "Content-Length: " + itos(clen) + "\r\n"
+    "Content-Length: " + Util::itos(clen) + "\r\n"
     "\r\n";
 
   return req_general(hdr + body, out, false);
@@ -301,7 +304,7 @@ HTTPResult HTTP_::req_general(string req, string &res, bool tofile) {
           if (field == "Content-Length:") {
             string l = EscapeUtil::chop(line);
             contentlen = atoi(l.c_str());
-            DMSG("content length is " + itos (contentlen) + "\n");
+            DMSG("content length is " + Util::itos(contentlen) + "\n");
           } else if (field == "Connection:") {
             string how = EscapeUtil::lcase(EscapeUtil::chop(line));
             if (how == "close")
@@ -447,7 +450,7 @@ string HTTP_::readn(int n) {
   vector<char> buf;
   buf.resize(n);
 
-  DMSG("reading " + itos(n) + "...\n");
+  DMSG("reading " + Util::itos(n) + "...\n");
 
   int total = n;
   int rem = n;

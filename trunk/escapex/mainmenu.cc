@@ -1,5 +1,9 @@
 
 #include "mainmenu.h"
+
+#include <string>
+#include <memory>
+
 #include "draw.h"
 #include "version.h"
 #include "prefs.h"
@@ -10,6 +14,7 @@
 #include "play.h"
 #include "handhold.h"
 #include "backgrounds.h"
+#include "../cc-lib/util.h"
 
 /* testing */
 #include "animation.h"
@@ -207,7 +212,7 @@ void MainMenu_::Draw() {
   if (pp->webid) {
     fon->draw(6, y += fon->height,
               (string)BLUE + pp->name + (string)GREY " is Player #" POP +
-              itos(pp->webid) + POP);
+              Util::itos(pp->webid) + POP);
   } else {
     if (network) {
       fon->draw(6, y += fon->height, WHITE

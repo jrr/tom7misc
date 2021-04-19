@@ -49,12 +49,9 @@ int main(int argc, char **argv) {
   /* need to write this before committing... */
   fclose(vh);
 
-  string sys = (string)"svn commit -m \"version " + itos(n) + (string)"\"";
+  string sys =
+    (string)"svn commit -m \"version " + itos(n) + (string)"\"";
   system(sys.c_str());
-
-  // Tags in subversion are a bit more heavyweight, so don't bother.
-  // string sys2 = (string)"cvs tag -c escape-" + itos(n);
-  // system(sys2.c_str());
 
   return 0;
 }

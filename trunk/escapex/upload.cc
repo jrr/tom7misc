@@ -1,10 +1,16 @@
 
 #include "upload.h"
 
+#include <string>
+#include <memory>
+#include <vector>
+
 #include "../cc-lib/crypt/md5.h"
+#include "../cc-lib/util.h"
 
 #include "client.h"
 #include "http.h"
+#include "httputil.h"
 #include "message.h"
 #include "draw.h"
 #include "optimize.h"
@@ -77,8 +83,8 @@ UploadResult Upload_::Up(Player *p, const string &f, const string &text) {
 
   Solution opt = Optimize::Opt(lev.get(), *slong);
 
-  say(YELLOW + itos(slong->Length()) + GREY " " LRARROW " " POP +
-      itos(opt.Length()) + POP);
+  say(YELLOW + Util::itos(slong->Length()) + GREY " " LRARROW " " POP +
+      Util::itos(opt.Length()) + POP);
 
   HTTP *hh = Client::Connect(plr, tx.get(), this);
 
@@ -86,31 +92,27 @@ UploadResult Upload_::Up(Player *p, const string &f, const string &text) {
 
   const string solcont = opt.ToString();
 
-  formalist *fl = nullptr;
-
-  /* XXX seems necessary! bug in aphasia cgi? */
-  formalist::pusharg(fl, "dummy", "dummy");
-  formalist::pusharg(fl, "id", itos(plr->webid));
-  formalist::pusharg(fl, "seql", itos(plr->webseql));
-  formalist::pusharg(fl, "seqh", itos(plr->webseqh));
-  formalist::pusharg(fl, "text", text);
-  formalist::pushfile(fl, "lev", "lev.esx", levcont);
-  formalist::pushfile(fl, "sol", "sol.esx", solcont);
-
+  vector<FormEntry> fl = {
+    /* XXX seems necessary! bug in aphasia cgi? */
+    FormEntry::Arg("dummy", "dummy"),
+    FormEntry::Arg("id", Util::itos(plr->webid)),
+    FormEntry::Arg("seql", Util::itos(plr->webseql)),
+    FormEntry::Arg("seqh", Util::itos(plr->webseqh)),
+    FormEntry::Arg("text", text),
+    FormEntry::File("lev", "lev.esx", levcont),
+    FormEntry::File("sol", "sol.esx", solcont),
+  };
+    
   Redraw();
 
   string out;
   if (Client::RPCPut(hh, UPLOAD_RPC, fl, out)) {
     Message::Quick(this, GREEN "success!" POP,
                    "OK", "", PICS THUMBICON);
-    formalist::diminish(fl);
-
     return UploadResult::OK;
   } else {
     Message::No(this, RED "Upload failed: " +
                 out + POP);
-    formalist::diminish(fl);
-
     return UploadResult::FAIL;
   }
 

@@ -5,16 +5,12 @@
  - Compile for new mac chips. :/
  - Do a 64-bit windows release on new toolchains.
 
- - Separate into escape-lib (pure C++) and escape frontend.
-   screenshot.exe should be buildable from just the lib.
-   Probably can just keep two copies of the graphics in memory;
-   one in ImageRGBA format (for lib) and one as SDL_Surface (for frontend).
-   
-
 Code cleanup:
  - replace vallist with deque or vector; it's not used in that many places
- - makefile does not have proper dependencies on animation_defs.h, which
-   is needed by any object that includes animation.h.
+ - makefile does not have proper dependencies on animation_*.h, which
+   is needed by any object that includes animation.h. (but it's much
+   better than it used to be)
+ - now there are escape-util and cc-lib's util. remove duplication!
 
 Make this work again on OSX 10.10+ and windows!
  - Add mixer framework in for next release
@@ -70,8 +66,6 @@ maybe Drawing should not have a const level* alias?
 
 in play.cc, make a function that replaces the level (And the level in the
 drawing) with something, like the Start lev.
-
-now there are escape-util and cc-lib's util. remove duplication!
 
 c++11isms
  - nullptr instead of 0

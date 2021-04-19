@@ -1,10 +1,15 @@
 
 #include "solutionuploading.h"
+
+#include <string>
+#include <vector>
+
 #include "message.h"
 #include "prompt.h"
 #include "client.h"
 #include "http.h"
 #include "../cc-lib/crypt/md5.h"
+#include "../cc-lib/util.h"
 #include "../cc-lib/base64.h"
 #include "menu.h"
 #include "textbox.h"
@@ -103,18 +108,19 @@ void SolutionUploading::PromptUpload(Drawable *below,
 
       string solcont = sol.ToString();
 
-      formalist *fl = nullptr;
-
-      /* XXX seems necessary! but in aphasia cgi? */
-      formalist::pusharg(fl, "dummy", "dummy");
-      formalist::pusharg(fl, "id", itos(plr->webid));
-      formalist::pusharg(fl, "seql", itos(plr->webseql));
-      formalist::pusharg(fl, "seqh", itos(plr->webseqh));
-      formalist::pusharg(fl, "md", MD5::Ascii(lmd5));
-      formalist::pusharg(fl, "name", name.input);
-      formalist::pusharg(fl, "speedonly", speed.checked ? "1" : "0");
-      formalist::pusharg(fl, "desc", desc.get_text());
-      formalist::pushfile(fl, "sol", "sol.esx", solcont);
+      std::vector<FormEntry> fl = {
+        /* XXX seems necessary! bug in aphasia cgi? */
+        FormEntry::Arg("dummy", "dummy"),
+        FormEntry::Arg("id", Util::itos(plr->webid)),
+        FormEntry::Arg("id", Util::itos(plr->webid)),
+        FormEntry::Arg("seql", Util::itos(plr->webseql)),
+        FormEntry::Arg("seqh", Util::itos(plr->webseqh)),
+        FormEntry::Arg("md", MD5::Ascii(lmd5)),
+        FormEntry::Arg("name", name.input),
+        FormEntry::Arg("speedonly", speed.checked ? "1" : "0"),
+        FormEntry::Arg("desc", desc.get_text()),
+        FormEntry::File("sol", "sol.esx", solcont),
+      };
 
       td.say("Uploading..");
       td.Draw();
@@ -131,8 +137,6 @@ void SolutionUploading::PromptUpload(Drawable *below,
         Message::No(&td, RED "Upload failed: " +
                     out + POP);
       }
-
-      formalist::diminish(fl);
     }
   }
 }

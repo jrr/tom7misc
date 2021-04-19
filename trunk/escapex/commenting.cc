@@ -3,6 +3,10 @@
 
 #include <string>
 
+#include "../cc-lib/crypt/md5.h"
+#include "../cc-lib/util.h"
+#include "../cc-lib/base/stringprintf.h"
+
 #include "escapex.h"
 #include "rating.h"
 
@@ -10,7 +14,6 @@
 #include "draw.h"
 #include "chars.h"
 #include "message.h"
-#include "../cc-lib/crypt/md5.h"
 #include "menu.h"
 #include "textbox.h"
 
@@ -94,15 +97,14 @@ void CommentScreen::Comment(Player *p, const Level *lev, const string &md5,
     string res;
     bool success =
       Client::RPC(hh.get(), PING_RPC,
-                  /* credentials */
-                  (string)"id=" +
-                  itos(p->webid) +
-                  (string)"&seql=" +
-                  itos(p->webseql) +
-                  (string)"&seqh=" +
-                  itos(p->webseqh) +
-                  (string)"&md=" +
-                  MD5::Ascii(md5),
+                  StringPrintf("id=%d"
+                               "&seql=%d"
+                               "&seqh=%d"
+                               "&md=%s",
+                               p->webid,
+                               p->webseql,
+                               p->webseqh,
+                               MD5::Ascii(md5).c_str()),
                   res);
 
     if (!success) {
@@ -176,13 +178,19 @@ void CommentScreen::Comment(Player *p, const Level *lev, const string &md5,
     string res;
     bool success =
       Client::RPC(hh.get(), COMMENT_RPC,
-                  /* credentials */
-                  (string)"id=" + itos(p->webid) +
-                  (string)"&seql=" + itos(p->webseql) +
-                  (string)"&seqh=" + itos(p->webseqh) +
-                  (string)"&md=" + MD5::Ascii(md5) +
-                  (string)"&comment=" + HTTPUtil::URLEncode(com) +
-                  (string)"&spoiler=" + itos(!!spoiler.checked),
+                  StringPrintf(
+                      "id=%d"
+                      "&seql=%d"
+                      "&seqh=%d"
+                      "&md=%s"
+                      "&comment=%s"
+                      "&spoiler=%d",
+                      p->webid,
+                      p->webseql,
+                      p->webseqh,
+                      MD5::Ascii(md5).c_str(),
+                      HTTPUtil::URLEncode(com).c_str(),
+                      (int)!!spoiler.checked),
                   res);
 
     if (success) {
