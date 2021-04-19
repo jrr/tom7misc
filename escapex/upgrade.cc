@@ -5,7 +5,10 @@
 #include <string>
 #include <utility>
 #include <time.h>
+
 #include "../cc-lib/crypt/md5.h"
+#include "../cc-lib/base/stringprintf.h"
+#include "../cc-lib/util.h"
 
 #include "escape-util.h"
 #include "textscroll.h"
@@ -357,7 +360,7 @@ UpResult Upgrader_::doupgrade(HTTP *hh, string &msg,
     spawnargs[ii++] = nullptr;
 
     for (int z = 0; z < ii; z++) {
-      say((string)"[" YELLOW + itos(z) + (string)POP"] " +
+      say((string)"[" YELLOW + Util::itos(z) + (string)POP"] " +
           (string)(spawnargs[z] ? spawnargs[z] : "(null)"));
     }
 
@@ -410,9 +413,9 @@ CUResult Upgrader_::checkupgrade(HTTP *hh,
     /* then, nfiles files */
 
     say("Got upgrade information:");
-    say((string)"      oldest supported: " BLUE + itos(oldest) + POP);
-    say((string)"   recommend threshold: " BLUE + itos(recom) + POP);
-    say((string)"       current version: " BLUE + itos(current) +
+    say((string)"      oldest supported: " BLUE + Util::itos(oldest) + POP);
+    say((string)"   recommend threshold: " BLUE + Util::itos(recom) + POP);
+    say((string)"       current version: " BLUE + Util::itos(current) +
         (string)" " POP "\"" BLUE + name + (string) POP "\"");
 
     download = 0;
@@ -552,8 +555,9 @@ UpgradeResult Upgrader_::Upgrade(string &msg) {
 			ltime < time(0)) {
 		      if (tx != nullptr) {
 			tx->Unsay();
-			tx->Say((string)GREEN + itos(recvd) + GREY "/" POP +
-				itos(total) + POP);
+			tx->Say(
+                            StringPrintf(GREEN "%d" GREY "/" POP "%d" POP,
+                                         recvd, total));
 			Redraw();
 		      }
 		      last = recvd;

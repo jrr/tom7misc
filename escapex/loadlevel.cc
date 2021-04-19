@@ -1,10 +1,5 @@
 
-#include "escapex.h"
 #include "loadlevel.h"
-#include "level.h"
-#include "../cc-lib/sdl/sdlutil.h"
-#include "../cc-lib/crypt/md5.h"
-#include "../cc-lib/util.h"
 
 #include <string.h>
 #include <sys/stat.h>
@@ -13,6 +8,14 @@
 #include <vector>
 #include <string>
 
+#include "../cc-lib/sdl/sdlutil.h"
+#include "../cc-lib/crypt/md5.h"
+#include "../cc-lib/util.h"
+#include "../cc-lib/base/stringprintf.h"
+
+
+#include "escapex.h"
+#include "level.h"
 #include "directories.h"
 
 #include "dircache.h"
@@ -457,7 +460,7 @@ string LLEntry::display(bool selected) {
 
       string so = "";
       if (total > 0) {
-        so = itos(solved) + (string)"/" + itos(total);
+        so = StringPrintf("%d/%d", solved, total);
       } else {
         if (!selected) color = GREY;
         so = "(no levels)";
@@ -495,9 +498,9 @@ string LLEntry::display(bool selected) {
 
     string line =
       pre + color + Font::pad(name, ns) + (string)" " POP +
-      (string)(corrupted?RED:GREEN) +
-      Font::pad(itos(sizex) + (string)GREY "x" POP +
-                itos(sizey), ss) + POP +
+      (string)(corrupted ? RED : GREEN) +
+      Font::pad(StringPrintf("%d" GREY "x" POP "%d", sizex, sizey), ss) +
+      POP +
       (string)" " BLUE + Font::pad(author, as) + POP + myr +
       (string)" " + ratings;
 
@@ -932,9 +935,9 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
       for (const Solution &s : all) {
         Progress::drawbar((void*)&pe,
                           done, total,
-                          GREY "(" + itos(nsolved) + ") " POP
+                          GREY "(" + Util::itos(nsolved) + ") " POP
                           + sel->items[i].name + " " +
-                          GREY + "(sol #" + itos(snn) + ")"
+                          GREY + "(sol #" + Util::itos(snn) + ")"
                           "\n"
                           ALPHA100 GREEN +
                           solveds);
@@ -1098,22 +1101,25 @@ string LoadLevel_::Loop() {
               if (res == InputResultKind::OK) {
                 /* ask server */
                 string res;
-                if (Client::QuickRPC(plr, DELETE_RPC,
-				     (string)"pass=" +
-				     HTTPUtil::URLEncode(pass.input) +
-				     (string)"&id=" +
-				     itos(plr->webid) +
-				     (string)"&seql=" +
-				     itos(plr->webseql) +
-				     (string)"&seqh=" +
-				     itos(plr->webseqh) +
-				     (string)"&md=" +
-				     MD5::Ascii(md5) +
-				     (string)"&text=" +
-				     HTTPUtil::URLEncode(desc.get_text()),
-				     res)) {
+                if (Client::QuickRPC(
+                        plr, DELETE_RPC,
+                        StringPrintf(
+                            "pass=%s"
+                            "&id=%d"
+                            "&seql=%d"
+                            "&seqh=%d"
+                            "&md=%s"
+                            "&text=%s",
+                            HTTPUtil::URLEncode(pass.input).c_str(),
+                            plr->webid,
+                            plr->webseql,
+                            plr->webseqh,
+                            MD5::Ascii(md5).c_str(),
+                            HTTPUtil::URLEncode(desc.get_text()).c_str()),
+                        res)) {
 
-                  Message::Quick(this, "Success!", "OK", "", PICS THUMBICON POP);
+                  Message::Quick(this, "Success!", "OK", "",
+                                 PICS THUMBICON POP);
 
                 } else {
                   Message::No(this, "Couldn't delete: " + res);

@@ -2,12 +2,19 @@
 #include "play.h"
 
 #include <math.h>
+#include <string>
+#include <vector>
 
 #include "SDL.h"
 
+#include "../cc-lib/base/stringprintf.h"
+#include "../cc-lib/base64.h"
+#include "../cc-lib/crypt/md5.h"
+#include "../cc-lib/sdl/sdlutil.h"
+#include "../cc-lib/util.h"
+
 #include "time.h"
 #include "level.h"
-#include "../cc-lib/sdl/sdlutil.h"
 #include "draw.h"
 #include "ptrlist.h"
 
@@ -28,10 +35,6 @@
 #include "menu.h"
 #include "solutionuploading.h"
 #include "client.h"
-
-#include "../cc-lib/base64.h"
-#include "../cc-lib/crypt/md5.h"
-#include "../cc-lib/util.h"
 
 #define POSTDRAW ;
 
@@ -235,7 +238,7 @@ struct BookmarkItem : public MenuItem {
     fon->draw(x + THUMBW + 4, y + 4 + (fon->height * 2), da);
     fon->draw(x + THUMBW + 4, y + 4 + (fon->height * 3),
               (string)(solved ? PICS THUMBICON " " POP : PICS BOOKMARKPIC POP) +
-              itos(ns.sol.Length()) + " moves");
+              Util::itos(ns.sol.Length()) + " moves");
 
     if (f)
       fonsmall->draw(x + THUMBW + 4, 2 + y + 4 + (fon->height * 4),
@@ -384,10 +387,10 @@ void Play_::DrawMenu() {
     if (j == POS_MOVECOUNTER) {
       string count;
       if (solpos != sol.Length()) {
-        count = itos(solpos) + GREY "/" POP BLUE +
-          itos(sol.Length()) + POP;
+        count = StringPrintf("%d" GREY "/" POP BLUE "%d" POP,
+                             solpos, (int)sol.Length());
       } else {
-        count = itos(sol.Length());
+        count = Util::itos(sol.Length());
       }
       fon->draw(2 + j * TILEW + 4, 2 + (TILEH>>1) - (fon->height>>1),
                 count);
@@ -836,7 +839,7 @@ void Play_::BookmarkDownload(Player *plr, const string &lmd5) {
     /* parse result. see protocol.txt */
     int nsols = EscapeUtil::stoi(EscapeUtil::getline(s));
 
-    td.say("OK. Solutions on server: " GREEN + itos(nsols) + POP);
+    td.say("OK. Solutions on server: " GREEN + Util::itos(nsols) + POP);
 
     /* get them! */
     for (int i = 0; i < nsols; i++) {
@@ -1229,7 +1232,7 @@ PlayResult Play_::DoPlaySave(Player *plr,
             if (Optimize::TryComplete(start.get(), sol,
                                       plr->SolutionSet(md5), &ss)) {
               Message::Quick(this, "Completed from bookmarks: " GREEN
-                             + itos(ss.Length()) + POP " moves",
+                             + Util::itos(ss.Length()) + POP " moves",
                              "OK", "", PICS THUMBICON POP);
               sol = ss;
               /* put us at end of solution */

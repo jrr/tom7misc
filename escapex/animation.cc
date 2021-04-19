@@ -1,10 +1,13 @@
 #include "animation.h"
+
+#include <string>
+
 #include "chars.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/sdl/font.h"
+#include "../cc-lib/util.h"
 #include "dirt.h"
 #include "ptrlist.h"
-
 #include "progress.h"
 
 // #define AN_SLOW 100
@@ -135,7 +138,7 @@ bool Animation::ainit_frames(const Graphics &graphics) {
 
     /* draw timer on it */
     {
-      string ss = RED + itos(i);
+      string ss = RED + Util::itos(i);
       fon->drawto(pic_bomb_lit[i][0], (TILEW - fon->sizex(ss))>>1,
 		  ((TILEH + BOMB_OVERLAPY) - fon->height)>>1,
 		  ss);

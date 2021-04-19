@@ -1,12 +1,17 @@
 
 #include "playerdb.h"
+
+#include <string>
+
+#include "../cc-lib/base/stringprintf.h"
+#include "../cc-lib/util.h"
+
 #include "escape-util.h"
 #include "prompt.h"
 #include "chars.h"
 #include "message.h"
 #include "prefs.h"
 #include "directories.h"
-
 #include "draw.h"
 
 #define PLAYERDB_MAGIC "ESXD"
@@ -135,7 +140,7 @@ string PDBEntry::display(bool sel) {
   string color = "";
   if (sel) color = BLUE;
   return color + name + (string)" " POP
-         "(" YELLOW + itos(solved) + (string)POP ")";
+    "(" YELLOW + Util::itos(solved) + (string)POP ")";
 }
 
 Player *PDBEntry::convert() {
@@ -362,11 +367,11 @@ Player *PlayerDB_::chooseplayer() {
 
           string answer =
             Prompt::ask(0,
-                        ((string)PICS QICON POP " Really delete " BLUE +
-                         sel->items[sel->selected].name +
-                         (string)" " POP "(" YELLOW +
-                         itos(sel->items[sel->selected].solved) +
-                         (string)" " POP "solved)? (y/N) "));
+                        StringPrintf(PICS QICON POP " Really delete " BLUE
+                                     "%s " POP
+                                     "(" YELLOW "%d" POP " solved)? (y/N) ",
+                                     sel->items[sel->selected].name.c_str(),
+                                     sel->items[sel->selected].solved));
 
           if (answer.length() > 0 && (answer[0]|32) == 'y') {
             DeletePlayer(sel->selected);

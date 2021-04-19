@@ -5,6 +5,7 @@
 #include "SDL.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/union-find.h"
+#include "../cc-lib/util.h"
 
 #include "level.h"
 #include "draw.h"
@@ -887,6 +888,6 @@ string Editor::ainame(int i) {
   case RT_RETRACT1: return YELLOW "Retract 1" POP BLUE ": Disabled." POP; /* Retracts one move in a variety of ways." POP; */
   case RT_RETRACTGOLD:
     return YELLOW "Retract Gold" POP BLUE ": Retracts motion of a gold block (or sphere)." POP;
-  default: return (string)RED "No Description for Randtype #" + itos(i);
+  default: return (string)RED "No Description for Randtype #" + Util::itos(i);
   }
 }

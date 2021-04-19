@@ -8,46 +8,29 @@ struct HTTPUtil {
   static std::string URLEncode(const std::string &);
 };
 
-enum formtype { FT_ARG, FT_FILE, };
+enum class EntryType { ARG, FILE, };
 
-struct formalist {
-  formtype ty;
+// key/value in a form submission.
+// Can be a simple 
+struct FormEntry {
+  EntryType ty;
   std::string name;
   std::string filename;
   std::string content;
-  formalist *next;
 
-  static void pusharg(formalist *&l, std::string name, std::string arg) {
-    formalist *x = new formalist;
-    x->next = l;
-    x->ty = FT_ARG;
-    x->name = name;
-    /* this appears to be too many */
-    x->content = arg; // HTTPUtil::URLEncode(arg);
-    l = x;
+  static FormEntry Arg(const std::string &name, const std::string &value) {
+    return FormEntry(EntryType::ARG, name, "", value);
+  }
+  static FormEntry File(const std::string &name, const std::string &filename,
+                        const std::string &content) {
+    return FormEntry(EntryType::FILE, name, filename, content);
   }
 
-  static void pushfile(formalist *&l, std::string name,
-                       std::string filename, std::string contents) {
-    formalist *x = new formalist;
-    x->next = l;
-    x->ty = FT_FILE;
-    x->name = name;
-    x->filename = filename;
-    x->content = contents;
-    l = x;
-  }
-
-  /* ie, destroy */
-  static void diminish(formalist *&sl) {
-    while (sl) {
-      formalist *tmp = sl;
-      sl = sl->next;
-      delete tmp;
-    }
-  }
-
+private:
+  FormEntry(EntryType ty, const std::string &name,
+            const std::string &filename,
+            const std::string &content) :
+    ty(ty), name(name), filename(filename), content(content) {}
 };
-
 
 #endif
