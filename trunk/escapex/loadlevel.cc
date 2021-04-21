@@ -1076,26 +1076,21 @@ string LoadLevel_::Loop() {
 
               Cancel can;
 
-              PtrList<MenuItem> *l = 0;
-
-              PtrList<MenuItem>::push(l, &can);
-              PtrList<MenuItem>::push(l, &ok);
-              PtrList<MenuItem>::push(l, &spacer);
-
+              std::vector<MenuItem *> items = {
+                &message, &message2, &spacer2, &desc,
+              };
               if (!sel->items[sel->selected].owned)
-                PtrList<MenuItem>::push(l, &pass);
-
-              PtrList<MenuItem>::push(l, &desc);
-              PtrList<MenuItem>::push(l, &spacer2);
-              PtrList<MenuItem>::push(l, &message2);
-              PtrList<MenuItem>::push(l, &message);
-
+                items.push_back(&pass);
+              items.push_back(&spacer);
+              items.push_back(&ok);
+              items.push_back(&can);              
 
               /* display menu */
 	      std::unique_ptr<Menu> mm =
-		Menu::Create(0, "Really delete?", l, false);
+		Menu::Create(0, "Really delete?",
+                             items, 
+                             false);
               InputResultKind res = mm->menuize();
-              PtrList<MenuItem>::diminish(l);
 	      mm.reset();
 
               if (res == InputResultKind::OK) {
@@ -1363,31 +1358,28 @@ string LoadLevel_::Loop() {
 
             Cancel can;
 
-            PtrList<MenuItem> *l = 0;
-
-            PtrList<MenuItem>::push(l, &can);
-            PtrList<MenuItem>::push(l, &spacer);
-
-            PtrList<MenuItem>::push(l, &solve);
-            PtrList<MenuItem>::push(l, &everything);
-            PtrList<MenuItem>::push(l, &filename);
-
-            PtrList<MenuItem>::push(l, &spacer);
-            PtrList<MenuItem>::push(l, &message4);
-            PtrList<MenuItem>::push(l, &message3);
-            PtrList<MenuItem>::push(l, &message2);
-            PtrList<MenuItem>::push(l, &message1);
-
             /* display menu */
 	    std::unique_ptr<Menu> mm =
-	      Menu::Create(this, "Solve from bookmarks?", l, false);
+	      Menu::Create(this, "Solve from bookmarks?",
+                           {
+                             &message1,
+                             &message2,
+                             &message3,
+                             &message4,
+                             &spacer,
+                             &filename,
+                             &everything,
+                             &solve,
+                             &spacer,
+                             &can,
+                           },
+                           false);
             InputResultKind res = mm->menuize();
 
             if (res == InputResultKind::OK) {
               solvefrombookmarks(filename.input, everything.checked);
             }
 
-            PtrList<MenuItem>::diminish(l);
 	    mm.reset();
 
             fix_show();
@@ -1444,32 +1436,26 @@ string LoadLevel_::Loop() {
 
                 Cancel can;
 
-                PtrList<MenuItem> *l = 0;
-
-                PtrList<MenuItem>::push(l, &can);
-                PtrList<MenuItem>::push(l, &ok);
-                PtrList<MenuItem>::push(l, &spacer);
-
-                PtrList<MenuItem>::push(l, &desc);
-                PtrList<MenuItem>::push(l, &spacer);
-
-                PtrList<MenuItem>::push(l, &message6);
-                PtrList<MenuItem>::push(l, &message5);
-                PtrList<MenuItem>::push(l, &spacer);
-
-                PtrList<MenuItem>::push(l, &message4);
-                PtrList<MenuItem>::push(l, &message3);
-                PtrList<MenuItem>::push(l, &spacer);
-
-                PtrList<MenuItem>::push(l, &message2);
-                PtrList<MenuItem>::push(l, &message);
-
-
                 /* display menu */
 		std::unique_ptr<Menu> mm =
-		  Menu::Create(0, "Really upload?", l, false);
+		  Menu::Create(0, "Really upload?",
+                               {
+                                 &message,
+                                 &message2,
+                                 &spacer,
+                                 &message3,
+                                 &message4,
+                                 &spacer,
+                                 &message5,
+                                 &message6,
+                                 &spacer,
+                                 &desc,
+                                 &spacer,
+                                 &ok,
+                                 &can,
+                               },
+                               false);
                 InputResultKind res = mm->menuize();
-                PtrList<MenuItem>::diminish(l);
 		mm.reset();
 
                 if (res != InputResultKind::OK) {

@@ -4,13 +4,14 @@
 #include <string>
 #include <vector>
 
+#include "../cc-lib/crypt/md5.h"
+#include "../cc-lib/util.h"
+#include "../cc-lib/base64.h"
+
 #include "message.h"
 #include "prompt.h"
 #include "client.h"
 #include "http.h"
-#include "../cc-lib/crypt/md5.h"
-#include "../cc-lib/util.h"
-#include "../cc-lib/base64.h"
 #include "menu.h"
 #include "textbox.h"
 #include "optimize.h"
@@ -67,22 +68,22 @@ void SolutionUploading::PromptUpload(Drawable *below,
 
   Cancel can;
 
-  PtrList<MenuItem> *l = nullptr;
+  vector<MenuItem *> items = {
+    &message,
+    &spacer2,
+    &name,
+    &desc,
+    &speed,
 
-  PtrList<MenuItem>::push(l, &can);
-  PtrList<MenuItem>::push(l, &ok);
-  PtrList<MenuItem>::push(l, &spacer);
-
-  PtrList<MenuItem>::push(l, &speed);
-  PtrList<MenuItem>::push(l, &desc);
-  PtrList<MenuItem>::push(l, &name);
-  PtrList<MenuItem>::push(l, &spacer2);
-  PtrList<MenuItem>::push(l, &message);
-
+    &spacer,
+    &ok,
+    &can,
+  };
+    
   /* display menu */
-  std::unique_ptr<Menu> mm = Menu::Create(below, "Upload solution?", l, false);
+  std::unique_ptr<Menu> mm =
+    Menu::Create(below, "Upload solution?", items, false);
   InputResultKind res = mm->menuize();
-  PtrList<MenuItem>::diminish(l);
   mm.reset();
 
   if (res == InputResultKind::OK) {

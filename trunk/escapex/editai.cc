@@ -678,7 +678,9 @@ bool Editor::retract_gold() {
     }
     /* no match */
     return false;
-  } else return false;
+  } else {
+    return false;
+  }
 }
 
 /* moves any grey style block.

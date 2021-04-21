@@ -14,7 +14,6 @@
 #include "upper.h"
 #include "handhold.h"
 #include "menu.h"
-#include "ptrlist.h"
 #include "client.h"
 
 #define UNSUBMARKER "unsubscribed"
@@ -226,8 +225,6 @@ CCResult Updater_::CheckCollections(
 SelResult Updater_::SelectCollections(
     const std::vector<std::pair<string, string>> &collections,
     std::vector<std::pair<string, string>> *subs) {
-  PtrList<MenuItem> *boxes = nullptr;
-
   Okay ok;
   ok.text = "Update Now";
 
@@ -235,8 +232,14 @@ SelResult Updater_::SelectCollections(
 
   VSpace v(16);
 
-  const int n_entries = (int)collections.size();
+  std::vector<MenuItem *> items = {
+    &ok,
+    &can,
+    &v,
+  };
 
+  // Owns the subtoggle pointers, but they also appear in items.
+  vector<subtoggle *> toggles;
   for (const auto &[filename, showname] : collections) {
     subtoggle *b = new subtoggle();
     b->fname = filename;
@@ -256,16 +259,12 @@ SelResult Updater_::SelectCollections(
       b->checked = false;
     }
 
-    PtrList<MenuItem>::push(boxes, b);
+    toggles.push_back(b);
+    items.push_back(b);
   }
 
-  PtrList<MenuItem>::push(boxes, &v);
-  PtrList<MenuItem>::push(boxes, &can);
-  PtrList<MenuItem>::push(boxes, &ok);
-
-
   std::unique_ptr<Menu> mm =
-    Menu::Create(this, "Select your collection subscriptions.", boxes, false);
+    Menu::Create(this, "Select your collection subscriptions.", items, false);
   if (mm.get() == nullptr) return SelResult::FAIL;
 
   InputResultKind res = mm->menuize();
@@ -274,20 +273,15 @@ SelResult Updater_::SelectCollections(
   if (res == InputResultKind::OK) {
     /* process selections from 'boxes' list */
 
-    /* skip first three, the buttons */
-    for (int z = 0; z < 3; z++) {
-      PtrList<MenuItem>::pop(boxes);
-    }
-
-    for (int i = 0; i < n_entries; i++) {
-      subtoggle *st = (subtoggle*)PtrList<MenuItem>::pop(boxes);
+    for (subtoggle *st : toggles) {
       if (st->checked) {
         subs->emplace_back(st->fname, st->question);
       }
 
       delete st;
     }
-
+    toggles.clear();
+    
     return SelResult::OK;
   } else {
     return SelResult::FAIL;

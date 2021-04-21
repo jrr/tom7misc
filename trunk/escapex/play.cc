@@ -16,7 +16,6 @@
 #include "time.h"
 #include "level.h"
 #include "draw.h"
-#include "ptrlist.h"
 
 #include "escapex.h"
 
@@ -120,8 +119,7 @@ struct Play_ : public Play {
   PlayState CurState();
 
   static void SetSolsFromBookmarkItems(Player *plr, const string &md5,
-                                       BookmarkItem **books,
-                                       int n);
+                                       const vector<BookmarkItem *> &books);
   /* makes move d (returning true if successful and false if not),
      animating the action.
 
@@ -244,8 +242,6 @@ struct BookmarkItem : public MenuItem {
       fonsmall->draw(x + THUMBW + 4, 2 + y + 4 + (fon->height * 4),
                      BLUE +
                      (solved ? solmenu : bookmenu) + POP);
-
-    // + (string)(solved?" " GREEN "(solved)":""));
   }
 
   void size(int &w, int &h) override {
@@ -292,6 +288,7 @@ struct BookmarkItem : public MenuItem {
         return InputResult(InputResultKind::UPDATED);
       }
     }
+
     case SDLK_u: {
       if (solved) {
         SolutionUploading::PromptUpload(
@@ -553,13 +550,12 @@ void Play_::Restart(const Level *start) {
    (of bookmarkitems) */
 
 void Play_::SetSolsFromBookmarkItems(Player *plr, const string &md5,
-                                     BookmarkItem **books,
-                                     int n) {
+                                     const vector<BookmarkItem *> &books) {
   vector<NamedSolution> newsols;
-  newsols.reserve(n);
+  newsols.reserve(books.size());
 
-  for (int i = 0; i < n; i++)
-    newsols.push_back(books[i]->ns);
+  for (BookmarkItem *item : books)
+    newsols.push_back(item->ns);
 
   plr->SetSolutionSet(md5, newsols);
   plr->WriteFile();
@@ -582,6 +578,8 @@ void Play_::Bookmarks(const Level *start,
       return;
     }
 
+    vector<MenuItem *> items;
+    
     Label nettitle;
     nettitle.text = PICS BARLEFT BAR BAR BARRIGHT POP " Server bookmarks "
       PICS BARLEFT BAR BAR BARRIGHT POP;
@@ -611,39 +609,7 @@ void Play_::Bookmarks(const Level *start,
 
     Cancel can;
 
-    PtrList<MenuItem> *l = nullptr;
-
-    PtrList<MenuItem>::push(l, &can);
-    PtrList<MenuItem>::push(l, &book_current);
-    PtrList<MenuItem>::push(l, &defname);
-    PtrList<MenuItem>::push(l, &newtitle);
-
-    /* initialize bmset with current bookmarks. */
-    bool didsolve = false;
-
     const vector<NamedSolution> &existing_solutions = plr->SolutionSet(md5);
-    const int bmnum = existing_solutions.size();
-    BookmarkItem **books =
-      (BookmarkItem**) malloc(sizeof (BookmarkItem *) * bmnum);
-
-    // Build up the list in reverse so that it's the same order as
-    // existing_solutions. We rely on these being parallel below
-    // (which is sorta bad).
-    for (int i = bmnum - 1; i >= 0; i--) {
-      if (!existing_solutions[i].bookmark) didsolve = true;
-      BookmarkItem *bi =
-        new BookmarkItem(start, &existing_solutions[i], plr, md5, this);
-
-      bi->explanation =
-        "Selecting this bookmark will load it,\n"
-        "losing your current progress.\n";
-
-      PtrList<MenuItem>::push(l, bi);
-      books[i] = bi;
-    }
-
-    /* only place 'existing' header if there are bookmarks */
-    if (bmnum > 0) PtrList<MenuItem>::push(l, &seltitle);
 
     /* then if any bookmark is an actual solution, allow net access */
     Okay netbutton;
@@ -654,13 +620,43 @@ void Play_::Bookmarks(const Level *start,
       "Download all the solutions stored on the server,\n"
       "if you don't have them already.";
 
-    if (didsolve) {
-      PtrList<MenuItem>::push(l, &netbutton);
-      PtrList<MenuItem>::push(l, &nettitle);
+    auto DidSolve = [&existing_solutions]() {
+        for (const NamedSolution &ns : existing_solutions)
+          if (!ns.bookmark) return true;
+        return false;
+      };
+
+    if (DidSolve()) {
+      items.push_back(&nettitle);
+      items.push_back(&netbutton);
     }
 
-    std::unique_ptr<Menu> mm = Menu::Create(this, "Bookmarks", l, false);
-    PtrList<MenuItem>::diminish(l);
+    /* only place 'existing' header if there are bookmarks */
+    if (!existing_solutions.empty()) items.push_back(&seltitle);
+
+    // Owns the bookmarkitem pointers, although they also appear
+    // in items.
+    vector<BookmarkItem *> books;
+
+    // The books array needs to parallel the existing_solutions.
+    for (int i = 0; i < existing_solutions.size(); i++) {
+      BookmarkItem *bi =
+        new BookmarkItem(start, &existing_solutions[i], plr, md5, this);
+
+      bi->explanation =
+        "Selecting this bookmark will load it,\n"
+        "losing your current progress.\n";
+
+      items.push_back(bi);
+      books.push_back(bi);
+    }
+
+    items.push_back(&newtitle);
+    items.push_back(&defname);
+    items.push_back(&book_current);
+    items.push_back(&can);
+
+    std::unique_ptr<Menu> mm = Menu::Create(this, "Bookmarks", items, false);
 
     mm->yoffset = fon->height + 4;
     mm->alpha = 230;
@@ -677,8 +673,9 @@ void Play_::Bookmarks(const Level *start,
          or hitting one of the bookmarks. so look
          to see if it was a bookmark first. */
 
-      for (int i = 0; i < bmnum; i++) {
+      for (int i = 0; i < books.size(); i++) {
         bmaction a = books[i]->action.a;
+        // printf("book %d/%d action %d\n", i, (int)books.size(), (int)a);
         switch (a) {
         case BMA_NONE: break;
 
@@ -719,7 +716,7 @@ void Play_::Bookmarks(const Level *start,
           Solution opt = Optimize::Opt(start, books[i]->ns.sol);
 
           books[i]->ns.sol = std::move(opt);
-          SetSolsFromBookmarkItems(plr, md5, books, bmnum);
+          SetSolsFromBookmarkItems(plr, md5, books);
 
           show_menu_again = true;
           goto found_action;
@@ -730,13 +727,13 @@ void Play_::Bookmarks(const Level *start,
           books[i]->ns.name = books[i]->action.s;
 
           /* save... */
-          SetSolsFromBookmarkItems(plr, md5, books, bmnum);
+          SetSolsFromBookmarkItems(plr, md5, books);
           show_menu_again = true;
 
           /* and restart... */
           goto found_action;
 
-        case BMA_WATCH: /* FALLTHROUGH */
+        case BMA_WATCH: // FALLTHROUGH
         case BMA_SELECT: {
           /* restore the bookmark */
 
@@ -759,8 +756,9 @@ void Play_::Bookmarks(const Level *start,
           goto found_action;
         }
         }
-      }
 
+      }  // loop over books
+        
       /* didn't click on a bookmark. Could be one of the
          other buttons... */
 
@@ -768,37 +766,34 @@ void Play_::Bookmarks(const Level *start,
 
       case OKAYWHAT_NEW: {
         /* bookmark new */
-        {
-          /* need to trim this solution so that we are bookmarking
-             the current position without redos */
-          Solution book = *sol;
-          book.Truncate(solpos);
-          NamedSolution ns(std::move(book),
-                           (defname.input == "") ? "Bookmark" : defname.input,
-                           /* no author */
-                           "",
-                           time(0),
-                           true);
-          /* shouldn't make this default */
-          plr->AddSolution(md5, std::move(ns), false);
-          plr->WriteFile();
-        }
+
+        /* need to trim this solution so that we are bookmarking
+           the current position without redos */
+        Solution book = *sol;
+        book.Truncate(solpos);
+        NamedSolution ns(std::move(book),
+                         (defname.input == "") ? "Bookmark" : defname.input,
+                         /* no author */
+                         "",
+                         time(0),
+                         true);
+        /* shouldn't make this default */
+        plr->AddSolution(md5, std::move(ns), false);
+        plr->WriteFile();
+
         /* message: "bookmark added" */
         break;
       }
 
-      case OKAYWHAT_DOWNLOAD: {
+      case OKAYWHAT_DOWNLOAD:
         BookmarkDownload(plr, md5);
         show_menu_again = true;
         break;
-      }
 
-      default: {
-         Message::Bug(0, "huh?");
+      default:
+        Message::Bug(0, "huh?");
         break;
       }
-      }
-
     }
     case InputResultKind::QUIT:
       /* XXX actually quit */
@@ -810,11 +805,9 @@ void Play_::Bookmarks(const Level *start,
   found_action:;
 
     /* now erase the bookmark menuitems */
-    for (int i = 0; i < bmnum; i++) {
-      delete books[i];
-    }
-    free(books);
-
+    for (BookmarkItem *item : books) delete item;
+    books.clear();
+    
   } while (show_menu_again);
   Redraw();
 }
@@ -841,6 +834,8 @@ void Play_::BookmarkDownload(Player *plr, const string &lmd5) {
 
     td.say("OK. Solutions on server: " GREEN + Util::itos(nsols) + POP);
 
+    bool added_any = false;
+    
     /* get them! */
     for (int i = 0; i < nsols; i++) {
       string line1 = EscapeUtil::getline(s);
@@ -869,9 +864,12 @@ void Play_::BookmarkDownload(Player *plr, const string &lmd5) {
 
         // Downloaded solutions should not be default.
         plr->AddSolution(lmd5, std::move(ns), false);
+        added_any = true;
       }
     }
 
+    if (added_any) plr->WriteFile();
+    
     return;
 
   } else {

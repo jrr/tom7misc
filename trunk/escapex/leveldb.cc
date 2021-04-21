@@ -39,8 +39,7 @@ static std::vector<string> filequeue;
 
 /* loaded levels waiting to be added into the database
    (need to verify solutions), etc. */
-static PtrList<LevelWait> *levelqueue = nullptr;
-static int levelqueue_size = 0;
+static std::vector<LevelWait> levelqueue;
 
 /* All levels that we've loaded, as a map from MD5 to the level
    database entry. Each one is allocated once and can be referred to
@@ -88,8 +87,7 @@ void LevelDB::addsourcefile(string s) {
 }
 
 bool LevelDB::uptodate(float *pct_disk, float *pct_verify) {
-  // PERF: is map<>.size constant-time?
-  int total = levelqueue_size + filequeue.size() + all_levels.size();
+  int total = levelqueue.size() + filequeue.size() + all_levels.size();
 
   if (pct_disk) {
     if (total) {
@@ -101,15 +99,15 @@ bool LevelDB::uptodate(float *pct_disk, float *pct_verify) {
 
   if (pct_verify) {
     if (total) {
-      *pct_verify = 1.0 - float(levelqueue_size + filequeue.size()) / total;
+      *pct_verify = 1.0 - float(levelqueue.size() + filequeue.size()) / total;
     } else {
       *pct_verify = 1.0;
     }
   }
 
-  fprintf(stderr, "lq %d fq %d\n", levelqueue_size,
+  fprintf(stderr, "lq %d fq %d\n", (int)levelqueue.size(),
 	  (int)filequeue.size());
-  return levelqueue_size == 0 && filequeue.empty();
+  return levelqueue.empty() && filequeue.empty();
 }
 
 void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
@@ -120,26 +118,24 @@ void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
   unsigned int gameover = SDL_GetTicks() + max_ticks;
 
   do {
-    if (levelqueue &&
+    if (!levelqueue.empty() &&
         (!max_verifies ||
          verifies_left > 0)) {
 
       fprintf(stderr, "Do verify.\n");
       verifies_left--;
 
-      std::unique_ptr<LevelWait> lw {PtrList<LevelWait>::pop(levelqueue)};
-      levelqueue_size--;
+      LevelWait lw = levelqueue.back();
+      levelqueue.pop_back();
 
-      if (lw.get() == nullptr) abort();
+      res_level *entry = FindOrInsertNew(all_levels, lw.md5);
 
-      res_level *entry = FindOrInsertNew(all_levels, lw->md5);
+      if (!entry || lw.md5.empty()) abort();
 
-      if (!entry || lw->md5.empty()) abort();
-
-      entry->md5 = lw->md5;
+      entry->md5 = lw.md5;
       // XXX should avoid doing this if it's already there. Levels
       // could be inserted twice, right?
-      entry->sources.push_back(lw->filename);
+      entry->sources.push_back(lw.filename);
 
       // XXX entry.date (from web thingy)
       // XXX entry.speedrecord (from player)
@@ -149,11 +145,12 @@ void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
       // If this is the second time we're loading it,
       // get rid of the duplicate. Prefer the old one
       // in case someone already has an alias to it.
-      if (entry->lev == 0) entry->lev = lw->l;
-      else delete lw->l;
+      if (entry->lev == 0) entry->lev = lw.l;
+      else delete lw.l;
+      lw.l = nullptr;
 
       fprintf(stderr, "Inserted level %p from %s\n",
-              entry, lw->filename.c_str());
+              entry, lw.filename.c_str());
 
       /* Verify the solution now so that we can get quicker access to
          it later. Should we do this for all solutions? */
@@ -183,12 +180,10 @@ void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
         if (l.get() != nullptr) {
           const string m = MD5::Hash(c);
           /* put on the level queue now */
-          levelqueue = new PtrList<LevelWait>(
-	      new LevelWait(l.get(), s, m), levelqueue);
-          levelqueue_size++;
+          levelqueue.emplace_back(l.release(), s, m);
 
           fprintf(stderr, "Enqueued level from %s\n", s.c_str());
-              } else {
+        } else {
           fprintf(stderr, "%s is not a level\n", s.c_str());
         }
       } else {

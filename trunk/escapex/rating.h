@@ -8,9 +8,9 @@ struct Player;
 struct Level;
 
 struct Rating {
-  string ToString() const;
+  std::string ToString() const;
 
-  static Rating *FromString(const string &s);
+  static Rating *FromString(const std::string &s);
 
   static Rating *Create();
 
@@ -23,7 +23,8 @@ struct Rating {
 
 
 struct RateScreen : public Drawable {
-  static RateScreen *Create(Player *p, const Level *l, const string &levmd);
+  static RateScreen *Create(Player *p, const Level *l,
+                            const std::string &levmd);
 
   /* pops up a menu to rate the level identified
      by md5 string levmd. It's rated by player p,
@@ -48,7 +49,7 @@ struct RateScreen : public Drawable {
   void Draw() override = 0;
   void ScreenResize() override = 0;
 
-  virtual void SetMessage(const string &s) = 0;
+  virtual void SetMessage(const std::string &s) = 0;
 
   Drawable *below = nullptr;
 };

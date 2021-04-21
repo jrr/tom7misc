@@ -6,7 +6,6 @@
 #include "draw.h"
 #include "chars.h"
 #include "message.h"
-#include "ptrlist.h"
 #include "escape-util.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/sdl/font.h"
@@ -357,39 +356,30 @@ InputResult MenuItem::key(SDL_Event e) {
 
 Menu::~Menu() {
   if (alpharect != nullptr) SDL_FreeSurface(alpharect);
-  free(items);
+  // Pointers not owned.
+  items.clear();
 }
 
 std::unique_ptr<Menu> Menu::Create(Drawable *be,
-				   string ti,
-				   PtrList<MenuItem> *its,
-				   bool fs) {
+                                   string title,
+                                   std::vector<MenuItem *> items,
+                                   bool fs) {
   std::unique_ptr<Menu> m{new Menu};
   if (m.get() == nullptr) return nullptr;
-  m->title = ti;
+  m->title = std::move(title);
   m->below = be;
   m->fullscreen = fs;
 
   m->alpha = 200;
   m->alpharect = 0;
-  m->nitems = its->length();
-  if (!m->nitems) {
-    m.reset();
-    return m;
-  }
-  m->items = (MenuItem**)malloc(m->nitems *
-                                sizeof (MenuItem *));
-
-  if (!m->items) {
+  m->items = std::move(items);
+  if (m->items.empty()) {
     m.reset();
     return m;
   }
 
-  PtrList<MenuItem> *tmp = its;
-  for (int i = 0; i < m->nitems; i++) {
-    m->items[i] = tmp->head;
-    m->items[i]->container = m.get();
-    tmp = tmp->next;
+  for (MenuItem *mi : m->items) {
+    mi->container = m.get();
   }
 
   return m;
@@ -426,7 +416,7 @@ void Menu::Draw() {
 
   if (skip != 0) {
     fon->draw(x, 2 + posy + (yoff - fon->height),
-	      ALPHA50 PICS ARROWU POP YELLOW " More " POP PICS ARROWU POP POP);
+              ALPHA50 PICS ARROWU POP YELLOW " More " POP PICS ARROWU POP POP);
   }
 
   /* XXX the calculations in the following two parts are shared,
@@ -439,7 +429,7 @@ void Menu::Draw() {
      above and below) */
   {
     int yo = yoff;
-    for (int n = skip; n < nitems; n++) {
+    for (int n = skip; n < items.size(); n++) {
       int iw, ih;
       items[n]->size(iw, ih); iw += items[n]->indent;
       /* give a line of leeway between control area and status area */
@@ -472,7 +462,7 @@ void Menu::Draw() {
   }
 
   /* now draw the controls */
-  for (int n = skip; n < nitems; n++) {
+  for (int n = skip; n < items.size(); n++) {
     int iw, ih;
     items[n]->size(iw, ih); iw += items[n]->indent;
     /* give a line of leeway between control area and status area */
@@ -487,7 +477,8 @@ void Menu::Draw() {
       /* out of space: stop trying to draw controls.
          (but draw a "more" icon) */
       fon->draw(x, posy + yoff,
-		ALPHA50 PICS ARROWD POP YELLOW " More " POP PICS ARROWD POP POP);
+                ALPHA50 PICS ARROWD POP YELLOW " More " POP
+                PICS ARROWD POP POP);
       break;
     }
   }
@@ -524,7 +515,7 @@ bool Menu::skip_ok(int vspace) {
      skip and z. We always have a title
      and separator */
   int ch = 0;
-  for (int z = skip; z < nitems;) {
+  for (int z = skip; z < items.size();) {
     int ww, hh;
     items[z]->size(ww, hh);
 
@@ -535,12 +526,13 @@ bool Menu::skip_ok(int vspace) {
          selected control then we're done. */
       if (z == selected) return true;
       z++;
-    } else
+    } else {
       /* ran out of space; fail */
       return false;
+    }
   }
 
-  /* ??? selected >= nitems or skip >= nitems? */
+  /* ??? selected >= items.size() or skip >= items.size()? */
   return true;
 }
 
@@ -552,7 +544,7 @@ bool Menu::skip_ok(int vspace) {
 void Menu::fixup(int vspace) {
 
   /* no preposterous skips */
-  if (skip < 0 || skip >= nitems) skip = 0;
+  if (skip < 0 || skip >= items.size()) skip = 0;
 
   /* don't do anything if the skip is okay as-is */
   if (skip_ok(vspace)) return;
@@ -570,8 +562,9 @@ void Menu::fixup(int vspace) {
      thousands of controls?!
   */
 
-  for (skip = 0; skip < nitems; skip++)
+  for (skip = 0; skip < items.size(); skip++) {
     if (skip_ok(vspace)) return;
+  }
 }
 
 void Menu::Redraw() {
@@ -603,7 +596,7 @@ void Menu::ScreenResize() {
      any explanation */
   int maxl = 0;
 
-  for (int i = 0; i < nitems; i++) {
+  for (int i = 0; i < items.size(); i++) {
     int tw, th;
     items[i]->size(tw, th); tw += items[i]->indent;
     toth += th;
@@ -748,8 +741,8 @@ void Menu::nextfocus(int d) {
   for (;;) {
     if (items[selected]->focusable()) return;
     selected += d;
-    if (selected < 0) selected = nitems - 1;
-    if (selected >= nitems) selected = 0;
+    if (selected < 0) selected = items.size() - 1;
+    if (selected >= items.size()) selected = 0;
   }
 }
 
@@ -759,7 +752,7 @@ InputResult Menu::clickselect(int xc, int yc) {
      control area */
   int y = TOPBARHEIGHT;
 
-  for (int n = skip; n < nitems; n++) {
+  for (int n = skip; n < items.size(); n++) {
     int iw, ih;
     items[n]->size(iw, ih);
     iw += items[n]->indent;
@@ -788,37 +781,38 @@ InputResult Menu::clickselect(int xc, int yc) {
   return InputResult(InputResultKind::REJECT);
 }
 
-#define PROCESSRESULT(res)              \
-  switch (res.kind()) {                 \
+// XXX can probably be local lambda?
+#define PROCESSRESULT(res)                            \
+  switch (res.kind()) {                               \
   case InputResultKind::OK:                           \
   case InputResultKind::CANCEL:                       \
   case InputResultKind::QUIT: return res.kind();      \
-                                        \
+                                                      \
   case InputResultKind::UPDATED:                      \
-    Redraw();                           \
-    break;                              \
+    Redraw();                                         \
+    break;                                            \
   case InputResultKind::REJECT:                       \
-    /* XXX beep or flash display */     \
-    break;                              \
-                                        \
+    /* XXX beep or flash display */                   \
+    break;                                            \
+                                                      \
   case InputResultKind::NEXT:                         \
-    selected++;                         \
-    selected %= nitems;                 \
-    nextfocus(1);                       \
-    Redraw();                           \
-    break;                              \
-                                        \
+    selected++;                                       \
+    selected %= items.size();                         \
+    nextfocus(1);                                     \
+    Redraw();                                         \
+    break;                                            \
+                                                      \
   case InputResultKind::PREV:                         \
-    if (!selected) {                    \
-      selected = nitems - 1;            \
-    } else --selected;                  \
-    nextfocus(-1);                      \
-    Redraw();                           \
-    break;                              \
-                                        \
-  default:                              \
+    if (!selected) {                                  \
+      selected = items.size() - 1;                    \
+    } else --selected;                                \
+    nextfocus(-1);                                    \
+    Redraw();                                         \
+    break;                                            \
+                                                      \
+  default:                                            \
   case InputResultKind::NOTHING:                      \
-    break;                              \
+    break;                                            \
   }
 
 InputResultKind Menu::menuize() {

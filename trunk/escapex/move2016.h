@@ -59,12 +59,12 @@ using AList = PtrList<AEvent>;
         a->t = tag_ ## type;                    \
         return &(a->u. type );                  \
       }());                                     \
-    };                                          \
+    }                                           \
   } while (0)
 
 // Expected in scope: ctx, ANIMATING
 // fn is a lambda that takes no args. It is executed whether animation
-// on or not!
+// is on or not!
 #define AFFECTENT2016(entid, fn) do {                                   \
     const int affectent_ei = (entid);                                   \
     if (ANIMATING) {                                                    \
