@@ -739,13 +739,9 @@ void Editor::Resize() {
   Okay ok;
   ok.text = "Change Size";
 
-  PtrList<MenuItem> *l = nullptr;
-
-  PtrList<MenuItem>::push(l, &ok);
-  PtrList<MenuItem>::push(l, &theight);
-  PtrList<MenuItem>::push(l, &twidth);
-
-  std::unique_ptr<Menu> mm = Menu::Create(this, "Level Size", l, false);
+  std::unique_ptr<Menu> mm = Menu::Create(this, "Level Size",
+                                          {&twidth, &theight, &ok},
+                                          false);
 
   if (mm->menuize() == InputResultKind::OK) {
     int nnw = atoi(twidth.input.c_str());
@@ -768,8 +764,6 @@ void Editor::Resize() {
 
     }
   } /* XXX else InputResultKind::QUIT */
-
-  PtrList<MenuItem>::diminish(l);
 
   Redraw();
 }

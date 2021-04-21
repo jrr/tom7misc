@@ -122,31 +122,28 @@ void Prefs::Show(Player *plr) {
 
   Cancel can;
 
-  PtrList<MenuItem> *l = nullptr;
+  vector<MenuItem *> items = {
+    &game,
+    &askrate,
+    &showtut,
+    &backup,
+    &animon,
+    &optsol,
 
-  PtrList<MenuItem>::push(l, &can);
-  PtrList<MenuItem>::push(l, &ok);
-  PtrList<MenuItem>::push(l, &spacer);
+    &spacer,
+    &network,
+    &servername,
+    &altconnect,
+    &debugnet,
 
-  PtrList<MenuItem>::push(l, &debugnet);
-  PtrList<MenuItem>::push(l, &altconnect);
-  PtrList<MenuItem>::push(l, &servername);
-  PtrList<MenuItem>::push(l, &network);
-  PtrList<MenuItem>::push(l, &spacer);
+    &spacer,
+    &ok,
+    &can,
+  };
 
-  PtrList<MenuItem>::push(l, &optsol);
-  PtrList<MenuItem>::push(l, &animon);
-  PtrList<MenuItem>::push(l, &backup);
-  PtrList<MenuItem>::push(l, &showtut);
-  PtrList<MenuItem>::push(l, &askrate);
-  PtrList<MenuItem>::push(l, &game);
-
-
-  std::unique_ptr<Menu> mm = Menu::Create(0, "Escape Preferences Menu", l, false);
-
+  std::unique_ptr<Menu> mm =
+    Menu::Create(0, "Escape Preferences Menu", items, false);
   InputResultKind res = mm->menuize();
-
-  PtrList<MenuItem>::diminish(l);
   mm.reset();
 
   /* XXX check InputResultKind::QUIT */

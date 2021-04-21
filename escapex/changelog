@@ -1,3 +1,9 @@
+2021-04-20  Tom 7  <Tom@STARTROPICS>
+
+        * play.cc: Fix bug where solutions downloaded from
+          the server would not be saved in the player file
+          if you exited right away after downloading.
+
 2021-04-03  Tom 7  <Tom@STARTROPICS>
 
         * Fix bug on the server where solutions were lost.

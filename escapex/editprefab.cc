@@ -67,21 +67,16 @@ void Editor::prefab() {
 
     Cancel can;
 
-    PtrList<MenuItem> *l = nullptr;
-
-    PtrList<MenuItem>::push(l, &can);
-    PtrList<MenuItem>::push(l, &spacer);
-
-    PtrList<MenuItem>::push(l, &file);
-    PtrList<MenuItem>::push(l, &timer);
-    PtrList<MenuItem>::push(l, &spacer);
-
-    PtrList<MenuItem>::push(l, &message);
-
     /* display menu */
-    std::unique_ptr<Menu> mm = Menu::Create(this, "Which prefab?", l, false);
+    std::unique_ptr<Menu> mm =
+      Menu::Create(this, "Which prefab?",
+                   {&message,
+                    &spacer,
+                    &timer, &file,
+                    &spacer,
+                    &can},
+                   false);
     InputResultKind res = mm->menuize();
-    PtrList<MenuItem>::diminish(l);
     mm.reset();
 
     if (res == InputResultKind::OK) {
@@ -159,23 +154,15 @@ void Editor::pffile() {
 
   /* XXX (don't) constrain to selection option? */
 
-
-  PtrList<MenuItem> *l = nullptr;
-
-  PtrList<MenuItem>::push(l, &can);
-  PtrList<MenuItem>::push(l, &ok);
-  PtrList<MenuItem>::push(l, &spacer);
-
-  PtrList<MenuItem>::push(l, &yoff);
-  PtrList<MenuItem>::push(l, &xoff);
-
-  PtrList<MenuItem>::push(l, &message2);
-  PtrList<MenuItem>::push(l, &message);
-
   /* display menu */
-  std::unique_ptr<Menu> mm = Menu::Create(this, "Inserting file", l, false);
+  std::unique_ptr<Menu> mm =
+    Menu::Create(this, "Inserting file",
+                 {&message, &message2,
+                  &xoff, &yoff,
+                  &spacer,
+                  &ok, &can},
+                 false);
   InputResultKind res = mm->menuize();
-  PtrList<MenuItem>::diminish(l);
   mm.reset();
 
   if (res == InputResultKind::OK) {
@@ -303,22 +290,15 @@ void Editor::pftimer() {
                         "on the left.";
   reverse.checked = false;
 
-  PtrList<MenuItem> *l = nullptr;
-
-  PtrList<MenuItem>::push(l, &can);
-  PtrList<MenuItem>::push(l, &ok);
-  PtrList<MenuItem>::push(l, &spacer);
-
-  PtrList<MenuItem>::push(l, &reverse);
-  PtrList<MenuItem>::push(l, &nmoves);
-
-  PtrList<MenuItem>::push(l, &message2);
-  PtrList<MenuItem>::push(l, &message);
-
   /* display menu */
-  std::unique_ptr<Menu> mm = Menu::Create(this, "Inserting timer", l, false);
+  std::unique_ptr<Menu> mm =
+    Menu::Create(this, "Inserting timer",
+                 {&message, &message2,
+                  &nmoves, &reverse,
+                  &spacer,
+                  &ok, &can},
+                 false);
   InputResultKind res = mm->menuize();
-  PtrList<MenuItem>::diminish(l);
   mm.reset();
 
   if (res == InputResultKind::OK) {

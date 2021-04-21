@@ -2,12 +2,13 @@
 #ifndef _ESCAPE_MENU_H
 #define _ESCAPE_MENU_H
 
-#include "escapex.h"
+#include <vector>
+#include <string>
 
 #include <SDL.h>
 
+#include "escapex.h"
 #include "chars.h"
-#include "ptrlist.h"
 
 /* menus are essentially what are often called
    "forms" in GUI lingo */
@@ -158,7 +159,7 @@ struct Slider : public MenuItem {
   /* labels over lowest and highest points in slider */
   string low;
   string high;
-
+  
   /* inclusive */
   int lowest = 0;
   int highest = 0;
@@ -250,7 +251,7 @@ struct Menu : public Drawable {
      or the list cells */
   static std::unique_ptr<Menu> Create(Drawable *below,
 				      string title,
-				      PtrList<MenuItem> *items,
+                                      std::vector<MenuItem *> items,
 				      bool fullscreen);
 
   void Draw() override;
@@ -278,8 +279,7 @@ struct Menu : public Drawable {
 
   Drawable *below = nullptr;
   string title;
-  int nitems = 0;
-  MenuItem **items = nullptr;
+  std::vector<MenuItem *> items;
   bool fullscreen = false;
   int selected = 0;
   int skip = 0;

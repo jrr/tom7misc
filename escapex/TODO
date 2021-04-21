@@ -7,6 +7,7 @@
 
 Code cleanup:
  - replace vallist with deque or vector; it's not used in that many places
+ - get rid of ptrlist in level.h
  - makefile does not have proper dependencies on animation_*.h, which
    is needed by any object that includes animation.h. (but it's much
    better than it used to be)
@@ -17,6 +18,8 @@ Make this work again on OSX 10.10+ and windows!
  - byte order when manually making graphics, like mainshow?
      - note that it is not just byte order, but color order
        differs per platform (RGBA, ARGB, etc.)
+     - perhaps a good approach is ImageRGBA plus the sdlutil
+       to convert to a surface, which handles this stuff correctly.
      - any more of these?
  - Probably release a source-only tarball for linux?
 
@@ -31,16 +34,11 @@ Maybe move primes to cc-lib.
 Actually try to do some ML-based level generation? There aren't
 that many levels to train on, but it's possible that we could
 generate solvable levels programmatically, then train on those?
+(Even just generating some escape-looking levels would make a good
+ randomizer?)
 
 Bugs in 2016:
-    Bug: If I download new solutions from the servers, then
-    immediately quit the program without solving any levels, then when
-    I restart the program, the downloaded solutions are lost. For now,
-    it seems possible to get around this by solving any level (e.g. by
-    replaying a stored solution to the end) after new solution
-    download but before quitting.
-
-    Also, if a level has a height of 12, and there are more than four
+    If a level has a height of 12, and there are more than four
     solutions in the player file, then the bookmark menu behaves a bit
     strange: when one tries to scroll down from the start to the
     fourth bookmark, suddenly the highlighting is lost. One can still

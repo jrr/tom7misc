@@ -156,17 +156,10 @@ void CommentScreen::Comment(Player *p, const Level *lev, const string &md5,
 
   Cancel can;
 
-  PtrList<MenuItem> *l = nullptr;
-
-  PtrList<MenuItem>::push(l, &can);
-  PtrList<MenuItem>::push(l, &ok);
-  PtrList<MenuItem>::push(l, &spoiler);
-  PtrList<MenuItem>::push(l, &body);
-
   std::unique_ptr<Menu> mm =
     Menu::Create(&cs, cookmode ? "Explain your cook" : "Leave a comment",
-		 l, false);
-  PtrList<MenuItem>::diminish(l);
+                 {&body, &spoiler, &ok, &can},
+		 false);
 
   mm->yoffset = fon->height + 4;
   mm->alpha = 230;

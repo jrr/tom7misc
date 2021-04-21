@@ -8,7 +8,6 @@
 #include "draw.h"
 #include "chars.h"
 #include "menu.h"
-#include "ptrlist.h"
 
 /* XXX implement in terms of menu class?
    textinput is meant to be the same */
@@ -43,18 +42,11 @@ string Prompt::select() {
 
   Cancel can;
 
-  PtrList<MenuItem> *l = nullptr;
-
-  PtrList<MenuItem>::push(l, &can);
-  PtrList<MenuItem>::push(l, &ok);
-  PtrList<MenuItem>::push(l, &spacer);
-  PtrList<MenuItem>::push(l, &inp);
-  // PtrList<MenuItem>::push(l, &lab);
-
   std::unique_ptr<Menu> mm =
-    Menu::Create(below, GREY "Input Required", l, false);
+    Menu::Create(below, GREY "Input Required",
+                 {&inp, &spacer, &ok, &can},
+                 false);
   InputResultKind res = mm->menuize();
-  PtrList<MenuItem>::diminish(l);
 
   if (res == InputResultKind::OK) {
     return inp.input;

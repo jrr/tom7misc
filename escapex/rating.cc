@@ -1,14 +1,19 @@
 
-#include "escapex.h"
 #include "rating.h"
 
+#include <vector>
+#include <string>
+#include <memory>
+
+#include "../cc-lib/crypt/md5.h"
+#include "../cc-lib/util.h"
+#include "../cc-lib/base/stringprintf.h"
+
+#include "escapex.h"
 #include "player.h"
 #include "draw.h"
 #include "chars.h"
 #include "message.h"
-#include "../cc-lib/crypt/md5.h"
-#include "../cc-lib/util.h"
-#include "../cc-lib/base/stringprintf.h"
 #include "escape-util.h"
 #include "menu.h"
 
@@ -209,19 +214,20 @@ void RateScreen_::Rate() {
 
   Cancel can;
 
-  PtrList<MenuItem> *l = nullptr;
-
-  PtrList<MenuItem>::push(l, &can);
-  PtrList<MenuItem>::push(l, &ok);
-  PtrList<MenuItem>::push(l, &solved);
-  PtrList<MenuItem>::push(l, &cooked);
-  PtrList<MenuItem>::push(l, &rigidity);
-  PtrList<MenuItem>::push(l, &style);
-  PtrList<MenuItem>::push(l, &difficulty);
-  PtrList<MenuItem>::push(l, &author);
-  PtrList<MenuItem>::push(l, &levname);
-
-  std::unique_ptr<Menu> mm = Menu::Create(this, "Change Your Rating", l, false);
+  vector<MenuItem *> items = {
+    &levname,
+    &author,
+    &difficulty,
+    &style,
+    &rigidity,
+    &cooked,
+    &solved,
+    &ok,
+    &can,
+  };
+  
+  std::unique_ptr<Menu> mm =
+    Menu::Create(this, "Change Your Rating", items, false);
 
   /* XXX look for InputResultKind::QUIT too */
   if (InputResultKind::OK == mm->menuize()) {
@@ -309,7 +315,6 @@ void RateScreen_::Rate() {
 
   } /* otherwise do nothing */
 
-  PtrList<MenuItem>::diminish(l);
 }
 
 }  // namespace
