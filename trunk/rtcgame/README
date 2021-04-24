@@ -7,5 +7,9 @@ export PATH="${PATH}:/d/node"
 
 Install typescript:
 npm install -g typescript
+(this also seems to update to the newest version)
 
 tsc --version
+
+Version 4.2.4
+
