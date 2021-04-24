@@ -19,6 +19,17 @@
 // that we have to do this for all static methods of Sim, too (they
 // wouldn't have access to members we saved in the constructor).
 
+// (24 Apr 2021) Another option might be to create an explicit level
+// distinction here, requiring that stuff like State and Input are
+// concretely represented as bytes, which means that the object-level
+// stuff has to do its own marshalling/casting. This comes with some
+// performance penalty probably, and may also be annoying, but perhaps
+// it makes "nesting" simulations more straightforward?
+//
+// An obvious twist on the previous is to use something like "object"
+// or typescript "any" instead of a concrete representation in the
+// previous.
+
 // TODO: Frame index representation! 32 bits is seemingly not enough?
 // (810 days at 60fps, but we really do want simulations to be able to
 // persist indefinitely and assume the frame counter is monotonic).
@@ -27,6 +38,103 @@
 // comes out with the next version of iOS even?) Could use a pair of
 // 32-bit ints and implement simple number ops manually, too.
 
+
+// A simulation is parameterized on the following types:
+//  - Inputs, the per-player input for a single frame
+//  - State, the "game state" at a particular frame.
+
+// Per-player input for a frame.
+interface InputsI {
+  toString() : string;
+  clone() : InputsI;
+}
+
+// Static parts of inputs.
+interface InputsTypeI<Inputs extends InputsI> {
+  // Don't actually need constructor.
+  // new () : Inputs;
+  empty() : Inputs;
+  eq(a : Inputs, b : Inputs) : boolean;
+}
+
+// Set of inputs (possibly incomplete) for a frame.
+class InputRow<Inputs extends InputsI, InputsType extends InputsTypeI<Inputs>> {
+  readonly N: number;
+  readonly inputs_type: InputsType;
+  inputs: Array<Inputs>;
+
+  // not allowed? :(
+  // type Self = InputRow<Inputs extends InputsI, InputsType extends InputsTypeI<Inputs>>;
+  
+  constructor(N : number, inputs_type : InputsType) {
+    this.N = N;
+    this.inputs_type = inputs_type;
+    // In a row, null means unknown. It is not a valid input.
+    this.inputs = new Array(N).fill(null);
+  }
+
+  known(idx : number) : boolean {
+    return this.inputs[idx] !== null;
+  }
+
+  get(idx : number) {
+    return this.inputs[idx];
+  }
+
+  set(idx : number, value) : void {
+    if (value === null) throw 'null is not a valid input';
+    this.inputs[idx] = value;
+  }
+
+  complete() : boolean {
+    for (let i = 0; i < this.N; i++)
+      if (!this.known(i))
+	return false;
+    return true;
+  }
+
+  // Clone, cloning inputs as well.
+  clone() : InputRow<Inputs, InputsType> {
+    let ret = new InputRow<Inputs, InputsType>(this.inputs.length,
+                                               this.inputs_type);
+    for (let i = 0; i < this.inputs.length; i++) {
+      if (this.inputs[i] === null) {
+	ret.inputs[i] = null;
+      } else {
+	ret.inputs[i] = this.inputs[i].clone();
+      }
+    }
+    return ret;
+  }
+  
+  static eq
+    <Inputs extends InputsI, InputsType extends InputsTypeI<Inputs>>
+    (inputs_type : InputsType,
+     a: InputRow<InputsI, InputsType>,
+     b: InputRow<InputsI, InputsType>) : boolean {
+    if (a.N != b.N) throw 'different radix';
+    for (let i = 0; i < a.N; i++)
+      if (!inputs_type.eq(a.get(i), b.get(i)))
+	return false;
+    return true;
+  }
+
+  
+  // A complete row of empty inputs.
+  static completeEmpty
+    <Inputs extends InputsI, InputsType extends InputsTypeI<Inputs>>
+    (N, inputs_type : InputsType) {
+      let ret = new InputRow<Inputs, InputsType>(N, inputs_type);
+      for (let i = 0; i < N; i++) {
+        ret.inputs[i] = inputs_type.empty();
+      }
+      return ret;
+    }
+  
+}
+
+/*
+
 // A view of the simulation from a specific peer. This is distributed, so
 // even though we may talk about "the" simulation, it's realized by a
 // collection of these spread around the network. When the inputs are all
@@ -34,8 +142,15 @@
 //
 // A simulation has a fixed number of players N with indices 0..N-1.
 // I also know which player index I am.
+
+
+
+
+
 type QueuedInput = {frame: number, player_idx: number, input: Inputs};
 class Sim {
+  readonly Inputs inputs_type;
+  
   readonly N: number;
   readonly my_id: number;
   cframe: number;
@@ -46,7 +161,16 @@ class Sim {
   nframe: number;
   queued_inputs: Array<QueuedInput>;
   
-  constructor(N, my_id, start_frame, start_state) {
+  constructor(
+    inputs_type,
+
+    N, my_id, start_frame, start_state) {
+    // Type parameters. Typescript uses an erasure approach so we
+    // also need some run-time representation of the type parameters
+    // (their constructors).
+    this.inputs_type = inputs_type;
+    this.state_type = state_type;
+    
     // Constants.
     this.N = N;
     this.my_id = my_id;
@@ -318,13 +442,17 @@ abstract class State {
   
 }
 
+
 // Set of inputs (possibly incomplete) for a frame.
-class InputRow {
+class InputRow< Inputs extends InputsIface,
+                InputOps extends InputOpsIface<Inputs> > {
   readonly N: number;
+  readonly input_ops: InputOps;                 
   inputs: Array<Inputs>;
   
-  constructor(N : number) {
+  constructor(N : number, input_ops : InputOps) {
     this.N = N;
+    this.input_ops = input_ops;
     // In a row, null means unknown. It is not a valid input.
     this.inputs = new Array(N).fill(null);
   }
@@ -350,10 +478,10 @@ class InputRow {
   }
 
   // A complete row of empty inputs.
-  static completeEmpty(N) {
-    let ret = new InputRow(N);
+  static completeEmpty(N, input_ops : InputOps) {
+    let ret = new InputRow<InputOps>(N, input_ops);
     for (let i = 0; i < N; i++) {
-      ret.inputs[i] = Inputs.empty();
+      ret.inputs[i] = input_ops.empty();
     }
     return ret;
   }
@@ -371,33 +499,15 @@ class InputRow {
     return ret;
   }
   
-  static eq(a: InputRow, b: InputRow) : boolean {
+  static eq(input_ops : InputOps,
+            a: InputRow, b: InputRow) : boolean {
     if (a.N != b.N) throw 'different radix';
     for (let i = 0; i < a.N; i++)
-      if (!Inputs.eq(a.get(i), b.get(i)))
+      if (!input_ops.eq(a.get(i), b.get(i)))
 	return false;
     return true;
   }
 }
 
-// Per-player input for a frame.
-abstract class Inputs {
-  // TODO
-  constructor() {
 
-  }
-  
-  clone() : Inputs {
-    throw 'unimplemented';
-  }
-
-  static eq(a : Inputs, b : Inputs) : boolean {
-    // XXX
-    return a === b;
-  }
-  
-  // Some kind of "default" inputs, like the player is pressing nothing.
-  static empty() : Inputs {
-    return new Inputs();
-  }
-}
+*/
