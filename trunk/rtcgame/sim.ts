@@ -11,28 +11,29 @@
 
 
 // A simulation is parameterized on the following types:
-//  - Inputs, the per-player input for a single frame
+//  - Input, the per-player input for a single frame
 //  - State, the "game state" at a particular frame.
 // Ops encapsulates all the operations on these, which define what
 // we're actually simualating. These two types are left completely
 // abstract (no member functions/properties). Everything happens
 // through ops.
-
-// Static parts of inputs.
-interface Ops<Inputs, State> {
-  // TODO: rename to Input?
-  // Inputs are the inputs (like they might be pressing multiple keys)
+interface Ops<Input, State> {
+  // Input is the inputs (like they might be pressing multiple keys)
   // for one player on one frame.
-  emptyInputs() : Inputs;
-  cloneInputs(i : Inputs) : Inputs;
-  inputsString(i : Inputs) : string;
-  eqInputs(a : Inputs, b : Inputs) : boolean;
+  emptyInput() : Input;
+  cloneInput(i : Input) : Input;
+  inputString(i : Input) : string;
+  eqInput(a : Input, b : Input) : boolean;
 
   // State is the complete state of the stimulation. Needs to be
   // serializable because we share them, at least to onboard new
   // players, but also to "save"/"load" simulations.
-  initialState(N : number) : State;
+
+  // Debugging print.
+  stateString(s : State) : string;
   serializeState(s : State) : string;
+  // TODO deserialize
+  initialState(N : number) : State;
   eqState(a : State, b: State) : boolean;
 
   // For complete input_row and stale_row.
@@ -40,19 +41,19 @@ interface Ops<Inputs, State> {
   // compute step(state, input_row). This can apply various optimizations,
   // for example in the simple case that state = stale_src_state and
   // input_row = stale_row are the same!
-  zipStep(src_state : State, input_row : InputRow<Inputs, State>,
-	  stale_src_state : State, stale_row : InputRow<Inputs, State>,
+  zipStep(src_state : State, input_row : InputRow<Input, State>,
+	  stale_src_state : State, stale_row : InputRow<Input, State>,
 	  stale_dst_state : State) : State;
 }
 
 // Set of inputs (possibly incomplete) for a frame.
 // (This doesn't actually depend on state.)
-class InputRow<Inputs, State> {
+class InputRow<Input, State> {
   // readonly N: number;
-  // readonly ops: Ops<Inputs, State>;
-  inputs: Array<Inputs>;
+  // readonly ops: Ops<Input, State>;
+  inputs: Array<Input>;
   
-  constructor(private readonly ops : Ops<Inputs, State>,
+  constructor(private readonly ops : Ops<Input, State>,
               public N : number) {
     // In a row, null means unknown. It is not a valid input.
     this.inputs = new Array(N).fill(null);
@@ -66,7 +67,7 @@ class InputRow<Inputs, State> {
     return this.inputs[idx];
   }
 
-  set(idx : number, value : Inputs) : void {
+  set(idx : number, value : Input) : void {
     if (value === null) throw 'null is not a valid input';
     this.inputs[idx] = value;
   }
@@ -75,7 +76,7 @@ class InputRow<Inputs, State> {
     let a = [];
     for (let i = 0; i < this.N; i++) {
       if (this.known(i)) {
-        a.push(this.ops.inputsString(this.get(i)));
+        a.push(this.ops.inputString(this.get(i)));
       } else {
         a.push('?');
       }
@@ -91,36 +92,36 @@ class InputRow<Inputs, State> {
   }
 
   // Clone, cloning inputs as well.
-  clone() : InputRow<Inputs, State> {
-    let ret = new InputRow<Inputs, State>(this.ops, this.inputs.length);
+  clone() : InputRow<Input, State> {
+    let ret = new InputRow<Input, State>(this.ops, this.inputs.length);
     for (let i = 0; i < this.inputs.length; i++) {
       if (this.inputs[i] === null) {
 	ret.inputs[i] = null;
       } else {
-	ret.inputs[i] = this.ops.cloneInputs(this.inputs[i]);
+	ret.inputs[i] = this.ops.cloneInput(this.inputs[i]);
       }
     }
     return ret;
   }
   
-  static eq<Inputs, State>(ops : Ops<Inputs, State>,
-                           a: InputRow<Inputs, State>,
-                           b: InputRow<Inputs, State>) : boolean {
+  static eq<Input, State>(ops : Ops<Input, State>,
+                           a: InputRow<Input, State>,
+                           b: InputRow<Input, State>) : boolean {
     if (a.N != b.N) throw 'different radix';
     for (let i = 0; i < a.N; i++) {
       if (a.known(i) != b.known(i))
         return false;
-      if (a.known(i) && !ops.eqInputs(a.get(i), b.get(i)))
+      if (a.known(i) && !ops.eqInput(a.get(i), b.get(i)))
 	return false;
     }
     return true;
   }
   
   // A complete row of empty inputs.
-  static completeEmpty<Inputs, State>(ops : Ops<Inputs, State>, N : number) {
-    let ret = new InputRow<Inputs, State>(ops, N);
+  static completeEmpty<Input, State>(ops : Ops<Input, State>, N : number) {
+    let ret = new InputRow<Input, State>(ops, N);
     for (let i = 0; i < N; i++) {
-      ret.inputs[i] = ops.emptyInputs();
+      ret.inputs[i] = ops.emptyInput();
     }
     return ret;
   }
@@ -137,19 +138,19 @@ class InputRow<Inputs, State> {
 //  - The stale inputs, which is what we used to simulate that frame.
 //    These are all filled in, by guessing.
 //  - The actual inputs, which may not be completely filled in yet.
-type WindowRow<Inputs, State> =
+type WindowRow<Input, State> =
   {state: State,
-   stale: InputRow<Inputs, State>,
-   actual: InputRow<Inputs, State>};
+   stale: InputRow<Input, State>,
+   actual: InputRow<Input, State>};
 //
 // Wrapper around list so that we can replace it with a better data
 // structure if needed.
-class UWindow<Inputs, State> {
-  private data: Array<WindowRow<Inputs, State>>;
+class UWindow<Input, State> {
+  private data: Array<WindowRow<Input, State>>;
   
   // PERF Use a circular buffer or deque or something like that. This
   // needs access to both ends, but also random access probably?
-  constructor(private readonly ops : Ops<Inputs, State>) {
+  constructor(private readonly ops : Ops<Input, State>) {
     this.data = [];
   }
 
@@ -170,7 +171,7 @@ class UWindow<Inputs, State> {
 
 // Queued inputs are beyond the current uncertainty window; we
 // just queue them until they become relevant.
-type QueuedInput<Inputs> = {frame: number, player_idx: number, input: Inputs};
+type QueuedInput<Input> = {frame: number, player_idx: number, input: Input};
 
 // A view of the simulation from a specific peer. This is distributed, so
 // even though we may talk about "the" simulation, it's realized by a
@@ -179,16 +180,16 @@ type QueuedInput<Inputs> = {frame: number, player_idx: number, input: Inputs};
 //
 // A simulation has a fixed number of players N with indices 0..N-1.
 // I also know which player index I am.
-class Sim<Inputs, State> {
+class Sim<Input, State> {
   cframe: number;
   cstate: State;
-  cinputs: InputRow<Inputs, State>;
+  cinputs: InputRow<Input, State>;
   mframe: number;
-  window: UWindow<Inputs, State>;
+  window: UWindow<Input, State>;
   nframe: number;
-  queued_inputs: Array<QueuedInput<Inputs>>;
+  queued_inputs: Array<QueuedInput<Input>>;
   
-  constructor(private ops : Ops<Inputs, State>,
+  constructor(private ops : Ops<Input, State>,
               // Number of participants.
               public readonly N : number,
               public readonly my_id : number,
@@ -208,7 +209,7 @@ class Sim<Inputs, State> {
     // since it is only used to guess inputs that we haven't yet received.
     // So it is okay to just start it as empty (and this is a good guess
     // at the very beginning of the simulation anyway).
-    this.cinputs = InputRow.completeEmpty<Inputs, State>(this.ops, N);
+    this.cinputs = InputRow.completeEmpty<Input, State>(this.ops, N);
     
     // Frame idx before which we have all inputs (i.e., one for each
     // player in 0..N-1). Must be at least cframe by definition, but
@@ -232,7 +233,7 @@ class Sim<Inputs, State> {
     // and the first frame has index cframe. It ranges until nframe,
     // which is what we're showing to the user and where this user's
     // inputs would be written.
-    this.window = new UWindow<Inputs, State>(this.ops);
+    this.window = new UWindow<Input, State>(this.ops);
 
 
     // If we receive inputs >= nframe, we just queue them and replay
@@ -248,7 +249,7 @@ class Sim<Inputs, State> {
   // Update the input at the given frame.
   // Need to call updateWindow after this to maintain invariants, but
   // can do a batch of setInput and then one updateWindow.
-  setInput(frame : number, player_idx : number, input : Inputs) {
+  setInput(frame : number, player_idx : number, input : Input) {
     // We could get inputs from the future (>=nframe). We just
     // queue those up so that we don't need to think about them.
     if (frame >= this.nframe) {
