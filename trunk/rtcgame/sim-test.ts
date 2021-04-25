@@ -1,96 +1,96 @@
 
 // Test instantiations of sim stuff.
 
-
-class ActualInputs implements InputsI {
-  data: number;
-  // constructor() { this.data = 0; }
-  constructor(n) { this.data = n; }
-  toString() { return '' + this.data; }
-  clone() : ActualInputs { return new ActualInputs(this.data); }
-  static eq(a : ActualInputs, b : ActualInputs) {
-    return a.data == b.data;
-  }
-  static empty() {
-    return new ActualInputs(0);
-  }
+class ActualInputs {
+  constructor(public data : number) { }
 }
 
-type ActualRow = InputRow<ActualInputs, InputsTypeI<ActualInputs>>;
-
-let ir : ActualRow = new InputRow(5, ActualInputs);
-
-let ire : ActualRow = InputRow.completeEmpty(5, ActualInputs);
-
-
-console.log(ir.inputs_type.empty().toString());
-console.log(ire.inputs[0].toString());
-console.log(ire.inputs_type.eq(ire.inputs[0], ire.inputs[1]));
-
-
-
-/*
-old standalone tests, delete me
-// Per-player input for a frame.
-interface Inputs {
-  toString() : string;
-  clone() : Inputs;
-}
-
-// type of "the constructor"
-// (this is like, the static parts.)
-interface InputsType<I extends Inputs> {
-  // new () : I;
-  empty() : I;
-  eq(a : I, b : I) : boolean;
-}
-
-class ActualInputs implements Inputs {
-  data: number;
-  // constructor() { this.data = 0; }
-  constructor(n) { this.data = n; }
-  toString() { return '' + this.data; }
-  clone() { return new ActualInputs(this.data); }
-  static eq(a : ActualInputs, b : ActualInputs) {
-    return a.data == b.data;
-  }
-  static empty() {
-    return new ActualInputs(0);
-  }
-}
-
-// Set of inputs (possibly incomplete) for a frame.
-class InputRow<I extends Inputs, IT extends InputsType<I>> {
-  readonly N: number;
-  readonly input_type: IT;
-  inputs: Array<I>;
-  
-  constructor(N : number, input_type : IT) {
-    this.N = N;
-    this.input_type = input_type;
-    // In a row, null means unknown. It is not a valid input.
-    this.inputs = new Array(N).fill(null);
-  }
-
-  // A complete row of empty inputs.
-  static completeEmpty<I extends Inputs, IT extends InputsType<I>>(
-    N, input_type : IT) {
-    let ret = new InputRow<I, IT>(N, input_type);
-    for (let i = 0; i < N; i++) {
-      ret.inputs[i] = input_type.empty();
+class ActualState {
+  positions: Array<{x: number, y: number}>;
+  constructor(public N : number) {
+    this.positions = [];
+    for (let i = 0; i < this.N; i++) {
+      this.positions.push({x: i, y: 0});
     }
-    return ret;
   }
 }
 
-type ActualRow = InputRow<ActualInputs, InputsType<ActualInputs>>;
+type ActualRow = InputRow<ActualInputs, ActualState>;
 
-let ir : ActualRow = new InputRow(5, ActualInputs);
+class ActualOps implements Ops<ActualInputs, ActualState> {
+  inputsString(i : ActualInputs) { return '' + i.data; }
+  cloneInputs(i : ActualInputs) : ActualInputs {
+    return new ActualInputs(i.data);
+  }
+  eqInputs(a : ActualInputs, b : ActualInputs) : boolean {
+    return a.data === b.data;
+  }
+  emptyInputs() {
+    return new ActualInputs(0);
+  }
 
-let ire : ActualRow = InputRow.completeEmpty(5, ActualInputs);
+
+  initialState(N : number) : ActualState {
+    return new ActualState(N);
+  }
+
+  serializeState(a : ActualState) : string {
+    throw 'unimplemented';
+  }
+  
+  eqState(a : ActualState, b : ActualState) : boolean {
+    // Might be smart to maintain a checksum and check it here.
+    // return false;
+    // PERF: Could be faster to compare the state directly,
+    // especially when returning false for zipStep optimizations.
+    return this.serializeState(a) === this.serializeState(b);
+  }
+
+  zipStep(src_state : ActualState, input_row : ActualRow,
+	  stale_src_state : ActualState, stale_row : ActualRow,
+	  stale_dst_state : ActualState) : ActualState {
+    if (!input_row.complete()) throw 'zipStep input_row not complete';
+    if (!stale_row.complete()) throw 'zipStep stale_row not complete';
+
+    // TODO: For debugging, we should compute the step fresh and
+    // assert that it is the same as the one recomputed from the 
+    // stale data.
+    
+    // This optimization is always valid because step() must be
+    // deterministic.
+    if (this.eqState(src_state, stale_src_state) &&
+      InputRow.eq<ActualInputs, ActualState>(this, input_row, stale_row)) {
+      return stale_dst_state;
+    }
+
+    
+    // TODO: Further optimizations in the hierarchical case.
+    // TODO: Some way to write the state transformation just once, but
+    // with optional stale data.
+    
+    // Always safe (but maybe slower) to just ignore the stale data.
+    return this.step(src_state, input_row);
+  }
+
+  // The simulation's step function. Needs a complete input row.
+  // Returns a new state.
+  step(state : ActualState, input_row : ActualRow) : ActualState {
+    if (!input_row.complete()) throw 'step input_row not complete';
+    throw 'unimplemented';
+  }
+}
 
 
-console.log(ir.input_type.empty().toString());
-console.log(ire.inputs[0].toString());
-console.log(ire.input_type.eq(ire.inputs[0], ire.inputs[1]));
-*/
+let ir : ActualRow = new InputRow(new ActualOps, 5);
+let ire1 : ActualRow = InputRow.completeEmpty(new ActualOps, 5);
+let ire2 : ActualRow = InputRow.completeEmpty(new ActualOps, 5);
+
+
+ir.set(1, new ActualInputs(7));
+ire1.set(0, new ActualInputs(2));
+ire2.set(0, new ActualInputs(2));
+
+console.log((new ActualOps).inputsString(ir.get(1)));
+console.log(ire1.toString());
+console.log(InputRow.eq<ActualInputs, ActualState>(new ActualOps, ire1, ire2));
+
