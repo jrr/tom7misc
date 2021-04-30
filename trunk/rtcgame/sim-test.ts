@@ -27,7 +27,8 @@ class TestState {
   }
 
   toString() : string {
-    let s = 'hash: 0x' + this.hash.toString(16) + '\n';
+    // zero-fill right shift by zero to produce an unsigned result
+    let s = 'hash: 0x' + (this.hash >>> 0).toString(16) + '\n';
     for (let p = 0; p < this.N; p++) {
       s += p.toString() + ': ' + this.hist[p].join(',') + '\n';
     }
@@ -46,6 +47,28 @@ class TestState {
     return ret;
   }
 
+  // Unlike the internal representation (and perhaps unwisely),
+  // the outer here is the rounds (in reverse order) and inner
+  // is N players. A number in the input array can be 'null',
+  // which means accept anything.
+  checkEndsWith(a : Array<Array<number | null>>) {
+    for (let i = 0; i < a.length; i++) {
+      let r = a[i];
+      if (r.length != this.N)
+        throw 'bad endsWith row';
+      for (let j = 0; j < this.N; j++) {
+        if (r[j] !== null) {
+          if (this.hist[j][this.hist[j].length - 1 - i] !== r[j])
+            throw ('state does not end correctly; offset ' +
+              i + ' from end, player ' + j + ' wanted ' +
+              r[j] + '. but got ' +
+              this.hist[j][this.hist[j].length - 1 - i] +
+              '\nstate is: ' + this.toString());
+        }
+      }
+    }
+  }
+  
 }
 
 type TestRow = InputRow<TestInput, TestState>;
@@ -166,13 +189,13 @@ class TestOps implements Ops<TestInput, TestState> {
     const half = Math.floor(input_row.N / 2);
     for (const k in m) {
       if (m[k] > half) {
-        ret.hash = parseInt(k);
+        ret.hash = (parseInt(k) | 0) >>> 0;
         return ret;
       }
     }
 
     // Otherwise, just some arbitrary function.
-    ret.hash = new_hash;
+    ret.hash = new_hash >>> 0;
     
     return ret;
   }
@@ -220,6 +243,19 @@ console.log('------');
   if (s3.hash != 3) throw '3 should win vote';
 })();
 
+// XXX: Be careful about testing members of sim directly;
+// typescript has unsound assumptions (ugh) that properties
+// are not modified (!?) by functions. So if you have
+//
+// if (sim.nframe !== 1) throw '';
+// sim.advanceFrame();
+// if (sim.nframe !== 2) throw '';
+//
+// it will complain that the second condition is always
+// satisfied because nframe is known to be 1. This is incorrect!
+// See typescript issue #9998. Bleh. The "solution" seems to be
+// to use accessor methods to read the property.
+
 // Test really basic simulation scenario.
 const testSimpleSim = () => {
   let ops = new TestOps;
@@ -230,7 +266,8 @@ const testSimpleSim = () => {
                                           0,
                                           ops.initialState(N));
   sim.checkInvariants();
-
+  if (sim.getNFrame() !== 0) throw 'didn\'t start on frame 0???';
+  
   // TODO issue some inputs...
   sim.setInput(0, 0, new TestInput(555));
   sim.checkInvariants();
@@ -241,6 +278,8 @@ const testSimpleSim = () => {
   sim.checkInvariants();
 
   sim.advanceFrame(new TestInput(777));
+  if (sim.getNFrame() !== 1)
+    throw 'should be on frame 1 now';
   if (sim.window.length() !== 1)
     throw 'should have one frame in uncertainty window';
   sim.checkInvariants();
@@ -251,19 +290,111 @@ const testSimpleSim = () => {
   // first frame's inputs are now complete.
   sim.updateWindow();
   sim.checkInvariants();
-  if (sim.mframe !== 1)
+  if (sim.getMFrame() !== 1)
     throw 'frame 0 should be accurate now';
-
+  
   {
     let last = sim.getMostRecentState().state;
+    last.checkEndsWith([[555, 777, 999],
+                        [0, 0, 0]]);
+    if (last.hash != 0xde6eafd1)
+      throw 'unexpected state';
     console.log('test state now: ' + last.toString());
   }
+
+  sim.advanceFrame(new TestInput(22));
+  if (sim.getNFrame() !== 2)
+    throw 'wrong nframe';
+  sim.advanceFrame(new TestInput(33));
+  if (sim.getNFrame() !== 3)
+    throw 'wrong nframe';
+  if (sim.getMFrame() !== 1)
+    throw 'not enough inputs yet to advance past 1';
+  sim.checkInvariants();
+  sim.updateWindow();
+  sim.checkInvariants();
+  if (sim.getMFrame() !== 1)
+    throw 'still not enough inputs to advance past 1';
+
+  // state could be anything now since we are allowed to
+  // make guesses when the inputs aren't yet known. But
+  // we know that the history will contain the player's
+  // inputs.
+  {
+    let last = sim.getMostRecentState().state;
+    last.checkEndsWith([/* 2 */ [null, 33, null],
+                        /* 1 */ [null, 22, null],
+                        /* 0 */ [555, 777, 999],
+                        [0, 0, 0]]);
+  }
+
+  // Now fill in some inputs, out of order.
+  sim.setInput(2, 2, new TestInput(33));
+  sim.updateWindow();
+  {
+    let last = sim.getMostRecentState().state;
+    last.checkEndsWith([/* 2 */ [null, 33,  33],
+                        /* 1 */ [null, 22,  null],
+                        /* 0 */ [555,  777, 999],
+                        [0, 0, 0]]);
+    // We actually know the hash is 33 because it
+    // wins the vote, no matter what we computed for player 0.
+    if (last.hash != 33) throw '33 should win the hash vote';
+  }
+  
+  sim.setInput(2, 0, new TestInput(55));
+  sim.updateWindow();
+  sim.checkInvariants();
+  
+  {
+    let last = sim.getMostRecentState().state;
+    last.checkEndsWith([/* 2 */ [55,   33,  33],
+                        /* 1 */ [null, 22,  null],
+                        /* 0 */ [555,  777, 999],
+                        [0, 0, 0]]);
+  }
+
+  sim.setInput(1, 2, new TestInput(88));
+  sim.updateWindow();
+  sim.checkInvariants();
+  
+  {
+    let last = sim.getMostRecentState().state;
+    last.checkEndsWith([/* 2 */ [55,   33,  33],
+                        /* 1 */ [null, 22,  88],
+                        /* 0 */ [555,  777, 999],
+                        [0, 0, 0]]);
+  }
+
+  sim.setInput(1, 0, new TestInput(11));
+  sim.updateWindow();
+  sim.checkInvariants();
+  {
+    let last = sim.getMostRecentState().state;
+    last.checkEndsWith([/* 2 */ [55,   33,  33],
+                        /* 1 */ [11,   22,  88],
+                        /* 0 */ [555,  777, 999],
+                        [0, 0, 0]]);
+
+    // Hash is actually known now because the inputs
+    // are complete.
+    if (last.hash != 0x21) throw 'wrong hash';
+  }
+
+  if (sim.getNFrame() !== 3)
+    throw 'next frame is 3';
+  
+  if (sim.getMFrame() !== 3)
+    throw 'with full inputs we should be able to advance mframe';
   
   console.log('testSimpleSim OK');
 };
 testSimpleSim();
 
-// In this test, 
+// TODO: Test with a matrix of known inputs, issuing them in a
+// random order, checking invariants at each step and that the
+// correct final state is reached after they've all been
+// delivered.
 
 const testRandomized = () => {
   

@@ -9,6 +9,9 @@
 // comes out with the next version of iOS even?) Could use a pair of
 // 32-bit ints and implement simple number ops manually, too.
 
+// TODO: Could be useful to have a test harness that checks for
+// expected properties (e.g. determinism) of zipStep/step/etc. given
+// an actual production implementation of Ops.
 
 // A simulation is parameterized on the following types:
 //  - Input, the per-player input for a single frame
@@ -33,7 +36,6 @@ interface Ops<Input, State> {
   stateString(s : State) : string;
   serializeState(s : State) : string;
   deserializeState(s : string) : State;
-  // TODO deserialize
   initialState(N : number) : State;
   eqState(a : State, b: State) : boolean;
 
@@ -264,6 +266,20 @@ class Sim<Input, State> {
     this.queued_inputs = [];
   }
 
+  // Returns the "current" frame index (=nframe), which is the one
+  // that the user's next input will be used to generate.
+  getNFrame() : number {
+    return this.nframe;
+  }
+
+  getMFrame() : number {
+    return this.mframe;
+  }
+
+  getCFrame() : number {
+    return this.cframe;
+  }
+  
   // Used in debugging.
   checkInvariants() {
     if (!(this.cframe <= this.mframe)) throw 'want cframe <= mframe';
