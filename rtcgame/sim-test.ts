@@ -45,6 +45,7 @@ class TestState {
     ret.hash = this.hash;
     return ret;
   }
+
 }
 
 type TestRow = InputRow<TestInput, TestState>;
@@ -67,11 +68,18 @@ class TestOps implements Ops<TestInput, TestState> {
   }
 
   serializeState(a : TestState) : string {
-    // XXX use json etc.
-    return a.toString();
-    // throw 'unimplemented';
+    return JSON.stringify(a);
   }
 
+  deserializeState(s : string) : TestState {
+    // XXX no validation...
+    let { N, hist, hash } = JSON.parse(s);
+    let ts = new TestState(N);
+    ts.hist = hist;
+    ts.hash = hash;
+    return ts;
+  }
+  
   cloneState(a : TestState) : TestState {
     return a.clone();
   }
@@ -142,7 +150,7 @@ class TestOps implements Ops<TestInput, TestState> {
     // input, we set the hash to that value (and no other inputs matter).
 
     // Map numbers to their counts.
-    let m = {};
+    let m : {[key: string]: number} = {};
     // And compute new hash as we go.
     let new_hash = (ret.hash + 1) | 0;
     for (let p = 0; p < input_row.N; p++) {
@@ -211,3 +219,56 @@ console.log('------');
   console.log(ops.stateString(s3));
   if (s3.hash != 3) throw '3 should win vote';
 })();
+
+// Test really basic simulation scenario.
+const testSimpleSim = () => {
+  let ops = new TestOps;
+  let N = 3;
+  let sim = new Sim<TestInput, TestState>(ops,
+                                          N,
+                                          1,
+                                          0,
+                                          ops.initialState(N));
+  sim.checkInvariants();
+
+  // TODO issue some inputs...
+  sim.setInput(0, 0, new TestInput(555));
+  sim.checkInvariants();
+  if (sim.window.length() !== 0)
+    throw 'uncertainty window should be empty';
+  // (Shouldn't do anything yet; all inputs are in the future)
+  sim.updateWindow();
+  sim.checkInvariants();
+
+  sim.advanceFrame(new TestInput(777));
+  if (sim.window.length() !== 1)
+    throw 'should have one frame in uncertainty window';
+  sim.checkInvariants();
+  if (sim.queued_inputs.length > 0)
+    throw 'should have consumed queued input';
+  sim.setInput(0, 2, new TestInput(999));
+  sim.checkInvariants();
+  // first frame's inputs are now complete.
+  sim.updateWindow();
+  sim.checkInvariants();
+  if (sim.mframe !== 1)
+    throw 'frame 0 should be accurate now';
+
+  {
+    let last = sim.getMostRecentState().state;
+    console.log('test state now: ' + last.toString());
+  }
+  
+  console.log('testSimpleSim OK');
+};
+testSimpleSim();
+
+// In this test, 
+
+const testRandomized = () => {
+  
+
+
+};
+
+testRandomized();

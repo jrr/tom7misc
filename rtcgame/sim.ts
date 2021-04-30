@@ -32,6 +32,7 @@ interface Ops<Input, State> {
   // Debugging print.
   stateString(s : State) : string;
   serializeState(s : State) : string;
+  deserializeState(s : string) : State;
   // TODO deserialize
   initialState(N : number) : State;
   eqState(a : State, b: State) : boolean;
@@ -44,6 +45,9 @@ interface Ops<Input, State> {
   zipStep(src_state : State, input_row : InputRow<Input, State>,
 	  stale_src_state : State, stale_row : InputRow<Input, State>,
 	  stale_dst_state : State) : State;
+  // Step without any previous stale state/inputs, for example when we
+  // compute a frame for the first time.
+  step(src_state : State, input_row : InputRow<Input, State>) : State;
 }
 
 // Set of inputs (possibly incomplete) for a frame.
@@ -51,7 +55,7 @@ interface Ops<Input, State> {
 class InputRow<Input, State> {
   // readonly N: number;
   // readonly ops: Ops<Input, State>;
-  inputs: Array<Input>;
+  inputs: Array<Input | null>;
   
   constructor(private readonly ops : Ops<Input, State>,
               public N : number) {
@@ -63,8 +67,11 @@ class InputRow<Input, State> {
     return this.inputs[idx] !== null;
   }
 
-  get(idx : number) {
-    return this.inputs[idx];
+  // Get an input that is known.
+  get(idx : number) : Input {
+    let i = this.inputs[idx];
+    if (i === null) throw 'use known to test this';
+    return i;
   }
 
   set(idx : number, value : Input) : void {
@@ -95,10 +102,11 @@ class InputRow<Input, State> {
   clone() : InputRow<Input, State> {
     let ret = new InputRow<Input, State>(this.ops, this.inputs.length);
     for (let i = 0; i < this.inputs.length; i++) {
-      if (this.inputs[i] === null) {
+      let iput = this.inputs[i];
+      if (iput === null) {
 	ret.inputs[i] = null;
       } else {
-	ret.inputs[i] = this.ops.cloneInput(this.inputs[i]);
+	ret.inputs[i] = this.ops.cloneInput(iput);
       }
     }
     return ret;
@@ -154,14 +162,23 @@ class UWindow<Input, State> {
     this.data = [];
   }
 
+  empty() : boolean {
+    return this.data.length === 0;
+  }
+  
   // Is this even needed? It should always be nframe - cframe.
   length() {
     return this.data.length;
   }
 
-  getRow(widx) {
+  getRow(widx : number) : WindowRow<Input, State> {
     if (widx < 0 || widx >= this.data.length) throw 'widx oob';
     return this.data[widx];
+  }
+
+  // Append row when we advance nframe.
+  advance(wrow : WindowRow<Input, State>) {
+    this.data.push(wrow);
   }
   
   // TODO operations.
@@ -201,21 +218,25 @@ class Sim<Input, State> {
     // Before this we discard history, so it's impossible to rewind.
     this.cframe = start_frame;
 
-    // The state before cframe. All participants should agree that the
-    // state has this value entering cframe.
+    // The state before cframe. If everything is working correctly,
+    // all participants agree that the state has this value entering
+    // cframe.
     this.cstate = start_state;
     // Some approximation of the inputs at cstate.
     // This can be anything and we will still get the correct result,
     // since it is only used to guess inputs that we haven't yet received.
     // So it is okay to just start it as empty (and this is a good guess
     // at the very beginning of the simulation anyway).
+    // (XXX we also use this in getMostRecentState, for advanceframe..
+    // is it true that it's only used for guessing?)
     this.cinputs = InputRow.completeEmpty<Input, State>(this.ops, N);
     
     // Frame idx before which we have all inputs (i.e., one for each
     // player in 0..N-1). Must be at least cframe by definition, but
     // we may know more beyond that. We try to get everyone to advance
     // cframe up to this point. Within the window, the states are
-    // accurate up to mframe.
+    // accurate up to mframe. (XXX: Could be a property of
+    // the window?)
     this.mframe = start_frame;
     
     // The next frame that we will speculatively simulate (for its
@@ -224,7 +245,7 @@ class Sim<Input, State> {
     this.nframe = start_frame;
     // The state before nframe.
     // XXX do we need this? It's the same as the last state in the
-    // window (or cstate if the window is empty).
+    // window (or cstate if the window is empty). call getMostRecentState.
     // this.nstate = start_state;
 
     // Invariant that cframe <= mframe <= nframe.
@@ -236,20 +257,123 @@ class Sim<Input, State> {
     this.window = new UWindow<Input, State>(this.ops);
 
 
-    // If we receive inputs >= nframe, we just queue them and replay
-    // them once they are in the cframe-nframe window.
-    // XXX If we receive input for =nframe, we could be storing those
-    // and executing them when we process the local input, which would
-    // be slightly better (but more complicated). (Perhaps more simply, we
-    // could consult the queued inputs and do this at the moment we
-    // take the local input?)
+    // If we receive inputs >= nframe, we just queue them. They will
+    // be added in advanceFrame when the local player makes an input
+    // at that frame.
+    // PERF sorted or keyed by frame? we do a linear scan in advanceFrame.
     this.queued_inputs = [];
   }
 
-  // Update the input at the given frame.
+  // Used in debugging.
+  checkInvariants() {
+    if (!(this.cframe <= this.mframe)) throw 'want cframe <= mframe';
+    if (!(this.mframe <= this.nframe)) throw 'want mframe <= nframe';
+
+    for (const qi of this.queued_inputs) {
+      if (qi.frame < this.nframe) throw 'queued input not future';
+      if (qi.player_idx < 0 || qi.player_idx >= this.N ||
+          qi.player_idx == this.my_id) throw 'bad queued input player idx';
+     }
+
+    if ((this.nframe - this.cframe) != this.window.length())
+      throw 'window is the wrong length';
+    
+    // TODO: More here!
+    // can verify that the stale states int the window are correct...
+    // I think this is high value since that's the most complex part.
+    // - check that objects are not aliased?
+  }
+  
+  // Advance a frame by supplying the local player's input.
+  // Updates the window. Updates nframe.
+  advanceFrame(input : Input) {
+    let nrow = new InputRow<Input, State>(this.ops, this.N);
+    nrow.set(this.my_id, input);
+    // Process any inputs we already recieved (from other players)
+    // for this frame.
+    let oq = [];
+    for (let qi of this.queued_inputs) {
+      if (qi.frame === this.nframe) {
+        if (nrow.known(qi.player_idx)) {
+          // TODO: Perhaps allow duplicates if they are equal?
+          throw 'duplicate inputs for player in queued input';
+        } else {
+          nrow.set(qi.player_idx, qi.input);
+        }
+      } else {
+        oq.push(qi);
+      }
+    }
+    this.queued_inputs = oq;
+
+    // Compute the new row for the uncertainty window.
+    let last = this.getMostRecentState();
+
+    // PERF: It's possible (but rare?) that we had inputs from all
+    // other players and an accurate state, and are now creating an
+    // accurate frame, but we currently let a later updateWindow
+    // handle this. Better than implementing the optimization here
+    // would be to refactor to share functionality.
+    let guessed_inputs = this.guessInputRow(last.inputs, nrow).inputs;
+
+    let state = this.ops.step(last.state, guessed_inputs);
+
+    // Add to window.
+    this.window.advance({stale: guessed_inputs, actual: nrow, state: state});
+
+    this.nframe++;
+  }
+
+  // Compute complete input row guess given some previous (complete)
+  // input row (guess) and a current (possibly incomplete) (actual) input
+  // row. Returns true for 'guessed' if we had to guess inputs; otherwise
+  // the inputs are accurate and could be used with an accurate state
+  // to produce an accurate successor.
+  guessInputRow(prev : InputRow<Input, State>,
+                actual : InputRow<Input, State>) :
+  {inputs : InputRow<Input, State>, guessed : boolean} {
+    if (actual.complete()) {
+      // we have the actual inputs, so use those.
+      return { inputs: actual.clone(), guessed: false };
+    } else {
+      let inputs = actual.clone();
+      for (let i = 0; i < this.N; i++) {
+	if (!inputs.known(i)) {
+          // don't try to 'set' null
+          // TODO: probably the "guess" should be informed by ops.
+          // Some kinds of inputs may be inherently "impulse" and so
+          // copying them is a bad guess!
+          if (prev.known(i)) {
+	    inputs.set(i, prev.get(i));
+          }
+	}
+      }
+      return { inputs: inputs, guessed: true };
+    }
+  }
+  
+  // Get the state at nframe - 1, and the input row (possibly
+  // inaccurate) used to compute it.
+  getMostRecentState() : {state : State, inputs : InputRow<Input, State>} {
+    if (this.window.empty()) {
+      return {state: this.cstate, inputs: this.cinputs};
+    } else {
+      let wlen = this.window.length();
+      let {state, stale, actual} = this.window.getRow(wlen - 1);
+      return {state: state, inputs: stale};
+    }
+  }
+    
+  // Update the input at the given frame, like when we receive a
+  // network message from a player with their input.
   // Need to call updateWindow after this to maintain invariants, but
   // can do a batch of setInput and then one updateWindow.
   setInput(frame : number, player_idx : number, input : Input) {
+    // Nothing really wrong with this, but we expect the local
+    // player's input to be handled by advanceFrame.
+    if (this.my_id === player_idx)
+      throw 'use advanceFrame to set local player input';
+
     // We could get inputs from the future (>=nframe). We just
     // queue those up so that we don't need to think about them.
     if (frame >= this.nframe) {
@@ -267,7 +391,7 @@ class Sim<Input, State> {
 
     // Again, in principle we could receive a replay. We could
     // ignore it if it's equal?
-    if (row[player_idx].actual.known())
+    if (row.actual.known(player_idx))
       throw 'setInput input already known';
 
     row.actual.set(player_idx, input);
@@ -321,31 +445,27 @@ class Sim<Input, State> {
       // Index will lie within the window.
       let widx = frame - this.cframe;
       let row = this.window.getRow(widx);
+     
+      // Guess inputs for this round, combining the inputs that
+      // we know (row.actual) with the previous row.
+      let guess = this.guessInputRow(prev_inputs, row.actual);
+      
+      // No longer known to be accurate because we had to guess inputs.
+      if (guess.guessed) accurate = false;
 
-      // Input guess for this round. If the
-      let inputs;
-      if (row.actual.complete()) {
-	// we have the actual inputs, so use those.
-	inputs = row.actual;
-	// accurate can stay true, but note we might already be inaccurate
-	// because a previous row's inputs was incomplete.
-      } else {
-	inputs = row.actual;
-	for (let i = 0; i < this.N; i++) {
-	  if (!inputs.known(i)) {
-	    inputs.set(i, prev_inputs.get(i));
-	  }
-	}
-	// Not known to be accurate because we had to guess inputs.
-	accurate = false;
-      }
+      if (!guess.inputs.complete()) throw 'guessed inputs not complete?!';
 
-      if (!inputs.complete()) throw 'guessed inputs not complete?!';
-
+      // TODO PERF: zipStep can apply its own optimizations with
+      // knowledge of the state, but it might make sense to guarantee
+      // certain optimizations by implementing them here or in a
+      // wrapper. (This is no longer easy to do by extending some base
+      // class due to the use of generics.) One important and easy one
+      // is that if we guessed an input correctly, we should not have
+      // to recompute.
       let state = this.ops.zipStep(
         src_state,
 	// (possibly guessed) inputs for this execution.
-	inputs,
+	guess.inputs,
 	// State from previous row.
 	stale_src_state,
 	// Stale inputs saved in row.
@@ -357,11 +477,11 @@ class Sim<Input, State> {
       // State we computed last time is used for the next round,
       // but we're about to overwrite it.
       stale_src_state = row.state;
-      prev_inputs = inputs;
+      prev_inputs = guess.inputs;
       src_state = state;
       
       // Write the result into the row.
-      row.stale = inputs;
+      row.stale = guess.inputs;
       row.state = state;
 
       // Advance mframe if this computation is accurate; this should
@@ -376,4 +496,9 @@ class Sim<Input, State> {
     // use to extend the window with recent user inputs.
     return src_state;
   }
+
+  // TODO: advancing cframe. We probably do this by publishing our mframe
+  // to everyone else, keeping for each other player the maximum such
+  // value we've seen, and then updating cframe to be the minimum of these.
+  
 }
