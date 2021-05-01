@@ -391,15 +391,54 @@ const testSimpleSim = () => {
 };
 testSimpleSim();
 
-// TODO: Test with a matrix of known inputs, issuing them in a
-// random order, checking invariants at each step and that the
-// correct final state is reached after they've all been
-// delivered.
 
-const testRandomized = () => {
-  
+const testWithOpsTester = () => {
+  let test_cases =
+    [
+      [[0, 1, 0]],
 
+      [[1, 0, 1],
+       [0, 0, 0]],
 
+      [[0, 0, 0],
+       [0, 0, 1],
+       [0, 0, 0],
+       [1, 2, 3]],
+      
+      [[11, 22, 33],
+       [11, 22, 11],
+       [11, 22, 33],
+       [11, 222, 333],
+       [111, 222, 333],
+       [33, 22, 11],
+       [3, 2, 1],
+       [3, 2, 1],
+       [3, 2, 2],
+       [1, 2, 3],
+       [555, 777, 999],
+       [555, 999, 777],
+       [555, 555, 555],
+       [555, 111, 555],
+       [111, 555, 111],
+       [333, 222, 111]]
+    ];
+
+  for (const testcase of test_cases)  {
+    let inputs =
+      testcase.map(r => r.map(x => new TestInput(x)));
+
+    let ops = new TestOps;
+    let ot = new OpsTester<TestInput, TestState>(ops, 3);
+    let final = ot.testRandomOrder(inputs, ops.initialState(3), 1000);
+
+    // reverse to get expected end encoded in state.
+    let expected : Array<Array<number>> = [];
+    for (let i = 0; i < Math.min(3, testcase.length); i++) {
+      expected.push(testcase[testcase.length - 1 - i]);
+    }
+
+    final.checkEndsWith(expected);
+  }
+  console.log('random tests ok :)');
 };
-
-testRandomized();
+testWithOpsTester();
