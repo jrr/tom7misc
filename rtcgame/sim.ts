@@ -34,6 +34,7 @@ interface Ops<Input, State> {
 
   // Debugging print.
   stateString(s : State) : string;
+  cloneState(s : State) : State;
   serializeState(s : State) : string;
   deserializeState(s : string) : State;
   initialState(N : number) : State;
