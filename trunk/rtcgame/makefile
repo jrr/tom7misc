@@ -5,3 +5,6 @@ rtcgame.js: net.ts sim.ts
 
 sim-test.js: sim.ts arcfour.ts ops-tester.ts sim-test.ts
 	tsc --strict -t es2020 --out $@ $^
+
+arcfour-test.js: arcfour.ts arcfour-test.ts
+	tsc --strict -t es2020 --out $@ $^

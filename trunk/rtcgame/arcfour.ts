@@ -67,7 +67,7 @@ class ArcFour {
     }
   }
 
-  rand32() {
+  rand32() : number {
     let uu : number = 0;
     uu = this.byte() | (uu << 8);
     uu = this.byte() | (uu << 8);
@@ -103,7 +103,7 @@ class ArcFour {
 
     let j : number = 0;
     for (let n = 0; n < 256; n++) {
-      j += (this.ss[n] + kk[n]) & 0xFF;
+      j = (j + this.ss[n] + kk[n]) & 0xFF;
       let t = this.ss[n];
       this.ss[n] = this.ss[j];
       this.ss[j] = t;
