@@ -106,6 +106,11 @@ class OpsTester<Input, State> {
       // So we also keep a sorted list of the player's inputs, and
       // when we encounter a player input in the shuffled array,
       // we just execute the next one from that list.
+      //
+      // TODO: This totally random schedule seems to make it pretty
+      // unlikely that we completely clear the window; we should
+      // probably try to make this happen more often to tickle
+      // those cases in the code.
       let indices : Array<{frame: number, player: number}> = [];
       for (let frame = 0; frame < inputs.length; frame++) {
         for (let player = 0; player < this.N; player++) {
@@ -137,7 +142,22 @@ class OpsTester<Input, State> {
           sim.checkInvariants();
         }
 
-        // TODO: Test advancing cframe too.
+        if (rc.byte() < 100) {
+          let cf = sim.getCFrame();
+          // Treat the local maximum as being the network's max; we
+          // aren't simulating it, but since this only happens (well,
+          // if Sim is correct) when we've issued every input before
+          // mframe, we won't be contradicted by advancing cframe this
+          // far.
+          let mf = sim.getMFrame();
+          // how many frames can we advance, max?
+          let adv = mf - cf;
+          if (adv > 0) {
+            let ncf = cf + rc.randTo32(adv + 1);
+            sim.setConsensus(ncf);
+            // console.log(cf + ' < ' + mf + '(' + adv + ') so ' + ncf);
+          }
+        }
       }
 
       // After all inputs are executed, update window one more
@@ -147,9 +167,18 @@ class OpsTester<Input, State> {
       
       // TODO: test mframe
 
-      let sim_final = sim.getMostRecentState().state;
-      if (!this.ops.eqState(sim_final, final))
+      const sim_final1 = sim.getMostRecentState().state;
+      if (!this.ops.eqState(sim_final1, final))
         throw ('didn\'t get the right final state on iter ' + iter);
+
+      sim.setConsensus(sim.getMFrame());
+      sim.checkInvariants();
+      if (sim.getCFrame() != sim.getNFrame())
+        throw 'should have been able to complete the window';
+      const sim_final2 = sim.getMostRecentState().state;
+      
+      if (!this.ops.eqState(sim_final2, final))
+        throw 'didn\'t get the right final2 state';
     }
       
     return final;

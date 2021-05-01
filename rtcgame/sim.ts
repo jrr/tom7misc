@@ -180,13 +180,15 @@ class UWindow<Input, State> {
   }
 
   // Append row when we advance nframe.
-  advance(wrow : WindowRow<Input, State>) {
+  pushBack(wrow : WindowRow<Input, State>) {
     this.data.push(wrow);
   }
-  
-  // TODO operations.
-  // this should really just be data structure operations, not logical
-  // ones..
+
+  removeFront() : WindowRow<Input, State> {
+    let elt = this.data.shift();
+    if (elt === undefined) throw 'remove on empty window';
+    return elt;
+  }
 };
 
 // Queued inputs are beyond the current uncertainty window; we
@@ -225,7 +227,7 @@ class Sim<Input, State> {
     // all participants agree that the state has this value entering
     // cframe.
     this.cstate = start_state;
-    // Some approximation of the inputs at cstate.
+    // Some approximation of the inputs that produced cstate.
     // This can be anything and we will still get the correct result,
     // since it is only used to guess inputs that we haven't yet received.
     // So it is okay to just start it as empty (and this is a good guess
@@ -246,10 +248,7 @@ class Sim<Input, State> {
     // first time). As this local replica makes an input, it's written
     // to this frame.
     this.nframe = start_frame;
-    // The state before nframe.
-    // XXX do we need this? It's the same as the last state in the
-    // window (or cstate if the window is empty). call getMostRecentState.
-    // this.nstate = start_state;
+    // The state before nframe is available from getMostRecentState().
 
     // Invariant that cframe <= mframe <= nframe.
     
@@ -280,6 +279,26 @@ class Sim<Input, State> {
   getCFrame() : number {
     return this.cframe;
   }
+
+  // Update local cframe. This should only move forward, so it must be
+  // >= every participant's cframe (including this.cframe). It should
+  // be <= every participant's mframe (including this.mframe).
+  // This modifies the window, cframe, and cinputs.
+  setConsensus(frame : number) {
+    if (frame < this.cframe)
+      throw 'precondition';
+    if (frame === this.cframe)
+      return;
+    if (frame > this.mframe)
+      throw 'precondition';
+
+    while (this.cframe < frame) {
+      let wrow = this.window.removeFront();
+      this.cstate = wrow.state;
+      this.cinputs = wrow.actual;
+      this.cframe++;
+    }
+  }
   
   // Used in debugging.
   checkInvariants() {
@@ -294,9 +313,12 @@ class Sim<Input, State> {
 
     if ((this.nframe - this.cframe) != this.window.length())
       throw 'window is the wrong length';
-    
+
+    if (!this.cinputs.complete())
+      throw 'input guess should be complete';
+
     // TODO: More here!
-    // can verify that the stale states int the window are correct...
+    // can verify that the stale states in the window are correct...
     // I think this is high value since that's the most complex part.
     // - check that objects are not aliased?
   }
@@ -336,7 +358,7 @@ class Sim<Input, State> {
     let state = this.ops.step(last.state, guessed_inputs);
 
     // Add to window.
-    this.window.advance({stale: guessed_inputs, actual: nrow, state: state});
+    this.window.pushBack({stale: guessed_inputs, actual: nrow, state: state});
 
     this.nframe++;
   }
@@ -517,5 +539,6 @@ class Sim<Input, State> {
   // TODO: advancing cframe. We probably do this by publishing our mframe
   // to everyone else, keeping for each other player the maximum such
   // value we've seen, and then updating cframe to be the minimum of these.
+  
   
 }
