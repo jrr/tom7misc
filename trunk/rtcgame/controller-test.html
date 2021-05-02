@@ -1,0 +1,105 @@
+<!doctype html>
+
+<script src="controller-test.js"></script>
+<style>
+ .controller {
+   border: 2px solid black;
+   background: #CCC;
+   position: relative;
+   width: 300px;
+   height: 100px;
+ }
+
+ .dir {
+   width: 16px;
+   height: 16px;
+   border: 2px solid black;
+   position: absolute;
+ }
+
+ .menu {
+   width: 16px;
+   height: 10px;
+   border: 2px solid black;
+   border-radius: 2px;
+   position: absolute;
+ }
+ 
+ .but {
+   width: 16px;
+   height: 16px;
+   border: 2px solid black;
+   border-radius: 16px;
+   position: absolute;
+ }
+ 
+ #up {
+   top: 6px;
+   left: 30px;
+ }
+
+ #down {
+   top: 54px;
+   left: 30px;
+ }
+
+ #left {
+   left: 6px;
+   top: 30px;
+ }
+
+ #right {
+   left: 54px;
+   top: 30px;
+ }
+
+ #y {
+   top: 6px;
+   left: 230px;
+ }
+
+ #a {
+   top: 54px;
+   left: 230px;
+ }
+
+ #x {
+   left: 206px;
+   top: 30px;
+ }
+
+ #b {
+   left: 254px;
+   top: 30px;
+ }
+
+ #select {
+   left: 110px;
+   top: 30px;
+ }
+
+ #start {
+   left: 150px;
+   top: 30px;
+ }
+ 
+</style>
+
+<body onload="init()">
+
+<div class="controller">
+  <div id="up" class="dir"></div>
+  <div id="down" class="dir"></div>
+  <div id="left" class="dir"></div>
+  <div id="right" class="dir"></div>  
+
+  <div id="select" class="menu"></div>
+  <div id="start" class="menu"></div>  
+  
+  <div id="a" class="but"></div>
+  <div id="b" class="but"></div>
+  <div id="x" class="but"></div>
+  <div id="y" class="but"></div>  
+</div>
+
+</body>
