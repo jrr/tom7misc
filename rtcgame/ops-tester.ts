@@ -110,7 +110,9 @@ class OpsTester<Input, State> {
       // TODO: This totally random schedule seems to make it pretty
       // unlikely that we completely clear the window; we should
       // probably try to make this happen more often to tickle
-      // those cases in the code.
+      // those cases in the code. (In particular if you break
+      // setConsensus to not update cstate, for example, it
+      // still passes tests until checking final2 below.)
       let indices : Array<{frame: number, player: number}> = [];
       for (let frame = 0; frame < inputs.length; frame++) {
         for (let player = 0; player < this.N; player++) {
