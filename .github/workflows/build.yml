@@ -1,0 +1,51 @@
+name: C/C++ CI
+
+on: [push, pull_request]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: sudo apt install -y libsdl1.2-dev
+      - name: build
+        env:
+          LINUX: true
+        working-directory: escapex
+        run: make
+
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v2
+
+      # https://github.com/actions/runner/issues/497#issuecomment-640856321
+      - name: add mingw to path
+        shell: powershell
+        run: echo "C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: pwd
+        run: pwd
+
+      - name: which sh
+        run: which sh
+
+      - name: build SDL
+        run: |
+          curl http://libsdl.org/release/SDL-1.2.15.tar.gz -o SDL-1.2.15.tar.gz
+          tar xfz SDL-1.2.15.tar.gz
+          cd SDL-1.2.15
+          curl https://git.savannah.gnu.org/cgit/config.git/plain/config.guess -o build-scripts/config.guess
+          ./configure --prefix `pwd`/build --build i686-pc-mingw32
+          make
+
+      - name: build
+        env:
+          WIN32: true
+        working-directory: escapex
+        run: make ZOPFLI=cp SDL=../SDL-1.2.15 WINDRES=windres
