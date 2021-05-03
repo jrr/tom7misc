@@ -1,5 +1,12 @@
 <table>
 <tr>
+<td valign="top"><a href="/f/a/escape/level/2402"><img src="/png/24720f3db228fde29fb486d522042347.png"
+border=0></a></td>
+<td valign="top"><a href="/f/a/escape/level/2402">block cipher</a>
+<br />by pieguy
+<br /><b>difficulty</b>: 9.44
+</td></tr>
+<tr>
 <td valign="top"><a href="/f/a/escape/level/1874"><img src="/png/232f4057e79d33c5212af954751ad24a.png"
 border=0></a></td>
 <td valign="top"><a href="/f/a/escape/level/1874">Nice Cote d'Azur International Airport (NCE) (noname's mod)</a>
@@ -7,32 +14,11 @@ border=0></a></td>
 <br /><b>difficulty</b>: 9.40
 </td></tr>
 <tr>
-<td valign="top"><a href="/f/a/escape/level/2402"><img src="/png/24720f3db228fde29fb486d522042347.png"
-border=0></a></td>
-<td valign="top"><a href="/f/a/escape/level/2402">block cipher</a>
-<br />by pieguy
-<br /><b>difficulty</b>: 9.37
-</td></tr>
-<tr>
 <td valign="top"><a href="/f/a/escape/level/1430"><img src="/png/54c3f177b9d9412d68267d397a90e0ae.png"
 border=0></a></td>
 <td valign="top"><a href="/f/a/escape/level/1430">Newark Liberty Airport (EWR)</a>
 <br />by Tom 7
 <br /><b>difficulty</b>: 9.33
-</td></tr>
-<tr>
-<td valign="top"><a href="/f/a/escape/level/670"><img src="/png/8fa772b4baa7f23f54c7efd122578a0c.png"
-border=0></a></td>
-<td valign="top"><a href="/f/a/escape/level/670">Too Many Lasers</a>
-<br />by Henri Kareinen
-<br /><b>difficulty</b>: 9.25
-</td></tr>
-<tr>
-<td valign="top"><a href="/f/a/escape/level/885"><img src="/png/49f038ef5f59dbab64f8d88ca155b028.png"
-border=0></a></td>
-<td valign="top"><a href="/f/a/escape/level/885"><font color="#FF756A">Rouge<font color="#000000">-Like-Like</font></font></a>
-<br />by Max (original by Stephan/Tom 7)
-<br /><b>difficulty</b>: 9.22
 </td></tr>
 <tr>
 <td valign="top"><a href="/f/a/escape/level/2332"><img src="/png/4961d912a66ee6c5335a6df477572a61.png"
@@ -49,6 +35,20 @@ border=0></a></td>
 <br /><b>difficulty</b>: 9.16
 </td></tr>
 <tr>
+<td valign="top"><a href="/f/a/escape/level/3536"><img src="/png/9214305b90be00f65ae3add5d8b294f4.png"
+border=0></a></td>
+<td valign="top"><a href="/f/a/escape/level/3536">All mod cons 20</a>
+<br />by The Mods (noname)
+<br /><b>difficulty</b>: 9.00
+</td></tr>
+<tr>
+<td valign="top"><a href="/f/a/escape/level/3533"><img src="/png/3624df833c3a18fd5166a84bce7cf1f2.png"
+border=0></a></td>
+<td valign="top"><a href="/f/a/escape/level/3533">All mod cons 19</a>
+<br />by The Mods (mark)
+<br /><b>difficulty</b>: 9.00
+</td></tr>
+<tr>
 <td valign="top"><a href="/f/a/escape/level/1107"><img src="/png/492f75f17f3a8e9fed74ee149c295527.png"
 border=0></a></td>
 <td valign="top"><a href="/f/a/escape/level/1107">the wrong parity</a>
@@ -61,6 +61,20 @@ border=0></a></td>
 <td valign="top"><a href="/f/a/escape/level/692">revenge of the computers 2</a>
 <br />by pieguy
 <br /><b>difficulty</b>: 9.00
+</td></tr>
+<tr>
+<td valign="top"><a href="/f/a/escape/level/670"><img src="/png/8fa772b4baa7f23f54c7efd122578a0c.png"
+border=0></a></td>
+<td valign="top"><a href="/f/a/escape/level/670">Too Many Lasers</a>
+<br />by Henri Kareinen
+<br /><b>difficulty</b>: 9.00
+</td></tr>
+<tr>
+<td valign="top"><a href="/f/a/escape/level/885"><img src="/png/49f038ef5f59dbab64f8d88ca155b028.png"
+border=0></a></td>
+<td valign="top"><a href="/f/a/escape/level/885"><font color="#FF756A">Rouge<font color="#000000">-Like-Like</font></font></a>
+<br />by Max (original by Stephan/Tom 7)
+<br /><b>difficulty</b>: 8.90
 </td></tr>
 <tr>
 <td valign="top"><a href="/f/a/escape/level/593"><img src="/png/1ac6873beab6b324dbf4bf5951dfadc9.png"
@@ -105,11 +119,11 @@ border=0></a></td>
 <br /><b>difficulty</b>: 8.55
 </td></tr>
 <tr>
-<td valign="top"><a href="/f/a/escape/level/362"><img src="/png/a4866e383ed6c75ab4a81a87d163cc29.png"
+<td valign="top"><a href="/f/a/escape/level/2190"><img src="/png/13f883ae388680541d33f2366398124b.png"
 border=0></a></td>
-<td valign="top"><a href="/f/a/escape/level/362">Memoryless Hole (v3)</a>
-<br />by mjn (mod by bpotetz)
-<br /><b>difficulty</b>: 8.55
+<td valign="top"><a href="/f/a/escape/level/2190">mod 14</a>
+<br />by pieguy
+<br /><b>difficulty</b>: 8.50
 </td></tr>
 <tr>
 <td valign="top"><a href="/f/a/escape/level/3523"><img src="/png/3968c0ed3acf4f8557dbfd15b1967e24.png"
@@ -119,24 +133,10 @@ border=0></a></td>
 <br /><b>difficulty</b>: 8.40
 </td></tr>
 <tr>
-<td valign="top"><a href="/f/a/escape/level/2190"><img src="/png/13f883ae388680541d33f2366398124b.png"
-border=0></a></td>
-<td valign="top"><a href="/f/a/escape/level/2190">mod 14</a>
-<br />by pieguy
-<br /><b>difficulty</b>: 8.40
-</td></tr>
-<tr>
 <td valign="top"><a href="/f/a/escape/level/1565"><img src="/png/3ebf6495687776b7fe92c23724153ee7.png"
 border=0></a></td>
 <td valign="top"><a href="/f/a/escape/level/1565">revenge of the computers 4</a>
 <br />by pieguy
 <br /><b>difficulty</b>: 8.40
-</td></tr>
-<tr>
-<td valign="top"><a href="/f/a/escape/level/1873"><img src="/png/c646624525f3f734fee2564887d394a1.png"
-border=0></a></td>
-<td valign="top"><a href="/f/a/escape/level/1873">Nice Cote d'Azur International Airport (NCE) (mod)</a>
-<br />by Tom 7 (mod by Eric119)
-<br /><b>difficulty</b>: 8.33
 </td></tr>
 </table>
