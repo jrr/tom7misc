@@ -22,10 +22,10 @@
 </td>
 
 <!-- left border -->
-<td bgcolor="#444477" width=3 valign=top><img src="spacer.gif" width=3 height=3></td>
+<td bgcolor="#447" width=3 valign=top><img src="spacer.gif" width=3 height=3></td>
 
 <!-- main content -->
-<td style="background : #FFFFFF;" bgcolor="#FFFFFF">
+<td style="background : #fff" bgcolor="#fff">
 <table cellpadding=4><tr><td>
 <center><img src="images/downtitle.png" width=494 height=87></center>
 
@@ -167,9 +167,9 @@ code. To do so, use the source archive below.</p>
 
 <p align=justify>This is C++ source code for Escape, as well as all
 the graphics and game data. Also included is the source code to the
-Escape server and NES versions. For more up-to-the-minute sources, you
-can access
-the <b><a href="http://tom7misc.svn.sourceforge.net/viewvc/tom7misc/trunk/escapex/">SVN</a></b>
+Escape server and NES versions. the source tarball is probably pretty
+old; for more up-to-the-minute sources, you can access the
+<b><a href="https://sourceforge.net/p/tom7misc/svn/HEAD/tree/trunk/escapex/">SVN</a></b>
 repository at Sourceforge.</p>
 
 <p align=justify>Instructions for building are included in the file
@@ -181,7 +181,9 @@ href="source/SDL/">here</a></b>, however, it's probably a better idea
 to download them from their homes on the web. 
   (<b><a href="http://www.libsdl.org/download-1.2.php">SDL</a></b>,
    <b><a href="http://www.libsdl.org/projects/SDL_net/">SDL_net</a></b>,
+<!-- TODO: With a new source release, sdl_image is no longer used -->
    <b><a href="http://www.libsdl.org/projects/SDL_image/">SDL_image</a></b>,
+<!-- TODO: With a new source release, sdl_mixer is included -->
    <b><a href="http://www.libsdl.org/projects/SDL_mixer/">SDL_mixer</a></b>)
 </p>
 
@@ -218,11 +220,12 @@ He also includes some sound effects!</p>
 <tr><td colspan=2 valign="top">
 <span class=tiny>August 1996</span>
 
-<p align=justify>Here is the original Escape for DOS, from 20 years
-ago. Don't use this one if your computer can handle the modern
-version! It includes about 100 levels. Note: Levels created with the
-built-in editor are not necessarily compatible with the modern Escape,
-because I have fixed bugs in the behavior of some tiles.</p>
+<p align=justify>For historic interest, here is the original Escape
+for DOS, from 20 years ago. It should run in DosBox or other DOS
+emulators. It includes about 100 levels. Note: Levels created with the
+built-in editor are not compatible with the modern Escape,
+because I fixed bugs in the behavior of some tiles, and switched to
+a new level format some 10 years ago.</p>
 
 </td></tr></table>
 
@@ -252,17 +255,8 @@ more features.</p>
 
 </td></tr></table><!-- main content area -->
 
-<td bgcolor="#444477" width=3 valign=top><img src="spacer.gif" width=3 height=3></td>
+<td bgcolor="#447" width=3 valign=top><img src="spacer.gif" width=3 height=3></td>
 
 </td></tr></table>
 
-<script type="text/javascript">
-var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-</script>
-<script type="text/javascript">
-var pageTracker = _gat._getTracker("UA-3572278-1");
-pageTracker._initData();
-pageTracker._trackPageview();
-</script>
 </body></html>
