@@ -15,6 +15,11 @@ jobs:
         working-directory: escapex
         run: make
 
+      - uses: actions/upload-artifact@v1
+        with:
+          name: escapex-${{ runner.os }}
+          path: escapex
+
   build-windows:
     runs-on: windows-latest
     defaults:
@@ -49,3 +54,8 @@ jobs:
           WIN32: true
         working-directory: escapex
         run: make ZOPFLI=cp SDL=../SDL-1.2.15 WINDRES=windres
+
+      - uses: actions/upload-artifact@v1
+        with:
+          name: escapex-${{ runner.os }}
+          path: escapex
