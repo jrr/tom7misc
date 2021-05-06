@@ -7,27 +7,40 @@
 # more information on compiling escape.
 
 # -------------------------------------------------------------------
+# factoring out common bits here:
 
-ifdef LINUX
-# makefile for linux
+# cc-lib is my personal collection of C++ libraries. It should be in a
+# directory next to "escapex."
+CC_LIB=../cc-lib
 
+# Included with escape with some superficial local fixes, but feel
+# free to try a pristine copy instead.
 # SDL_net is just compiled from the small number of sources now,
 # included in this subdirectory
 SDL_NET=SDL_net
-CC_LIB=../cc-lib
+
+# objects that do not need SDL; can be linked into tools like screenshot.exe; server
+ESCLIBOBJECTS=level.o solution.o rle.o disamb.o escape-util.o graphics.o
 
 SDLUTILOBJECTS=$(CC_LIB)/sdl/sdlutil.o $(CC_LIB)/sdl/font.o
-CCLIBINCLUDES= -I ../cc-lib
+
+
+# cc-lib assumes it can include something like "base/macros.h"
+CCLIBINCLUDES=-I$(CC_LIB)
 CCLIBOBJECTS=$(CC_LIB)/image.o $(CC_LIB)/util.o $(CC_LIB)/stb_image.o $(CC_LIB)/stb_image_write.o $(CC_LIB)/crypt/md5.o $(CC_LIB)/base64.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o
 
 SDLNETINCLUDES=-I$(SDL_NET)
 SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP.o $(SDL_NET)/SDLnetUDP.o
 
-ESCLIBOBJECTS=level.o solution.o rle.o disamb.o escape-util.o graphics.o
+default : escape.exe
+
+# -------------------------------------------------------------------
+
+ifdef LINUX
+# makefile for linux
 
 ESCOBJECTS=level.o solution.o rle.o disamb.o main.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o $(CCLIBOBJECTS) $(SDLNETOBJECTS) $(ESCLIBOBJECTS) $(SDLUTILOBJECTS)
 
-default : escape.exe
 
 # to distribute dynamic: sdl-config --prefix=.
 # then ldd escape.exe
@@ -153,159 +166,10 @@ clean :
 # end linux makefile
 endif
 
-# -------------------------------------------------------------------
-
-ifdef OSX
-# makefile for OSX
-
-# XXX reinstate sdl_mixer before doing another release!
-
-default : escape.exe
-
-FRAMEWORKS=OSX_build/Frameworks
-
-# No longer cavemen, we target a recent release of OS X.
-VERSION_TARGET=10.10
-# Hack from t7eshero. Maybe should be fixed.
-RPATH=-rpath @executable_path/../Frameworks
-
-# Suppress compilation commands, but show some indication of progress.
-# (Explicitly invoke bash to get shell builtin, since on OS X echo
-# otherwise treats -n literally.)
-%.o : %.cc
-	@${CXX} ${CPPFLAGS} ${CXXFLAGS} -c -o $@ $<
-	@bash -c "echo -n '.'"
-
-# sound is disabled, but it's time to make it available on the OS X
-# release. Do this!
-# to add it, remove -DNOSOUND and add
-#
-# to CPPFLAGS and add
-#  -framework SDL_mixer
-# to the g++ line linking below
-
-CXXFLAGS=-std=c++17
-
-# XXX: I added -I. here and made a symlink to the SDL include
-# directory called "SDL", since some frameworks want to include like
-# <SDL/sdl.h>. (is it just the now-deleted sdl_image, though?) Don't
-# know what the right fix is.
-CPPFLAGS= -arch x86_64 -I. -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_net.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers -D_THREAD_SAFE -DOSX
-
-# XXX Suppress warning in SDL-supplied .m file, but should figure out what's going on here.
-CFLAGS=-Wno-objc-protocol-method-implementation
-
-# good for 10.11 MacBook
-# used to use /usr/local/lib
-LIBS=-L/usr/lib
-
-CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/sdl/font.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
-
-escape.exe : escapex.o browse.o main.o rle.o level.o solution.o disamb.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
-	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
-	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
-
-.dummy :
-
-version : .dummy
-	g++ version.cc -o version.exe
-	./version.exe
-	make clean
-	make escape.exe
-
-RELEASEFILES=escape.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt COPYING changelog animation.png splash.png
-
-mkupgrade.exe : mkupgrade.cc ../cc-lib/crypt/md5.cc
-	g++ ${CPPFLAGS} ${CXXFLAGS} -DOSX mkupgrade.cc ../cc-lib/crypt/md5.cc -o mkupgrade.exe
-
-releasefiles.osx :
-	echo ${RELEASEFILES} > releasefiles.osx
-
-UPGRADE : .dummy mkupgrade.exe releasefiles.osx symlinks.osx deletefiles.osx
-	strip escape.exe
-	./mkupgrade.exe releasefiles.osx symlinks.osx deletefiles.osx > UPGRADE
-	./mkupgrade.exe -v > CURRENT
-
-release : UPGRADE
-	rm -rf ../release
-	mkdir ../release
-	cp ${RELEASEFILES} CURRENT UPGRADE ../release/
-	rm -f UPGRADE CURRENT mkupgrade.executables
-
-releaseup : release
-	cd ../release && scp * root@spacebar.org:/var/www/escape/osx
-
-zip : escape-beta-osx.zip
-
-# XXX Note: in 2016 I didn't need to do this stuff; svn seems to handle
-# symlinks correctly.
-# for some reason frameworks need some redundance built with symlinks
-# XXX give this deps so it knows when to run
-framelinks :
-	-mkdir OSX_build/Frameworks/SDL.framework/Versions
-	-mkdir OSX_build/Frameworks/SDL.framework/Versions/A
-	-mkdir OSX_build/Frameworks/SDL_net.framework/Versions
-	-mkdir OSX_build/Frameworks/SDL_net.framework/Versions/A
-	-mkdir OSX_build/Frameworks/SDL_mixer.framework/Versions
-	-mkdir OSX_build/Frameworks/SDL_mixer.framework/Versions/A
-	cd OSX_build/Frameworks/SDL.framework/Versions/A && ln -s ../../SDL SDL && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
-	cd OSX_build/Frameworks/SDL_net.framework/Versions/A && ln -s ../../SDL_net SDL_net && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
-
-
-# OSX_build goes inside an otherwise empty folder called
-# Escape.app. The folder should be renamed to Contents.
-# inside Contents/MacOS goes all of the regularly distributed
-# files.
-# the folder Escape.app is zipped to produce the result
-app : escape.exe
-	rm -rf /tmp/Escape.app
-	rm -f /tmp/escape-beta-osx.zip
-	rm -f escape-beta-osx.zip
-	mkdir /tmp/Escape.app
-	mkdir /tmp/Escape.app/Contents
-	mkdir /tmp/Escape.app/Contents/MacOS
-	cp -R OSX_build/* /tmp/Escape.app/Contents/
-	cp ${RELEASEFILES} /tmp/Escape.app/Contents/MacOS/
-	cp -R triage /tmp/Escape.app/Contents/MacOS/
-	cp -R official /tmp/Escape.app/Contents/MacOS/
-	mkdir /tmp/Escape.app/Contents/MacOS/mylevels
-	cp mylevels/index.esi /tmp/Escape.app/Contents/MacOS/mylevels/
-	mkdir /tmp/Escape.app/Contents/MacOS/OSX_build
-	mkdir /tmp/Escape.app/Contents/MacOS/OSX_build/Frameworks
-	rm -f /tmp/Escape.app/Contents/Frameworks/SDL.framework/Headers/*.h
-	rm -f /tmp/Escape.app/Contents/Frameworks/SDL_net.framework/Headers/*.h
-	rm -f /tmp/Escape.app/Contents/Frameworks/SDL_mixer.framework/Headers/*.h
-	rm -rf `find /tmp/Escape.app -name CVS`
-	rm -rf `find /tmp/Escape.app -name .svn`
-	rm -rf `find /tmp/Escape.app -name .DS_Store`
-
-desktop : app
-	rm -rf ~/Desktop/Escape.app.old
-	-mv ~/Desktop/Escape.app ~/Desktop/Escape.app.old
-	cp -R /tmp/Escape.app ~/Desktop/
-
-escape-beta-osx.zip : app
-	cd /tmp && zip -r -9 -y $@ Escape.app
-	rm -f $@
-	cp /tmp/$@ .
-
-zipup : escape-beta-osx.zip
-	scp escape-beta-osx.zip root@spacebar.org:/var/www/escape/
-
-wc :
-	wc -l *.cc *.h
-
-clean :
-	rm -f *.o escape.exe core core.[0-9]* .DS_Store ${CCLIBOBJECTS}
-
-
-# end OSX makefile
-endif
 
 # mingw makefile. This is the new way to compile on Windows.
 ifdef WIN32
 
-default : escape.exe
 
 # Depending on your installation, this may work better for you...
 # CXX=g++
@@ -321,9 +185,6 @@ CPPFLAGS=-O2 -I .
 # point this at the SDL (1.2 series) installation. You need to compile
 # SDL in there too; we just link in the object files.
 SDL=/c/code/SDL
-# Included with escape with some superficial local fixes, but feel
-# free to try a pristine copy instead.
-SDL_NET=SDL_net
 
 
 # assume SDL build for .o files in the current directory
@@ -341,26 +202,11 @@ SDLINCLUDES=-I$(SDL)/include
 SDLOPATH=${SDL}/build
 SDLOBJECTS=${SDLOPATH}/SDL.o ${SDLOPATH}/SDL_error.o ${SDLOPATH}/SDL_fatal.o ${SDLOPATH}/SDL_audio.o ${SDLOPATH}/SDL_audiocvt.o ${SDLOPATH}/SDL_audiodev.o ${SDLOPATH}/SDL_mixer.o ${SDLOPATH}/SDL_mixer_MMX.o ${SDLOPATH}/SDL_mixer_MMX_VC.o ${SDLOPATH}/SDL_mixer_m68k.o ${SDLOPATH}/SDL_wave.o ${SDLOPATH}/SDL_cdrom.o ${SDLOPATH}/SDL_cpuinfo.o ${SDLOPATH}/SDL_active.o ${SDLOPATH}/SDL_events.o ${SDLOPATH}/SDL_expose.o ${SDLOPATH}/SDL_keyboard.o ${SDLOPATH}/SDL_mouse.o ${SDLOPATH}/SDL_quit.o ${SDLOPATH}/SDL_resize.o ${SDLOPATH}/SDL_rwops.o ${SDLOPATH}/SDL_getenv.o ${SDLOPATH}/SDL_iconv.o ${SDLOPATH}/SDL_malloc.o ${SDLOPATH}/SDL_qsort.o ${SDLOPATH}/SDL_stdlib.o ${SDLOPATH}/SDL_string.o ${SDLOPATH}/SDL_thread.o ${SDLOPATH}/SDL_timer.o ${SDLOPATH}/SDL_RLEaccel.o ${SDLOPATH}/SDL_blit.o ${SDLOPATH}/SDL_blit_0.o ${SDLOPATH}/SDL_blit_1.o ${SDLOPATH}/SDL_blit_A.o ${SDLOPATH}/SDL_blit_N.o ${SDLOPATH}/SDL_bmp.o ${SDLOPATH}/SDL_cursor.o ${SDLOPATH}/SDL_gamma.o ${SDLOPATH}/SDL_pixels.o ${SDLOPATH}/SDL_stretch.o ${SDLOPATH}/SDL_surface.o ${SDLOPATH}/SDL_video.o ${SDLOPATH}/SDL_yuv.o ${SDLOPATH}/SDL_yuv_mmx.o ${SDLOPATH}/SDL_yuv_sw.o ${SDLOPATH}/SDL_joystick.o ${SDLOPATH}/SDL_nullevents.o ${SDLOPATH}/SDL_nullmouse.o ${SDLOPATH}/SDL_nullvideo.o ${SDLOPATH}/SDL_diskaudio.o ${SDLOPATH}/SDL_dummyaudio.o ${SDLOPATH}/SDL_sysevents.o ${SDLOPATH}/SDL_sysmouse.o ${SDLOPATH}/SDL_syswm.o ${SDLOPATH}/SDL_wingl.o ${SDLOPATH}/SDL_dibevents.o ${SDLOPATH}/SDL_dibvideo.o ${SDLOPATH}/SDL_dx5events.o ${SDLOPATH}/SDL_dx5video.o ${SDLOPATH}/SDL_dx5yuv.o ${SDLOPATH}/SDL_dibaudio.o ${SDLOPATH}/SDL_dx5audio.o ${SDLOPATH}/SDL_mmjoystick.o ${SDLOPATH}/SDL_syscdrom.o ${SDLOPATH}/SDL_sysmutex.o ${SDLOPATH}/SDL_syssem.o ${SDLOPATH}/SDL_systhread.o ${SDLOPATH}/SDL_syscond.o ${SDLOPATH}/SDL_systimer.o ${SDLOPATH}/SDL_sysloadso.o sdl-win32-main.o
 
-SDLNETINCLUDES=-I$(SDL_NET)
-SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP.o $(SDL_NET)/SDLnetUDP.o
 
 LINKSDL=  -lm -mthreads -luser32 -lgdi32 -lwinmm -ldxguid
 LINKSDLNET= -lws2_32 -liphlpapi
 
-# objects that do not need SDL; can be linked into tools like screenshot.exe; server
-ESCLIBOBJECTS=level.o solution.o rle.o disamb.o escape-util.o graphics.o
-
 ESCOBJECTS= main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
-
-# cc-lib is my personal collection of C++ libraries. It should be in a
-# directory next to "escapex."
-CC_LIB=../cc-lib
-
-SDLUTILOBJECTS= $(CC_LIB)/sdl/sdlutil.o $(CC_LIB)/sdl/font.o
-# cc-lib assumes it can include something like "base/macros.h"
-CCLIBINCLUDES=-I$(CC_LIB)
-CCLIBOBJECTS= $(CC_LIB)/util.o $(CC_LIB)/crypt/md5.o $(CC_LIB)/base64.o $(CC_LIB)/stb_image_write.o $(CC_LIB)/stb_image.o $(CC_LIB)/image.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o
-
 
 # XXX reenable sound
 DEBUG=-g
@@ -563,4 +409,155 @@ clean :
 	rm -f *.o escape.exe core core.[0-9]* gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.* $(SDLNETOBJECTS)
 
 # end mingw makefile
+endif
+
+####### old osx stuff below here
+
+# -------------------------------------------------------------------
+
+ifdef OSX
+# makefile for OSX
+
+# XXX reinstate sdl_mixer before doing another release!
+
+default : escape.exe
+
+FRAMEWORKS=OSX_build/Frameworks
+
+# No longer cavemen, we target a recent release of OS X.
+VERSION_TARGET=10.10
+# Hack from t7eshero. Maybe should be fixed.
+RPATH=-rpath @executable_path/../Frameworks
+
+# Suppress compilation commands, but show some indication of progress.
+# (Explicitly invoke bash to get shell builtin, since on OS X echo
+# otherwise treats -n literally.)
+%.o : %.cc
+	@${CXX} ${CPPFLAGS} ${CXXFLAGS} -c -o $@ $<
+	@bash -c "echo -n '.'"
+
+# sound is disabled, but it's time to make it available on the OS X
+# release. Do this!
+# to add it, remove -DNOSOUND and add
+#
+# to CPPFLAGS and add
+#  -framework SDL_mixer
+# to the g++ line linking below
+
+CXXFLAGS=-std=c++17
+
+# XXX: I added -I. here and made a symlink to the SDL include
+# directory called "SDL", since some frameworks want to include like
+# <SDL/sdl.h>. (is it just the now-deleted sdl_image, though?) Don't
+# know what the right fix is.
+CPPFLAGS= -arch x86_64 -I. -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_net.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers -D_THREAD_SAFE -DOSX
+
+# XXX Suppress warning in SDL-supplied .m file, but should figure out what's going on here.
+CFLAGS=-Wno-objc-protocol-method-implementation
+
+# good for 10.11 MacBook
+# used to use /usr/local/lib
+LIBS=-L/usr/lib
+
+CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/sdl/font.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
+
+escape.exe : escapex.o browse.o main.o rle.o level.o solution.o disamb.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
+	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
+	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
+
+.dummy :
+
+version : .dummy
+	g++ version.cc -o version.exe
+	./version.exe
+	make clean
+	make escape.exe
+
+RELEASEFILES=escape.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt COPYING changelog animation.png splash.png
+
+mkupgrade.exe : mkupgrade.cc ../cc-lib/crypt/md5.cc
+	g++ ${CPPFLAGS} ${CXXFLAGS} -DOSX mkupgrade.cc ../cc-lib/crypt/md5.cc -o mkupgrade.exe
+
+releasefiles.osx :
+	echo ${RELEASEFILES} > releasefiles.osx
+
+UPGRADE : .dummy mkupgrade.exe releasefiles.osx symlinks.osx deletefiles.osx
+	strip escape.exe
+	./mkupgrade.exe releasefiles.osx symlinks.osx deletefiles.osx > UPGRADE
+	./mkupgrade.exe -v > CURRENT
+
+release : UPGRADE
+	rm -rf ../release
+	mkdir ../release
+	cp ${RELEASEFILES} CURRENT UPGRADE ../release/
+	rm -f UPGRADE CURRENT mkupgrade.executables
+
+releaseup : release
+	cd ../release && scp * root@spacebar.org:/var/www/escape/osx
+
+zip : escape-beta-osx.zip
+
+# XXX Note: in 2016 I didn't need to do this stuff; svn seems to handle
+# symlinks correctly.
+# for some reason frameworks need some redundance built with symlinks
+# XXX give this deps so it knows when to run
+framelinks :
+	-mkdir OSX_build/Frameworks/SDL.framework/Versions
+	-mkdir OSX_build/Frameworks/SDL.framework/Versions/A
+	-mkdir OSX_build/Frameworks/SDL_net.framework/Versions
+	-mkdir OSX_build/Frameworks/SDL_net.framework/Versions/A
+	-mkdir OSX_build/Frameworks/SDL_mixer.framework/Versions
+	-mkdir OSX_build/Frameworks/SDL_mixer.framework/Versions/A
+	cd OSX_build/Frameworks/SDL.framework/Versions/A && ln -s ../../SDL SDL && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
+	cd OSX_build/Frameworks/SDL_net.framework/Versions/A && ln -s ../../SDL_net SDL_net && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
+
+
+# OSX_build goes inside an otherwise empty folder called
+# Escape.app. The folder should be renamed to Contents.
+# inside Contents/MacOS goes all of the regularly distributed
+# files.
+# the folder Escape.app is zipped to produce the result
+app : escape.exe
+	rm -rf /tmp/Escape.app
+	rm -f /tmp/escape-beta-osx.zip
+	rm -f escape-beta-osx.zip
+	mkdir /tmp/Escape.app
+	mkdir /tmp/Escape.app/Contents
+	mkdir /tmp/Escape.app/Contents/MacOS
+	cp -R OSX_build/* /tmp/Escape.app/Contents/
+	cp ${RELEASEFILES} /tmp/Escape.app/Contents/MacOS/
+	cp -R triage /tmp/Escape.app/Contents/MacOS/
+	cp -R official /tmp/Escape.app/Contents/MacOS/
+	mkdir /tmp/Escape.app/Contents/MacOS/mylevels
+	cp mylevels/index.esi /tmp/Escape.app/Contents/MacOS/mylevels/
+	mkdir /tmp/Escape.app/Contents/MacOS/OSX_build
+	mkdir /tmp/Escape.app/Contents/MacOS/OSX_build/Frameworks
+	rm -f /tmp/Escape.app/Contents/Frameworks/SDL.framework/Headers/*.h
+	rm -f /tmp/Escape.app/Contents/Frameworks/SDL_net.framework/Headers/*.h
+	rm -f /tmp/Escape.app/Contents/Frameworks/SDL_mixer.framework/Headers/*.h
+	rm -rf `find /tmp/Escape.app -name CVS`
+	rm -rf `find /tmp/Escape.app -name .svn`
+	rm -rf `find /tmp/Escape.app -name .DS_Store`
+
+desktop : app
+	rm -rf ~/Desktop/Escape.app.old
+	-mv ~/Desktop/Escape.app ~/Desktop/Escape.app.old
+	cp -R /tmp/Escape.app ~/Desktop/
+
+escape-beta-osx.zip : app
+	cd /tmp && zip -r -9 -y $@ Escape.app
+	rm -f $@
+	cp /tmp/$@ .
+
+zipup : escape-beta-osx.zip
+	scp escape-beta-osx.zip root@spacebar.org:/var/www/escape/
+
+wc :
+	wc -l *.cc *.h
+
+clean :
+	rm -f *.o escape.exe core core.[0-9]* .DS_Store ${CCLIBOBJECTS}
+
+
+# end OSX makefile
 endif
