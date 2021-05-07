@@ -64,7 +64,8 @@ SDL_NET=SDL_net
 esclib.a: level.o solution.o rle.o disamb.o escape-util.o graphics.o
 	ar cr $@ $^
 
-SDLUTILOBJECTS=$(CC_LIB)/sdl/sdlutil.o $(CC_LIB)/sdl/font.o
+sdlutil.a: $(CC_LIB)/sdl/sdlutil.o $(CC_LIB)/sdl/font.o
+	ar cr $@ $^
 
 # cc-lib assumes it can include something like "base/macros.h"
 CCLIBINCLUDES=-I$(CC_LIB)
@@ -101,7 +102,7 @@ LDLIBS = `sdl-config --libs`
 
 #  LDLIBS = -lefence
 
-escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a $(SDLUTILOBJECTS)
+escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a stlutil.a
 	g++ -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
 
 #  -lvorbisfile -lvorbis -logg
@@ -271,7 +272,7 @@ LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,${SUBSYSTEM} ${OPT}
 icon.o : escape.ico escape.rc
 	$(WINDRES) -i escape.rc -o $@
 
-escape.exe : ${ESCOBJECTS} icon.o cclib.a ${SDLUTILOBJECTS} ${SDLOBJECTS} sdlnet.a
+escape.exe : ${ESCOBJECTS} icon.o cclib.a sdlutil.a ${SDLOBJECTS} sdlnet.a
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
 replace.exe : replace.o escape-util.o

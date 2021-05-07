@@ -79,6 +79,7 @@ jobs:
           make esclib.a
           make cclib.a
           make sdlnet.a
+          make sdlutil.a
 
       - uses: actions/upload-artifact@v2
         with:
