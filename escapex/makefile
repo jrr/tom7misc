@@ -17,6 +17,8 @@ endif
 
 ifdef LINUX
 
+CXX=g++
+
 # for multiuser, add -DMULTIUSER -DDATADIR=\"/tmp/escapedata/\" -DSTARTUP_LEVELS=\"/tmp/escapelevels\"
 # with appropriate paths to the static data (trailing slash for data dir; no trailing for startup)
 CPPFLAGS = `sdl-config --cflags` $(SDLNETINCLUDES) -DNOSOUND=1 -DLINUX=1
@@ -102,12 +104,12 @@ LDLIBS = `sdl-config --libs`
 
 #  LDLIBS = -lefence
 
-escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a stlutil.a
-	g++ -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
+escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a sdlutil.a
+	${CXX} -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
 
 #  -lvorbisfile -lvorbis -logg
 packsound.exe : escape-util-console.o packsound-console.o
-	g++ -o $@ $^ `sdl-config --static-libs`
+	${CXX} -o $@ $^ `sdl-config --static-libs`
 	strip packsound.exe
 
 sound_load.h : sound.pack packsound.cc
@@ -115,16 +117,16 @@ sound_load.h : sound.pack packsound.cc
 	./packsound.exe sound.pack sound
 
 %-console.o : %.cc
-	g++ ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
+	${CXX} ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
 
 screenshot.exe : esclib.a cclib.a screenshot.o
-	g++ ${CXXFLAGS} -o $@ $^ -static
+	${CXX} ${CXXFLAGS} -o $@ $^ -static
 
 
 .dummy :
 
 version : .dummy
-	g++ version.cc -o version.exe
+	${CXX} version.cc -o version.exe
 	./version.exe
 	make clean
 	make escape.exe
@@ -141,7 +143,7 @@ releasefiles.linux : ${RELEASEFILES}
 	echo ${RELEASEFILES} > releasefiles.linux
 
 mkupgrade.exe : mkupgrade.o ../cc-lib/crypt/md5.o
-	g++ $^ -o mkupgrade.exe
+	${CXX} $^ -o mkupgrade.exe
 
 CURRENT : .dummy escape.exe releasefiles.linux symlinks.linux deletefiles.linux mkupgrade.exe
 	strip escape.exe
