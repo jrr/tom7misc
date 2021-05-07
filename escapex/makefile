@@ -29,6 +29,8 @@ LDLIBS = `sdl-config --libs`
 
 STATIC=-static
 
+STRIP=@true
+
 endif
 
 ifdef WIN32
@@ -41,6 +43,7 @@ CXXFLAGS= -std=c++17 ${OPT} $(DEBUG) -DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-
 SDL_CXXFLAGS= ${CXXFLAGS} ${SDLINCLUDES} ${SDLNETINCLUDES}
 
 STATIC=-static
+STRIP=strip
 
 endif
 
@@ -55,6 +58,8 @@ LDLIBS = `sdl-config --libs`
 
 # deliberately empty:
 STATIC=
+
+STRIP=@true
 
 endif
 
@@ -95,6 +100,10 @@ sdlnet.a: $(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP.o $
 
 ESCOBJECTS=main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o esclib.a backgrounds.o escapex.o browse.o
 
+
+%-console.o : %.cc
+	${CXX} ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
+
 # -------------------------------------------------------------------
 
 #######################
@@ -114,18 +123,12 @@ ifdef LINUX
 
 #  LDLIBS = -lefence
 
-
 #  -lvorbisfile -lvorbis -logg
-packsound.exe : escape-util-console.o packsound-console.o
-	${CXX} -o $@ $^ `sdl-config --static-libs`
-	strip packsound.exe
 
 sound_load.h : sound.pack packsound.cc
 	make packsound.exe
 	./packsound.exe sound.pack sound
 
-%-console.o : %.cc
-	${CXX} ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
 
 .dummy :
 
@@ -150,7 +153,7 @@ mkupgrade.exe : mkupgrade.o ../cc-lib/crypt/md5.o
 	${CXX} $^ -o mkupgrade.exe
 
 CURRENT : .dummy escape.exe releasefiles.linux symlinks.linux deletefiles.linux mkupgrade.exe
-	strip escape.exe
+	$(STRIP) escape.exe
 	./mkupgrade.exe releasefiles.linux symlinks.linux deletefiles.linux > UPGRADE
 	./mkupgrade.exe -v > CURRENT
 
@@ -168,7 +171,7 @@ escape-beta.tar.gz : escape.exe
 	rm -f /tmp/escape-beta.tar.gz
 	rm -f escape-beta.tar.gz
 	mkdir /tmp/escape
-	strip escape.exe
+	$(STRIP) escape.exe
 	cp ${RELEASEFILES} /tmp/escape
 	cp -a triage /tmp/escape
 	cp -a official /tmp/escape
@@ -279,13 +282,10 @@ EXTRA_OBJS=icon.o ${SDLOBJECTS}
 replace.exe : replace.o escape-util.o
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
-packsound.exe : packsound.o cclib.a
-	${CXX} -o $@ $^ ${LDFLAGS} -static
-	strip packsound.exe
 
 rle_test.exe : lib/rle.o lib/rle_test.o
 	${CXX} $(CXXFLAGS) -o $@ $^ -static
-	strip rle_test.exe
+	$(STRIP) rle_test.exe
 
 sound_load.h : sound.pack packsound.cc packsound.exe
 	./packsound.exe sound.pack sound
@@ -318,9 +318,6 @@ optimize-png : animation.png .dummy
 	cp zop-animation.png animation.png
 	rm -f zop-*.png
 
-# XXX better way to do this?
-%-console.o : %.cc
-	${CXX} ${CXXFLAGS} -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
 
 packpng.exe : packpng.o cclib.a
 	${CXX} -o $@ $^ -static
@@ -345,8 +342,8 @@ mkupgrade.exe : mkupgrade.cc ../cc-lib/crypt/md5.cc
 
 CURRENT : .dummy escape.exe releasefiles.win32 symlinks.win32 deletefiles.win32 mkupgrade.exe
 	@:$(call release_check)
-	strip escape.exe
-	strip replace.exe
+	$(STRIP) escape.exe
+	$(STRIP) replace.exe
 	./mkupgrade.exe releasefiles.win32 symlinks.win32 deletefiles.win32 > UPGRADE
 	./mkupgrade.exe -v > CURRENT
 
@@ -360,8 +357,8 @@ zip : escape-beta.zip
 
 escape-beta.zip : ${RELEASEFILES} makefile
 	@:$(call release_check)
-	strip escape.exe
-	strip replace.exe
+	$(STRIP) escape.exe
+	$(STRIP) replace.exe
 	rm -f $@
 	rm -rf tmp_escapezip
 	mkdir tmp_escapezip
@@ -385,8 +382,8 @@ MAKENSIS='c:\program files (x86)\nsis\makensis.exe'
 
 escapesetup.exe : .dummy ${RELEASEFILES} escape.nsi
 	@:$(call release_check)
-	strip escape.exe
-	strip replace.exe
+	$(STRIP) escape.exe
+	$(STRIP) replace.exe
 	${MAKENSIS} escape.nsi
 
 installer : escapesetup.exe
@@ -486,7 +483,7 @@ releasefiles.osx :
 	echo ${RELEASEFILES} > releasefiles.osx
 
 UPGRADE : .dummy mkupgrade.exe releasefiles.osx symlinks.osx deletefiles.osx
-	strip escape.exe
+	$(STRIP) escape.exe
 	./mkupgrade.exe releasefiles.osx symlinks.osx deletefiles.osx > UPGRADE
 	./mkupgrade.exe -v > CURRENT
 
@@ -570,3 +567,7 @@ escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a sdlutil.a ${EXTRA_OBJS}
 
 screenshot.exe : screenshot.o esclib.a cclib.a
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(STATIC)
+
+packsound.exe : packsound.o cclib.a
+	${CXX} -o $@ $^ ${LDFLAGS} $(STATIC)
+	$(STRIP) packsound.exe

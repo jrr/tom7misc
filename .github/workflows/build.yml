@@ -24,6 +24,7 @@ jobs:
         run: |
           make
           make screenshot.exe
+          make packsound.exe
 
       - uses: actions/upload-artifact@v2
         with:
@@ -64,6 +65,7 @@ jobs:
         run: |
           make ZOPFLI=cp SDL=../SDL-1.2.15 WINDRES=windres
           make screenshot.exe
+          make packsound.exe
 
       - uses: actions/upload-artifact@v2
         with:
@@ -90,6 +92,7 @@ jobs:
           make sdlnet.a
           make sdlutil.a
           make screenshot.exe
+          make packsound.exe
 
       - uses: actions/upload-artifact@v2
         with:
