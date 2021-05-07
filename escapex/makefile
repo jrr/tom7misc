@@ -69,9 +69,8 @@ CCLIBOBJECTS=$(CC_LIB)/image.o $(CC_LIB)/util.o $(CC_LIB)/stb_image.o $(CC_LIB)/
 SDLNETINCLUDES=-I$(SDL_NET)
 SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP.o $(SDL_NET)/SDLnetUDP.o
 
+ESCOBJECTS=main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o esclib.a backgrounds.o escapex.o directories.o browse.o 
 
-# DRY'ing out:
-NEWESCOBJECTS=main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o esclib.a 
 # -------------------------------------------------------------------
 
 #######################
@@ -80,9 +79,6 @@ NEWESCOBJECTS=main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o draw
 
 ifdef LINUX
 # makefile for linux
-
-ESCOBJECTS=$(NEWESCOBJECTS) backgrounds.o escapex.o directories.o browse.o $(CCLIBOBJECTS) $(SDLNETOBJECTS) $(SDLUTILOBJECTS)
-
 
 # to distribute dynamic: sdl-config --prefix=.
 # then ldd escape.exe
@@ -96,10 +92,8 @@ LDLIBS = `sdl-config --libs`
 
 #  LDLIBS = -lefence
 
-
-escape.exe : ${ESCOBJECTS}
+escape.exe : ${ESCOBJECTS} $(CCLIBOBJECTS) $(SDLNETOBJECTS) $(SDLUTILOBJECTS)
 	g++ -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
-
 
 default : escape.exe
 
@@ -243,8 +237,6 @@ SDLOBJECTS=${SDLOPATH}/SDL.o ${SDLOPATH}/SDL_error.o ${SDLOPATH}/SDL_fatal.o ${S
 LINKSDL=  -lm -mthreads -luser32 -lgdi32 -lwinmm -ldxguid
 LINKSDLNET= -lws2_32 -liphlpapi
 
-ESCOBJECTS=$(NEWESCOBJECTS) icon.o browse.o backgrounds.o escapex.o
-
 # XXX reenable sound
 DEBUG=-g
 OPT=-O2
@@ -278,7 +270,7 @@ LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,${SUBSYSTEM} ${OPT}
 icon.o : escape.ico escape.rc
 	$(WINDRES) -i escape.rc -o $@
 
-escape.exe : ${ESCOBJECTS} ${CCLIBOBJECTS} ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
+escape.exe : ${ESCOBJECTS} icon.o ${CCLIBOBJECTS} ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
 replace.exe : replace.o escape-util.o
