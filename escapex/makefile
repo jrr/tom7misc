@@ -11,6 +11,10 @@ else
     endif
 endif
 
+STATIC=-static
+NOP=@true
+STRIP=$(NOP)
+
 # ----
 # Things that I expect to remain OS-specific here. (like which compiler to use)
 # Maybe many of the OS-specific bits further down can eventually go away?
@@ -27,10 +31,6 @@ CXXFLAGS = --std=c++17 -g -Wall -O2 -Wno-sign-compare $(CCLIBINCLUDES)
 LDFLAGS = -Wl,-rpath=.
 LDLIBS = `sdl-config --libs`
 
-STATIC=-static
-
-STRIP=@true
-
 endif
 
 ifdef WIN32
@@ -42,7 +42,6 @@ CPPFLAGS=-O2 -I .
 CXXFLAGS= -std=c++17 ${OPT} $(DEBUG) -DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include $(CCLIBINCLUDES) -I.
 SDL_CXXFLAGS= ${CXXFLAGS} ${SDLINCLUDES} ${SDLNETINCLUDES}
 
-STATIC=-static
 STRIP=strip
 
 endif
@@ -56,10 +55,9 @@ CPPFLAGS= -arch x86_64 -I. -I../cc-lib -I/usr/local/include -I${FRAMEWORKS}/SDL.
 
 LDLIBS = `sdl-config --libs`
 
-# deliberately empty:
+# no -static on mac:
 STATIC=
 
-STRIP=@true
 
 endif
 
