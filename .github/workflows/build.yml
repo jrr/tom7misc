@@ -63,3 +63,23 @@ jobs:
           path: |
             escapex/*.exe
             escapex/*.png
+
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      # start somewhere
+      - name: build esclib
+        env:
+          LINUX: true
+        working-directory: escapex
+        run: make esclib.a
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: escapex-${{ runner.os }}
+          path: |
+            escapex/*.exe
+            escapex/*.png

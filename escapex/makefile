@@ -483,7 +483,7 @@ CXXFLAGS=-std=c++17
 # directory called "SDL", since some frameworks want to include like
 # <SDL/sdl.h>. (is it just the now-deleted sdl_image, though?) Don't
 # know what the right fix is.
-CPPFLAGS= -arch x86_64 -I. -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_net.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers -D_THREAD_SAFE -DOSX
+CPPFLAGS= -arch x86_64 -I. -I../cc-lib -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_net.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers -D_THREAD_SAFE -DOSX
 
 # XXX Suppress warning in SDL-supplied .m file, but should figure out what's going on here.
 CFLAGS=-Wno-objc-protocol-method-implementation
