@@ -58,12 +58,16 @@ SDL_NET=SDL_net
 
 # objects that do not need SDL; can be linked into tools like screenshot.exe; server
 esclib.a: level.o solution.o rle.o disamb.o escape-util.o graphics.o
-	ar cr esclib.a $^
+	ar cr $@ $^
 
 SDLUTILOBJECTS=$(CC_LIB)/sdl/sdlutil.o $(CC_LIB)/sdl/font.o
 
 # cc-lib assumes it can include something like "base/macros.h"
 CCLIBINCLUDES=-I$(CC_LIB)
+
+cclib.a: $(CC_LIB)/image.o $(CC_LIB)/util.o $(CC_LIB)/stb_image.o $(CC_LIB)/stb_image_write.o $(CC_LIB)/crypt/md5.o $(CC_LIB)/base64.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o
+	ar cr $@ $^
+
 CCLIBOBJECTS=$(CC_LIB)/image.o $(CC_LIB)/util.o $(CC_LIB)/stb_image.o $(CC_LIB)/stb_image_write.o $(CC_LIB)/crypt/md5.o $(CC_LIB)/base64.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o
 
 SDLNETINCLUDES=-I$(SDL_NET)
@@ -92,7 +96,7 @@ LDLIBS = `sdl-config --libs`
 
 #  LDLIBS = -lefence
 
-escape.exe : ${ESCOBJECTS} $(CCLIBOBJECTS) $(SDLNETOBJECTS) $(SDLUTILOBJECTS)
+escape.exe : ${ESCOBJECTS} cclib.a $(SDLNETOBJECTS) $(SDLUTILOBJECTS)
 	g++ -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
 
 #  -lvorbisfile -lvorbis -logg
@@ -107,7 +111,7 @@ sound_load.h : sound.pack packsound.cc
 %-console.o : %.cc
 	g++ ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
 
-screenshot.exe : esclib.a ${CCLIBOBJECTS} screenshot.o
+screenshot.exe : esclib.a cclib.a screenshot.o
 	g++ ${CXXFLAGS} -o $@ $^ -static
 
 
@@ -262,13 +266,13 @@ LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,${SUBSYSTEM} ${OPT}
 icon.o : escape.ico escape.rc
 	$(WINDRES) -i escape.rc -o $@
 
-escape.exe : ${ESCOBJECTS} icon.o ${CCLIBOBJECTS} ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
+escape.exe : ${ESCOBJECTS} icon.o cclib.a ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
 replace.exe : replace.o escape-util.o
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
-packsound.exe : packsound.o ${CCLIBOBJECTS}
+packsound.exe : packsound.o cclib.a
 	${CXX} -o $@ $^ ${LDFLAGS} -static
 	strip packsound.exe
 
@@ -311,10 +315,10 @@ optimize-png : animation.png .dummy
 %-console.o : %.cc
 	${CXX} ${CXXFLAGS} -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
 
-packpng.exe : packpng.o ${CCLIBOBJECTS}
+packpng.exe : packpng.o cclib.a
 	${CXX} -o $@ $^ -static
 
-screenshot.exe : esclib.a ${CCLIBOBJECTS} screenshot.o
+screenshot.exe : esclib.a cclib.a screenshot.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ -static
 
 .dummy :
@@ -468,7 +472,7 @@ LIBS=-L/usr/lib
 
 CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/sdl/font.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
 
-escape.exe : escapex.o browse.o main.o rle.o level.o solution.o disamb.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
+escape.exe : escapex.o browse.o main.o rle.o level.o solution.o disamb.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o cclib.a
 	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
 	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
 
@@ -563,7 +567,7 @@ wc :
 	wc -l *.cc *.h
 
 clean :
-	rm -f *.o escape.exe core core.[0-9]* .DS_Store ${CCLIBOBJECTS}
+	rm -f *.o escape.exe core core.[0-9]* .DS_Store cclib.a
 
 
 # end OSX makefile
