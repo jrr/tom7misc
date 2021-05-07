@@ -71,7 +71,7 @@ SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP
 
 
 # DRY'ing out:
-NEWESCOBJECTS=main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o 
+NEWESCOBJECTS=main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o esclib.a 
 # -------------------------------------------------------------------
 
 #######################
@@ -81,7 +81,7 @@ NEWESCOBJECTS=main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o draw
 ifdef LINUX
 # makefile for linux
 
-ESCOBJECTS=$(NEWESCOBJECTS) esclib.a backgrounds.o escapex.o directories.o browse.o $(CCLIBOBJECTS) $(SDLNETOBJECTS) $(SDLUTILOBJECTS)
+ESCOBJECTS=$(NEWESCOBJECTS) backgrounds.o escapex.o directories.o browse.o $(CCLIBOBJECTS) $(SDLNETOBJECTS) $(SDLUTILOBJECTS)
 
 
 # to distribute dynamic: sdl-config --prefix=.
@@ -243,7 +243,7 @@ SDLOBJECTS=${SDLOPATH}/SDL.o ${SDLOPATH}/SDL_error.o ${SDLOPATH}/SDL_fatal.o ${S
 LINKSDL=  -lm -mthreads -luser32 -lgdi32 -lwinmm -ldxguid
 LINKSDLNET= -lws2_32 -liphlpapi
 
-ESCOBJECTS=$(NEWESCOBJECTS) icon.o esclib.a browse.o backgrounds.o escapex.o
+ESCOBJECTS=$(NEWESCOBJECTS) icon.o browse.o backgrounds.o escapex.o
 
 # XXX reenable sound
 DEBUG=-g
@@ -278,7 +278,7 @@ LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,${SUBSYSTEM} ${OPT}
 icon.o : escape.ico escape.rc
 	$(WINDRES) -i escape.rc -o $@
 
-escape.exe : esclib.a ${ESCOBJECTS} ${CCLIBOBJECTS} ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
+escape.exe : ${ESCOBJECTS} ${CCLIBOBJECTS} ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
 replace.exe : replace.o escape-util.o
