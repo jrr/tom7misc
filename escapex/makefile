@@ -95,18 +95,10 @@ LDLIBS = `sdl-config --libs`
 escape.exe : ${ESCOBJECTS} $(CCLIBOBJECTS) $(SDLNETOBJECTS) $(SDLUTILOBJECTS)
 	g++ -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
 
-default : escape.exe
-
 #  -lvorbisfile -lvorbis -logg
 packsound.exe : escape-util-console.o packsound-console.o
 	g++ -o $@ $^ `sdl-config --static-libs`
 	strip packsound.exe
-
-sound.o : sound.cc sound_load.h
-	g++ ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
-
-level.o : level.cc move2016.h
-	g++ ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
 
 sound_load.h : sound.pack packsound.cc
 	make packsound.exe
@@ -276,9 +268,6 @@ escape.exe : ${ESCOBJECTS} icon.o ${CCLIBOBJECTS} ${SDLUTILOBJECTS} ${SDLOBJECTS
 replace.exe : replace.o escape-util.o
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
-packsound.o : packsound.cc
-	$(CXX) $(CXXFLAGS) -c -o $@ $^
-
 packsound.exe : packsound.o ${CCLIBOBJECTS}
 	${CXX} -o $@ $^ ${LDFLAGS} -static
 	strip packsound.exe
@@ -286,18 +275,6 @@ packsound.exe : packsound.o ${CCLIBOBJECTS}
 rle_test.exe : lib/rle.o lib/rle_test.o
 	${CXX} $(CXXFLAGS) -o $@ $^ -static
 	strip rle_test.exe
-
-sound.o : sound.cc sound_load.h
-	${CXX} ${SDL_CXXFLAGS} -c -o $@ $<
-
-graphics.o : graphics.cc graphics.h animation_syms.h
-	${CXX} ${CXXFLAGS} -c -o $@ $<
-
-animation.o : animation.cc animation.h animation_copy.h
-	${CXX} ${SDL_CXXFLAGS} -c -o $@ $<
-
-leveldb.o : leveldb.cc leveldb.h leveldb-query.h
-	${CXX} ${SDL_CXXFLAGS} -c -o $@ $<
 
 sound_load.h : sound.pack packsound.cc packsound.exe
 	./packsound.exe sound.pack sound
@@ -333,9 +310,6 @@ optimize-png : animation.png .dummy
 # XXX better way to do this?
 %-console.o : %.cc
 	${CXX} ${CXXFLAGS} -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
-
-packpng.o : packpng.cc
-	$(CXX) $(CXXFLAGS) -c -o $@ $^
 
 packpng.exe : packpng.o ${CCLIBOBJECTS}
 	${CXX} -o $@ $^ -static
