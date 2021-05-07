@@ -30,7 +30,6 @@ CXX=x86_64-w64-mingw32-g++
 WINDRES=x86_64-w64-mingw32-windres
 
 CPPFLAGS=-O2 -I .
-
 CXXFLAGS= -std=c++17 ${OPT} $(DEBUG) -DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include $(CCLIBINCLUDES) -I.
 SDL_CXXFLAGS= ${CXXFLAGS} ${SDLINCLUDES} ${SDLNETINCLUDES}
 
@@ -39,6 +38,9 @@ endif
 ifdef OSX
 
 CXX=gcc-8
+
+CXXFLAGS=-std=c++17 -DOS_MACOSX
+CPPFLAGS= -arch x86_64 -I. -I../cc-lib -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_net.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers -D_THREAD_SAFE -DOSX
 
 endif
 
@@ -70,10 +72,11 @@ CCLIBINCLUDES=-I$(CC_LIB)
 cclib.a: $(CC_LIB)/image.o $(CC_LIB)/util.o $(CC_LIB)/stb_image.o $(CC_LIB)/stb_image_write.o $(CC_LIB)/crypt/md5.o $(CC_LIB)/base64.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o
 	ar cr $@ $^
 
-CCLIBOBJECTS=$(CC_LIB)/image.o $(CC_LIB)/util.o $(CC_LIB)/stb_image.o $(CC_LIB)/stb_image_write.o $(CC_LIB)/crypt/md5.o $(CC_LIB)/base64.o $(CC_LIB)/base/logging.o $(CC_LIB)/base/stringprintf.o
 
 SDLNETINCLUDES=-I$(SDL_NET)
-SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP.o $(SDL_NET)/SDLnetUDP.o
+
+sdlnet.a: $(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP.o $(SDL_NET)/SDLnetUDP.o
+	ar cr $@ $^
 
 ESCOBJECTS=main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o esclib.a backgrounds.o escapex.o browse.o
 
@@ -98,7 +101,7 @@ LDLIBS = `sdl-config --libs`
 
 #  LDLIBS = -lefence
 
-escape.exe : ${ESCOBJECTS} cclib.a $(SDLNETOBJECTS) $(SDLUTILOBJECTS)
+escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a $(SDLUTILOBJECTS)
 	g++ -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
 
 #  -lvorbisfile -lvorbis -logg
@@ -268,7 +271,7 @@ LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,${SUBSYSTEM} ${OPT}
 icon.o : escape.ico escape.rc
 	$(WINDRES) -i escape.rc -o $@
 
-escape.exe : ${ESCOBJECTS} icon.o cclib.a ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
+escape.exe : ${ESCOBJECTS} icon.o cclib.a ${SDLUTILOBJECTS} ${SDLOBJECTS} sdlnet.a
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
 replace.exe : replace.o escape-util.o
@@ -413,7 +416,7 @@ wc :
 	wc -l *.cc *.h
 
 clean :
-	rm -f *.o escape.exe core core.[0-9]* gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.* $(SDLNETOBJECTS)
+	rm -f *.o escape.exe core core.[0-9]* gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.* sdlnet.a
 
 # end mingw makefile
 endif
@@ -456,16 +459,11 @@ RPATH=-rpath @executable_path/../Frameworks
 #  -framework SDL_mixer
 # to the g++ line linking below
 
-CXXFLAGS=-std=c++17 -DOS_MACOSX
 
 # XXX: I added -I. here and made a symlink to the SDL include
 # directory called "SDL", since some frameworks want to include like
 # <SDL/sdl.h>. (is it just the now-deleted sdl_image, though?) Don't
 # know what the right fix is.
-CPPFLAGS= -arch x86_64 -I. -I../cc-lib -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_net.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers -D_THREAD_SAFE -DOSX
-
-# XXX Suppress warning in SDL-supplied .m file, but should figure out what's going on here.
-CFLAGS=-Wno-objc-protocol-method-implementation
 
 # good for 10.11 MacBook
 # used to use /usr/local/lib

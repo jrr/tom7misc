@@ -71,12 +71,14 @@ jobs:
 
       - run: gcc --version
 
-      # start somewhere
-      - name: build esclib
+      - name: build some things
         env:
           LINUX: true
         working-directory: escapex
-        run: make esclib.a cclib.a
+        run: |
+          make esclib.a
+          make cclib.a
+          make sdlnet.a
 
       - uses: actions/upload-artifact@v2
         with:
