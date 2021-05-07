@@ -70,6 +70,8 @@ SDLNETINCLUDES=-I$(SDL_NET)
 SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP.o $(SDL_NET)/SDLnetUDP.o
 
 
+# DRY'ing out:
+NEWESCOBJECTS=main.o loadlevel.o play.o player.o playerdb.o prompt.o
 # -------------------------------------------------------------------
 
 #######################
@@ -79,7 +81,7 @@ SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP
 ifdef LINUX
 # makefile for linux
 
-ESCOBJECTS=level.o solution.o rle.o disamb.o main.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o $(CCLIBOBJECTS) $(SDLNETOBJECTS) esclib.a $(SDLUTILOBJECTS)
+ESCOBJECTS=$(NEWESCOBJECTS) draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o $(CCLIBOBJECTS) $(SDLNETOBJECTS) esclib.a $(SDLUTILOBJECTS)
 
 
 # to distribute dynamic: sdl-config --prefix=.
@@ -241,7 +243,7 @@ SDLOBJECTS=${SDLOPATH}/SDL.o ${SDLOPATH}/SDL_error.o ${SDLOPATH}/SDL_fatal.o ${S
 LINKSDL=  -lm -mthreads -luser32 -lgdi32 -lwinmm -ldxguid
 LINKSDLNET= -lws2_32 -liphlpapi
 
-ESCOBJECTS= main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
+ESCOBJECTS=$(NEWESCOBJECTS) draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
 
 # XXX reenable sound
 DEBUG=-g
