@@ -27,6 +27,8 @@ CXXFLAGS = --std=c++17 -g -Wall -O2 -Wno-sign-compare $(CCLIBINCLUDES)
 LDFLAGS = -Wl,-rpath=.
 LDLIBS = `sdl-config --libs`
 
+STATIC=-static
+
 endif
 
 ifdef WIN32
@@ -38,11 +40,13 @@ CPPFLAGS=-O2 -I .
 CXXFLAGS= -std=c++17 ${OPT} $(DEBUG) -DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include $(CCLIBINCLUDES) -I.
 SDL_CXXFLAGS= ${CXXFLAGS} ${SDLINCLUDES} ${SDLNETINCLUDES}
 
+STATIC=-static
+
 endif
 
 ifdef OSX
 
-CXX=gcc-8
+CXX=g++-8
 
 CXXFLAGS=-std=c++17 -DOS_MACOSX -DNOSOUND=1
 CPPFLAGS= -arch x86_64 -I. -I../cc-lib -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_net.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers -D_THREAD_SAFE -DOSX
@@ -119,10 +123,6 @@ sound_load.h : sound.pack packsound.cc
 
 %-console.o : %.cc
 	${CXX} ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
-
-screenshot.exe : esclib.a cclib.a screenshot.o
-	${CXX} ${CXXFLAGS} -o $@ $^ -static
-
 
 .dummy :
 
@@ -321,9 +321,6 @@ optimize-png : animation.png .dummy
 
 packpng.exe : packpng.o cclib.a
 	${CXX} -o $@ $^ -static
-
-screenshot.exe : esclib.a cclib.a screenshot.o
-	$(CXX) $(CXXFLAGS) -o $@ $^ -static
 
 .dummy :
 
@@ -567,3 +564,6 @@ clean :
 
 escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a sdlutil.a ${EXTRA_OBJS}
 	${CXX} -g -o $@ $^ ${LDLIBS} ${LDFLAGS}
+
+screenshot.exe : screenshot.o esclib.a cclib.a
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(STATIC)

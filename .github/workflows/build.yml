@@ -16,7 +16,9 @@ jobs:
         env:
           LINUX: true
         working-directory: escapex
-        run: make
+        run: |
+          make
+          make screenshot.exe
 
       - uses: actions/upload-artifact@v2
         with:
@@ -54,7 +56,9 @@ jobs:
         env:
           WIN32: true
         working-directory: escapex
-        run: make ZOPFLI=cp SDL=../SDL-1.2.15 WINDRES=windres
+        run: |
+          make ZOPFLI=cp SDL=../SDL-1.2.15 WINDRES=windres
+          make screenshot.exe
 
       - uses: actions/upload-artifact@v2
         with:
@@ -80,6 +84,7 @@ jobs:
           make cclib.a
           make sdlnet.a
           make sdlutil.a
+          make screenshot.exe
 
       - uses: actions/upload-artifact@v2
         with:
