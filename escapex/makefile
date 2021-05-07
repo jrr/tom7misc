@@ -105,8 +105,6 @@ ifdef LINUX
 
 #  LDLIBS = -lefence
 
-escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a sdlutil.a
-	${CXX} -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
 
 #  -lvorbisfile -lvorbis -logg
 packsound.exe : escape-util-console.o packsound-console.o
@@ -194,11 +192,6 @@ sourceup : source CURRENT
 	rm -rf /var/www/escape/source/escape-src.tar.bz2
 	ln -s escape-src-`cat CURRENT`.tar.bz2 /var/www/escape/source/escape-src.tar.bz2
 
-wc :
-	wc -l *.cc *.h
-
-clean :
-	rm -f *.o escape.exe core core.[0-9]* gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.*
 
 # end linux makefile
 endif
@@ -277,8 +270,6 @@ icon.o : escape.ico escape.rc
 
 EXTRA_OBJS=icon.o ${SDLOBJECTS}
 
-escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a sdlutil.a ${EXTRA_OBJS}
-	${CXX} -g -o $@ $^ ${LDFLAGS}
 
 replace.exe : replace.o escape-util.o
 	${CXX} -g -o $@ $^ ${LDFLAGS}
@@ -417,12 +408,6 @@ sourceup : source CURRENT
 	pscp escape-src.tar.bz2 root@spacebar.org:/var/www/escape/source/
 	pscp escape-src.tar.bz2 root@spacebar.org:/var/www/escape/source/escape-src-`cat CURRENT`.tar.bz2
 
-
-wc :
-	wc -l *.cc *.h
-
-clean :
-	rm -f *.o escape.exe core core.[0-9]* gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.* sdlnet.a
 
 # end mingw makefile
 endif
@@ -568,13 +553,14 @@ escape-beta-osx.zip : app
 zipup : escape-beta-osx.zip
 	scp escape-beta-osx.zip root@spacebar.org:/var/www/escape/
 
+# end OSX makefile
+endif
+
 wc :
 	wc -l *.cc *.h
 
 clean :
-	rm -f *.o escape.exe core core.[0-9]* .DS_Store cclib.a
+	rm -f *.o escape.exe core core.[0-9]* .DS_Store gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.* *.a
 
-
-
-# end OSX makefile
-endif
+escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a sdlutil.a ${EXTRA_OBJS}
+	${CXX} -g -o $@ ${LDFLAGS} $^ ${LDLIBS}
