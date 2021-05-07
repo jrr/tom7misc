@@ -7,6 +7,7 @@ else
     endif
     ifeq ($(UNAME_S),Darwin)
 		export OSX=true
+		export OS_MACOSX
     endif
 endif
 
@@ -455,7 +456,7 @@ RPATH=-rpath @executable_path/../Frameworks
 #  -framework SDL_mixer
 # to the g++ line linking below
 
-CXXFLAGS=-std=c++17
+CXXFLAGS=-std=c++17 -DOS_MACOSX
 
 # XXX: I added -I. here and made a symlink to the SDL include
 # directory called "SDL", since some frameworks want to include like

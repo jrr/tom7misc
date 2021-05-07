@@ -76,7 +76,7 @@ jobs:
         env:
           LINUX: true
         working-directory: escapex
-        run: make esclib.a
+        run: make esclib.a cclib.a
 
       - uses: actions/upload-artifact@v2
         with:
