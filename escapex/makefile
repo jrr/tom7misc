@@ -10,6 +10,37 @@ else
     endif
 endif
 
+# ----
+# Things that I expect to remain OS-specific here. (like which compiler to use)
+# Maybe many of the OS-specific bits further down can eventually go away?
+
+ifdef LINUX
+
+# for multiuser, add -DMULTIUSER -DDATADIR=\"/tmp/escapedata/\" -DSTARTUP_LEVELS=\"/tmp/escapelevels\"
+# with appropriate paths to the static data (trailing slash for data dir; no trailing for startup)
+CPPFLAGS = `sdl-config --cflags` $(SDLNETINCLUDES) -DNOSOUND=1 -DLINUX=1
+CXXFLAGS = --std=c++17 -g -Wall -O2 -Wno-sign-compare $(CCLIBINCLUDES)
+
+endif
+
+ifdef WIN32
+
+CXX=x86_64-w64-mingw32-g++
+CC=x86_64-w64-mingw32-g++
+WINDRES=x86_64-w64-mingw32-windres
+
+CPPFLAGS=-O2 -I .
+
+CXXFLAGS= -std=c++17 ${OPT} $(DEBUG) -DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include $(CCLIBINCLUDES) -I.
+SDL_CXXFLAGS= ${CXXFLAGS} ${SDLINCLUDES} ${SDLNETINCLUDES}
+
+endif
+
+ifdef OSX
+
+endif
+
+
 # -------------------------------------------------------------------
 # factoring out common bits here:
 
@@ -40,6 +71,10 @@ default : escape.exe
 
 # -------------------------------------------------------------------
 
+#######################
+######## LINUX ########
+#######################
+
 ifdef LINUX
 # makefile for linux
 
@@ -58,10 +93,6 @@ LDLIBS = `sdl-config --libs`
 
 #  LDLIBS = -lefence
 
-# for multiuser, add -DMULTIUSER -DDATADIR=\"/tmp/escapedata/\" -DSTARTUP_LEVELS=\"/tmp/escapelevels\"
-# with appropriate paths to the static data (trailing slash for data dir; no trailing for startup)
-CPPFLAGS = `sdl-config --cflags` $(SDLNETINCLUDES) -DNOSOUND=1 -DLINUX=1
-CXXFLAGS = --std=c++17 -g -Wall -O2 -Wno-sign-compare $(CCLIBINCLUDES)
 
 escape.exe : ${ESCOBJECTS}
 	g++ -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
@@ -171,6 +202,10 @@ clean :
 endif
 
 
+#########################
+######## WINDOWS ########
+#########################
+
 # mingw makefile. This is the new way to compile on Windows.
 ifdef WIN32
 
@@ -180,11 +215,6 @@ ifdef WIN32
 # CC=gcc
 # WINDRES=windres
 # But this is how Tom compiles, specifically requesting the 64-bit compiler.
-CXX=x86_64-w64-mingw32-g++
-CC=x86_64-w64-mingw32-g++
-WINDRES=x86_64-w64-mingw32-windres
-
-CPPFLAGS=-O2 -I .
 
 # point this at the SDL (1.2 series) installation. You need to compile
 # SDL in there too; we just link in the object files.
@@ -216,8 +246,6 @@ ESCOBJECTS= main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o drawab
 DEBUG=-g
 OPT=-O2
 #
-CXXFLAGS= -std=c++17 ${OPT} $(DEBUG) -DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include $(CCLIBINCLUDES) -I.
-SDL_CXXFLAGS= ${CXXFLAGS} ${SDLINCLUDES} ${SDLNETINCLUDES}
 
 
 # -Wl,-rpath=.
@@ -419,7 +447,13 @@ endif
 
 # -------------------------------------------------------------------
 
+
+########################
+######## MAC OS ########
+########################
+
 ifdef OSX
+
 # makefile for OSX
 
 # XXX reinstate sdl_mixer before doing another release!
