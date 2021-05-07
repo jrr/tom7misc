@@ -24,6 +24,9 @@ CXX=g++
 CPPFLAGS = `sdl-config --cflags` $(SDLNETINCLUDES) -DNOSOUND=1 -DLINUX=1
 CXXFLAGS = --std=c++17 -g -Wall -O2 -Wno-sign-compare $(CCLIBINCLUDES)
 
+LDFLAGS = -Wl,-rpath=.
+LDLIBS = `sdl-config --libs`
+
 endif
 
 ifdef WIN32
@@ -96,11 +99,9 @@ ifdef LINUX
 # then ldd escape.exe
 # and upload the .so files with the thingy
 
-LDFLAGS = -Wl,-rpath=.
 
 # -lvorbisfile -lvorbis -logg
 # -lSDL_net -lSDL_mixer
-LDLIBS = `sdl-config --libs`
 
 #  LDLIBS = -lefence
 
@@ -274,7 +275,9 @@ LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,${SUBSYSTEM} ${OPT}
 icon.o : escape.ico escape.rc
 	$(WINDRES) -i escape.rc -o $@
 
-escape.exe : ${ESCOBJECTS} icon.o cclib.a sdlutil.a ${SDLOBJECTS} sdlnet.a
+EXTRA_OBJS=icon.o ${SDLOBJECTS}
+
+escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a sdlutil.a ${EXTRA_OBJS}
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
 replace.exe : replace.o escape-util.o
