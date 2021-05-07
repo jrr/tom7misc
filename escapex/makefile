@@ -44,6 +44,8 @@ endif
 # -------------------------------------------------------------------
 # factoring out common bits here:
 
+default : escape.exe
+
 # cc-lib is my personal collection of C++ libraries. It should be in a
 # directory next to "escapex."
 CC_LIB=../cc-lib
@@ -55,10 +57,10 @@ CC_LIB=../cc-lib
 SDL_NET=SDL_net
 
 # objects that do not need SDL; can be linked into tools like screenshot.exe; server
-ESCLIBOBJECTS=level.o solution.o rle.o disamb.o escape-util.o graphics.o
+esclib.a: level.o solution.o rle.o disamb.o escape-util.o graphics.o
+	ar cr esclib.a $^
 
 SDLUTILOBJECTS=$(CC_LIB)/sdl/sdlutil.o $(CC_LIB)/sdl/font.o
-
 
 # cc-lib assumes it can include something like "base/macros.h"
 CCLIBINCLUDES=-I$(CC_LIB)
@@ -67,7 +69,6 @@ CCLIBOBJECTS=$(CC_LIB)/image.o $(CC_LIB)/util.o $(CC_LIB)/stb_image.o $(CC_LIB)/
 SDLNETINCLUDES=-I$(SDL_NET)
 SDLNETOBJECTS=$(SDL_NET)/SDLnet.o $(SDL_NET)/SDLnetselect.o $(SDL_NET)/SDLnetTCP.o $(SDL_NET)/SDLnetUDP.o
 
-default : escape.exe
 
 # -------------------------------------------------------------------
 
@@ -78,7 +79,7 @@ default : escape.exe
 ifdef LINUX
 # makefile for linux
 
-ESCOBJECTS=level.o solution.o rle.o disamb.o main.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o $(CCLIBOBJECTS) $(SDLNETOBJECTS) $(ESCLIBOBJECTS) $(SDLUTILOBJECTS)
+ESCOBJECTS=level.o solution.o rle.o disamb.o main.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o $(CCLIBOBJECTS) $(SDLNETOBJECTS) esclib.a $(SDLUTILOBJECTS)
 
 
 # to distribute dynamic: sdl-config --prefix=.
@@ -118,7 +119,7 @@ sound_load.h : sound.pack packsound.cc
 %-console.o : %.cc
 	g++ ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
 
-screenshot.exe : ${ESCLIBOBJECTS} ${CCLIBOBJECTS} screenshot.o 
+screenshot.exe : esclib.a ${CCLIBOBJECTS} screenshot.o
 	g++ ${CXXFLAGS} -o $@ $^ -static
 
 
@@ -275,7 +276,7 @@ LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,${SUBSYSTEM} ${OPT}
 icon.o : escape.ico escape.rc
 	$(WINDRES) -i escape.rc -o $@
 
-escape.exe : ${ESCLIBOBJECTS} ${ESCOBJECTS} ${CCLIBOBJECTS} ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
+escape.exe : esclib.a ${ESCOBJECTS} ${CCLIBOBJECTS} ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
 replace.exe : replace.o escape-util.o
@@ -345,7 +346,7 @@ packpng.o : packpng.cc
 packpng.exe : packpng.o ${CCLIBOBJECTS}
 	${CXX} -o $@ $^ -static
 
-screenshot.exe : ${ESCLIBOBJECTS} ${CCLIBOBJECTS} screenshot.o 
+screenshot.exe : esclib.a ${CCLIBOBJECTS} screenshot.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ -static
 
 .dummy :
