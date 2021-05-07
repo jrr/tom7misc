@@ -44,8 +44,10 @@ ifdef OSX
 
 CXX=gcc-8
 
-CXXFLAGS=-std=c++17 -DOS_MACOSX
+CXXFLAGS=-std=c++17 -DOS_MACOSX -DNOSOUND=1
 CPPFLAGS= -arch x86_64 -I. -I../cc-lib -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_net.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers -D_THREAD_SAFE -DOSX
+
+LDLIBS = `sdl-config --libs`
 
 endif
 
@@ -439,8 +441,9 @@ RPATH=-rpath @executable_path/../Frameworks
 # (Explicitly invoke bash to get shell builtin, since on OS X echo
 # otherwise treats -n literally.)
 %.o : %.cc
-	@${CXX} ${CPPFLAGS} ${CXXFLAGS} -c -o $@ $<
-	@bash -c "echo -n '.'"
+	${CXX} ${CPPFLAGS} ${CXXFLAGS} -c -o $@ $<
+	# @${CXX} ${CPPFLAGS} ${CXXFLAGS} -c -o $@ $<
+	# @bash -c "echo -n '.'"
 
 # sound is disabled, but it's time to make it available on the OS X
 # release. Do this!
@@ -462,7 +465,7 @@ LIBS=-L/usr/lib
 
 CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/sdl/font.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
 
-escape.exe : escapex.o browse.o main.o rle.o level.o solution.o disamb.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o cclib.a
+escape_mac_old.exe : ${ESCOBJECTS} cclib.a sdlnet.a sdlutil.a ${EXTRA_OBJS}
 	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
 	${CXX} -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
 
@@ -563,4 +566,4 @@ clean :
 	rm -f *.o escape.exe core core.[0-9]* .DS_Store gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.* *.a
 
 escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a sdlutil.a ${EXTRA_OBJS}
-	${CXX} -g -o $@ ${LDFLAGS} $^ ${LDLIBS}
+	${CXX} -g -o $@ $^ ${LDLIBS} ${LDFLAGS}

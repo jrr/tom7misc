@@ -57,8 +57,8 @@ using std::priority_queue;
 #include <stack>
 #include <bits/stl_tempbuf.h>
 #include <ext/functional>
-// #include <ext/hash_fun.h>
-// #include <ext/hashtable.h>
+#include <backward/hash_fun.h>
+#include <backward/hashtable.h>
 #include <ios>
 #include <string>
 using std::string;
