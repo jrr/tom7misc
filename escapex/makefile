@@ -26,7 +26,6 @@ endif
 ifdef WIN32
 
 CXX=x86_64-w64-mingw32-g++
-CC=x86_64-w64-mingw32-g++
 WINDRES=x86_64-w64-mingw32-windres
 
 CPPFLAGS=-O2 -I .
@@ -37,6 +36,8 @@ SDL_CXXFLAGS= ${CXXFLAGS} ${SDLINCLUDES} ${SDLNETINCLUDES}
 endif
 
 ifdef OSX
+
+CXX=gcc-8
 
 endif
 
@@ -426,7 +427,6 @@ endif
 ########################
 
 ifdef OSX
-
 # makefile for OSX
 
 # XXX reinstate sdl_mixer before doing another release!
@@ -474,12 +474,12 @@ CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdl
 
 escape.exe : escapex.o browse.o main.o rle.o level.o solution.o disamb.o loadlevel.o play.o escape-util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o solutionuploading.o client.o progress.o leveldb.o startup.o backgrounds.o cclib.a
 	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
-	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
+	${CXX} -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
 
 .dummy :
 
 version : .dummy
-	g++ version.cc -o version.exe
+	${CXX} version.cc -o version.exe
 	./version.exe
 	make clean
 	make escape.exe
@@ -487,7 +487,7 @@ version : .dummy
 RELEASEFILES=escape.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt COPYING changelog animation.png splash.png
 
 mkupgrade.exe : mkupgrade.cc ../cc-lib/crypt/md5.cc
-	g++ ${CPPFLAGS} ${CXXFLAGS} -DOSX mkupgrade.cc ../cc-lib/crypt/md5.cc -o mkupgrade.exe
+	${CXX} ${CPPFLAGS} ${CXXFLAGS} -DOSX mkupgrade.cc ../cc-lib/crypt/md5.cc -o mkupgrade.exe
 
 releasefiles.osx :
 	echo ${RELEASEFILES} > releasefiles.osx
@@ -568,6 +568,7 @@ wc :
 
 clean :
 	rm -f *.o escape.exe core core.[0-9]* .DS_Store cclib.a
+
 
 
 # end OSX makefile
