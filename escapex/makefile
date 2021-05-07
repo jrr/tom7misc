@@ -53,6 +53,9 @@ CPPFLAGS= -arch x86_64 -I. -I../cc-lib -I/usr/local/include -I${FRAMEWORKS}/SDL.
 
 LDLIBS = `sdl-config --libs`
 
+# deliberately empty:
+STATIC=
+
 endif
 
 
