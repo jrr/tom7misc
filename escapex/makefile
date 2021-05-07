@@ -1,10 +1,14 @@
-# This makefile relies on environment variables to select the
-# correct platform. You need to do one of
-#   export LINUX=true
-#   export OSX=true
-#   export WIN32=true
-# before you run make, or nothing will happen. See HACKING for
-# more information on compiling escape.
+ifeq ($(OS),Windows_NT)
+	export WIN32=true
+else
+    UNAME_S := $(shell uname -s)
+    ifeq ($(UNAME_S),Linux)
+		export LINUX=true
+    endif
+    ifeq ($(UNAME_S),Darwin)
+		export OSX=true
+    endif
+endif
 
 # -------------------------------------------------------------------
 # factoring out common bits here:
