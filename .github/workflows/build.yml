@@ -8,7 +8,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - run: sudo apt install -y libsdl1.2-dev
+
+      # https://github.com/actions/virtual-environments/issues/675#issuecomment-610483420
+      - run: |
+          sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt install -y libsdl1.2-dev
 
       - run: gcc --version
 
