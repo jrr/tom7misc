@@ -13,12 +13,11 @@ endif
 
 STATIC=-static
 NOP=@true
-# STRIP=$(NOP)
 STRIP=strip
 
-# ----
-# Things that I expect to remain OS-specific here. (like which compiler to use)
-# Maybe many of the OS-specific bits further down can eventually go away?
+###############################################
+######## Basic Platform-Specific Stuff ########
+###############################################
 
 ifdef LINUX
 
@@ -62,8 +61,9 @@ STATIC=
 endif
 
 
-# -------------------------------------------------------------------
-# factoring out common bits here:
+##############################
+######## Common Stuff ########
+##############################
 
 default : escape.exe
 
@@ -105,7 +105,15 @@ ESCOBJECTS=main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o drawabl
 sound_load.h : sound.pack packsound.cc packsound.exe
 	./packsound.exe sound.pack sound
 
-# -------------------------------------------------------------------
+%.o : %.cc
+	${CXX} ${CPPFLAGS} ${CXXFLAGS} ${SDL_CXXFLAGS} -c -o $@ $<
+
+
+#####################################################
+######## Complicated Platform-Specific Stuff ########
+#####################################################
+
+# Packaging, Windows SDL, etc.
 
 #######################
 ######## LINUX ########
@@ -118,19 +126,13 @@ ifdef LINUX
 # then ldd escape.exe
 # and upload the .so files with the thingy
 
-
 # -lvorbisfile -lvorbis -logg
 # -lSDL_net -lSDL_mixer
-
 #  LDLIBS = -lefence
-
-#  -lvorbisfile -lvorbis -logg
-
 
 .dummy :
 
-version : .dummy
-	${CXX} version.cc -o version.exe
+version : .dummy version.exe
 	./version.exe
 	make clean
 	make escape.exe
@@ -218,10 +220,6 @@ ifdef WIN32
 SDL=/c/code/SDL
 
 
-# assume SDL build for .o files in the current directory
-%.o : %.cc
-	@${CXX} ${CPPFLAGS} ${SDL_CXXFLAGS} -c -o $@ $<
-	@bash -c "echo -n '.'"
 
 # .. and sdl_net
 $(SDL_NET)/%.o : $(SDL_NET)/%.c
@@ -309,9 +307,8 @@ optimize-png : animation.png .dummy
 
 .dummy :
 
-version : .dummy
+version : .dummy version.exe
 	@:$(call release_check)
-	${CXX} ${CXXFLAGS} ${CPPFLAGS} version.cc -o version.exe
 	./version.exe
 	make clean
 	make -j 8 escape.exe
@@ -416,14 +413,6 @@ VERSION_TARGET=10.10
 # Hack from t7eshero. Maybe should be fixed.
 RPATH=-rpath @executable_path/../Frameworks
 
-# Suppress compilation commands, but show some indication of progress.
-# (Explicitly invoke bash to get shell builtin, since on OS X echo
-# otherwise treats -n literally.)
-%.o : %.cc
-	${CXX} ${CPPFLAGS} ${CXXFLAGS} -c -o $@ $<
-	# @${CXX} ${CPPFLAGS} ${CXXFLAGS} -c -o $@ $<
-	# @bash -c "echo -n '.'"
-
 # sound is disabled, but it's time to make it available on the OS X
 # release. Do this!
 # to add it, remove -DNOSOUND and add
@@ -432,26 +421,9 @@ RPATH=-rpath @executable_path/../Frameworks
 #  -framework SDL_mixer
 # to the g++ line linking below
 
-
-# XXX: I added -I. here and made a symlink to the SDL include
-# directory called "SDL", since some frameworks want to include like
-# <SDL/sdl.h>. (is it just the now-deleted sdl_image, though?) Don't
-# know what the right fix is.
-
-# good for 10.11 MacBook
-# used to use /usr/local/lib
-LIBS=-L/usr/lib
-
-CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/sdl/font.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
-
-escape_mac_old.exe : ${ESCOBJECTS} cclib.a sdlnet.a sdlutil.a ${EXTRA_OBJS}
-	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
-	${CXX} -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
-
 .dummy :
 
-version : .dummy
-	${CXX} version.cc -o version.exe
+version : .dummy version.exe
 	./version.exe
 	make clean
 	make escape.exe
@@ -535,11 +507,9 @@ zipup : escape-beta-osx.zip
 # end OSX makefile
 endif
 
-wc :
-	wc -l *.cc *.h
-
-clean :
-	rm -f *.o escape.exe core core.[0-9]* .DS_Store gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.* *.a
+#########################
+######## Targets ########
+#########################
 
 escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a sdlutil.a ${EXTRA_OBJS}
 	${CXX} -g -o $@ $^ ${LDLIBS} ${LDFLAGS}
@@ -561,9 +531,17 @@ rle_test.exe : rle.o rle_test.o
 	${CXX} $(CXXFLAGS) -o $@ $^ $(STATIC)
 	$(STRIP) rle_test.exe
 
+version.exe: version.cc
+	${CXX} $^ -o $@
+
 test: rle_test.exe
 	./rle_test.exe
 
 # for building them all in CI:
 tools: screenshot.exe packsound.exe packpng.exe mkupgrade.exe
 
+wc :
+	wc -l *.cc *.h
+
+clean :
+	rm -f *.o escape.exe core core.[0-9]* .DS_Store gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.* *.a
