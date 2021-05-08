@@ -432,22 +432,6 @@ RPATH=-rpath @executable_path/../Frameworks
 #  -framework SDL_mixer
 # to the g++ line linking below
 
-
-# XXX: I added -I. here and made a symlink to the SDL include
-# directory called "SDL", since some frameworks want to include like
-# <SDL/sdl.h>. (is it just the now-deleted sdl_image, though?) Don't
-# know what the right fix is.
-
-# good for 10.11 MacBook
-# used to use /usr/local/lib
-LIBS=-L/usr/lib
-
-CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/sdl/font.o ../cc-lib/crypt/md5.o ../cc-lib/base64.o
-
-escape_mac_old.exe : ${ESCOBJECTS} cclib.a sdlnet.a sdlutil.a ${EXTRA_OBJS}
-	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
-	${CXX} -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
-
 .dummy :
 
 version : .dummy

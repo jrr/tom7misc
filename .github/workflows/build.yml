@@ -87,10 +87,7 @@ jobs:
       - name: build some things
         working-directory: escapex
         run: |
-          make esclib.a
-          make cclib.a
-          make sdlnet.a
-          make sdlutil.a
+          make
           make tools
 
       - name: test
