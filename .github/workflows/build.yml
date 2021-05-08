@@ -21,8 +21,7 @@ jobs:
         working-directory: escapex
         run: |
           make
-          make screenshot.exe
-          make packsound.exe
+          make tools
 
       - uses: actions/upload-artifact@v2
         with:
@@ -60,8 +59,7 @@ jobs:
         working-directory: escapex
         run: |
           make ZOPFLI=cp SDL=../SDL-1.2.15 WINDRES=windres
-          make screenshot.exe
-          make packsound.exe
+          make tools
 
       - uses: actions/upload-artifact@v2
         with:
@@ -85,8 +83,7 @@ jobs:
           make cclib.a
           make sdlnet.a
           make sdlutil.a
-          make screenshot.exe
-          make packsound.exe
+          make tools
 
       - uses: actions/upload-artifact@v2
         with:

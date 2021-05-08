@@ -102,6 +102,9 @@ ESCOBJECTS=main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o drawabl
 %-console.o : %.cc
 	${CXX} ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
 
+sound_load.h : sound.pack packsound.cc packsound.exe
+	./packsound.exe sound.pack sound
+
 # -------------------------------------------------------------------
 
 #######################
@@ -122,10 +125,6 @@ ifdef LINUX
 #  LDLIBS = -lefence
 
 #  -lvorbisfile -lvorbis -logg
-
-sound_load.h : sound.pack packsound.cc
-	make packsound.exe
-	./packsound.exe sound.pack sound
 
 
 .dummy :
@@ -285,8 +284,6 @@ rle_test.exe : lib/rle.o lib/rle_test.o
 	${CXX} $(CXXFLAGS) -o $@ $^ -static
 	$(STRIP) rle_test.exe
 
-sound_load.h : sound.pack packsound.cc packsound.exe
-	./packsound.exe sound.pack sound
 
 # if you don't want to deal with zopflipng to optimize images,
 # you could probably just replace this with like ZOPFLI=cp
@@ -316,9 +313,6 @@ optimize-png : animation.png .dummy
 	cp zop-animation.png animation.png
 	rm -f zop-*.png
 
-
-packpng.exe : packpng.o cclib.a
-	${CXX} -o $@ $^ -static
 
 .dummy :
 
@@ -569,3 +563,9 @@ screenshot.exe : screenshot.o esclib.a cclib.a
 packsound.exe : packsound.o cclib.a
 	${CXX} -o $@ $^ ${LDFLAGS} $(STATIC)
 	$(STRIP) packsound.exe
+
+packpng.exe : packpng.o cclib.a
+	${CXX} -o $@ $^ $(STATIC)
+
+# for building them all in CI:
+tools: screenshot.exe packsound.exe packpng.exe
