@@ -128,6 +128,9 @@ rle_test.exe : rle.o rle_test.o
 	${CXX} $(CXXFLAGS) -o $@ $^ $(STATIC)
 	$(STRIP) rle_test.exe
 
+version.exe: version.cc
+	${CXX} $^ -o $@
+
 test: rle_test.exe
 	./rle_test.exe
 
@@ -163,8 +166,7 @@ ifdef LINUX
 
 .dummy :
 
-version : .dummy
-	${CXX} version.cc -o version.exe
+version : .dummy version.exe
 	./version.exe
 	make clean
 	make escape.exe
@@ -339,9 +341,8 @@ optimize-png : animation.png .dummy
 
 .dummy :
 
-version : .dummy
+version : .dummy version.exe
 	@:$(call release_check)
-	${CXX} ${CXXFLAGS} ${CPPFLAGS} version.cc -o version.exe
 	./version.exe
 	make clean
 	make -j 8 escape.exe
@@ -446,12 +447,6 @@ VERSION_TARGET=10.10
 # Hack from t7eshero. Maybe should be fixed.
 RPATH=-rpath @executable_path/../Frameworks
 
-# Suppress compilation commands, but show some indication of progress.
-# (Explicitly invoke bash to get shell builtin, since on OS X echo
-# otherwise treats -n literally.)
-	# @${CXX} ${CPPFLAGS} ${CXXFLAGS} -c -o $@ $<
-	# @bash -c "echo -n '.'"
-
 # sound is disabled, but it's time to make it available on the OS X
 # release. Do this!
 # to add it, remove -DNOSOUND and add
@@ -462,8 +457,7 @@ RPATH=-rpath @executable_path/../Frameworks
 
 .dummy :
 
-version : .dummy
-	${CXX} version.cc -o version.exe
+version : .dummy version.exe
 	./version.exe
 	make clean
 	make escape.exe
