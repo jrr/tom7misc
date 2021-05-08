@@ -13,7 +13,8 @@ endif
 
 STATIC=-static
 NOP=@true
-STRIP=$(NOP)
+# STRIP=$(NOP)
+STRIP=strip
 
 # ----
 # Things that I expect to remain OS-specific here. (like which compiler to use)
@@ -42,7 +43,6 @@ CPPFLAGS=-O2 -I .
 CXXFLAGS= -std=c++17 ${OPT} $(DEBUG) -DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include $(CCLIBINCLUDES) -I.
 SDL_CXXFLAGS= ${CXXFLAGS} ${SDLINCLUDES} ${SDLNETINCLUDES}
 
-STRIP=strip
 
 endif
 
