@@ -13,7 +13,6 @@ endif
 
 STATIC=-static
 NOP=@true
-# STRIP=$(NOP)
 STRIP=strip
 
 # ----
