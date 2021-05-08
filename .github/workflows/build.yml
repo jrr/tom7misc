@@ -1,0 +1,85 @@
+name: C/C++ CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest] # todo: switch back to ubuntu-latest when it updates
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v2
+
+      ## Linux Setup
+
+      - name: Setup (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        # work around flaky apt source:
+        # https://github.com/actions/virtual-environments/issues/675#issuecomment-610483420
+        run: |
+          sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt install -y libsdl1.2-dev
+
+      ## Windows Setup
+
+      # https://github.com/actions/runner/issues/497#issuecomment-640856321
+      - name: Setup (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: powershell
+        # add MinGW to path
+        run: echo "C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      ## Mac Setup
+
+      - name: Setup (Mac)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install sdl
+          sdl-config --version
+
+      ## Common Stuff
+
+      - run: gcc --version
+
+      - name: Build SDL (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          curl http://libsdl.org/release/SDL-1.2.15.tar.gz -o SDL-1.2.15.tar.gz
+          tar xfz SDL-1.2.15.tar.gz
+          cd SDL-1.2.15
+          curl https://git.savannah.gnu.org/cgit/config.git/plain/config.guess -o build-scripts/config.guess
+          ./configure --prefix `pwd`/build --build i686-pc-mingw32
+          make
+
+      - name: Build (!Windows)
+        if: matrix.os != 'windows-latest'
+        working-directory: escapex
+        run: |
+          make
+          make tools
+
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: escapex
+        run: |
+          make ZOPFLI=cp SDL=../SDL-1.2.15 WINDRES=windres
+          make tools
+
+      - name: Test
+        working-directory: escapex
+        run: make test
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: escapex-${{ runner.os }}
+          path: |
+            escapex/*.exe
+            escapex/*.png
