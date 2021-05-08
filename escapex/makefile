@@ -146,9 +146,6 @@ RELEASEFILES=
 releasefiles.linux : ${RELEASEFILES}
 	echo ${RELEASEFILES} > releasefiles.linux
 
-mkupgrade.exe : mkupgrade.o ../cc-lib/crypt/md5.o
-	${CXX} $^ -o mkupgrade.exe
-
 CURRENT : .dummy escape.exe releasefiles.linux symlinks.linux deletefiles.linux mkupgrade.exe
 	$(STRIP) escape.exe
 	./mkupgrade.exe releasefiles.linux symlinks.linux deletefiles.linux > UPGRADE
@@ -329,9 +326,6 @@ RELEASEFILES=escape.exe replace.exe font.png fontsmall.png tiles.png tileutil.pn
 releasefiles.win32 : ${RELEASEFILES}
 	echo ${RELEASEFILES} > releasefiles.win32
 
-mkupgrade.exe : mkupgrade.cc ../cc-lib/crypt/md5.cc
-	${CXX} ${CPPFLAGS} ${CXXFLAGS} -DWIN32 mkupgrade.cc ../cc-lib/crypt/md5.cc -o mkupgrade.exe
-
 CURRENT : .dummy escape.exe releasefiles.win32 symlinks.win32 deletefiles.win32 mkupgrade.exe
 	@:$(call release_check)
 	$(STRIP) escape.exe
@@ -468,9 +462,6 @@ version : .dummy
 
 RELEASEFILES=escape.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt COPYING changelog animation.png splash.png
 
-mkupgrade.exe : mkupgrade.cc ../cc-lib/crypt/md5.cc
-	${CXX} ${CPPFLAGS} ${CXXFLAGS} -DOSX mkupgrade.cc ../cc-lib/crypt/md5.cc -o mkupgrade.exe
-
 releasefiles.osx :
 	echo ${RELEASEFILES} > releasefiles.osx
 
@@ -567,5 +558,9 @@ packsound.exe : packsound.o cclib.a
 packpng.exe : packpng.o cclib.a
 	${CXX} -o $@ $^ $(STATIC)
 
+mkupgrade.exe : mkupgrade.o ../cc-lib/crypt/md5.o
+	${CXX} ${CPPFLAGS} ${CXXFLAGS} $^ -o $@
+
 # for building them all in CI:
-tools: screenshot.exe packsound.exe packpng.exe
+tools: screenshot.exe packsound.exe packpng.exe mkupgrade.exe
+
