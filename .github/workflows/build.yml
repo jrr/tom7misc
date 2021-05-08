@@ -23,6 +23,10 @@ jobs:
           make
           make tools
 
+      - name: test
+        working-directory: escapex
+        run: make test
+
       - uses: actions/upload-artifact@v2
         with:
           name: escapex-${{ runner.os }}
@@ -61,6 +65,10 @@ jobs:
           make ZOPFLI=cp SDL=../SDL-1.2.15 WINDRES=windres
           make tools
 
+      - name: test
+        working-directory: escapex
+        run: make test
+
       - uses: actions/upload-artifact@v2
         with:
           name: escapex-${{ runner.os }}
@@ -84,6 +92,10 @@ jobs:
           make sdlnet.a
           make sdlutil.a
           make tools
+
+      - name: test
+        working-directory: escapex
+        run: make test
 
       - uses: actions/upload-artifact@v2
         with:

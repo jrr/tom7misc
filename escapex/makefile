@@ -277,10 +277,6 @@ replace.exe : replace.o escape-util.o
 	${CXX} -g -o $@ $^ ${LDFLAGS}
 
 
-rle_test.exe : lib/rle.o lib/rle_test.o
-	${CXX} $(CXXFLAGS) -o $@ $^ -static
-	$(STRIP) rle_test.exe
-
 
 # if you don't want to deal with zopflipng to optimize images,
 # you could probably just replace this with like ZOPFLI=cp
@@ -560,6 +556,13 @@ packpng.exe : packpng.o cclib.a
 
 mkupgrade.exe : mkupgrade.o ../cc-lib/crypt/md5.o
 	${CXX} ${CPPFLAGS} ${CXXFLAGS} $^ -o $@
+
+rle_test.exe : rle.o rle_test.o
+	${CXX} $(CXXFLAGS) -o $@ $^ $(STATIC)
+	$(STRIP) rle_test.exe
+
+test: rle_test.exe
+	./rle_test.exe
 
 # for building them all in CI:
 tools: screenshot.exe packsound.exe packpng.exe mkupgrade.exe
