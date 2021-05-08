@@ -104,6 +104,9 @@ ESCOBJECTS=main.o loadlevel.o play.o player.o playerdb.o prompt.o draw.o drawabl
 sound_load.h : sound.pack packsound.cc packsound.exe
 	./packsound.exe sound.pack sound
 
+%.o : %.cc
+	${CXX} ${CPPFLAGS} ${CXXFLAGS} ${SDL_CXXFLAGS} -c -o $@ $<
+
 # -------------------------------------------------------------------
 
 #######################
@@ -217,10 +220,6 @@ ifdef WIN32
 SDL=/c/code/SDL
 
 
-# assume SDL build for .o files in the current directory
-%.o : %.cc
-	@${CXX} ${CPPFLAGS} ${SDL_CXXFLAGS} -c -o $@ $<
-	@bash -c "echo -n '.'"
 
 # .. and sdl_net
 $(SDL_NET)/%.o : $(SDL_NET)/%.c
@@ -418,8 +417,6 @@ RPATH=-rpath @executable_path/../Frameworks
 # Suppress compilation commands, but show some indication of progress.
 # (Explicitly invoke bash to get shell builtin, since on OS X echo
 # otherwise treats -n literally.)
-%.o : %.cc
-	${CXX} ${CPPFLAGS} ${CXXFLAGS} -c -o $@ $<
 	# @${CXX} ${CPPFLAGS} ${CXXFLAGS} -c -o $@ $<
 	# @bash -c "echo -n '.'"
 
@@ -549,4 +546,3 @@ test: rle_test.exe
 
 # for building them all in CI:
 tools: screenshot.exe packsound.exe packpng.exe mkupgrade.exe
-
