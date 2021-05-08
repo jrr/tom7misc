@@ -108,40 +108,6 @@ sound_load.h : sound.pack packsound.cc packsound.exe
 %.o : %.cc
 	${CXX} ${CPPFLAGS} ${CXXFLAGS} ${SDL_CXXFLAGS} -c -o $@ $<
 
-escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a sdlutil.a ${EXTRA_OBJS}
-	${CXX} -g -o $@ $^ ${LDLIBS} ${LDFLAGS}
-
-screenshot.exe : screenshot.o esclib.a cclib.a
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(STATIC)
-
-packsound.exe : packsound.o cclib.a
-	${CXX} -o $@ $^ ${LDFLAGS} $(STATIC)
-	$(STRIP) packsound.exe
-
-packpng.exe : packpng.o cclib.a
-	${CXX} -o $@ $^ $(STATIC)
-
-mkupgrade.exe : mkupgrade.o ../cc-lib/crypt/md5.o
-	${CXX} ${CPPFLAGS} ${CXXFLAGS} $^ -o $@
-
-rle_test.exe : rle.o rle_test.o
-	${CXX} $(CXXFLAGS) -o $@ $^ $(STATIC)
-	$(STRIP) rle_test.exe
-
-version.exe: version.cc
-	${CXX} $^ -o $@
-
-test: rle_test.exe
-	./rle_test.exe
-
-# for building them all in CI:
-tools: screenshot.exe packsound.exe packpng.exe mkupgrade.exe
-
-wc :
-	wc -l *.cc *.h
-
-clean :
-	rm -f *.o escape.exe core core.[0-9]* .DS_Store gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.* *.a
 
 #####################################################
 ######## Complicated Platform-Specific Stuff ########
@@ -540,3 +506,42 @@ zipup : escape-beta-osx.zip
 
 # end OSX makefile
 endif
+
+#########################
+######## Targets ########
+#########################
+
+escape.exe : ${ESCOBJECTS} cclib.a sdlnet.a sdlutil.a ${EXTRA_OBJS}
+	${CXX} -g -o $@ $^ ${LDLIBS} ${LDFLAGS}
+
+screenshot.exe : screenshot.o esclib.a cclib.a
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(STATIC)
+
+packsound.exe : packsound.o cclib.a
+	${CXX} -o $@ $^ ${LDFLAGS} $(STATIC)
+	$(STRIP) packsound.exe
+
+packpng.exe : packpng.o cclib.a
+	${CXX} -o $@ $^ $(STATIC)
+
+mkupgrade.exe : mkupgrade.o ../cc-lib/crypt/md5.o
+	${CXX} ${CPPFLAGS} ${CXXFLAGS} $^ -o $@
+
+rle_test.exe : rle.o rle_test.o
+	${CXX} $(CXXFLAGS) -o $@ $^ $(STATIC)
+	$(STRIP) rle_test.exe
+
+version.exe: version.cc
+	${CXX} $^ -o $@
+
+test: rle_test.exe
+	./rle_test.exe
+
+# for building them all in CI:
+tools: screenshot.exe packsound.exe packpng.exe mkupgrade.exe
+
+wc :
+	wc -l *.cc *.h
+
+clean :
+	rm -f *.o escape.exe core core.[0-9]* .DS_Store gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.* *.a
