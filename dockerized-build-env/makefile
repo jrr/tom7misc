@@ -4,7 +4,7 @@
 # (e.g. with g++ and SDL).
 #
 # Then fire it up interactively with `make linux-env`. You'll
-# find the same filesystem available, but now your'e in Linux!
+# find the same filesystem available, but now you're in Linux!
 #
 
 docker-build:
