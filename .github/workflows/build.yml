@@ -8,12 +8,24 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - run: sudo apt install -y libsdl1.2-dev
+
+      # https://github.com/actions/virtual-environments/issues/675#issuecomment-610483420
+      - run: |
+          sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt install -y libsdl1.2-dev
+
+      - run: gcc --version
+
       - name: build
-        env:
-          LINUX: true
         working-directory: escapex
-        run: make
+        run: |
+          make
+          make tools
+
+      - name: test
+        working-directory: escapex
+        run: make test
 
       - uses: actions/upload-artifact@v2
         with:
@@ -36,11 +48,7 @@ jobs:
         shell: powershell
         run: echo "C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: pwd
-        run: pwd
-
-      - name: which sh
-        run: which sh
+      - run: gcc --version
 
       - name: build SDL
         run: |
@@ -52,10 +60,42 @@ jobs:
           make
 
       - name: build
-        env:
-          WIN32: true
         working-directory: escapex
-        run: make ZOPFLI=cp SDL=../SDL-1.2.15 WINDRES=windres
+        run: |
+          make ZOPFLI=cp SDL=../SDL-1.2.15 WINDRES=windres
+          make tools
+
+      - name: test
+        working-directory: escapex
+        run: make test
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: escapex-${{ runner.os }}
+          path: |
+            escapex/*.exe
+            escapex/*.png
+
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - run: gcc --version
+
+      - name: build some things
+        working-directory: escapex
+        run: |
+          make esclib.a
+          make cclib.a
+          make sdlnet.a
+          make sdlutil.a
+          make tools
+
+      - name: test
+        working-directory: escapex
+        run: make test
 
       - uses: actions/upload-artifact@v2
         with:

@@ -57,8 +57,8 @@ using std::priority_queue;
 #include <stack>
 #include <bits/stl_tempbuf.h>
 #include <ext/functional>
-#include <ext/hash_fun.h>
-#include <ext/hashtable.h>
+#include <backward/hash_fun.h>
+#include <backward/hashtable.h>
 #include <ios>
 #include <string>
 using std::string;
@@ -79,10 +79,9 @@ using __gnu_cxx::select1st;
 #define __STL_USE_STD_ALLOCATORS 1
 #endif
 
+// #ifndef HASH_NAMESPACE
+// /* We can't define it here; it's too late. */
+// #error "HASH_NAMESPACE needs to be defined in the Makefile".
+// #endif
 
-#ifndef HASH_NAMESPACE
-/* We can't define it here; it's too late. */
-#error "HASH_NAMESPACE needs to be defined in the Makefile".
-#endif
-
-#endif  /* _STL_DECL_OSX_H */
+#endif /* _STL_DECL_OSX_H */
